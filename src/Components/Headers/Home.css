@@ -1225,7 +1225,7 @@
   }
 
   .payment-mode-input-container input {
-    padding: 6px 12px !important;
+    padding: 6px 12px 6px 44px !important;
     font-size: 1.15rem !important;
   }
 

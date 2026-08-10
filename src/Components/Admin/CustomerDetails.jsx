@@ -1177,7 +1177,7 @@ const CustomerDetails = () => {
                   <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">No loyalty ledger activity recorded for this profile.</p>
                 </div>
               ) : (
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto px-8 pb-6">
                   <table className="w-full text-left border-collapse customer-loyalty-table">
                     <thead>
                       <tr className="bg-slate-50/50 border-b border-slate-100 text-[10px] font-bold uppercase tracking-wider text-slate-400">

@@ -22,11 +22,41 @@
   border-radius: 9999px !important;
 }
 
-/* Force table row height to be exactly half and keep alignment straight */
-.customer-loyalty-table th,
-.customer-loyalty-table td {
-  padding: 0.5rem 1rem !important;
+/* Premium Table Styling for Loyalty Ledger */
+.customer-loyalty-table {
+  width: 100%;
+  border-collapse: collapse !important;
+}
+
+.customer-loyalty-table thead th {
+  background-color: #f8fafc !important;
+  color: #475569 !important;
+  font-size: 0.65rem !important;
+  font-weight: 800 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.08em !important;
+  padding: 1rem 1.25rem !important;
+  border-bottom: 2px solid #e2e8f0 !important;
+  border-top: 1px solid #e2e8f0 !important;
+  text-align: left;
   vertical-align: middle !important;
+  white-space: nowrap !important;
+}
+
+.customer-loyalty-table tbody tr {
+  border-bottom: 1px solid #f1f5f9 !important;
+  transition: all 0.2s ease;
+}
+
+.customer-loyalty-table tbody tr:hover {
+  background-color: rgba(248, 250, 252, 0.6) !important;
+}
+
+.customer-loyalty-table tbody td {
+  padding: 1rem 1.25rem !important;
+  vertical-align: middle !important;
+  font-size: 0.775rem !important;
+  color: #334155 !important;
   white-space: nowrap !important;
 }
 

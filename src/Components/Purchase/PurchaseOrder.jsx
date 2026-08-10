@@ -2881,6 +2881,7 @@ function PurchaseOrder() {
                               globalSearch={true}
                               onGlobalSearch={handleGlobalSupplierSearch}
                               onActivate={handleActivateSupplier}
+                              themeColor="var(--po-primary)"
                             />
                           )}
                         </div>
@@ -2987,7 +2988,8 @@ function PurchaseOrder() {
                         <input
                           type="text"
                           placeholder="Enter Barcode / Scan here..."
-                          className="w-full pl-10 pr-12 h-[42px] bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold outline-none focus:border-[#10b981] focus:bg-white transition-all shadow-sm"
+                          className="w-full pr-12 h-[42px] bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold outline-none focus:border-[#10b981] focus:bg-white transition-all shadow-sm"
+                          style={{ paddingLeft: '40px' }}
                           onKeyDown={async (e) => {
                             if (e.key === 'Enter') {
                               const barcode = e.target.value.trim();

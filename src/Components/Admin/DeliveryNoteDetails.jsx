@@ -99,17 +99,9 @@ function recalcForm(form) {
     };
 }
 
-const CustomerDropdown = ({ query, onSelect, customers, targetRef }) => {
-    const results = useMemo(() => {
-        if (!query) return customers.slice(0, 10);
-        const q = query.toLowerCase();
-        return customers.filter(c =>
-            (c.customer_name || '').toLowerCase().includes(q) ||
-            (c.name || '').toLowerCase().includes(q)
-        ).slice(0, 10);
-    }, [query, customers]);
-
+const CustomerDropdown = ({ onSelect, customers, targetRef, selectedIndex, setSelectedIndex }) => {
     const [coords, setCoords] = useState({ top: 0, left: 0, width: 0 });
+    const dropdownRef = useRef(null);
 
     useEffect(() => {
         const updateCoords = () => {
@@ -129,33 +121,53 @@ const CustomerDropdown = ({ query, onSelect, customers, targetRef }) => {
             window.removeEventListener('scroll', updateCoords, true);
             window.removeEventListener('resize', updateCoords);
         };
-    }, [targetRef, results]);
+    }, [targetRef, customers]);
 
-    if (results.length === 0) return null;
+    useEffect(() => {
+        if (selectedIndex >= 0 && dropdownRef.current) {
+            const activeEl = dropdownRef.current.children[selectedIndex];
+            if (activeEl) {
+                activeEl.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'nearest'
+                });
+            }
+        }
+    }, [selectedIndex]);
+
+    if (customers.length === 0) return null;
 
     return createPortal(
-        <div style={{
-            position: 'fixed',
-            top: coords.top,
-            left: coords.left,
-            width: Math.max(coords.width, 250),
-            background: 'white',
-            border: '1px solid #e2e8f0',
-            borderRadius: '0.5rem',
-            zIndex: 999999,
-            boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
-            maxHeight: '250px',
-            overflowY: 'auto'
-        }}>
-            {results.map(c => (
+        <div
+            ref={dropdownRef}
+            style={{
+                position: 'fixed',
+                top: coords.top,
+                left: coords.left,
+                width: Math.max(coords.width, 250),
+                background: 'white',
+                border: '1px solid #e2e8f0',
+                borderRadius: '0.5rem',
+                zIndex: 999999,
+                boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
+                maxHeight: '250px',
+                overflowY: 'auto'
+            }}
+        >
+            {customers.map((c, i) => (
                 <div
                     key={c.name}
                     onClick={() => onSelect(c)}
-                    style={{ padding: '0.75rem 1rem', cursor: 'pointer', borderBottom: '1px solid #f1f5f9' }}
-                    onMouseOver={e => e.currentTarget.style.backgroundColor = '#f8fafc'}
-                    onMouseOut={e => e.currentTarget.style.backgroundColor = 'white'}
+                    onMouseEnter={() => setSelectedIndex(i)}
+                    style={{
+                        padding: '0.75rem 1rem',
+                        cursor: 'pointer',
+                        borderBottom: '1px solid #f1f5f9',
+                        backgroundColor: selectedIndex === i ? '#f8fafc' : 'white',
+                        transition: 'background-color 0.15s ease'
+                    }}
                 >
-                    <div style={{ fontWeight: 600, fontSize: '0.85rem' }}>{c.customer_name}</div>
+                    <div style={{ fontWeight: 600, fontSize: '0.85rem', color: selectedIndex === i ? '#10b981' : '#1e293b' }}>{c.customer_name}</div>
                     <div style={{ fontSize: '0.7rem', color: '#64748b' }}>{c.name}</div>
                 </div>
             ))}
@@ -296,6 +308,7 @@ const DeliveryNoteDetails = () => {
     const [activeItemRow, setActiveItemRow] = useState(null);
     const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
     const [customerQuery, setCustomerQuery] = useState('');
+    const [customerSelectedIndex, setCustomerSelectedIndex] = useState(-1);
     const [barcodeInput, setBarcodeInput] = useState('');
 
     const [dnColumns, setDnColumns] = useState(loadColumnConfig);
@@ -492,6 +505,15 @@ const DeliveryNoteDetails = () => {
     const isEditing = !isViewOnly;
 
     const [customers, setCustomers] = useState([]);
+
+    const filteredCustomers = useMemo(() => {
+        if (!customerQuery) return customers.slice(0, 10);
+        const q = customerQuery.toLowerCase();
+        return customers.filter(c =>
+            (c.customer_name || '').toLowerCase().includes(q) ||
+            (c.name || '').toLowerCase().includes(q)
+        ).slice(0, 10);
+    }, [customerQuery, customers]);
     const [warehouses, setWarehouses] = useState([]);
     const [taxTemplates, setTaxTemplates] = useState([]);
 
@@ -1564,19 +1586,44 @@ const DeliveryNoteDetails = () => {
                                                     onChange={e => {
                                                         setCustomerQuery(e.target.value);
                                                         setShowCustomerDropdown(true);
+                                                        setCustomerSelectedIndex(-1);
                                                     }}
                                                     onFocus={() => setShowCustomerDropdown(true)}
+                                                    onKeyDown={e => {
+                                                        if (!showCustomerDropdown) return;
+                                                        if (e.key === 'ArrowDown') {
+                                                            e.preventDefault();
+                                                            setCustomerSelectedIndex(prev => (prev < filteredCustomers.length - 1 ? prev + 1 : prev));
+                                                        } else if (e.key === 'ArrowUp') {
+                                                            e.preventDefault();
+                                                            setCustomerSelectedIndex(prev => (prev > 0 ? prev - 1 : 0));
+                                                        } else if (e.key === 'Enter') {
+                                                            if (customerSelectedIndex >= 0 && filteredCustomers[customerSelectedIndex]) {
+                                                                e.preventDefault();
+                                                                const c = filteredCustomers[customerSelectedIndex];
+                                                                setForm(prev => ({ ...prev, customer: c.name, customer_name: c.customer_name }));
+                                                                setCustomerQuery(c.customer_name);
+                                                                setShowCustomerDropdown(false);
+                                                                setCustomerSelectedIndex(-1);
+                                                            }
+                                                        } else if (e.key === 'Escape') {
+                                                            setShowCustomerDropdown(false);
+                                                            setCustomerSelectedIndex(-1);
+                                                        }
+                                                    }}
                                                     style={{ width: '100%', padding: '0.6rem 0.8rem', border: '1px solid #cbd5e1', borderRadius: '0.375rem', outline: 'none' }}
                                                 />
                                                 {showCustomerDropdown && (
                                                     <CustomerDropdown
                                                         targetRef={customerInputRef}
-                                                        query={customerQuery}
-                                                        customers={customers}
+                                                        customers={filteredCustomers}
+                                                        selectedIndex={customerSelectedIndex}
+                                                        setSelectedIndex={setCustomerSelectedIndex}
                                                         onSelect={(c) => {
                                                             setForm(prev => ({ ...prev, customer: c.name, customer_name: c.customer_name }));
                                                             setCustomerQuery(c.customer_name);
                                                             setShowCustomerDropdown(false);
+                                                            setCustomerSelectedIndex(-1);
                                                         }}
                                                     />
                                                 )}

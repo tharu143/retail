@@ -261,7 +261,7 @@ const CustomSearchDropdown = ({
       }}
     >
       <div className="flex gap-2">
-        <div className="relative flex-1" ref={inputRef}>
+        <div className="relative flex-1">
           <input
             type="text"
             ref={inputRef}
@@ -276,7 +276,8 @@ const CustomSearchDropdown = ({
             onFocus={() => !disabled && setShow(true)}
             onKeyDown={handleKeyDown}
             placeholder={placeholder}
-            className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:border-[var(--po-primary)] outline-none transition-all text-xs font-bold text-slate-700"
+            className="w-full px-3 bg-slate-50/30 border border-slate-200 rounded-lg text-slate-800 text-sm font-semibold outline-none focus:border-[var(--po-primary)] focus:bg-white transition-all shadow-sm"
+            style={{ height: '42px' }}
             disabled={disabled}
           />
           {loading && (
@@ -321,7 +322,7 @@ const CustomSearchDropdown = ({
                   key={i}
                   onClick={() => handleItemClick(item)}
                   onMouseEnter={() => setSelectedIndex(i)}
-                  className={`custom-dropdown-item px-4 py-2.5 cursor-pointer flex justify-between items-center group transition-all ${selectedIndex === i ? 'bg-[var(--po-primary-light)]' : 'hover:bg-slate-50'}`}
+                  className={`custom-dropdown-item px-4 py-2.5 cursor-pointer flex justify-between items-center group transition-all border-b border-slate-100/80 last:border-b-0 ${selectedIndex === i ? 'bg-[var(--po-primary-light)]' : 'hover:bg-slate-50'}`}
                 >
                   <div className="flex flex-col">
                     <div className="flex items-center gap-2">
