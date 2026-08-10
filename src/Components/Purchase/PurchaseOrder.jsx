@@ -1704,8 +1704,13 @@ function PurchaseOrder() {
       return false;
     }
     if (!formData.set_warehouse) {
-      setError('Please select a Target Warehouse');
-      return false;
+      const defaultWh = localStorage.getItem('warehouse') || warehouses[0]?.name || '';
+      if (defaultWh) {
+        formData.set_warehouse = defaultWh;
+      } else {
+        setError('Please select a Target Warehouse');
+        return false;
+      }
     }
     const validItems = formData.items.filter(i => i.item_code);
     if (validItems.length === 0) {
@@ -2927,6 +2932,30 @@ function PurchaseOrder() {
                           </div>
                         </div>
                       )}
+                      <div>
+                        <label className="po-label">Target Warehouse (Branch) {!isViewOnly && <span className="text-red-500">*</span>}</label>
+                        {isAdmin ? (
+                          <select
+                            name="set_warehouse"
+                            value={formData.set_warehouse || ''}
+                            onChange={handleInputChange}
+                            disabled={isViewOnly || formData.docstatus !== 0}
+                            className="po-input font-bold text-slate-800 disabled:bg-slate-50 disabled:cursor-not-allowed border border-slate-200 shadow-none text-base"
+                          >
+                            <option value="">Select Branch Warehouse...</option>
+                            {warehouses.map(w => (
+                              <option key={w.name} value={w.name}>{w.name}</option>
+                            ))}
+                          </select>
+                        ) : (
+                          <input
+                            type="text"
+                            value={formData.set_warehouse || warehouse || '—'}
+                            disabled
+                            className="po-input border border-slate-200 rounded-lg bg-slate-50/30 px-3 flex items-center font-black text-slate-700 h-[42px] text-base"
+                          />
+                        )}
+                      </div>
                       <div className="col-span-1 flex flex-col justify-end">
                         <label className="po-label opacity-0 select-none pointer-events-none">Attachment</label>
                         <AttachmentSection doctype="Purchase Order" docname={formData.name} compact={true} />
