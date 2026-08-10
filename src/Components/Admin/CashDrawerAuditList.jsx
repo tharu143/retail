@@ -140,10 +140,10 @@ const CashDrawerAuditList = () => {
       {/* Media Modal */}
       {activeMedia && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl relative">
+          <div className="bg-white rounded-2xl max-w-3xl w-full p-6 shadow-2xl relative">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
               <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                <Video size={16} className="text-emerald-600" /> Security Evidence: {activeMedia.title}
+                <Video size={16} className="text-emerald-600" /> Security Camera Feed: {activeMedia.title}
               </h3>
               <button
                 onClick={() => setActiveMedia(null)}
@@ -153,9 +153,27 @@ const CashDrawerAuditList = () => {
               </button>
             </div>
 
-            <div className="bg-slate-950 rounded-xl overflow-hidden aspect-video flex items-center justify-center">
+            <div className="bg-slate-950 rounded-xl overflow-hidden aspect-video flex flex-col items-center justify-center relative">
               {activeMedia.type === 'video' ? (
-                <video src={activeMedia.url} controls autoPlay className="w-full h-full object-contain" />
+                activeMedia.url?.startsWith('ezopen://') ? (
+                  <div className="w-full h-full flex flex-col items-center justify-center p-6 text-center bg-slate-900 text-white">
+                    <div className="p-4 bg-emerald-500/10 text-emerald-400 rounded-full mb-3">
+                      <Video size={36} />
+                    </div>
+                    <h4 className="text-base font-bold mb-1">EZVIZ Official EZOpen Live Stream</h4>
+                    <p className="text-xs text-slate-400 max-w-md mb-4 font-mono">{activeMedia.url}</p>
+                    <a
+                      href={activeMedia.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs flex items-center gap-2 transition-all active:scale-95 shadow-lg"
+                    >
+                      <Eye size={16} /> Open EZVIZ Live Player
+                    </a>
+                  </div>
+                ) : (
+                  <video src={activeMedia.url} controls autoPlay className="w-full h-full object-contain" />
+                )
               ) : (
                 <img src={activeMedia.url} alt="Evidence snapshot" className="w-full h-full object-contain" />
               )}
