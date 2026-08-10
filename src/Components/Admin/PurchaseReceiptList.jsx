@@ -1171,6 +1171,36 @@ function PurchaseReceiptList() {
     if (formData.items.filter(i => i.item_code && parseFloat(i.accepted_qty) > 0).length === 0) {
       errors.items = 'At least one valid item required';
     }
+
+    // Check if Selling Price is less than Buying Rate for any item
+    for (let i = 0; i < formData.items.length; i++) {
+      const item = formData.items[i];
+      if (!item.item_code) continue;
+      const buyRateNos = parseFloat(item.rate) || 0;
+      const sellPriceNos = parseFloat(item.custom_selling_price) || 0;
+      const pcsPerBox = parseFloat(item.custom_pieces_per_box) || 1;
+      const buyPriceBox = parseFloat(item.custom_box_price) || (buyRateNos * pcsPerBox);
+      const sellPriceBox = parseFloat(item._temp_box_selling_price || (sellPriceNos * pcsPerBox)) || 0;
+
+      if (sellPriceNos > 0 && buyRateNos > 0 && sellPriceNos < buyRateNos) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Price Restriction Error',
+          html: `Row #${i + 1} (${item.item_name || item.item_code}):<br/>Selling Price (<b>AED ${sellPriceNos.toFixed(2)}</b>) cannot be LESS than Buying Price (<b>AED ${buyRateNos.toFixed(2)}</b>)!`
+        });
+        return false;
+      }
+
+      if (sellPriceBox > 0 && buyPriceBox > 0 && sellPriceBox < buyPriceBox) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Box Price Restriction Error',
+          html: `Row #${i + 1} (${item.item_name || item.item_code}):<br/>Box Selling Price (<b>AED ${sellPriceBox.toFixed(2)}</b>) cannot be LESS than Box Buying Price (<b>AED ${buyPriceBox.toFixed(2)}</b>)!`
+        });
+        return false;
+      }
+    }
+
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
   };
