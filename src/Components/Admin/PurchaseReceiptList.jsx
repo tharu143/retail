@@ -524,36 +524,32 @@ function PurchaseReceiptList() {
   const fetchItemRate = useCallback(async (rowIndex, itemCode) => {
     if (!itemCode) {
       console.warn('Item code missing; skipping rate fetch.');
-      return; 1
+      return;
     }
-    // Show loading
     setRateLoading(prev => ({ ...prev, [rowIndex]: true }));
     try {
-      console.log(`Fetching rate for item ${itemCode}, supplier: ${formData.supplier || 'none'}`);
+      const rowItem = formData.items[rowIndex];
       const params = {
         item_code: itemCode,
-        buying_price_list: formData.buying_price_list
+        buying_price_list: formData.buying_price_list,
+        warehouse: formData.set_warehouse || localStorage.getItem('warehouse'),
+        uom: rowItem?.uom || (rowItem?.use_box_entry ? 'Box' : 'Nos')
       };
       if (formData.supplier) params.supplier = formData.supplier;
       const res = await axios.get(`${API_PATH}.get_item_buying_rate_pr`, {
         params,
         withCredentials: true
       });
-      console.log('Rate API response:', res.data); // DEBUG: Check full response
       if (res.data.message?.success) {
         const rate = res.data.message.rate || 0;
-        console.log(`Setting rate ${rate} for row ${rowIndex}`);
         updateItem(rowIndex, 'rate', rate);
-      } else {
-        console.error('Rate fetch failed:', res.data.message?.message || 'Unknown error');
-        // Fallback to 0 (already default)
       }
     } catch (err) {
       console.error('Error fetching item rate:', err.response?.data || err.message);
     } finally {
       setRateLoading(prev => ({ ...prev, [rowIndex]: false }));
     }
-  }, [formData.supplier, formData.buying_price_list]);
+  }, [formData.supplier, formData.buying_price_list, formData.set_warehouse, formData.items]);
 
   const fetchLinkedDocuments = async (name) => {
     if (!name) return;
@@ -2767,6 +2763,33 @@ function PurchaseReceiptList() {
                         >
                           <option value="MAT-PRE-.YYYY.-">MAT-PRE-.YYYY.-</option>
                         </select>
+                      </div>
+
+                      <div className="so-field">
+                        <label className="so-label">Target Warehouse (Branch) {!isViewMode && <span style={{ color: '#ef4444' }}>*</span>}</label>
+                        {isAdmin ? (
+                          <select
+                            name="set_warehouse"
+                            value={formData.set_warehouse || ''}
+                            onChange={e => setFormData(prev => ({ ...prev, set_warehouse: e.target.value }))}
+                            disabled={isViewMode}
+                            className="so-select"
+                          >
+                            <option value="">Select Branch Warehouse...</option>
+                            {warehouses.map(w => (
+                              <option key={w.name} value={w.name}>{w.name}</option>
+                            ))}
+                          </select>
+                        ) : (
+                          <input
+                            type="text"
+                            value={formData.set_warehouse || warehouse || '—'}
+                            disabled
+                            className="so-input"
+                            style={{ backgroundColor: '#f1f5f9', color: '#475569', fontWeight: 700 }}
+                          />
+                        )}
+                        {formErrors.set_warehouse && <span style={{ color: 'red', fontSize: '0.7rem' }}>{formErrors.set_warehouse}</span>}
                       </div>
 
                       <div className="so-field">

@@ -2845,6 +2845,33 @@ function PurchaseInvoiceList() {
                     {/* Left Column 2 (Due Date & Bill Number stacked) */}
                     <div className="md:col-span-4 flex flex-col gap-5">
                       <div className="so-field">
+                        <label className="so-label">Target Warehouse (Branch) {!isViewMode && <span style={{ color: '#ef4444' }}>*</span>}</label>
+                        {isAdmin ? (
+                          <select
+                            name="accepted_warehouse"
+                            value={formData.accepted_warehouse || ''}
+                            onChange={e => setFormData(prev => ({ ...prev, accepted_warehouse: e.target.value }))}
+                            disabled={isViewMode}
+                            className="so-select"
+                          >
+                            <option value="">Select Branch Warehouse...</option>
+                            {warehouses.map(w => (
+                              <option key={w.name} value={w.name}>{w.name}</option>
+                            ))}
+                          </select>
+                        ) : (
+                          <input
+                            type="text"
+                            value={formData.accepted_warehouse || warehouse || '—'}
+                            disabled
+                            className="so-input"
+                            style={{ backgroundColor: '#f1f5f9', color: '#475569', fontWeight: 700 }}
+                          />
+                        )}
+                        {formErrors.accepted_warehouse && <span className="so-error-text">{formErrors.accepted_warehouse}</span>}
+                      </div>
+
+                      <div className="so-field">
                         <label className="so-label">Due Date</label>
                         <div style={{ position: 'relative' }}>
                           <Calendar size={16} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', opacity: 0.4 }} />
