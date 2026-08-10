@@ -31,6 +31,8 @@ import ItemGroupList from '../Components/Admin/ItemGroupList'
 import ItemList from '../Components/Admin/ItemList'
 import ItemPriceList from '../Components/Admin/ItemPriceList'
 import PosClosingEntryList from '../Components/Admin/PosClosingEntryList'
+import CameraSettings from '../Components/Admin/CameraSettings'
+import CashDrawerAuditList from '../Components/Admin/CashDrawerAuditList'
 import PosOpeningentryList from '../Components/Admin/PosOpeningentryList'
 import PosProfileList from '../Components/Admin/PosProfileList'
 import PurchaseInvoiceList from '../Components/Admin/PurchaseInvoiceList'
@@ -347,6 +349,8 @@ function UserRouter() {
             <Route path='itempricelist' element={<ItemPriceList />} />
             <Route path='posclosingentrylist' element={<PosClosingEntryList />} />
             <Route path='pos-closing/:id' element={<ClosingEntryPage />} />
+            <Route path='camera-settings' element={<CameraSettings />} />
+            <Route path='cash-drawer-audit' element={<CashDrawerAuditList />} />
             <Route path='posopeningentrylist' element={<PosOpeningentryList />} />
             <Route path='pos-opening/:id' element={<OpeningEntryPage />} />
             <Route path='posprofilelist' element={<PosProfileList />} />
