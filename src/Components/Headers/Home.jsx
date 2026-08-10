@@ -111,6 +111,7 @@ const InvoiceNumberDisplay = ({ branchPrefix, userName, ddmm, sessionOrderCount,
             <input
                 value={displayString}
                 readOnly
+                tabIndex={-1}
                 title="Offline ID generated according to the continuous sequence"
                 className="offline-id-input w-48 h-8 px-3 text-center text-[12px] cursor-text font-black italic text-sky-600 bg-sky-50 outline-none border border-sky-200 rounded-lg shadow-sm"
             />
@@ -9316,7 +9317,11 @@ function Home() {
                                         onChange={(e) => setSelectedTaxTemplate(e.target.value)}
                                         className="bg-transparent text-[10px] font-black text-slate-700 outline-none cursor-pointer"
                                     >
-                                        {taxTemplates.map(t => <option key={t.name} value={t.name}>{t.name}</option>)}
+                                        {(() => {
+                                            const filtered = taxTemplates.filter(t => t.name.toLowerCase().includes("vat 5%"));
+                                            const displayList = filtered.length > 0 ? filtered : taxTemplates;
+                                            return displayList.map(t => <option key={t.name} value={t.name}>{t.name}</option>);
+                                        })()}
                                     </select>
                                 </div>
 

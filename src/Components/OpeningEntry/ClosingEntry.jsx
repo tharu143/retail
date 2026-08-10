@@ -646,13 +646,13 @@ function ClosingEntry() {
         .ce-scroll-area {
             flex: 1;
             overflow-y: auto;
-            padding: 1.25rem 1.5rem;
+            padding: 2rem 2.25rem;
             background: #f8fafc;
         }
         .ce-summary-card {
             background: linear-gradient(135deg, ${isGreen ? '#064e3b' : '#0c4a6e'} 0%, ${isGreen ? '#065f46' : '#075985'} 100%);
             border-radius: 1rem;
-            padding: 1.5rem;
+            padding: 1.75rem;
             color: white;
             box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
         }
@@ -664,8 +664,59 @@ function ClosingEntry() {
         .ce-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 1.5rem;
+            gap: 1.75rem;
             margin-bottom: 2rem;
+        }
+        /* Custom spacious cards for closing entry */
+        .ce-scroll-area .so-card {
+            border-radius: 1rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.03), 0 2px 4px -1px rgba(0, 0, 0, 0.02);
+            border: 1px solid rgba(226, 232, 240, 0.8) !important;
+            background: #ffffff;
+            margin-bottom: 2rem;
+            overflow: hidden;
+        }
+        .ce-scroll-area .so-card-header {
+            padding: 1.25rem 1.5rem !important;
+            border-bottom: 1px solid #f1f5f9 !important;
+        }
+        .ce-scroll-area .so-card-body {
+            padding: 1.5rem !important;
+        }
+        /* Spacing for input fields */
+        .ce-scroll-area .so-input,
+        .ce-scroll-area .so-select {
+            padding: 0.75rem 1rem !important;
+            border-radius: 0.5rem !important;
+            border: 1px solid #cbd5e1 !important;
+            font-size: 0.85rem !important;
+            font-weight: 600 !important;
+            height: auto !important;
+        }
+        /* Editable table closing amount cell */
+        .ce-scroll-area .so-td-input {
+            background: #f8fafc !important;
+            border: 1px solid #cbd5e1 !important;
+            border-radius: 0.5rem !important;
+            padding: 0.55rem 0.85rem !important;
+            font-size: 0.8rem !important;
+            font-weight: 800 !important;
+            width: 100% !important;
+            box-sizing: border-box !important;
+        }
+        .ce-scroll-area .so-td-input:focus {
+            background: #ffffff !important;
+            border-color: ${themeColor} !important;
+            box-shadow: 0 0 0 3px ${themeColor}15 !important;
+        }
+        /* Adjust spacing of tables */
+        .ce-scroll-area .so-items-table th {
+            padding: 0.85rem 1.25rem !important;
+            font-size: 0.7rem !important;
+        }
+        .ce-scroll-area .so-items-table td {
+            padding: 0.85rem 1.25rem !important;
+            font-size: 0.825rem !important;
         }
       `}</style>
 
@@ -916,11 +967,11 @@ function ClosingEntry() {
                         Counted UAE Cash Denominations
                       </span>
                     </div>
-                    <div className="p-5 bg-slate-50">
-                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    <div className="bg-slate-50/50" style={{ padding: '1.5rem' }}>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                         {UAE_DENOMINATIONS.map((d) => (
-                          <div key={d.value} className="bg-white rounded-lg p-2.5 shadow-xs border border-slate-200/60 flex flex-col justify-between">
-                            <span className="text-[9px] font-black uppercase tracking-wider text-slate-400">
+                          <div key={d.value} className="bg-white rounded-xl p-4 shadow-xs border border-slate-200/60 flex flex-col justify-between gap-2">
+                            <span className="text-[9.5px] font-black uppercase tracking-wider text-slate-400">
                               {d.label}
                             </span>
                             <input
@@ -929,7 +980,7 @@ function ClosingEntry() {
                               placeholder="0"
                               value={denomCounts[d.value] || ''}
                               onChange={(e) => handleDenomChange(d.value, e.target.value)}
-                              className="mt-1 w-full px-2 py-1 text-xs border border-slate-200 rounded focus:ring-1 focus:ring-slate-500 focus:border-slate-500 transition-all outline-none font-semibold text-slate-800"
+                              className="mt-1 w-full px-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:ring-1 focus:ring-slate-500 focus:border-slate-500 transition-all outline-none font-bold text-slate-800"
                             />
                           </div>
                         ))}
@@ -945,44 +996,44 @@ function ClosingEntry() {
                         Telephone Machine Balance
                       </span>
                     </div>
-                    <div className="p-4 bg-slate-50 space-y-4">
-                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+                    <div className="bg-slate-50/50" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
                         <div>
-                          <label className="text-[10px] font-black uppercase text-slate-400 block mb-1">User</label>
+                          <label className="text-[10px] font-black uppercase text-slate-400 block mb-1.5">User</label>
                           <input
                             type="text"
                             readOnly
                             value={currentUser || localStorage.getItem('user') || 'Current User'}
-                            className="w-full px-2.5 py-1.5 text-xs border border-slate-200 rounded-lg bg-slate-100 font-bold text-slate-700 cursor-not-allowed"
+                            className="w-full px-4 py-2 text-xs border border-slate-200 rounded-lg bg-slate-100 font-bold text-slate-700 cursor-not-allowed"
                           />
                         </div>
                         <div>
-                          <label className="text-[10px] font-black uppercase text-slate-400 block mb-1">Date & Time</label>
+                          <label className="text-[10px] font-black uppercase text-slate-400 block mb-1.5">Date & Time</label>
                           <input
                             type="text"
                             readOnly
                             value={new Date().toLocaleString()}
-                            className="w-full px-2.5 py-1.5 text-xs border border-slate-200 rounded-lg bg-slate-100 font-semibold text-slate-700 cursor-not-allowed"
+                            className="w-full px-4 py-2 text-xs border border-slate-200 rounded-lg bg-slate-100 font-semibold text-slate-700 cursor-not-allowed"
                           />
                         </div>
                         <div>
-                          <label className="text-[10px] font-black uppercase text-slate-400 block mb-1">Balance</label>
+                          <label className="text-[10px] font-black uppercase text-slate-400 block mb-1.5">Balance</label>
                           <input
                             type="number"
                             placeholder="0.00"
                             value={telephoneBalance}
                             onChange={e => setTelephoneBalance(e.target.value)}
-                            className="w-full px-2.5 py-1.5 text-xs border border-slate-200 rounded-lg bg-white font-bold text-slate-800 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                            className="w-full px-4 py-2 text-xs border border-slate-200 rounded-lg bg-white font-bold text-slate-850 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
                           />
                         </div>
                         <div>
-                          <label className="text-[10px] font-black uppercase text-slate-400 block mb-1">Cash</label>
+                          <label className="text-[10px] font-black uppercase text-slate-400 block mb-1.5">Cash</label>
                           <input
                             type="number"
                             placeholder="0.00"
                             value={telephoneCash}
                             onChange={e => setTelephoneCash(e.target.value)}
-                            className="w-full px-2.5 py-1.5 text-xs border border-slate-200 rounded-lg bg-white font-bold text-slate-800 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                            className="w-full px-4 py-2 text-xs border border-slate-200 rounded-lg bg-white font-bold text-slate-850 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
                           />
                         </div>
                       </div>

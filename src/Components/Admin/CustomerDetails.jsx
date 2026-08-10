@@ -288,7 +288,7 @@ const getUpdatedPhone = (currentPhone, newCode) => {
 
 /* ==================== KEY-VALUE ROW COMPONENT ==================== */
 const DetailRow = ({ label, value, icon: Icon, themeColor }) => (
-  <div className="flex items-center gap-2 px-3 py-2 bg-slate-50/50 rounded-md">
+  <div className="flex items-center gap-2.5 px-4 py-3 bg-slate-50/50 rounded-lg border border-slate-100/30">
     <div className="shrink-0" style={{ color: themeColor || '#10b981' }}>
       <Icon size={14} strokeWidth={2.5} />
     </div>
@@ -668,7 +668,7 @@ const CustomerDetails = () => {
       </div>
 
       {/* Main Page Content Wrapper */}
-      <div className="w-full mt-3 px-8">
+      <div className="customer-details-content-wrapper">
         {/* Tab Controls for View Mode */}
         {viewMode === 'view' && !isNew && (
           <div className="flex items-center gap-2 mb-4 w-full">
@@ -738,7 +738,7 @@ const CustomerDetails = () => {
                 {/* Panel 1: Legal Identity details */}
                 <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-50px" }} transition={{ duration: 0.4 }} className="bg-white rounded-2xl border border-slate-100 overflow-hidden">
                   <SectionHeader text="Legal Identity Profile" themeColor={themeColor} />
-                  <div className="p-2 grid grid-cols-1 md:grid-cols-2 gap-1">
+                  <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-3">
                     <DetailRow label="Legal Identity Name" value={customer?.customer_name} icon={User} themeColor={themeColor} />
                     <DetailRow label="Salutation" value={customer?.salutation} icon={UserPlus} themeColor={themeColor} />
                     <DetailRow label="Corporate Type" value={customer?.customer_type} icon={Building2} themeColor={themeColor} />
@@ -757,7 +757,7 @@ const CustomerDetails = () => {
                 {/* Panel 5: Financial rules & assignments */}
                 <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-50px" }} transition={{ duration: 0.4, delay: 0.1 }} className="bg-white rounded-2xl border border-slate-100 overflow-hidden flex-1 flex flex-col">
                   <SectionHeader text="Financials & Governance" themeColor={themeColor} />
-                  <div className="p-2 grid grid-cols-1 md:grid-cols-2 gap-1">
+                  <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-3">
                     <DetailRow label="Tax Id" value={customer?.tax_id} icon={Receipt} themeColor={themeColor} />
                     <DetailRow label="TRN" value={customer?.custom_trn} icon={Hash} themeColor={themeColor} />
                     <DetailRow label="Tax Category" value={customer?.tax_category} icon={Percent} themeColor={themeColor} />
@@ -783,7 +783,7 @@ const CustomerDetails = () => {
                     onToggle={() => setIsSpatialOpen(!isSpatialOpen)}
                   />
                   {isSpatialOpen && (
-                    <div className="p-2 grid grid-cols-1 md:grid-cols-2 gap-1 animate-in fade-in duration-200">
+                    <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-3 animate-in fade-in duration-200">
                       <DetailRow label="Email Id" value={customer?.email_id} icon={Mail} themeColor={themeColor} />
                       <DetailRow label="Mobile No" value={customer?.mobile_no} icon={Phone} themeColor={themeColor} />
                       <DetailRow label="Address Type" value={activeAddr.address_type} icon={Tag} themeColor={themeColor} />
@@ -809,7 +809,7 @@ const CustomerDetails = () => {
                     onToggle={() => setIsContactOpen(!isContactOpen)}
                   />
                   {isContactOpen && (
-                    <div className="p-2 grid grid-cols-1 md:grid-cols-2 gap-1 animate-in fade-in duration-200">
+                    <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-3 animate-in fade-in duration-200">
                       <DetailRow label="Contact Full Name" value={activeCont.first_name ? `${activeCont.first_name} ${activeCont.middle_name || ''} ${activeCont.last_name || ''}`.trim() : ''} icon={User} themeColor={themeColor} />
                       <DetailRow label="Designation" value={activeCont.designation} icon={Briefcase} themeColor={themeColor} />
                       <DetailRow label="Contact Email" value={activeCont.email_id} icon={Mail} themeColor={themeColor} />
@@ -829,7 +829,7 @@ const CustomerDetails = () => {
                     {customer?.branch_availability?.length > 0 ? (
                       <div className="flex flex-wrap gap-2">
                         {customer.branch_availability.map((b, idx) => (
-                          <div key={idx} className="flex-1 min-w-[200px] flex items-center gap-2 px-3 py-2 bg-slate-50/50 rounded-md border border-slate-100/50">
+                          <div key={idx} className="flex-1 min-w-[200px] flex items-center gap-2.5 px-4 py-3 bg-slate-50/50 rounded-lg border border-slate-100/50">
                             <div className="shrink-0" style={{ color: themeColor || '#10b981' }}>
                               <Warehouse size={14} strokeWidth={2.5} />
                             </div>

@@ -1957,6 +1957,11 @@ export default function SalesOrderDetails() {
                                                                                         }
                                                                                     }}
                                                                                 />
+                                                                                {item.item_name && (
+                                                                                    <div style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 600, marginTop: '4px', paddingLeft: '8px', textAlign: 'left' }}>
+                                                                                        {item.item_name}
+                                                                                    </div>
+                                                                                )}
                                                                                 {showItemDropdowns[idx] && (
                                                                                     <PortalDropdown
                                                                                         itemsList={itemsList}
