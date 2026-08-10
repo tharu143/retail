@@ -155,22 +155,14 @@ const CashDrawerAuditList = () => {
 
             <div className="bg-slate-950 rounded-xl overflow-hidden aspect-video flex flex-col items-center justify-center relative">
               {activeMedia.type === 'video' ? (
-                activeMedia.url?.startsWith('ezopen://') ? (
-                  <div className="w-full h-full flex flex-col items-center justify-center p-6 text-center bg-slate-900 text-white">
-                    <div className="p-4 bg-emerald-500/10 text-emerald-400 rounded-full mb-3">
-                      <Video size={36} />
-                    </div>
-                    <h4 className="text-base font-bold mb-1">EZVIZ Official EZOpen Live Stream</h4>
-                    <p className="text-xs text-slate-400 max-w-md mb-4 font-mono">{activeMedia.url}</p>
-                    <a
-                      href={activeMedia.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs flex items-center gap-2 transition-all active:scale-95 shadow-lg"
-                    >
-                      <Eye size={16} /> Open EZVIZ Live Player
-                    </a>
-                  </div>
+                activeMedia.url?.includes('ezviz') || activeMedia.url?.includes('.m3u8') ? (
+                  <iframe
+                    src={activeMedia.url}
+                    className="w-full h-full border-0"
+                    allow="autoplay; encrypted-media; picture-in-picture"
+                    allowFullScreen
+                    title="EZVIZ Live Stream"
+                  />
                 ) : (
                   <video src={activeMedia.url} controls autoPlay className="w-full h-full object-contain" />
                 )
