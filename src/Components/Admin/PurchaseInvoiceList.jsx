@@ -3285,38 +3285,21 @@ function PurchaseInvoiceList() {
                                         <div className="premium-cell-container">
                                           <div className="premium-cell-box">
                                             {isViewMode ? (
-                                              <div className={`premium-cell-readonly premium-cell-readonly-right pr-3 font-bold ${
-                                                (parseFloat(item.custom_selling_price) || 0) < (parseFloat(item.rate) || 0) ? 'text-red-600 bg-red-50' : 'text-[#6366f1]'
-                                              }`}>
+                                              <div className="premium-cell-readonly premium-cell-readonly-right pr-3 font-bold text-[#6366f1]">
                                                 {formatPrice(item.custom_selling_price)}
                                               </div>
                                             ) : (
-                                              <div className="w-full flex flex-col items-end">
-                                                <input
-                                                  type="number"
-                                                  value={item.custom_selling_price || ''}
-                                                  onFocus={e => e.target.select()}
-                                                  onClick={e => e.target.select()}
-                                                  onChange={e => updateItem(i, 'custom_selling_price', e.target.value)}
-                                                  className={`so-input text-right pr-3 font-bold ${
-                                                    (parseFloat(item.custom_selling_price) || 0) > 0 &&
-                                                    (parseFloat(item.rate) || 0) > 0 &&
-                                                    (parseFloat(item.custom_selling_price) || 0) < (parseFloat(item.rate) || 0)
-                                                      ? '!border-red-500 !bg-red-100 !text-red-700 font-extrabold focus:!ring-red-400'
-                                                      : 'text-[#6366f1]'
-                                                  }`}
-                                                  style={{ textAlign: 'right' }}
-                                                  step="0.01"
-                                                  placeholder="Nos Price"
-                                                />
-                                                {(parseFloat(item.custom_selling_price) || 0) > 0 &&
-                                                 (parseFloat(item.rate) || 0) > 0 &&
-                                                 (parseFloat(item.custom_selling_price) || 0) < (parseFloat(item.rate) || 0) && (
-                                                  <span className="text-[9px] font-bold text-red-600 leading-tight mt-0.5 tracking-tighter">
-                                                    ⚠️ &lt; Rate ({formatPrice(item.rate)})
-                                                  </span>
-                                                )}
-                                              </div>
+                                              <input
+                                                type="number"
+                                                value={item.custom_selling_price || ''}
+                                                onFocus={e => e.target.select()}
+                                                onClick={e => e.target.select()}
+                                                onChange={e => updateItem(i, 'custom_selling_price', e.target.value)}
+                                                className="so-input text-right pr-3 font-bold text-[#6366f1]"
+                                                style={{ textAlign: 'right' }}
+                                                step="0.01"
+                                                placeholder="Nos Price"
+                                              />
                                             )}
                                           </div>
                                         </div>
