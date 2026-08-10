@@ -5063,7 +5063,7 @@ function Home() {
                 onClick={e => e.stopPropagation()}
                 style={{
                     width: '100%',
-                    maxWidth: '500px',
+                    maxWidth: '520px',
                     backgroundColor: '#ffffff',
                     borderRadius: '24px',
                     overflow: 'hidden',
@@ -5074,8 +5074,8 @@ function Home() {
                     maxHeight: '95vh'
                 }}
             >
-                <div className="home-modal-header bg-slate-50/80 border-b border-slate-100 p-5 flex justify-between items-center">
-                    <div className="flex items-center gap-3">
+                <div className="home-modal-header bg-slate-50/80 border-b border-slate-100 px-6 py-5 flex justify-between items-center">
+                    <div className="flex items-center gap-3.5">
                         <div className="w-10 h-10 bg-sky-600 text-white rounded-xl flex items-center justify-center shadow-lg shadow-sky-200">
                             <CreditCard size={20} />
                         </div>
@@ -5089,19 +5089,19 @@ function Home() {
                     </button>
                 </div>
 
-                <div className="home-modal-body p-5 flex flex-col gap-4 overflow-y-auto">
+                <div className="home-modal-body p-6 flex flex-col gap-5 overflow-y-auto">
                     {/* Summary Cards */}
-                    <div className="grid grid-cols-3 gap-2.5 sm:gap-3 payment-status-blocks">
+                    <div className="grid grid-cols-3 gap-3 payment-status-blocks">
                         {/* Total Bill Card */}
-                        <div className="payment-status-card bg-gradient-to-br from-slate-800 to-slate-950 text-white p-3 rounded-2xl flex flex-col justify-between shadow-md border border-slate-900 relative overflow-hidden min-h-[76px]">
+                        <div className="payment-status-card bg-gradient-to-br from-slate-800 to-slate-950 text-white p-4 rounded-2xl flex flex-col justify-between shadow-md border border-slate-900 relative overflow-hidden min-h-[86px]">
                             <div className="absolute -top-4 -right-4 w-12 h-12 bg-white/5 rounded-full blur-xl"></div>
                             <span className="text-[9px] font-black uppercase tracking-wider text-slate-400">Total Bill</span>
                             <span className="text-base sm:text-lg font-black tracking-tight mt-1 flex items-center gap-1"><DirhamIcon size={12} /> {grandTotal.toFixed(2)}</span>
                         </div>
 
                         {/* Paid Amount Card */}
-                        <div className="payment-status-card bg-gradient-to-br from-emerald-500/10 to-teal-500/10 border border-emerald-500/20 text-emerald-950 p-3 rounded-2xl flex flex-col justify-between shadow-sm relative overflow-hidden min-h-[76px]">
-                            <div className="absolute -top-4 -right-4 w-12 h-12 bg-emerald-500/5 rounded-full blur-xl"></div>
+                        <div className="payment-status-card bg-gradient-to-br from-emerald-500/10 to-teal-500/10 border border-emerald-500/20 text-emerald-950 p-4 rounded-2xl flex flex-col justify-between shadow-sm relative overflow-hidden min-h-[86px]">
+                            <div className="absolute -top-4 -right-4 w-12 h-12 bg-emerald-50/5 rounded-full blur-xl"></div>
                             <span className="text-[9px] font-black uppercase tracking-wider text-emerald-600">Paid Amount</span>
                             <span className="text-base sm:text-lg font-black tracking-tight text-emerald-700 mt-1 flex items-center gap-1"><DirhamIcon size={12} /> {totalPaid.toFixed(2)}</span>
                         </div>
@@ -5110,7 +5110,7 @@ function Home() {
                         <div className={`payment-status-card bg-gradient-to-br ${balanceRemaining > 0
                             ? 'from-rose-500/10 to-red-500/10 border-rose-500/20 text-rose-950'
                             : 'from-emerald-500/10 to-teal-500/10 border-emerald-500/20 text-emerald-950'
-                            } border p-3 rounded-2xl flex flex-col justify-between shadow-sm relative overflow-hidden min-h-[76px]`}>
+                            } border p-4 rounded-2xl flex flex-col justify-between shadow-sm relative overflow-hidden min-h-[86px]`}>
                             <div className="absolute -top-4 -right-4 w-12 h-12 bg-current opacity-[0.03] rounded-full blur-xl"></div>
                             <span className={`text-[9px] font-black uppercase tracking-wider ${balanceRemaining > 0 ? 'text-rose-600' : 'text-emerald-600'
                                 }`}>
@@ -5125,11 +5125,11 @@ function Home() {
 
                     {/* Added Payments List */}
                     {payments.length > 0 && (
-                        <div className="flex flex-col gap-2">
+                        <div className="flex flex-col gap-2.5">
                             <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Payment Ledger</h4>
-                            <div className="flex flex-col gap-1.5 max-h-[100px] overflow-y-auto pr-1 payment-ledger-list">
+                            <div className="flex flex-col gap-2 max-h-[120px] overflow-y-auto pr-1 payment-ledger-list">
                                 {payments.map((p, idx) => (
-                                    <div key={idx} className="flex justify-between items-center bg-slate-50 p-2 px-3 rounded-2xl border border-slate-100 group">
+                                    <div key={idx} className="flex justify-between items-center bg-slate-50 p-2.5 px-4 rounded-2xl border border-slate-100 group">
                                         <div className="flex items-center gap-3">
                                             <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${p.mode_of_payment.includes('Cash') ? 'bg-emerald-100 text-emerald-600' : 'bg-sky-100 text-sky-600'}`}>
                                                 {p.mode_of_payment.includes('Cash') ? <Banknote size={16} /> : <CreditCard size={16} />}
@@ -5150,72 +5150,72 @@ function Home() {
 
                     {/* Payment Selection Area */}
                     {balanceRemaining > 0 && (
-                        <div className="flex flex-col gap-3">
+                        <div className="flex flex-col gap-4">
                             {!selectedPaymentMode ? (
                                 <>
                                     <h5 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Select Payment Method</h5>
-                                    <div className="grid grid-cols-3 gap-2.5 payment-methods-grid">
+                                    <div className="grid grid-cols-3 gap-3 payment-methods-grid">
                                         <button
-                                            className="payment-method-btn group p-3 bg-emerald-50 border-2 border-emerald-100 rounded-2xl flex flex-col items-center gap-1 hover:bg-emerald-600 hover:border-emerald-600 transition-all hover:shadow-lg active:scale-95 relative"
+                                            className="payment-method-btn group p-4 bg-emerald-50 border-2 border-emerald-100 rounded-2xl flex flex-col items-center gap-2 hover:bg-emerald-600 hover:border-emerald-600 transition-all hover:shadow-lg active:scale-95 relative"
                                             onClick={() => setSelectedPaymentMode('Cash')}
                                         >
-                                            <div className="absolute top-1.5 right-1.5 px-1.5 py-0.5 bg-emerald-600 text-white text-[9px] font-black rounded shadow-sm">1</div>
-                                            <div className="w-9 h-9 bg-white text-emerald-600 rounded-xl flex items-center justify-center shadow-sm group-hover:bg-white/20 group-hover:text-white transition-all">
-                                                <DollarSign size={18} />
+                                            <div className="absolute top-2 right-2 px-2 py-0.5 bg-emerald-600 text-white text-[9px] font-black rounded shadow-sm">1</div>
+                                            <div className="w-10 h-10 bg-white text-emerald-600 rounded-xl flex items-center justify-center shadow-sm group-hover:bg-white/20 group-hover:text-white transition-all">
+                                                <DollarSign size={20} />
                                             </div>
-                                            <span className="font-black uppercase tracking-widest text-emerald-700 group-hover:text-white text-[9px]">Cash</span>
+                                            <span className="font-black uppercase tracking-widest text-emerald-700 group-hover:text-white text-[9px] mt-1">Cash</span>
                                         </button>
                                         <button
-                                            className="payment-method-btn group p-3 bg-sky-50 border-2 border-sky-100 rounded-2xl flex flex-col items-center gap-1 hover:bg-sky-600 hover:border-sky-600 transition-all hover:shadow-lg active:scale-95 relative"
+                                            className="payment-method-btn group p-4 bg-sky-50 border-2 border-sky-100 rounded-2xl flex flex-col items-center gap-2 hover:bg-sky-600 hover:border-sky-600 transition-all hover:shadow-lg active:scale-95 relative"
                                             onClick={() => setSelectedPaymentMode('Card')}
                                         >
-                                            <div className="absolute top-1.5 right-1.5 px-1.5 py-0.5 bg-sky-600 text-white text-[9px] font-black rounded shadow-sm">2</div>
-                                            <div className="w-9 h-9 bg-white text-sky-600 rounded-xl flex items-center justify-center shadow-sm group-hover:bg-white/20 group-hover:text-white transition-all">
-                                                <CreditCard size={18} />
+                                            <div className="absolute top-2 right-2 px-2 py-0.5 bg-sky-600 text-white text-[9px] font-black rounded shadow-sm">2</div>
+                                            <div className="w-10 h-10 bg-white text-sky-600 rounded-xl flex items-center justify-center shadow-sm group-hover:bg-white/20 group-hover:text-white transition-all">
+                                                <CreditCard size={20} />
                                             </div>
-                                            <span className="font-black uppercase tracking-widest text-sky-700 group-hover:text-white text-[9px]">Card</span>
+                                            <span className="font-black uppercase tracking-widest text-sky-700 group-hover:text-white text-[9px] mt-1">Card</span>
                                         </button>
                                         <button
-                                            className="payment-method-btn group p-3 bg-indigo-50 border-2 border-indigo-100 rounded-2xl flex flex-col items-center gap-1 hover:bg-indigo-600 hover:border-indigo-600 transition-all hover:shadow-lg active:scale-95 relative"
+                                            className="payment-method-btn group p-4 bg-indigo-50 border-2 border-indigo-100 rounded-2xl flex flex-col items-center gap-2 hover:bg-indigo-600 hover:border-indigo-600 transition-all hover:shadow-lg active:scale-95 relative"
                                             onClick={() => setSelectedPaymentMode('InstaPay')}
                                         >
-                                            <div className="absolute top-1.5 right-1.5 px-1.5 py-0.5 bg-indigo-600 text-white text-[9px] font-black rounded shadow-sm">3</div>
-                                            <div className="w-9 h-9 bg-white text-indigo-600 rounded-xl flex items-center justify-center shadow-sm group-hover:bg-white/20 group-hover:text-white transition-all">
-                                                <Banknote size={18} />
+                                            <div className="absolute top-2 right-2 px-2 py-0.5 bg-indigo-600 text-white text-[9px] font-black rounded shadow-sm">3</div>
+                                            <div className="w-10 h-10 bg-white text-indigo-600 rounded-xl flex items-center justify-center shadow-sm group-hover:bg-white/20 group-hover:text-white transition-all">
+                                                <Banknote size={20} />
                                             </div>
-                                            <span className="font-black uppercase tracking-widest text-indigo-700 group-hover:text-white text-[9px] text-center">InstaPay</span>
+                                            <span className="font-black uppercase tracking-widest text-indigo-700 group-hover:text-white text-[9px] text-center mt-1">InstaPay</span>
                                         </button>
                                         <button
-                                            className="payment-method-btn group p-3 bg-amber-50 border-2 border-amber-100 rounded-2xl flex flex-col items-center gap-1 hover:bg-amber-600 hover:border-amber-600 transition-all hover:shadow-lg active:scale-95 relative"
+                                            className="payment-method-btn group p-4 bg-amber-50 border-2 border-amber-100 rounded-2xl flex flex-col items-center gap-2 hover:bg-amber-600 hover:border-amber-600 transition-all hover:shadow-lg active:scale-95 relative"
                                             onClick={handleCreditPaymentSelection}
                                         >
-                                            <div className="absolute top-1.5 right-1.5 px-1.5 py-0.5 bg-amber-600 text-white text-[9px] font-black rounded shadow-sm">4</div>
-                                            <div className="w-9 h-9 bg-white text-amber-600 rounded-xl flex items-center justify-center shadow-sm group-hover:bg-white/20 group-hover:text-white transition-all">
-                                                <Coins size={18} />
+                                            <div className="absolute top-2 right-2 px-2 py-0.5 bg-amber-600 text-white text-[9px] font-black rounded shadow-sm">4</div>
+                                            <div className="w-10 h-10 bg-white text-amber-600 rounded-xl flex items-center justify-center shadow-sm group-hover:bg-white/20 group-hover:text-white transition-all">
+                                                <Coins size={20} />
                                             </div>
-                                            <span className="font-black uppercase tracking-widest text-amber-700 group-hover:text-white text-[9px]">Credit</span>
+                                            <span className="font-black uppercase tracking-widest text-amber-700 group-hover:text-white text-[9px] mt-1">Credit</span>
                                         </button>
                                         <button
-                                            className="payment-method-btn group p-3 bg-purple-50 border-2 border-purple-100 rounded-2xl flex flex-col items-center gap-1 hover:bg-purple-600 hover:border-purple-600 transition-all hover:shadow-lg active:scale-95 relative"
+                                            className="payment-method-btn group p-4 bg-purple-50 border-2 border-purple-100 rounded-2xl flex flex-col items-center gap-2 hover:bg-purple-600 hover:border-purple-600 transition-all hover:shadow-lg active:scale-95 relative"
                                             onClick={() => setSelectedPaymentMode('Bank')}
                                         >
-                                            <div className="absolute top-1.5 right-1.5 px-1.5 py-0.5 bg-purple-600 text-white text-[9px] font-black rounded shadow-sm">5</div>
-                                            <div className="w-9 h-9 bg-white text-purple-600 rounded-xl flex items-center justify-center shadow-sm group-hover:bg-white/20 group-hover:text-white transition-all">
-                                                <Building2 size={18} />
+                                            <div className="absolute top-2 right-2 px-2 py-0.5 bg-purple-600 text-white text-[9px] font-black rounded shadow-sm">5</div>
+                                            <div className="w-10 h-10 bg-white text-purple-600 rounded-xl flex items-center justify-center shadow-sm group-hover:bg-white/20 group-hover:text-white transition-all">
+                                                <Building2 size={20} />
                                             </div>
-                                            <span className="font-black uppercase tracking-widest text-purple-700 group-hover:text-white text-[9px] text-center">Bank</span>
+                                            <span className="font-black uppercase tracking-widest text-purple-700 group-hover:text-white text-[9px] text-center mt-1">Bank</span>
                                         </button>
                                     </div>
 
                                 </>
                             ) : (
-                                <div className="bg-slate-50 p-4 rounded-2xl border-2 border-sky-200 animate-in fade-in slide-in-from-bottom-2 payment-mode-input-container">
+                                <div className="bg-slate-50 p-5 rounded-2xl border-2 border-sky-200 animate-in fade-in slide-in-from-bottom-2 payment-mode-input-container">
                                     <div className="flex justify-between items-center mb-3 px-2">
                                         <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{selectedPaymentMode} Amount</span>
                                         <button onClick={() => setSelectedPaymentMode('')} className="text-[10px] font-black text-sky-600 hover:underline uppercase">Change Mode</button>
                                     </div>
-                                    <div className="mb-3 flex items-center bg-white border-2 border-sky-500 rounded-xl overflow-hidden shadow-sm focus-within:ring-4 focus-within:ring-sky-100 transition-all">
-                                        <span className="pl-4 pr-2 text-base font-black text-slate-400 flex items-center justify-center"><DirhamIcon size={16} /></span>
+                                    <div className="mb-4 relative flex items-center bg-white border-2 border-sky-500 rounded-xl overflow-hidden shadow-sm focus-within:ring-4 focus-within:ring-sky-100 transition-all">
+                                        <span className="absolute left-4 pointer-events-none text-slate-400 flex items-center justify-center"><DirhamIcon size={16} /></span>
                                         <input
                                             id="payment-tendered-amount"
                                             type="number"
@@ -5226,11 +5226,12 @@ function Home() {
                                             className="w-full pr-4 py-3 bg-transparent text-2xl font-black text-slate-900 outline-none"
                                             autoFocus
                                             onKeyDown={(e) => e.key === 'Enter' && addPayment()}
+                                            style={{ paddingLeft: '44px' }}
                                         />
                                     </div>
                                     <button
                                         onClick={addPayment}
-                                        className="w-full py-3.5 bg-sky-600 text-white rounded-xl font-black uppercase tracking-[0.2em] shadow-xl shadow-sky-200 hover:bg-sky-700 active:scale-95 transition-all text-xs"
+                                        className="w-full py-4 bg-sky-600 text-white rounded-xl font-black uppercase tracking-[0.2em] shadow-xl shadow-sky-200 hover:bg-sky-700 active:scale-95 transition-all text-xs"
                                     >
                                         Add {selectedPaymentMode} <DirhamIcon size={11} className="mx-1" /> {(parseFloat(tenderedAmount) || 0).toFixed(2)}
                                     </button>
@@ -5240,9 +5241,9 @@ function Home() {
                     )}
 
                     {/* CUSTOM FEES SECTION */}
-                    <div className="mt-4 flex flex-col gap-3">
+                    <div className="mt-2 flex flex-col gap-4">
                         {(selectedPaymentMode === 'InstaPay' || payments.some(p => p.mode_of_payment === 'InstaPay')) && (
-                            <div className="bg-indigo-50/70 border border-indigo-100/80 rounded-2xl p-4 flex flex-col gap-3 shadow-sm">
+                            <div className="bg-indigo-50/70 border border-indigo-100/80 rounded-2xl flex flex-col gap-4 shadow-sm" style={{ padding: '1.15rem' }}>
                                 <div className="flex items-center gap-2">
                                     <div className="w-6 h-6 rounded-lg bg-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-100">
                                         <Percent size={12} />
@@ -5252,19 +5253,20 @@ function Home() {
                                     </span>
                                 </div>
                                 <div className="flex items-center justify-between gap-4 mt-0.5">
-                                    <div className="flex items-center bg-white border-2 border-indigo-100 rounded-xl overflow-hidden w-1/2 focus-within:border-indigo-500 focus-within:ring-4 focus-within:ring-indigo-50 transition-all">
-                                        <span className="pl-3.5 pr-2.5 text-xs font-black text-indigo-400"><DirhamIcon size={12} /></span>
+                                    <div className="relative flex items-center bg-white border-2 border-indigo-100 rounded-xl overflow-hidden w-1/2 focus-within:border-indigo-500 focus-within:ring-4 focus-within:ring-indigo-50 transition-all">
+                                        <span className="absolute left-4 pointer-events-none text-indigo-400 flex items-center justify-center"><DirhamIcon size={12} /></span>
                                         <input
                                             type="number"
                                             value={instapayServiceFee}
                                             onChange={e => setInstapayServiceFee(e.target.value)}
                                             placeholder="Fee"
-                                            className="w-full py-2.5 pr-3 bg-transparent text-sm font-black text-slate-800 outline-none placeholder:text-slate-300"
+                                            className="w-full pr-3 py-3 bg-transparent text-sm font-black text-slate-800 outline-none placeholder:text-slate-300"
+                                            style={{ paddingLeft: '40px' }}
                                         />
                                     </div>
 
                                     {/* Tax Inclusive Custom Checkbox */}
-                                    <label className="flex items-center gap-2.5 cursor-pointer select-none group">
+                                    <label className="flex items-center gap-3 cursor-pointer select-none group">
                                         <div className="relative flex items-center justify-center">
                                             <input
                                                 type="checkbox"
@@ -5296,7 +5298,7 @@ function Home() {
                             </div>
                         )}
 
-                        <div className="bg-slate-50/70 border border-slate-100/80 rounded-2xl p-4 flex flex-col gap-1 shadow-sm">
+                        <div className="bg-slate-50/70 border border-slate-100/80 rounded-2xl flex flex-col gap-1 shadow-sm" style={{ padding: '1.15rem' }}>
                             <label className="flex items-center gap-3 cursor-pointer select-none group w-full justify-between">
                                 <div className="flex items-center gap-2">
                                     <div className={`w-6 h-6 rounded-lg flex items-center justify-center transition-all ${showDeliveryFee ? 'bg-slate-700 text-white shadow-md shadow-slate-100' : 'bg-slate-200 text-slate-500'
@@ -5333,18 +5335,19 @@ function Home() {
                                 </div>
                             </label>
                             {showDeliveryFee && (
-                                <div className="flex flex-col gap-3 mt-3">
-                                    <div className="flex items-center bg-white border-2 border-slate-100 rounded-xl overflow-hidden focus-within:border-slate-400 focus-within:ring-4 focus-within:ring-slate-50 transition-all">
-                                        <span className="pl-3.5 pr-2.5 text-xs font-black text-slate-400"><DirhamIcon size={12} /></span>
+                                <div className="flex flex-col gap-4 mt-4">
+                                    <div className="relative flex items-center bg-white border-2 border-slate-100 rounded-xl overflow-hidden focus-within:border-slate-400 focus-within:ring-4 focus-within:ring-slate-50 transition-all">
+                                        <span className="absolute left-4 pointer-events-none text-slate-400 flex items-center justify-center"><DirhamIcon size={12} /></span>
                                         <input
                                             type="number"
                                             value={deliveryFee}
                                             onChange={e => setDeliveryFee(e.target.value)}
                                             placeholder="Amount"
-                                            className="w-full py-2.5 pr-3 bg-transparent text-sm font-black text-slate-800 outline-none placeholder:text-slate-300"
+                                            className="w-full pr-3 py-3 bg-transparent text-sm font-black text-slate-800 outline-none placeholder:text-slate-300"
+                                            style={{ paddingLeft: '40px' }}
                                         />
                                     </div>
-                                    <div className="flex flex-col gap-1">
+                                    <div className="flex flex-col gap-2">
                                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">
                                             Assign Delivery Boy
                                         </label>
@@ -5352,7 +5355,7 @@ function Home() {
                                             <select
                                                 value={selectedDriver}
                                                 onChange={e => setSelectedDriver(e.target.value)}
-                                                className="w-full py-2.5 px-3 bg-transparent text-sm font-black text-slate-800 outline-none cursor-pointer"
+                                                className="w-full py-3 px-3 bg-transparent text-sm font-black text-slate-800 outline-none cursor-pointer"
                                             >
                                                 <option value="" className="text-slate-400">Select Delivery Boy</option>
                                                 {drivers.map(d => (
@@ -5370,7 +5373,7 @@ function Home() {
 
                 </div>
 
-                <div className="home-modal-footer px-5 pb-5 pt-4 bg-white border-t border-slate-100 flex flex-col gap-3">
+                <div className="home-modal-footer p-6 bg-white border-t border-slate-100 flex flex-col gap-3">
                     {/* Complete Payment Button */}
                     <button
                         onClick={completePayment}
@@ -5401,6 +5404,8 @@ function Home() {
                         <div
                             className="relative flex items-center w-full"
                             style={{
+                                display: 'flex',
+                                alignItems: 'center',
                                 borderRadius: '18px',
                                 zIndex: 1,
                                 background: balanceRemaining <= 0
@@ -5429,9 +5434,9 @@ function Home() {
 
                             {paymentLoading ? (
                                 /* Loading State */
-                                <div className="flex items-center gap-3 w-full justify-center">
+                                <div className="flex items-center gap-3 w-full justify-center" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                     <Loader2 size={22} className="animate-spin text-white" />
-                                    <div className="flex flex-col items-start">
+                                    <div className="flex flex-col items-start" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
                                         <span style={{ color: 'rgba(255,255,255,0.7)', fontSize: '10px', fontWeight: 900, letterSpacing: '0.2em', textTransform: 'uppercase' }}>Processing...</span>
                                         <span style={{ color: '#fff', fontSize: '16px', fontWeight: 900, letterSpacing: '0.02em' }}>Finalizing Order</span>
                                     </div>
@@ -5454,7 +5459,7 @@ function Home() {
                                     </div>
 
                                     {/* Center: Text */}
-                                    <div className="flex flex-col items-start ml-4 flex-1">
+                                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', marginLeft: '16px', flex: 1 }}>
                                         <span style={{ color: 'rgba(255,255,255,0.75)', fontSize: '9px', fontWeight: 900, letterSpacing: '0.25em', textTransform: 'uppercase', marginBottom: '1px' }}>
                                             All payments received
                                         </span>
@@ -5466,7 +5471,8 @@ function Home() {
                                     {/* Right: SPACE kbd */}
                                     <div style={{
                                         flexShrink: 0,
-                                        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px'
+                                        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px',
+                                        marginLeft: '12px'
                                     }}>
                                         <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: '8px', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase' }}>press</span>
                                         <kbd style={{
@@ -5488,7 +5494,7 @@ function Home() {
                                     <div style={{
                                         width: 40, height: 40, borderRadius: '12px',
                                         background: '#e2e8f0',
-                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                        display: 'flex', alignItems: 'center', justify: 'center',
                                     }}>
                                         <CreditCard size={18} color="#94a3b8" />
                                     </div>
