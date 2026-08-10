@@ -3342,7 +3342,28 @@ function PurchaseInvoiceList() {
                                                     const typedVal = e.target.value;
                                                     const val = parseFloat(typedVal) || 0;
                                                     const pcs = parseFloat(item.custom_pieces_per_box) || 1;
+                                                    const buyRateNos = parseFloat(item.rate) || 0;
+                                                    const buyPriceBox = parseFloat(item.custom_box_price) || (buyRateNos * pcs);
                                                     const nosPrice = pcs > 0 ? (val / pcs).toFixed(4) : 0;
+
+                                                    if (val > 0 && buyPriceBox > 0 && val < buyPriceBox) {
+                                                      setFormData(prev => {
+                                                        const newItems = [...prev.items];
+                                                        newItems[i] = {
+                                                          ...newItems[i],
+                                                          custom_selling_price: '',
+                                                          _temp_box_selling_price: ''
+                                                        };
+                                                        return { ...prev, items: newItems };
+                                                      });
+                                                      Swal.fire({
+                                                        icon: 'error',
+                                                        title: 'Box Price Restriction Warning',
+                                                        html: `Row #${i + 1} (${item.item_name || item.item_code}):<br/>Selling Price per Box (<b>AED ${val.toFixed(2)}</b>) cannot be LESS than Buying Price per Box (<b>AED ${buyPriceBox.toFixed(2)}</b>)!<br/><br/><i>Entered value has been cleared.</i>`,
+                                                        confirmButtonColor: '#ef4444'
+                                                      });
+                                                      return;
+                                                    }
 
                                                     setFormData(prev => {
                                                       const newItems = [...prev.items];
