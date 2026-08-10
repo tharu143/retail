@@ -3535,6 +3535,7 @@ function PurchaseReceiptList() {
                         <tr>
                           <th>Receipt Number</th>
                           <th>Supplier</th>
+                          <th>Branch / Warehouse</th>
                           <th>Date</th>
                           <th>Status</th>
                           <th style={{ textAlign: 'right' }}>Amount</th>
@@ -3547,7 +3548,7 @@ function PurchaseReceiptList() {
                       <tbody>
                         {paginated.length === 0 ? (
                           <tr>
-                            <td colSpan={6 + customColumns.length} className="so-empty">
+                            <td colSpan={7 + customColumns.length} className="so-empty">
                               <Package size={48} style={{ margin: '0 auto 1rem', opacity: 0.2 }} />
                               <p>No receipts found</p>
                               <button onClick={openCreateModal} style={{ color: themeColor, fontWeight: 700, background: 'none', border: 'none', cursor: 'pointer' }}>
@@ -3589,6 +3590,19 @@ function PurchaseReceiptList() {
                               <td>
                                 <div style={{ fontWeight: 500 }}>{rec.supplier_name}</div>
                                 <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>{rec.supplier}</div>
+                              </td>
+                              <td>
+                                <span style={{
+                                  fontSize: '0.75rem',
+                                  fontWeight: 700,
+                                  color: '#334155',
+                                  backgroundColor: '#f1f5f9',
+                                  padding: '0.2rem 0.5rem',
+                                  borderRadius: '0.375rem',
+                                  border: '1px solid #e2e8f0'
+                                }}>
+                                  {rec.set_warehouse || rec.custom_branch || '—'}
+                                </span>
                               </td>
                               <td>
                                 <span style={{ color: '#475569' }}>{format(new Date(rec.posting_date), 'dd-MM-yyyy')}</span>
