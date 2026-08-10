@@ -1338,6 +1338,18 @@ function PurchaseInvoiceList() {
         items[index][field] = value;
         // Back-calculate Box Qty if needed
         if (field === 'qty' && pPerBox > 0) items[index].custom_box_qty = qty / pPerBox;
+      } else if (field === 'custom_selling_price') {
+        items[index][field] = value;
+        const sellVal = parseFloat(value) || 0;
+        const rateVal = parseFloat(items[index].rate) || 0;
+        if (sellVal > 0 && rateVal > 0 && sellVal < rateVal) {
+          Swal.fire({
+            icon: 'error',
+            title: 'Price Restriction Warning',
+            html: `Row #${index + 1} (${items[index].item_name || items[index].item_code}):<br/>Selling Price (<b>AED ${sellVal.toFixed(2)}</b>) cannot be LESS than Buying Rate (<b>AED ${rateVal.toFixed(2)}</b>)!`,
+            confirmButtonColor: '#ef4444'
+          });
+        }
       } else {
         items[index][field] = value;
       }

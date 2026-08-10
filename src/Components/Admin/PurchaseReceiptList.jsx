@@ -835,6 +835,17 @@ function PurchaseReceiptList() {
         if (field === 'accepted_qty' && pPerBox > 0) {
           items[index].custom_box_qty = isBoxMode ? accepted_qty / pPerBox : accepted_qty;
         }
+      } else if (field === 'custom_selling_price') {
+        const sellVal = parseFloat(value) || 0;
+        const rateVal = parseFloat(items[index].rate) || 0;
+        if (sellVal > 0 && rateVal > 0 && sellVal < rateVal) {
+          Swal.fire({
+            icon: 'error',
+            title: 'Price Restriction Warning',
+            html: `Row #${index + 1} (${items[index].item_name || items[index].item_code}):<br/>Selling Price (<b>AED ${sellVal.toFixed(2)}</b>) cannot be LESS than Buying Rate (<b>AED ${rateVal.toFixed(2)}</b>)!`,
+            confirmButtonColor: '#ef4444'
+          });
+        }
       }
       const total_qty = items.reduce((sum, i) => sum + parseFloat(i.received_qty || 0), 0);
       const net_total = items.reduce((sum, i) => sum + parseFloat(i.amount || 0), 0);
