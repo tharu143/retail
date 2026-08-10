@@ -1338,20 +1338,6 @@ function PurchaseInvoiceList() {
         items[index][field] = value;
         // Back-calculate Box Qty if needed
         if (field === 'qty' && pPerBox > 0) items[index].custom_box_qty = qty / pPerBox;
-      } else if (field === 'custom_selling_price') {
-        const sellVal = parseFloat(value) || 0;
-        const rateVal = parseFloat(items[index].rate) || 0;
-        if (sellVal > 0 && rateVal > 0 && sellVal < rateVal) {
-          items[index][field] = '';
-          Swal.fire({
-            icon: 'error',
-            title: 'Price Restriction Warning',
-            html: `Row #${index + 1} (${items[index].item_name || items[index].item_code}):<br/>Selling Price (<b>AED ${sellVal.toFixed(2)}</b>) cannot be LESS than Buying Rate (<b>AED ${rateVal.toFixed(2)}</b>)!<br/><br/><i>Entered value has been cleared.</i>`,
-            confirmButtonColor: '#ef4444'
-          });
-        } else {
-          items[index][field] = value;
-        }
       } else {
         items[index][field] = value;
       }
@@ -3309,6 +3295,19 @@ function PurchaseInvoiceList() {
                                                 onFocus={e => e.target.select()}
                                                 onClick={e => e.target.select()}
                                                 onChange={e => updateItem(i, 'custom_selling_price', e.target.value)}
+                                                onBlur={e => {
+                                                   const sellVal = parseFloat(e.target.value) || 0;
+                                                   const rateVal = parseFloat(item.rate) || 0;
+                                                   if (sellVal > 0 && rateVal > 0 && sellVal < rateVal) {
+                                                     updateItem(i, 'custom_selling_price', '');
+                                                     Swal.fire({
+                                                       icon: 'error',
+                                                       title: 'Price Restriction Warning',
+                                                       html: `Row #${i + 1} (${item.item_name || item.item_code}):<br/>Selling Price (<b>AED ${sellVal.toFixed(2)}</b>) cannot be LESS than Buying Rate (<b>AED ${rateVal.toFixed(2)}</b>)!<br/><br/><i>Entered value has been cleared.</i>`,
+                                                       confirmButtonColor: '#ef4444'
+                                                     });
+                                                   }
+                                                 }}
                                                 className="so-input text-right pr-3 font-bold text-[#6366f1]"
                                                 style={{ textAlign: 'right' }}
                                                 step="0.01"
@@ -3342,28 +3341,7 @@ function PurchaseInvoiceList() {
                                                     const typedVal = e.target.value;
                                                     const val = parseFloat(typedVal) || 0;
                                                     const pcs = parseFloat(item.custom_pieces_per_box) || 1;
-                                                    const buyRateNos = parseFloat(item.rate) || 0;
-                                                    const buyPriceBox = parseFloat(item.custom_box_price) || (buyRateNos * pcs);
                                                     const nosPrice = pcs > 0 ? (val / pcs).toFixed(4) : 0;
-
-                                                    if (val > 0 && buyPriceBox > 0 && val < buyPriceBox) {
-                                                      setFormData(prev => {
-                                                        const newItems = [...prev.items];
-                                                        newItems[i] = {
-                                                          ...newItems[i],
-                                                          custom_selling_price: '',
-                                                          _temp_box_selling_price: ''
-                                                        };
-                                                        return { ...prev, items: newItems };
-                                                      });
-                                                      Swal.fire({
-                                                        icon: 'error',
-                                                        title: 'Box Price Restriction Warning',
-                                                        html: `Row #${i + 1} (${item.item_name || item.item_code}):<br/>Selling Price per Box (<b>AED ${val.toFixed(2)}</b>) cannot be LESS than Buying Price per Box (<b>AED ${buyPriceBox.toFixed(2)}</b>)!<br/><br/><i>Entered value has been cleared.</i>`,
-                                                        confirmButtonColor: '#ef4444'
-                                                      });
-                                                      return;
-                                                    }
 
                                                     setFormData(prev => {
                                                       const newItems = [...prev.items];
@@ -3376,6 +3354,30 @@ function PurchaseInvoiceList() {
                                                     });
                                                   }}
                                                   onBlur={() => {
+                                                    const val = parseFloat(item._temp_box_selling_price !== undefined ? item._temp_box_selling_price : (item.custom_selling_price ? (item.custom_selling_price * (item.custom_pieces_per_box || 1)) : 0)) || 0;
+                                                    const pcs = parseFloat(item.custom_pieces_per_box) || 1;
+                                                    const buyRateNos = parseFloat(item.rate) || 0;
+                                                    const buyPriceBox = parseFloat(item.custom_box_price) || (buyRateNos * pcs);
+
+                                                    if (val > 0 && buyPriceBox > 0 && val < buyPriceBox) {
+                                                      setFormData(prev => {
+                                                        const newItems = [...prev.items];
+                                                        newItems[i] = {
+                                                          ...newItems[i],
+                                                          custom_selling_price: '',
+                                                          _temp_box_selling_price: undefined
+                                                        };
+                                                        return { ...prev, items: newItems };
+                                                      });
+                                                      Swal.fire({
+                                                        icon: 'error',
+                                                        title: 'Box Price Restriction Warning',
+                                                        html: `Row #${i + 1} (${item.item_name || item.item_code}):<br/>Selling Price per Box (<b>AED ${val.toFixed(2)}</b>) cannot be LESS than Buying Price per Box (<b>AED ${buyPriceBox.toFixed(2)}</b>)!<br/><br/><i>Entered value has been cleared.</i>`,
+                                                        confirmButtonColor: '#ef4444'
+                                                      });
+                                                      return;
+                                                    }
+
                                                     setFormData(prev => {
                                                       const newItems = [...prev.items];
                                                       newItems[i] = {
