@@ -933,11 +933,8 @@ function PurchaseInvoiceList() {
           fetchWorkflowActions(d.name); // Explicitly fetch workflow actions with the name
         }
 
-        setLastSavedData(JSON.stringify(mapped)); // Set base point for dirty check
         const isDraft = (parseInt(d.docstatus) || 0) === 0;
-        const modeParam = new URLSearchParams(window.location.hash.split('?')[1] || '').get('mode');
-        const forceEdit = modeParam === 'edit' && isDraft;
-        setIsViewMode(forceEdit ? false : !isDraft);
+        setIsViewMode(!isDraft ? true : false);
         setIsEditMode(isDraft);
         setIsModalOpen(true);
         return mapped;
@@ -1314,7 +1311,7 @@ function PurchaseInvoiceList() {
       if (field === 'custom_box_qty' || field === 'custom_pieces_per_box') {
         const box_qty = parseFloat(field === 'custom_box_qty' ? value : items[index].custom_box_qty) || 0;
         const pcs_per_box = parseFloat(field === 'custom_pieces_per_box' ? value : items[index].custom_pieces_per_box) || 1;
-        const total_qty = box_qty * pcs_per_box;
+        const total_qty = Math.round(box_qty * pcs_per_box);
         items[index].qty = total_qty;
         items[index].amount = total_qty * parseFloat(items[index].rate || 0);
         items[index][field] = value;
@@ -1337,7 +1334,7 @@ function PurchaseInvoiceList() {
 
         items[index][field] = value;
         // Back-calculate Box Qty if needed
-        if (field === 'qty' && pPerBox > 0) items[index].custom_box_qty = qty / pPerBox;
+        if (field === 'qty' && pPerBox > 0) items[index].custom_box_qty = Math.round(qty / pPerBox);
       } else {
         items[index][field] = value;
       }
@@ -1364,25 +1361,60 @@ function PurchaseInvoiceList() {
 
   const handleUOMChange = (uomValue, rowIndex) => {
     setFormData(prev => {
-      const items = [...prev.items];
+      let items = [...prev.items];
       const item = { ...items[rowIndex] };
       const isBox = uomValue.toLowerCase() === 'box';
-      item.uom = uomValue;
-      item.use_box_entry = isBox;
+      const targetUom = isBox ? 'Box' : (item.stock_uom || 'Nos');
+      
+      // Check if another row with the same item_code and same target UOM exists
+      const existingIdx = items.findIndex((it, idx) => 
+        idx !== rowIndex && 
+        it.item_code === item.item_code && 
+        ((it.uom || '').toLowerCase() === targetUom.toLowerCase() || (isBox ? it.use_box_entry : !it.use_box_entry))
+      );
 
-      if (isBox) {
-        // Box mode
-        const pPerBox = parseFloat(item.default_pieces_per_box || item.custom_pieces_per_box) || 1;
-        item.custom_pieces_per_box = pPerBox;
-        item.qty = parseFloat(((item.custom_box_qty || 1) * pPerBox).toFixed(2));
+      if (existingIdx !== -1) {
+        // Merge into the existing row and remove this duplicate row!
+        const existingItem = { ...items[existingIdx] };
+        if (isBox) {
+          const pcsPerBox = parseFloat(existingItem.custom_pieces_per_box) || parseFloat(item.custom_pieces_per_box) || 12;
+          const currentBoxQty = parseFloat(existingItem.custom_box_qty) || 0;
+          const addedBoxQty = parseFloat(item.custom_box_qty) || 1;
+          existingItem.custom_box_qty = Math.round(currentBoxQty + addedBoxQty);
+          existingItem.qty = Math.round(existingItem.custom_box_qty * pcsPerBox);
+        } else {
+          const currentQty = parseFloat(existingItem.qty) || 0;
+          const addedQty = parseFloat(item.qty) || 1;
+          existingItem.qty = Math.round(currentQty + addedQty);
+          const pcsPerBox = parseFloat(existingItem.custom_pieces_per_box) || 1;
+          if (pcsPerBox > 0) {
+            existingItem.custom_box_qty = Math.round(existingItem.qty / pcsPerBox);
+          }
+        }
+        existingItem.amount = (existingItem.qty * (parseFloat(existingItem.rate) || 0)).toFixed(2);
+        items[existingIdx] = existingItem;
+        
+        // Remove current row
+        items = items.filter((_, idx) => idx !== rowIndex);
       } else {
-        // Nos mode
-        item.custom_pieces_per_box = 1;
-        item.qty = parseFloat(item.custom_box_qty) || 0;
-      }
-      item.amount = (parseFloat(item.qty) * (parseFloat(item.rate) || 0)).toFixed(2);
+        item.uom = uomValue;
+        item.use_box_entry = isBox;
 
-      items[rowIndex] = item;
+        if (isBox) {
+          // Box mode
+          const pPerBox = parseFloat(item.default_pieces_per_box || item.custom_pieces_per_box) || 1;
+          item.custom_pieces_per_box = pPerBox;
+          item.qty = Math.round((item.custom_box_qty || 1) * pPerBox);
+        } else {
+          // Nos mode
+          item.custom_pieces_per_box = 1;
+          item.qty = Math.round(parseFloat(item.custom_box_qty) || 1);
+          item.custom_box_qty = Math.round(item.qty);
+        }
+        item.amount = (parseFloat(item.qty) * (parseFloat(item.rate) || 0)).toFixed(2);
+        items[rowIndex] = item;
+      }
+
       return { ...prev, items };
     });
   };
@@ -1390,9 +1422,13 @@ function PurchaseInvoiceList() {
   const selectItem = async (rowIndex, item) => {
     let existingIdx = -1;
     setFormData(prev => {
-      const items = [...prev.items];
-      existingIdx = items.findIndex((i, idx) => i.item_code === item.item_code && idx !== rowIndex);
+      let items = [...prev.items];
       const isBoxScan = (item.scanned_uom || item.uom || '').toLowerCase() === 'box';
+      existingIdx = items.findIndex((i, idx) => 
+        idx !== rowIndex && 
+        i.item_code === item.item_code && 
+        (isBoxScan ? i.use_box_entry : !i.use_box_entry)
+      );
       const pcsPerBox = parseFloat(item.custom_pcs_per_box || item.custom_pieces_per_box || 12);
 
       if (existingIdx !== -1) {
@@ -1402,32 +1438,19 @@ function PurchaseInvoiceList() {
           existingItem.use_box_entry = true;
           existingItem.uom = 'Box';
           existingItem.custom_pieces_per_box = pcsPerBox;
-          existingItem.custom_box_qty = (parseFloat(existingItem.custom_box_qty) || 0) + 1;
-          existingItem.qty = existingItem.custom_box_qty * pcsPerBox;
+          existingItem.custom_box_qty = Math.round((parseFloat(existingItem.custom_box_qty) || 0) + 1);
+          existingItem.qty = Math.round(existingItem.custom_box_qty * pcsPerBox);
         } else {
-          existingItem.qty = (parseFloat(existingItem.qty) || 0) + 1;
+          existingItem.qty = Math.round((parseFloat(existingItem.qty) || 0) + 1);
           if (pcsPerBox > 0) {
-            existingItem.custom_box_qty = existingItem.qty / pcsPerBox;
+            existingItem.custom_box_qty = Math.round(existingItem.qty / pcsPerBox);
           }
         }
         existingItem.amount = (existingItem.qty * (parseFloat(existingItem.rate) || 0)).toFixed(2);
         items[existingIdx] = existingItem;
 
-        // Reset current row to empty
-        items[rowIndex] = {
-          item_code: '',
-          item_name: '',
-          qty: 1,
-          uom: '',
-          rate: 0,
-          amount: 0,
-          custom_box_qty: 0,
-          custom_pieces_per_box: 1,
-          custom_selling_price: 0,
-          custom_supplier_sl_num: '',
-          custom_ref_sl_no: '',
-          use_box_entry: false
-        };
+        // Remove current row so empty duplicate row is not left behind
+        items = items.filter((_, idx) => idx !== rowIndex);
       } else {
         // Normal item selection
         const isBoxUom = isBoxScan || (item.stock_uom || '').toLowerCase() === 'box';
@@ -1436,7 +1459,7 @@ function PurchaseInvoiceList() {
           item_code: item.item_code,
           item_name: item.item_name,
           uom: isBoxUom ? 'Box' : (item.stock_uom || 'Nos'),
-          qty: isBoxUom ? pcsPerBox : 1,
+          qty: isBoxUom ? Math.round(pcsPerBox) : 1,
           rate: 0,
           last_purchase_rate: lastPurRate,
           amount: 0,
@@ -3035,10 +3058,14 @@ function PurchaseInvoiceList() {
                                             ) : !item.use_box_entry ? (
                                               <input
                                                 type="number"
+                                                step="1"
                                                 value={item.qty !== undefined ? item.qty : ''}
                                                 onFocus={e => e.target.select()}
                                                 onClick={e => e.target.select()}
-                                                onChange={e => updateItem(i, 'qty', e.target.value)}
+                                                onChange={e => {
+                                                  const val = e.target.value.replace(/[^0-9]/g, '');
+                                                  updateItem(i, 'qty', val === '' ? '' : parseInt(val, 10));
+                                                }}
                                                 className="so-input text-center font-bold w-full h-[28px] border-none"
                                                 style={{ padding: '0 4px', fontSize: '0.75rem' }}
                                                 placeholder="Qty"
@@ -3046,10 +3073,14 @@ function PurchaseInvoiceList() {
                                             ) : (
                                               <input
                                                 type="number"
+                                                step="1"
                                                 value={item.custom_box_qty !== undefined ? item.custom_box_qty : ''}
                                                 onFocus={e => e.target.select()}
                                                 onClick={e => e.target.select()}
-                                                onChange={e => updateItem(i, 'custom_box_qty', e.target.value)}
+                                                onChange={e => {
+                                                  const val = e.target.value.replace(/[^0-9]/g, '');
+                                                  updateItem(i, 'custom_box_qty', val === '' ? '' : parseInt(val, 10));
+                                                }}
                                                 className="so-input text-center font-bold w-full h-[28px] border-none"
                                                 style={{ padding: '0 4px', fontSize: '0.75rem' }}
                                               />
@@ -3407,9 +3438,10 @@ function PurchaseInvoiceList() {
 
                                                     setFormData(prev => {
                                                       const newItems = [...prev.items];
+                                                      const nosVal = parseFloat(newItems[i].custom_selling_price);
                                                       newItems[i] = {
                                                         ...newItems[i],
-                                                        custom_selling_price: parseFloat(newItems[i].custom_selling_price).toFixed(2),
+                                                        custom_selling_price: isNaN(nosVal) ? '' : nosVal,
                                                         _temp_box_selling_price: undefined
                                                       };
                                                       return { ...prev, items: newItems };

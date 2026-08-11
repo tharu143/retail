@@ -156,6 +156,7 @@ const SalesInvoiceList = () => {
   const [maxAmount, setMaxAmount] = useState('');
   const [dateStart, setDateStart] = useState('');
   const [dateEnd, setDateEnd] = useState('');
+  const [branchFilter, setBranchFilter] = useState('all');
   const [pageSize, setPageSize] = useState(20);
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -507,6 +508,7 @@ const SalesInvoiceList = () => {
               fields: JSON.stringify([
                 "name", "customer_name", "posting_date", "grand_total",
                 "status", "title", "outstanding_amount", "currency", "is_return",
+                "custom_branch", "set_warehouse",
                 ...customColumns
               ]),
               filters: !isAdmin && warehouse ? JSON.stringify([['Sales Invoice Item', 'warehouse', '=', warehouse]]) : undefined,
@@ -567,9 +569,16 @@ const SalesInvoiceList = () => {
     if (dateEnd) {
       filtered = filtered.filter(inv => inv.posting_date <= dateEnd);
     }
+    if (branchFilter !== 'all') {
+      filtered = filtered.filter(inv => {
+        const wh = inv.set_warehouse || '';
+        const br = inv.custom_branch || inv.branch || '';
+        return wh.toLowerCase().includes(branchFilter.toLowerCase()) || br.toLowerCase().includes(branchFilter.toLowerCase());
+      });
+    }
     setFilteredInvoices(filtered);
     setCurrentPage(1);
-  }, [searchTerm, titleFilter, customerFilter, statusFilter, minAmount, maxAmount, dateStart, dateEnd, invoices]);
+  }, [searchTerm, titleFilter, customerFilter, statusFilter, minAmount, maxAmount, dateStart, dateEnd, branchFilter, invoices]);
 
 
   const getStatusColor = (status) => {
@@ -1826,7 +1835,24 @@ const SalesInvoiceList = () => {
               </div>
             </div>
 
-            <button className="so-clear-btn" style={{ margin: 0, height: '38px', width: 'auto', padding: '0 1rem' }} onClick={() => { setSearchTerm(''); setTitleFilter(''); setCustomerFilter(''); setStatusFilter('all'); setMinAmount(''); setMaxAmount(''); setDateStart(''); setDateEnd(''); }}>
+            {isAdmin && (
+              <div className="so-filter-group" style={{ minWidth: '150px', flex: 1 }}>
+                <label className="so-filter-label">Branch</label>
+                <select
+                  className="so-filter-input"
+                  value={branchFilter}
+                  onChange={e => setBranchFilter(e.target.value)}
+                  style={{ padding: '0.5rem' }}
+                >
+                  <option value="all">All Branches</option>
+                  {warehouses.map(w => (
+                    <option key={w.name} value={w.name}>{w.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            <button className="so-clear-btn" style={{ margin: 0, height: '38px', width: 'auto', padding: '0 1rem' }} onClick={() => { setSearchTerm(''); setTitleFilter(''); setCustomerFilter(''); setStatusFilter('all'); setMinAmount(''); setMaxAmount(''); setDateStart(''); setDateEnd(''); setBranchFilter('all'); }}>
               Clear Filters
             </button>
           </div>
@@ -1840,6 +1866,7 @@ const SalesInvoiceList = () => {
                     <tr>
                       <th>Title</th>
                       <th>Status</th>
+                      <th>Branch</th>
                       <th>Date</th>
                       <th>Customer</th>
                       <th style={{ textAlign: 'right' }}>Grand Total</th>
@@ -1851,9 +1878,9 @@ const SalesInvoiceList = () => {
                   </thead>
                   <tbody>
                     {loading ? (
-                      <tr><td colSpan={6 + customColumns.length} className="so-empty"><Loader2 size={28} className="so-spinner" style={{ margin: '0 auto' }} /></td></tr>
+                      <tr><td colSpan={7 + customColumns.length} className="so-empty"><Loader2 size={28} className="so-spinner" style={{ margin: '0 auto' }} /></td></tr>
                     ) : paginated.length === 0 ? (
-                      <tr><td colSpan={6 + customColumns.length} className="so-empty">No invoices found</td></tr>
+                      <tr><td colSpan={7 + customColumns.length} className="so-empty">No invoices found</td></tr>
                     ) : (
                       paginated.map(inv => (
                         <tr key={inv.name} onClick={() => loadInvoiceForEdit(inv.name)} style={{ cursor: 'pointer' }}>
@@ -1865,6 +1892,19 @@ const SalesInvoiceList = () => {
                               border: `1px solid ${(inv.status === 'Paid' || inv.status === 'Submitted') ? `${themeColor}40` : (inv.status === 'Draft' ? '#e2e8f0' : (inv.status === 'Unpaid' ? '#fde047' : '#fecaca'))}`
                             }}>
                               {inv.status || 'Draft'} {inv.is_return ? '(CN)' : ''}
+                            </span>
+                          </td>
+                          <td>
+                            <span style={{
+                              fontSize: '0.75rem',
+                              fontWeight: 700,
+                              color: '#334155',
+                              backgroundColor: '#f1f5f9',
+                              padding: '0.2rem 0.5rem',
+                              borderRadius: '0.375rem',
+                              border: '1px solid #e2e8f0'
+                            }}>
+                              {inv.branch || inv.set_warehouse || '—'}
                             </span>
                           </td>
                           <td style={{ fontSize: '0.8rem', fontWeight: 600, color: '#475569' }}>

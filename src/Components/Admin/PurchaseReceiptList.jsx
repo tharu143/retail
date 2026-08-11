@@ -1339,9 +1339,7 @@ function PurchaseReceiptList() {
       setDocName(doc.name);
       setSearchSupplier(doc.supplier_name || '');
       const isDraft = (parseInt(doc.docstatus) || 0) === 0;
-      const modeParam = new URLSearchParams(window.location.hash.split('?')[1] || '').get('mode');
-      const forceEdit = modeParam === 'edit' && isDraft;
-      setIsViewMode(forceEdit ? false : !isDraft);
+      setIsViewMode(!isDraft ? true : false);
       setIsEditMode(isDraft);
       setIsModalOpen(true);
       setLastSavedData(JSON.stringify(mapped)); // Use mapped object for stable comparison
