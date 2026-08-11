@@ -345,6 +345,7 @@ function UserRouter() {
             <Route path='customer-details/new' element={<CustomerEditPage />} />
             <Route path='itemgrouplist' element={<ItemGroupList />} />
             <Route path='itemlist' element={<ItemList />} />
+            <Route path='items' element={<ItemList />} />
             <Route path='item-details/:id' element={<ItemDetails />} />
             <Route path='itempricelist' element={<ItemPriceList />} />
             <Route path='posclosingentrylist' element={<PosClosingEntryList />} />

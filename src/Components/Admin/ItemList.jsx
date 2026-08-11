@@ -555,9 +555,22 @@ export default function ItemList() {
 
   useEffect(() => { fetchBrands(); fetchUoms(); fetchCountries(); fetchSuppliers(); fetchWarehouses(); }, []);
 
+  const handleAdd = () => {
+    resetForm();
+    const myWh = localStorage.getItem('warehouse');
+    if (myWh) setForm(p => ({ ...p, branch_availability: [{ warehouse: myWh }] }));
+    setShowForm(true); fetchItemGroups(); fetchBrands(); fetchUoms(); fetchCountries();
+  };
+
   useEffect(() => {
     fetchItems();
-  }, [customColumns]);
+    const searchParams = new URLSearchParams(location.search);
+    if (searchParams.get('action') === 'new' || location.state?.action === 'new') {
+      setTimeout(() => {
+        handleAdd();
+      }, 300);
+    }
+  }, [customColumns, location.search]);
 
   useEffect(() => {
     if (showForm) {
@@ -2154,7 +2167,62 @@ export default function ItemList() {
                     <div className="il-form-grid">
                       <div className="il-form-field">
                         <label className="il-form-label req">Item Code</label>
-                        <input className="il-input" value={form.item_code} onChange={e => setForm({ ...form, item_code: e.target.value })} disabled={isEditMode} placeholder="e.g. ITM-001" />
+                        <input
+                          className="il-input"
+                          value={form.item_code}
+                          onChange={e => setForm({ ...form, item_code: e.target.value })}
+                          onBlur={async () => {
+                            if (isEditMode || !form.item_code.trim()) return;
+                            try {
+                              const code = form.item_code.trim();
+                              const res = await axios.post('/api/method/kyle_retail.retail_api.api.find_item_globally_retail', { search_term: code }, { withCredentials: true });
+                              const raw = res.data?.message;
+                              const results = (raw?.success && Array.isArray(raw?.data)) ? raw.data : [];
+                              const exactMatch = results.find(it => (it.name || '').toLowerCase() === code.toLowerCase() || (it.item_code || '').toLowerCase() === code.toLowerCase());
+                              
+                              if (exactMatch) {
+                                Swal.fire({
+                                  title: 'Item Code Already Exists!',
+                                  html: `
+                                    <div style="text-align: left; padding: 6px;">
+                                      <p style="font-size: 13px; color: #334155; margin-bottom: 8px;">Item <b>${exactMatch.item_name}</b> (<code>${exactMatch.name}</code>) is already registered in the system.</p>
+                                      <p style="font-size: 11px; color: #0284c7; font-weight: 700;">Active in: ${exactMatch.active_branches || 'Other Branches'}</p>
+                                    </div>
+                                  `,
+                                  icon: 'warning',
+                                  showCancelButton: true,
+                                  confirmButtonText: '⚡ Sync to Current Branch',
+                                  cancelButtonText: 'Use Different Code',
+                                  confirmButtonColor: '#0284c7',
+                                  cancelButtonColor: '#64748b'
+                                }).then(async (result) => {
+                                  if (result.isConfirmed) {
+                                    try {
+                                      Swal.fire({ title: 'Syncing Item...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+                                      const syncRes = await axios.post('/api/method/kyle_retail.retail_api.api.enable_item_for_branch_retail', {
+                                        item_code: exactMatch.name,
+                                        warehouse: localStorage.getItem('warehouse')
+                                      }, { withCredentials: true });
+                                      if (syncRes.data.message?.success) {
+                                        Swal.fire('Success', 'Item synced to your branch!', 'success');
+                                        setShowModal(false);
+                                        fetchItems();
+                                      }
+                                    } catch (err) {
+                                      Swal.fire('Error', err.message, 'error');
+                                    }
+                                  } else {
+                                    setForm(prev => ({ ...prev, item_code: '' }));
+                                  }
+                                });
+                              }
+                            } catch (e) {
+                              console.error('Item code check error:', e);
+                            }
+                          }}
+                          disabled={isEditMode}
+                          placeholder="e.g. ITM-001"
+                        />
                       </div>
                       <div className="il-form-field">
                         <label className="il-form-label req">Item Name</label>

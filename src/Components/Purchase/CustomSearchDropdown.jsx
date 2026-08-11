@@ -59,24 +59,22 @@ const CustomSearchDropdown = ({
           const spaceBelow = window.innerHeight - rect.bottom;
           const spaceAbove = rect.top;
 
-          let topPos = rect.bottom + 8;
-          let maxHeight = 360;
+          const estimatedHeight = results.length > 0 ? Math.min(results.length * 52 + 20, 320) : (isGlobalView ? 220 : 130);
+          let topPos = rect.bottom + 4;
+          let maxHeight = 320;
 
-          if (spaceBelow < 350 && spaceAbove > spaceBelow) {
-            // flip upwards
-            maxHeight = Math.min(360, spaceAbove - 16);
-            topPos = rect.top - maxHeight - 8;
+          // Only flip upward if space below is less than 120px AND space above is significantly larger
+          if (spaceBelow < 140 && spaceAbove > 200) {
+            maxHeight = Math.min(320, spaceAbove - 16);
+            topPos = Math.max(8, rect.top - Math.min(estimatedHeight, maxHeight) - 4);
           } else {
-            maxHeight = Math.min(360, spaceBelow - 16);
+            maxHeight = Math.min(320, Math.max(120, spaceBelow - 16));
           }
 
-          const dropdownWidth = Math.max(rect.width, 420);
           let leftPos = rect.left;
-          if (leftPos + dropdownWidth > window.innerWidth) {
-            leftPos = window.innerWidth - dropdownWidth - 16;
-          }
-          if (leftPos < 16) {
-            leftPos = 16;
+          const targetWidth = Math.max(rect.width, 320);
+          if (leftPos + targetWidth > window.innerWidth - 12) {
+            leftPos = Math.max(12, window.innerWidth - targetWidth - 12);
           }
 
           setPosition({
@@ -305,8 +303,8 @@ const CustomSearchDropdown = ({
           style={{
             top: position.top,
             left: position.left,
-            width: position.width,
-            minWidth: '420px',
+            width: Math.max(position.width, 320),
+            minWidth: Math.max(position.width, 320),
             maxHeight: position.maxHeight || 360,
             zIndex: 20000, // CRITICAL: Focus above modal overlay (10500 z-index)
             '--po-primary': themeColor || '#6366f1',
@@ -395,31 +393,28 @@ const CustomSearchDropdown = ({
           )}
 
           {results.length === 0 && !isGlobalView && query.length >= 1 && !loading && !justCreated && (
-            <div className="p-6 text-center">
-              <div className="flex flex-col items-center gap-3">
-                <div className="w-10 h-10 bg-slate-50 rounded-full flex items-center justify-center">
-                  <Search className="w-5 h-5 text-slate-300" />
-                </div>
+            <div className="p-3 text-center">
+              <div className="flex flex-col items-center gap-1.5">
                 <div>
-                  <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">No Local Matches</p>
-                  <p className="text-[10px] text-slate-400 mb-4 font-medium italic">Check other branches for "{query}"?</p>
+                  <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-0.5">No Local Matches</p>
+                  <p className="text-[10px] text-slate-400 mb-2 font-medium italic">Check other branches for "{query}"?</p>
 
-                  <div className="flex flex-col gap-2">
+                  <div className="flex flex-col gap-1.5 w-full mt-1">
                     {globalSearch && (
                       <button
                         onClick={handleGlobalSearch}
-                        className="text-[11px] bg-blue-600 text-white font-black py-2.5 px-6 rounded-lg hover:bg-blue-700 transition-all shadow-lg flex items-center justify-center gap-2"
+                        className="w-full text-[11px] bg-sky-600 text-white font-black py-2 px-3 rounded-lg hover:bg-sky-700 transition-all shadow-xs flex items-center justify-center gap-1.5"
                       >
-                        <Search size={14} /> SEARCH OTHER BRANCHES
+                        <Search size={13} /> SEARCH OTHER BRANCHES
                       </button>
                     )}
 
                     {createOption && (
                       <button
                         onClick={handleCreate}
-                        className="text-[11px] bg-[var(--po-primary)] text-white font-black py-2.5 px-6 rounded-lg hover:opacity-90 transition-all shadow-lg flex items-center justify-center gap-2"
+                        className="w-full text-[11px] bg-emerald-600 text-white font-black py-2 px-3 rounded-lg hover:bg-emerald-700 transition-all shadow-xs flex items-center justify-center gap-1.5"
                       >
-                        <Plus size={14} /> REGISTER NEW RECORD
+                        <Plus size={13} /> REGISTER NEW RECORD
                       </button>
                     )}
                   </div>

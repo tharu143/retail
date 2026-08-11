@@ -33,7 +33,8 @@ const DEFAULT_PR_COLUMNS = [
   { id: 'custom_box_selling_price', label: 'Selling Price (Box)', visible: true, width: 100 },
   { id: 'accepted_qty', label: 'Total Qty', visible: true, width: 90 },
   { id: 'rejected_qty', label: 'Rejected Qty', visible: true, width: 90 },
-  { id: 'amount', label: 'Subtotal', visible: true, width: 90 }
+  { id: 'amount', label: 'Subtotal', visible: true, width: 90 },
+  { id: 'last_purchase_rate', label: 'Last Purchase Price', visible: true, width: 110 }
 ];
 
 const getLocalISODate = () => {
@@ -1189,6 +1190,27 @@ function PurchaseReceiptList() {
       const pcsPerBox = parseFloat(item.custom_pieces_per_box) || 1;
       const buyPriceBox = parseFloat(item.custom_box_price) || (buyRateNos * pcsPerBox);
       const sellPriceBox = parseFloat(item._temp_box_selling_price || (sellPriceNos * pcsPerBox)) || 0;
+
+      const currentUom = (item.uom || '').toLowerCase();
+      if (currentUom === 'box') {
+        if (!sellPriceBox || sellPriceBox <= 0) {
+          Swal.fire({
+            icon: 'error',
+            title: 'Selling Price Required',
+            html: `Row #${i + 1} (${item.item_name || item.item_code}):<br/><b>Selling Price (Box)</b> is MANDATORY for Box UOM!`
+          });
+          return false;
+        }
+      } else {
+        if (!sellPriceNos || sellPriceNos <= 0) {
+          Swal.fire({
+            icon: 'error',
+            title: 'Selling Price Required',
+            html: `Row #${i + 1} (${item.item_name || item.item_code}):<br/><b>Selling Price (NOS)</b> is MANDATORY!`
+          });
+          return false;
+        }
+      }
 
       if (sellPriceNos > 0 && buyRateNos > 0 && sellPriceNos < buyRateNos) {
         Swal.fire({
@@ -2838,6 +2860,20 @@ function PurchaseReceiptList() {
                               onSelect={selectSupplier}
                               fetchData={fetchSuppliers}
                               optionsLabel="supplier_name"
+                              globalSearch={true}
+                              onGlobalSearch={async (query) => {
+                                const res = await axios.get('/api/method/kyle_retail.retail_api.api.find_supplier_globally_retail', { params: { search_term: query }, withCredentials: true });
+                                return res.data.message?.data || [];
+                              }}
+                              onActivate={async (supp) => {
+                                const sName = supp.name || supp.supplier_name;
+                                const res = await axios.post('/api/method/kyle_retail.retail_api.api.enable_supplier_for_branch_retail', { supplier: sName, supplier_name: sName, warehouse: localStorage.getItem('warehouse') }, { withCredentials: true });
+                                if (res.data.message?.success) {
+                                  Swal.fire({ icon: 'success', title: 'Supplier Linked', text: 'Linked to your branch!', timer: 1500, showConfirmButton: false });
+                                  return true;
+                                }
+                                return false;
+                              }}
                             />
                           </div>
                         )}
@@ -3016,8 +3052,24 @@ function PurchaseReceiptList() {
                                                         placeholder="Search item..."
                                                         onSelect={(val) => selectItem(i, val)}
                                                         fetchData={fetchItems}
+                                                        createOption={(query) => {
+                                                          window.open('#/itemlist?action=new', '_blank');
+                                                        }}
                                                         themeColor={themeColor}
                                                         optionsLabel="name"
+                                                        globalSearch={true}
+                                                        onGlobalSearch={async (query) => {
+                                                          const res = await axios.post('/api/method/kyle_retail.retail_api.api.find_item_globally_retail', { search_term: query }, { withCredentials: true });
+                                                          return res.data.message?.data || [];
+                                                        }}
+                                                        onActivate={async (it) => {
+                                                          const res = await axios.post('/api/method/kyle_retail.retail_api.api.enable_item_for_branch_retail', { item_code: it.name || it.item_code, warehouse: localStorage.getItem('warehouse') }, { withCredentials: true });
+                                                          if (res.data.message?.success) {
+                                                            Swal.fire({ icon: 'success', title: 'Item Linked', text: 'Linked to your branch!', timer: 1500, showConfirmButton: false });
+                                                            return true;
+                                                          }
+                                                          return false;
+                                                        }}
                                                       />
                                                       {Boolean(item.item_code && (item.last_purchase_rate || item.last_buying_rate || item.rate)) && (
                                                         <div className="flex items-center gap-1 mt-1 px-1">
@@ -3988,27 +4040,7 @@ function PurchaseReceiptList() {
                         </div>
                       </div>
                     </div>
-                    <div className="so-card">
-                      <div className="so-card-header">
-                        <p className="so-card-title">Barcode Scanner</p>
-                      </div>
-                      <div className="so-card-body">
-                        <div className="so-barcode-area">
-                          <Search size={18} />
-                          <input
-                            id="barcode-scan-input-pr"
-                            type="text"
-                            value={barcodeInput}
-                            onChange={(e) => setBarcodeInput(e.target.value)}
-                            onKeyDown={handleBarcodeScan}
-                            placeholder={isViewMode ? "Scanner disabled in view mode" : "Scan or type barcode → press Enter..."}
-                            className="so-barcode-input"
-                            style={{ fontSize: '1rem' }}
-                            disabled={isViewMode}
-                          />
-                        </div>
-                      </div>
-                    </div>
+
                     {/* Items Card */}
                     <div className="so-card">
                       <div className="so-card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -4024,11 +4056,15 @@ function PurchaseReceiptList() {
                             <Settings size={14} />
                             <span>Columns</span>
                           </button>
-                          {/* Hide Add Row if mapped from PO */}
                           {!formData.items.some(i => i.purchase_order) && !isViewMode && (
-                            <button onClick={addItemRow} className="so-btn-ghost" style={{ fontSize: '0.7rem' }}>
-                              <Plus size={14} /> Add Row
-                            </button>
+                            <>
+                              <button onClick={() => window.open('#/itemlist?action=new', '_blank')} className="so-btn-ghost" style={{ fontSize: '0.7rem', color: '#0ea5e9', display: 'flex', alignItems: 'center', gap: '0.25rem' }} title="Go to Create Item Page">
+                                <Plus size={14} /> Create Item
+                              </button>
+                              <button onClick={addItemRow} className="so-btn-ghost" style={{ fontSize: '0.7rem' }}>
+                                <Plus size={14} /> Add Row
+                              </button>
+                            </>
                           )}
                         </div>
                       </div>

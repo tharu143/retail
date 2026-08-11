@@ -35,7 +35,8 @@ const DEFAULT_PI_COLUMNS = [
   { id: 'custom_selling_price', label: 'Selling Price (Nos)', visible: true, width: 100 },
   { id: 'custom_box_selling_price', label: 'Selling Price (Box)', visible: true, width: 100 },
   { id: 'qty', label: 'Total Qty', visible: true, width: 90 },
-  { id: 'amount', label: 'Subtotal', visible: true, width: 90 }
+  { id: 'amount', label: 'Subtotal', visible: true, width: 90 },
+  { id: 'last_purchase_rate', label: 'Last Purchase Price', visible: true, width: 110 }
 ];
 
 const getLocalISODate = () => {
@@ -148,7 +149,7 @@ function PurchaseInvoiceList() {
       const saved = localStorage.getItem('pi_column_config');
       if (saved) {
         const parsed = JSON.parse(saved);
-        const requiredCols = ['custom_selling_price', 'custom_box_selling_price'];
+        const requiredCols = ['custom_selling_price', 'custom_box_selling_price', 'last_purchase_rate'];
         const hasAll = requiredCols.every(id => parsed.some(c => c.id === id));
         if (!hasAll) {
           localStorage.removeItem('pi_column_config');
@@ -204,12 +205,77 @@ function PurchaseInvoiceList() {
   const fetchItemsAPI = async (query) => {
     try {
       const res = await axios.get(`${LEGACY_API}.get_items_for_pi`, {
-        params: { query: query || undefined, warehouse: !isAdmin ? warehouse : undefined },
+        params: {
+          query: query || undefined,
+          warehouse: !isAdmin ? warehouse : undefined,
+          supplier: formData.supplier || undefined
+        },
         withCredentials: true
       });
       return Array.isArray(res.data.message) ? res.data.message : [];
     } catch (err) {
       return [];
+    }
+  };
+
+  const onGlobalSupplierSearch = async (query) => {
+    try {
+      const res = await axios.get('/api/method/kyle_retail.retail_api.api.find_supplier_globally_retail', {
+        params: { search_term: query },
+        withCredentials: true
+      });
+      return res.data.message?.data || [];
+    } catch (e) {
+      console.error(e);
+      return [];
+    }
+  };
+
+  const onActivateSupplier = async (supp) => {
+    try {
+      const sName = supp.name || supp.supplier_name;
+      const res = await axios.post('/api/method/kyle_retail.retail_api.api.enable_supplier_for_branch_retail', {
+        supplier: sName,
+        supplier_name: sName,
+        warehouse: warehouse
+      }, { withCredentials: true });
+      if (res.data.message?.success) {
+        Swal.fire({ icon: 'success', title: 'Supplier Activated', text: `${supp.supplier_name || supp.name} linked to your branch!`, timer: 1500, showConfirmButton: false });
+        return true;
+      }
+      return false;
+    } catch (e) {
+      Swal.fire('Error', e.message, 'error');
+      return false;
+    }
+  };
+
+  const onGlobalItemSearch = async (query) => {
+    try {
+      const res = await axios.post('/api/method/kyle_retail.retail_api.api.find_item_globally_retail', {
+        search_term: query
+      }, { withCredentials: true });
+      return res.data.message?.data || [];
+    } catch (e) {
+      console.error(e);
+      return [];
+    }
+  };
+
+  const onActivateItem = async (item) => {
+    try {
+      const res = await axios.post('/api/method/kyle_retail.retail_api.api.enable_item_for_branch_retail', {
+        item_code: item.name || item.item_code,
+        warehouse: warehouse
+      }, { withCredentials: true });
+      if (res.data.message?.success) {
+        Swal.fire({ icon: 'success', title: 'Item Activated', text: `${item.item_name || item.name} linked to your branch!`, timer: 1500, showConfirmButton: false });
+        return true;
+      }
+      return false;
+    } catch (e) {
+      Swal.fire('Error', e.message, 'error');
+      return false;
     }
   };
 
@@ -228,6 +294,7 @@ function PurchaseInvoiceList() {
     additional_discount_percentage: 0,
     discount_amount: 0,
     taxes_and_charges: '',
+    is_cash_purchase: false,
     items: [{ item_code: '', item_name: '', qty: 1, uom: '', rate: 0, amount: 0, custom_selling_price: 0 }],
     docstatus: 0
   };
@@ -421,7 +488,7 @@ function PurchaseInvoiceList() {
       if (!formData.supplier) errors.supplier = 'Supplier is required';
       if (formData.items.filter(i => i.item_code && i.qty > 0).length === 0) errors.items = 'Add at least one item';
       if (formData.update_stock && !formData.accepted_warehouse) errors.accepted_warehouse = 'Accepted Warehouse is required';
-      // Check if Selling Price is less than Buying Rate for any item
+      // Check if Selling Price is specified and valid
       for (let i = 0; i < formData.items.length; i++) {
         const item = formData.items[i];
         if (!item.item_code) continue;
@@ -430,6 +497,19 @@ function PurchaseInvoiceList() {
         const pcsPerBox = parseFloat(item.custom_pieces_per_box) || 1;
         const buyPriceBox = parseFloat(item.custom_box_price) || (buyRateNos * pcsPerBox);
         const sellPriceBox = parseFloat(item._temp_box_selling_price || (sellPriceNos * pcsPerBox)) || 0;
+        const currentUom = (item.uom || '').toLowerCase();
+
+        if (currentUom === 'box') {
+          if (!sellPriceBox || sellPriceBox <= 0) {
+            Swal.fire('Selling Price Required', `Row #${i + 1} (${item.item_name || item.item_code}): Selling Price (Box) is MANDATORY for Box UOM!`, 'error');
+            return;
+          }
+        } else {
+          if (!sellPriceNos || sellPriceNos <= 0) {
+            Swal.fire('Selling Price Required', `Row #${i + 1} (${item.item_name || item.item_code}): Selling Price (NOS) is MANDATORY!`, 'error');
+            return;
+          }
+        }
 
         if (sellPriceNos > 0 && buyRateNos > 0 && sellPriceNos < buyRateNos) {
           Swal.fire({
@@ -510,17 +590,19 @@ function PurchaseInvoiceList() {
           return;
         }
 
-        const nextDoc = (rawMsg.data && rawMsg.data.name) || rawMsg.new_name || rawMsg.docname || rawMsg.name || docName;
+        const returnedDoc = rawMsg.data || {};
+        const nextDoc = returnedDoc.name || rawMsg.new_name || rawMsg.docname || rawMsg.name || docName;
+        const currentIsCash = !!payload?.custom_is_cash_purchase;
 
         if (nextDoc) {
           setDocName(nextDoc);
-          // Always keep searchParams URL in sync with the current active document
           setSearchParams({ name: nextDoc });
-          if (nextDoc !== docName) {
-            await fetchPurchaseInvoice(nextDoc);
-          } else {
-            await fetchPurchaseInvoice(docName);
-          }
+          await fetchPurchaseInvoice(nextDoc);
+          // Preserve local cash purchase selection explicitly
+          setFormData(prev => ({
+            ...prev,
+            is_cash_purchase: currentIsCash
+          }));
           if (action === 'amend') {
             setIsEditMode(true);
             setIsViewMode(false);
@@ -808,6 +890,7 @@ function PurchaseInvoiceList() {
           accepted_warehouse: d.accepted_warehouse || '',
           rejected_warehouse: d.rejected_warehouse || '',
           is_subcontracted: !!d.is_subcontracted,
+          is_cash_purchase: !!(d.custom_is_cash_purchase || d.is_cash_purchase),
           apply_discount_on: d.apply_discount_on || 'Grand Total',
           additional_discount_percentage: d.additional_discount_percentage || 0,
           discount_amount: d.discount_amount || 0,
@@ -1550,6 +1633,8 @@ function PurchaseInvoiceList() {
       accepted_warehouse: formData.update_stock ? formData.accepted_warehouse : null,
       rejected_warehouse: formData.update_stock ? formData.rejected_warehouse : null,
       is_subcontracted: formData.is_subcontracted ? 1 : 0,
+      custom_is_cash_purchase: formData.is_cash_purchase ? 1 : 0,
+      is_cash_purchase: formData.is_cash_purchase ? 1 : 0,
       apply_discount_on: formData.apply_discount_on,
       additional_discount_percentage: formData.additional_discount_percentage > 0 ? parseFloat(formData.additional_discount_percentage) : null,
       discount_amount: formData.discount_amount > 0 ? parseFloat(formData.discount_amount) : null,
@@ -1597,6 +1682,28 @@ function PurchaseInvoiceList() {
     if (!formData.supplier) errors.supplier = 'Supplier is required';
     if (formData.items.filter(i => i.item_code && i.qty > 0).length === 0) errors.items = 'Add at least one item';
     if (formData.update_stock && !formData.accepted_warehouse) errors.accepted_warehouse = 'Accepted Warehouse is required';
+    // Validate mandatory Selling Price by UOM
+    for (let i = 0; i < formData.items.length; i++) {
+      const item = formData.items[i];
+      if (!item.item_code) continue;
+      const currentUom = (item.uom || '').toLowerCase();
+      const sellPriceNos = parseFloat(item.custom_selling_price) || 0;
+      const pcsPerBox = parseFloat(item.custom_pieces_per_box) || 1;
+      const sellPriceBox = parseFloat(item._temp_box_selling_price || (sellPriceNos * pcsPerBox)) || 0;
+
+      if (currentUom === 'box') {
+        if (!sellPriceBox || sellPriceBox <= 0) {
+          Swal.fire('Selling Price Required', `Row #${i + 1} (${item.item_name || item.item_code}): Selling Price (Box) is MANDATORY for Box UOM!`, 'error');
+          return;
+        }
+      } else {
+        if (!sellPriceNos || sellPriceNos <= 0) {
+          Swal.fire('Selling Price Required', `Row #${i + 1} (${item.item_name || item.item_code}): Selling Price (NOS) is MANDATORY!`, 'error');
+          return;
+        }
+      }
+    }
+
     if (Object.keys(errors).length > 0) {
       setFormErrors(errors);
       return;
@@ -1619,9 +1726,12 @@ function PurchaseInvoiceList() {
           data: payload
         }, { withCredentials: true });
         const apiResp = response.data.message || response.data;
-        if (apiResp.name) {
-          setDocName(apiResp.name);
-          alert(`Draft saved: ${apiResp.name}`);
+        const targetDocName = docName || apiResp.name;
+        if (targetDocName) {
+          setDocName(targetDocName);
+          setSearchParams({ name: targetDocName });
+          await fetchPurchaseInvoice(targetDocName);
+          alert(`Draft saved: ${targetDocName}`);
         } else {
           throw new Error('Failed to create draft');
         }
@@ -2843,6 +2953,9 @@ function PurchaseInvoiceList() {
                           fetchData={fetchSuppliersAPI}
                           createOption={handleSupplierCreate}
                           optionsLabel="supplier_name"
+                          globalSearch={true}
+                          onGlobalSearch={onGlobalSupplierSearch}
+                          onActivate={onActivateSupplier}
                         />
                         {formErrors.supplier && <span className="so-error-text">{formErrors.supplier}</span>}
                       </div>
@@ -2863,9 +2976,46 @@ function PurchaseInvoiceList() {
                           />
                         </div>
                       </div>
+                      <div className="so-field">
+                        <label className="so-label font-bold text-slate-700">Payment Type</label>
+                        <div className="grid grid-cols-2 gap-2 mt-1">
+                          <button
+                            type="button"
+                            disabled={isViewMode}
+                            onClick={() => setFormData(prev => ({ ...prev, is_cash_purchase: false }))}
+                            className={`py-2 px-3 rounded-xl border text-xs font-black flex items-center justify-center gap-2 transition-all ${
+                              !formData.is_cash_purchase
+                                ? 'bg-indigo-50 border-indigo-500 text-indigo-700 shadow-xs'
+                                : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'
+                            }`}
+                          >
+                            <span className={`w-2.5 h-2.5 rounded-full ${!formData.is_cash_purchase ? 'bg-indigo-600' : 'bg-slate-300'}`} />
+                            CREDIT
+                          </button>
+
+                          <button
+                            type="button"
+                            disabled={isViewMode}
+                            onClick={() => setFormData(prev => ({ ...prev, is_cash_purchase: true }))}
+                            className={`py-2 px-3 rounded-xl border text-xs font-black flex items-center justify-center gap-2 transition-all ${
+                              formData.is_cash_purchase
+                                ? 'bg-emerald-50 border-emerald-500 text-emerald-700 shadow-xs'
+                                : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'
+                            }`}
+                          >
+                            <span className={`w-2.5 h-2.5 rounded-full ${formData.is_cash_purchase ? 'bg-emerald-600' : 'bg-slate-300'}`} />
+                            CASH
+                          </button>
+                        </div>
+                        {formData.is_cash_purchase && (
+                          <p className="text-[10px] text-emerald-600 font-bold mt-1.5 flex items-center gap-1">
+                            ⚡ Auto-creates Cash Payment Entry upon Submit!
+                          </p>
+                        )}
+                      </div>
                     </div>
 
-                    {/* Left Column 2 (Due Date & Bill Number stacked) */}
+                    {/* Left Column 2 (Target Warehouse, Due Date & Bill Number stacked) */}
                     <div className="md:col-span-4 flex flex-col gap-5">
                       <div className="so-field">
                         <label className="so-label">Target Warehouse (Branch) {!isViewMode && <span style={{ color: '#ef4444' }}>*</span>}</label>
@@ -2941,37 +3091,7 @@ function PurchaseInvoiceList() {
                 </div>
               </div>
 
-              {/* Barcode Scanner Card */}
-              {!isViewMode && (
-                <div className="so-card" style={{ border: `1px dashed ${themeColor}`, background: `${themeColor}05` }}>
-                  <div className="so-card-body" style={{ padding: '1rem 1.5rem' }}>
-                    <div className="so-form-grid" style={{ gridTemplateColumns: 'auto 1fr auto', alignItems: 'center', gap: '1.5rem' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                        <div style={{ background: themeColor, color: 'white', padding: '0.5rem', borderRadius: '0.5rem' }}>
-                          <Barcode size={20} />
-                        </div>
-                        <div>
-                          <p style={{ fontWeight: 800, fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: themeColor }}>Quick Scan</p>
-                          <p style={{ fontSize: '0.65rem', opacity: 0.6 }}>Add items instantly</p>
-                        </div>
-                      </div>
-                      <input
-                        ref={barcodeRef}
-                        type="text"
-                        value={barcodeInput}
-                        onChange={e => setBarcodeInput(e.target.value)}
-                        onKeyDown={handleBarcodeScan}
-                        placeholder="Place cursor here and scan barcode..."
-                        className="so-input"
-                        style={{ height: '42px', fontSize: '0.9rem', borderStyle: 'dashed' }}
-                        disabled={barcodeLoading}
-                        autoFocus
-                      />
-                      {barcodeLoading && <Loader2 className="so-spinner" size={20} />}
-                    </div>
-                  </div>
-                </div>
-              )}
+
 
               {/* Items Card */}
               <div className="so-card">
@@ -3009,14 +3129,18 @@ function PurchaseInvoiceList() {
                               if (col.id === 'custom_box_selling_price' && !anyBoxUom) return null;
                               let finalLabel = col.label;
                               if (col.id === 'custom_box_qty') finalLabel = 'QTY';
+                              const isLpr = col.id === 'last_purchase_rate';
                               return (
                                 <th
                                   key={col.id}
                                   style={{
                                     width: col.width,
                                     minWidth: col.id === 'item_code' ? 120 : undefined,
-                                    textAlign: ['rate', 'amount', 'custom_selling_price', 'custom_box_selling_price', 'custom_box_price'].includes(col.id) ? 'right' :
-                                      ['custom_box_qty', 'qty', 'custom_pieces_per_box'].includes(col.id) ? 'left' : 'center'
+                                    textAlign: ['rate', 'amount', 'custom_selling_price', 'custom_box_selling_price', 'custom_box_price', 'last_purchase_rate'].includes(col.id) ? 'right' :
+                                      ['custom_box_qty', 'qty', 'custom_pieces_per_box'].includes(col.id) ? 'left' : 'center',
+                                    backgroundColor: isLpr ? '#fef3c7' : undefined,
+                                    color: isLpr ? '#92400e' : undefined,
+                                    fontWeight: isLpr ? 900 : undefined
                                   }}
                                 >
                                   {finalLabel}
@@ -3183,7 +3307,13 @@ function PurchaseInvoiceList() {
                                                 value={item.item_code ? { name: item.item_code, item_name: item.item_name } : null}
                                                 onSelect={it => selectItem(i, it)}
                                                 fetchData={fetchItemsAPI}
+                                                createOption={(query) => {
+                                                  window.open('#/itemlist?action=new', '_blank');
+                                                }}
                                                 optionsLabel="item_name"
+                                                globalSearch={true}
+                                                onGlobalSearch={onGlobalItemSearch}
+                                                onActivate={onActivateItem}
                                               />
                                             )}
                                           </div>
@@ -3465,6 +3595,18 @@ function PurchaseInvoiceList() {
                                           <div className="premium-cell-box">
                                             <div className="premium-cell-readonly premium-cell-readonly-right pr-3 font-bold text-slate-800" style={{ textAlign: 'right' }}>
                                               {formatPrice(item.amount)}
+                                            </div>
+                                          </div>
+                                        </div>
+                                      </td>
+                                    );
+                                  case 'last_purchase_rate':
+                                    return (
+                                      <td key={col.id}>
+                                        <div className="premium-cell-container">
+                                          <div className="premium-cell-box">
+                                            <div className="premium-cell-readonly premium-cell-readonly-right pr-3 font-bold text-amber-700 bg-amber-50/50" style={{ textAlign: 'right' }}>
+                                              {item.last_purchase_rate || item.last_buying_rate ? formatPrice(item.last_purchase_rate || item.last_buying_rate) : '—'}
                                             </div>
                                           </div>
                                         </div>

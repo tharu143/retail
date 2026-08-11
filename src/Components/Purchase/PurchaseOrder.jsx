@@ -29,7 +29,8 @@ const DEFAULT_PO_COLUMNS = [
   { id: 'rate', label: 'Rate (Nos)', visible: true, width: 90 },
   { id: 'custom_selling_price', label: 'Selling Price', visible: true, width: 90 },
   { id: 'qty', label: 'Total Qty', visible: true, width: 90 },
-  { id: 'amount', label: 'Subtotal', visible: true, width: 90 }
+  { id: 'amount', label: 'Subtotal', visible: true, width: 90 },
+  { id: 'last_purchase_rate', label: 'Last Purchase Price', visible: true, width: 110 }
 ];
 
 const POItemModel = {
@@ -1717,10 +1718,26 @@ function PurchaseOrder() {
       setError('Please add at least one valid item');
       return false;
     }
-    if (validItems.some(i => i.qty <= 0)) {
-      setError('All items must have a quantity greater than zero');
-      return false;
+    for (let i = 0; i < validItems.length; i++) {
+      const item = validItems[i];
+      const currentUom = (item.uom || '').toLowerCase();
+      const sellPriceNos = parseFloat(item.custom_selling_price) || 0;
+      const pcsPerBox = parseFloat(item.custom_pieces_per_box) || 1;
+      const sellPriceBox = parseFloat(item._temp_box_selling_price || (sellPriceNos * pcsPerBox)) || 0;
+
+      if (currentUom === 'box') {
+        if (!sellPriceBox || sellPriceBox <= 0) {
+          setError(`Row #${i + 1} (${item.item_name || item.item_code}): Selling Price (Box) is MANDATORY for Box UOM!`);
+          return false;
+        }
+      } else {
+        if (!sellPriceNos || sellPriceNos <= 0) {
+          setError(`Row #${i + 1} (${item.item_name || item.item_code}): Selling Price (NOS) is MANDATORY!`);
+          return false;
+        }
+      }
     }
+
     if (isSubmitting && !formData.name && !formData.quick_entry) {
       setError('Please Save as Draft before processing the order');
       return false;
@@ -2077,8 +2094,10 @@ function PurchaseOrder() {
   };
 
   const handleActivateSupplier = async (item) => {
+    const sName = item.name || item.supplier_name;
     const res = await axios.post(`${API_PATH}.enable_supplier_for_branch_retail`, {
-      supplier: item.name,
+      supplier: sName,
+      supplier_name: sName,
       warehouse: warehouse
     });
     return res.data.message.success;
@@ -2980,35 +2999,7 @@ function PurchaseOrder() {
                   </div>
 
                   {!isViewOnly && formData.docstatus === 0 && (
-                    <div className="px-5 py-3 border-b border-slate-100 flex items-center gap-4 bg-white animate-fadeIn">
-                      <div className="relative flex-1 group">
-                        <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-[#10b981] transition-colors">
-                          <Scan className="w-4 h-4" />
-                        </div>
-                        <input
-                          type="text"
-                          placeholder="Enter Barcode / Scan here..."
-                          className="w-full pr-12 h-[42px] bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold outline-none focus:border-[#10b981] focus:bg-white transition-all shadow-sm"
-                          style={{ paddingLeft: '40px' }}
-                          onKeyDown={async (e) => {
-                            if (e.key === 'Enter') {
-                              const barcode = e.target.value.trim();
-                              if (barcode) {
-                                await handleBarcodeEnter({ key: 'Enter', target: { value: barcode } }, formData.items.length - 1);
-                                e.target.value = '';
-                              }
-                            }
-                          }}
-                        />
-                        <button
-                          type="button"
-                          onClick={startCameraScanner}
-                          className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center text-slate-400 hover:text-[#10b981] hover:bg-emerald-50 rounded-lg transition-all"
-                          title="Start Camera Scanner"
-                        >
-                          <Camera className="w-4 h-4" />
-                        </button>
-                      </div>
+                    <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-end gap-4 bg-white animate-fadeIn">
                       <button type="button" onClick={addItemRow} className="po-btn-secondary h-[42px] px-8 rounded-xl flex items-center gap-2">
                         <Plus className="w-4 h-4" /> Add Row
                       </button>
@@ -3161,6 +3152,9 @@ function PurchaseOrder() {
                                                   value={item.item_code ? { name: item.item_code, item_name: item.item_name } : null}
                                                   placeholder="Search item..."
                                                   onSelect={(val) => handleItemSelect(val, idx)}
+                                                  createOption={(query) => {
+                                                    window.open('#/itemlist?action=new', '_blank');
+                                                  }}
                                                   themeColor="var(--po-primary)"
                                                   optionsLabel="name"
                                                   fetchData={fetchItems}

@@ -313,6 +313,7 @@ function CustomerList() {
   const [filterGroup, setFilterGroup] = useState('');
   const [filterType, setFilterType] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
+  const [filterBranch, setFilterBranch] = useState(warehouse || 'all');
   const [sortField, setSortField] = useState('modified');
   const [sortOrder, setSortOrder] = useState('desc');
 
@@ -420,7 +421,7 @@ function CustomerList() {
   /* ────────────────────── INITIALIZATION ────────────────────── */
   useEffect(() => {
     fetchCustomers();
-  }, [sortField, sortOrder, customColumns]);
+  }, [sortField, sortOrder, filterBranch, customColumns]);
 
   useEffect(() => {
     fetchMeta();
@@ -433,7 +434,7 @@ function CustomerList() {
         params: { 
           order_by: `${sortField} ${sortOrder}`,
           search: filterSearch,
-          warehouse: !isAdmin ? warehouse : undefined,
+          warehouse: filterBranch !== 'all' ? filterBranch : undefined,
           extra_fields: JSON.stringify(customColumns)
         } 
       });
@@ -863,6 +864,13 @@ function CustomerList() {
                 <option value="">All Types</option>
                 <option value="Company">Company</option>
                 <option value="Individual">Individual</option>
+              </select>
+            </div>
+            <div style={{ flex: '1 1 150px' }}>
+              <label className="so-filter-label">Branch</label>
+              <select className="so-filter-input" value={filterBranch} onChange={e => { setFilterBranch(e.target.value); setCurrentPage(1); }}>
+                <option value="all">All Branches (Global)</option>
+                {meta.warehouses?.map(w => <option key={w} value={w}>{w}</option>)}
               </select>
             </div>
             <div style={{ flex: '1 1 150px' }}>
