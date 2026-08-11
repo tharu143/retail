@@ -1808,7 +1808,7 @@ function CustomerList() {
         <div className="fixed inset-0 z-[12000] flex items-center justify-center bg-slate-900/60 backdrop-blur-xs animate-fadeIn p-4">
           <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-2xl flex flex-col overflow-hidden max-h-[85vh] text-left">
             {/* Header */}
-            <div className="px-6 py-4 bg-slate-50 border-b border-slate-200/80 flex items-center justify-between">
+            <div className="bg-slate-50 border-b border-slate-200/80 flex items-center justify-between" style={{ padding: '1.25rem 1.75rem' }}>
               <div className="flex items-center gap-3">
                 <div className="p-2 rounded-xl bg-sky-50 text-[#0369a1]">
                   <Globe size={18} strokeWidth={2.5} />
@@ -1827,24 +1827,26 @@ function CustomerList() {
             </div>
 
             {/* Body */}
-            <div className="p-6 flex-1 overflow-y-auto space-y-4 flex flex-col">
+            <div className="flex-1 overflow-y-auto flex flex-col" style={{ padding: '1.75rem', gap: '1.25rem' }}>
               {/* Search Bar inside Modal */}
-              <div className="flex gap-2 shrink-0">
+              <div className="flex shrink-0" style={{ gap: '0.75rem' }}>
                 <div className="relative flex-1">
-                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
                   <input
                     type="text"
                     placeholder="Search name, code, or mobile globally..."
                     value={globalSyncSearch}
                     onChange={e => setGlobalSyncSearch(e.target.value)}
                     onKeyDown={e => e.key === 'Enter' && runGlobalSearch()}
-                    className="w-full h-11 pl-10 pr-4 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none focus:border-sky-500 transition-all bg-slate-50/50"
+                    className="w-full border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none focus:border-sky-500 transition-all bg-slate-50/50"
+                    style={{ height: '2.75rem', paddingLeft: '3rem', paddingRight: '1rem' }}
                   />
                 </div>
                 <button
                   onClick={() => runGlobalSearch()}
                   disabled={searchingGlobal}
-                  className="px-5 h-11 text-xs font-bold uppercase tracking-wider text-white bg-sky-600 rounded-xl hover:bg-sky-700 transition-all flex items-center gap-2 shadow-md cursor-pointer"
+                  className="px-6 text-xs font-bold uppercase tracking-wider text-white bg-sky-600 rounded-xl hover:bg-sky-700 transition-all flex items-center gap-2 shadow-md cursor-pointer"
+                  style={{ height: '2.75rem' }}
                 >
                   {searchingGlobal ? <Loader2 size={14} className="animate-spin" /> : <Search size={14} />}
                   Discover
@@ -1869,7 +1871,7 @@ function CustomerList() {
                 ) : (
                   <div className="overflow-y-auto max-h-[350px] divide-y divide-slate-100 bg-white">
                     {/* Select All row */}
-                    <div className="px-4 py-2.5 bg-slate-50/50 flex items-center justify-between">
+                    <div className="bg-slate-50/50 flex items-center justify-between" style={{ padding: '0.75rem 1.25rem' }}>
                       <label className="flex items-center gap-3 cursor-pointer">
                         <input
                           type="checkbox"
@@ -1895,7 +1897,7 @@ function CustomerList() {
                     {globalCustomers.map((c, i) => {
                       const isLinked = c.active_branches && c.active_branches.includes(warehouse);
                       return (
-                        <div key={i} className={`px-4 py-3 flex items-center justify-between hover:bg-slate-50/50 transition-colors ${isLinked ? 'opacity-60 bg-slate-50/20' : ''}`}>
+                        <div key={i} className={`flex items-center justify-between hover:bg-slate-50/50 transition-colors ${isLinked ? 'opacity-60 bg-slate-50/20' : ''}`} style={{ padding: '0.875rem 1.25rem' }}>
                           <label className="flex items-center gap-3 cursor-pointer flex-1">
                             <input
                               type="checkbox"
@@ -1931,7 +1933,7 @@ function CustomerList() {
             </div>
 
             {/* Footer */}
-            <div className="px-6 py-4 bg-slate-50 border-t border-slate-200/80 flex items-center justify-between shrink-0">
+            <div className="bg-slate-50 border-t border-slate-200/80 flex items-center justify-between shrink-0" style={{ padding: '1rem 1.75rem' }}>
               <button
                 onClick={() => setShowGlobalSyncModal(false)}
                 className="px-4 py-2 text-xs font-bold uppercase tracking-wider text-slate-400 hover:text-rose-500 transition-all rounded-lg"

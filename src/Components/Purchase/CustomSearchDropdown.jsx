@@ -25,7 +25,7 @@ const CustomSearchDropdown = ({
   const [globalResults, setGlobalResults] = useState([]);
   const [isGlobalView, setIsGlobalView] = useState(false);
   const [activating, setActivating] = useState(null);
-  const [position, setPosition] = useState({ top: 0, left: 0, width: 0, maxHeight: 288 });
+  const [position, setPosition] = useState({ top: 0, left: 0, width: 0, maxHeight: 360 });
   const ref = useRef(null);
   const inputRef = useRef(null);
   const fetchDataRef = useRef(fetchData);
@@ -60,17 +60,17 @@ const CustomSearchDropdown = ({
           const spaceAbove = rect.top;
 
           let topPos = rect.bottom + 8;
-          let maxHeight = 288;
+          let maxHeight = 360;
 
-          if (spaceBelow < 280 && spaceAbove > spaceBelow) {
+          if (spaceBelow < 350 && spaceAbove > spaceBelow) {
             // flip upwards
-            maxHeight = Math.min(288, spaceAbove - 16);
+            maxHeight = Math.min(360, spaceAbove - 16);
             topPos = rect.top - maxHeight - 8;
           } else {
-            maxHeight = Math.min(288, spaceBelow - 16);
+            maxHeight = Math.min(360, spaceBelow - 16);
           }
 
-          const dropdownWidth = Math.max(rect.width, 350);
+          const dropdownWidth = Math.max(rect.width, 420);
           let leftPos = rect.left;
           if (leftPos + dropdownWidth > window.innerWidth) {
             leftPos = window.innerWidth - dropdownWidth - 16;
@@ -301,13 +301,13 @@ const CustomSearchDropdown = ({
       {show && createPortal(
         <div
           ref={dropdownContainerRef}
-          className="custom-dropdown-portal fixed z-[9999] bg-white border border-slate-200 rounded-xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.1)] overflow-auto animate-fadeIn py-1"
+          className="custom-dropdown-portal fixed z-[9999] bg-white border border-slate-200 rounded-2xl shadow-[0_12px_48px_-12px_rgba(0,0,0,0.15)] overflow-auto animate-fadeIn py-2"
           style={{
             top: position.top,
             left: position.left,
             width: position.width,
-            minWidth: '350px',
-            maxHeight: position.maxHeight || 288,
+            minWidth: '420px',
+            maxHeight: position.maxHeight || 360,
             zIndex: 20000, // CRITICAL: Focus above modal overlay (10500 z-index)
             '--po-primary': themeColor || '#6366f1',
             '--po-primary-light': themeColor && themeColor.startsWith('var(')
@@ -316,36 +316,36 @@ const CustomSearchDropdown = ({
           }}
         >
           {results.length > 0 && (
-            <div className="py-1">
+            <div className="py-1 flex flex-col">
               {results.map((item, i) => (
                 <div
                   key={i}
                   onClick={() => handleItemClick(item)}
                   onMouseEnter={() => setSelectedIndex(i)}
-                  className={`custom-dropdown-item px-4 py-2.5 cursor-pointer flex justify-between items-center group transition-all border-b border-slate-100/80 last:border-b-0 ${selectedIndex === i ? 'bg-[var(--po-primary-light)]' : 'hover:bg-slate-50'}`}
+                  className={`custom-dropdown-item mx-2 my-0.5 px-4 py-3 cursor-pointer flex justify-between items-center group transition-all rounded-xl ${selectedIndex === i ? 'bg-[var(--po-primary-light)]' : 'hover:bg-slate-50'}`}
                 >
-                  <div className="flex flex-col">
-                    <div className="flex items-center gap-2">
-                      <span className={`font-bold text-[13px] transition-colors ${selectedIndex === i ? 'text-[var(--po-primary,#6366f1)]' : 'text-slate-700'}`}>
+                  <div className="flex flex-col gap-1 flex-1 min-w-0 pr-3">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className={`font-bold text-[13.5px] transition-colors truncate ${selectedIndex === i ? 'text-[var(--po-primary,#6366f1)]' : 'text-slate-700'}`}>
                         {item[optionsLabel] || item.name || item.item_code || 'Unknown'}
                       </span>
                       {item.actual_qty !== undefined && (
-                        <span className="text-[9px] bg-slate-100 text-slate-500 font-bold px-1.5 py-0.5 rounded uppercase tracking-tight">
+                        <span className="text-[9px] bg-slate-100 text-slate-500 font-bold px-1.5 py-0.5 rounded uppercase tracking-tight shrink-0">
                           Stock: {item.actual_qty}
                         </span>
                       )}
                       {(item.last_purchase_rate || item.last_buying_rate || item.last_buying_price || item.rate) > 0 && (
-                        <span className="text-[9px] bg-emerald-50 text-emerald-700 border border-emerald-200 font-extrabold px-1.5 py-0.5 rounded tracking-tight">
+                        <span className="text-[9px] bg-emerald-50 text-emerald-700 border border-emerald-200 font-extrabold px-1.5 py-0.5 rounded tracking-tight shrink-0">
                           Last Pur: AED {parseFloat(item.last_purchase_rate || item.last_buying_rate || item.last_buying_price || item.rate).toFixed(2)}
                         </span>
                       )}
                     </div>
                     {(item.name || item.item_code) && (item.name || item.item_code) !== item[optionsLabel] && (
-                      <span className="text-[10px] text-slate-400 font-medium">{item.item_name || item.name || item.item_code}</span>
+                      <span className="text-[10px] text-slate-400 font-semibold tracking-wide font-mono truncate">{item.item_name || item.name || item.item_code}</span>
                     )}
                   </div>
                   {item.supplier_type && (
-                    <span className="text-[9px] bg-slate-100 text-slate-500 font-bold px-2 py-0.5 rounded-full uppercase tracking-tighter opacity-70 group-hover:opacity-100 group-hover:bg-[var(--po-primary-light)] group-hover:text-[var(--po-primary)] transition-all">
+                    <span className="text-[9px] bg-slate-100 text-slate-500 font-bold px-2 py-0.5 rounded-full uppercase tracking-tighter opacity-70 group-hover:opacity-100 group-hover:bg-[var(--po-primary-light)] group-hover:text-[var(--po-primary)] transition-all shrink-0">
                       {item.supplier_type}
                     </span>
                   )}
@@ -356,7 +356,7 @@ const CustomSearchDropdown = ({
 
           {isGlobalView && (
             <div className="py-1">
-              <div className="px-4 py-2 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+              <div className="px-4 py-2 bg-slate-50 border-b border-slate-100 flex items-center justify-between mb-1">
                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Global Results (Other Branches)</span>
                 <button
                   onClick={() => setIsGlobalView(false)}
@@ -366,24 +366,26 @@ const CustomSearchDropdown = ({
                 </button>
               </div>
               {globalResults.length > 0 ? (
-                globalResults.map((item, i) => (
-                  <div
-                    key={i}
-                    className="px-4 py-3 border-b border-slate-50 flex items-center justify-between hover:bg-slate-50 group"
-                  >
-                    <div className="flex flex-col">
-                      <span className="font-bold text-[13px] text-slate-700">{item[optionsLabel] || item.name}</span>
-                      <span className="text-[10px] text-slate-400 font-medium">Available in: {item.active_branches || 'Registry'}</span>
-                    </div>
-                    <button
-                      onClick={() => handleActivate(item)}
-                      disabled={activating === (item.name || item.item_code)}
-                      className="px-3 py-1.5 bg-blue-600 text-white text-[10px] font-black rounded-lg hover:bg-blue-700 disabled:bg-slate-200 disabled:text-slate-400 transition-all shadow-sm"
+                <div className="flex flex-col">
+                  {globalResults.map((item, i) => (
+                    <div
+                      key={i}
+                      className="mx-2 my-0.5 px-4 py-3 rounded-xl flex items-center justify-between hover:bg-slate-50 group transition-all"
                     >
-                      {activating === (item.name || item.item_code) ? '...' : 'ACTIVATE'}
-                    </button>
-                  </div>
-                ))
+                      <div className="flex flex-col gap-1 flex-1 min-w-0 pr-3">
+                        <span className="font-bold text-[13.5px] text-slate-700 truncate">{item[optionsLabel] || item.name}</span>
+                        <span className="text-[10px] text-slate-400 font-semibold tracking-wide font-mono truncate">Available in: {item.active_branches || 'Registry'}</span>
+                      </div>
+                      <button
+                        onClick={() => handleActivate(item)}
+                        disabled={activating === (item.name || item.item_code)}
+                        className="px-3 py-1.5 bg-blue-600 text-white text-[10px] font-black rounded-lg hover:bg-blue-700 disabled:bg-slate-200 disabled:text-slate-400 transition-all shadow-sm shrink-0"
+                      >
+                        {activating === (item.name || item.item_code) ? '...' : 'ACTIVATE'}
+                      </button>
+                    </div>
+                  ))}
+                </div>
               ) : (
                 <div className="p-8 text-center">
                   <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">No match in other branches</p>
