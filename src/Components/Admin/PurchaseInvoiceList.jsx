@@ -24,16 +24,19 @@ const RESOURCE_API = '/api/resource/Purchase Invoice';
 const RESOURCE_BASE = '/api/resource';
 
 const DEFAULT_PI_COLUMNS = [
-  { id: 'item_code', label: 'Item Code', visible: true, width: 120 },
-  { id: 'item_name', label: 'Item Name', visible: false, width: 150 },
-  { id: 'custom_ref_sl_no', label: 'Ref / Supplier SL #', visible: true, width: 120 },
-  { id: 'custom_box_qty', label: 'QTY', visible: true, width: 90 },
+  { id: 'barcode', label: 'Scan Barcode', visible: true, width: 130 },
+  { id: 'item_code', label: 'Item Code', visible: true, width: 180 },
   { id: 'uom', label: 'UOM', visible: true, width: 90 },
+  { id: 'custom_box_qty', label: 'QTY', visible: true, width: 90 },
+  { id: 'item_name', label: 'Item Name', visible: false, width: 150 },
+  { id: 'custom_ref_sl_no', label: 'Ref / Supplier SL #', visible: true, width: 130 },
   { id: 'custom_pieces_per_box', label: 'Pcs/Box', visible: true, width: 90 },
   { id: 'custom_box_price', label: 'Box Price', visible: true, width: 90 },
   { id: 'rate', label: 'Rate (Nos)', visible: true, width: 90 },
-  { id: 'custom_selling_price', label: 'Selling Price (Nos)', visible: true, width: 100 },
-  { id: 'custom_box_selling_price', label: 'Selling Price (Box)', visible: true, width: 100 },
+  { id: 'custom_selling_price', label: 'Selling Price (Nos)', visible: true, width: 110 },
+  { id: 'custom_box_selling_price', label: 'Selling Price (Box)', visible: true, width: 110 },
+  { id: 'discount_percentage', label: 'Disc %', visible: true, width: 90 },
+  { id: 'discount_amount', label: 'Disc Amt (AED)', visible: true, width: 110 },
   { id: 'qty', label: 'Total Qty', visible: true, width: 90 },
   { id: 'amount', label: 'Subtotal', visible: true, width: 90 },
   { id: 'last_purchase_rate', label: 'Last Purchase Price', visible: true, width: 110 }
@@ -647,27 +650,74 @@ function PurchaseInvoiceList() {
   // NEW: Handle Barcode Scan on Enter
   const handleBarcodeScan = async (e) => {
     if (e.key === 'Enter' && barcodeInput.trim()) {
+      e.preventDefault();
+      const code = barcodeInput.trim();
       setBarcodeLoading(true);
       try {
-        // Call API to fetch item by barcode (enhance backend if needed)
         const warehouseParam = !isAdmin && warehouse ? `&warehouse=${encodeURIComponent(warehouse)}` : '';
         const res = await axios.get(`${API_PATH}.get_item_by_barcode_pi?${warehouseParam}`, {
-          params: { barcode: barcodeInput.trim() },
+          params: { barcode: code },
           withCredentials: true
         });
         const item = Array.isArray(res.data.message) ? res.data.message[0] : res.data.message;
 
         if (item && item.item_code) {
-          // Add to last row or create new row
-          const lastIndex = formData.items.length - 1;
-          if (formData.items[lastIndex].item_code) {
-            // Create new row if last is filled
-            addItemRow();
-          }
-          // Select item in the last row
-          await selectItem(lastIndex, item);
+          setFormData(prev => {
+            let items = [...prev.items];
+            const isBoxScan = (item.scanned_uom || item.uom || '').toLowerCase() === 'box';
+            const pcsPerBox = parseFloat(item.custom_pcs_per_box || item.custom_pieces_per_box || 12);
+            
+            // Check if item already exists in table
+            const existingIdx = items.findIndex(i => 
+              i.item_code === item.item_code && (isBoxScan ? i.use_box_entry : !i.use_box_entry)
+            );
+
+            if (existingIdx !== -1) {
+              // Increment Qty for existing item
+              const existing = { ...items[existingIdx] };
+              if (isBoxScan || existing.use_box_entry) {
+                existing.custom_box_qty = (parseFloat(existing.custom_box_qty) || 0) + 1;
+                existing.qty = existing.custom_box_qty * pcsPerBox;
+              } else {
+                existing.qty = (parseFloat(existing.qty) || 0) + 1;
+                if (pcsPerBox > 0) existing.custom_box_qty = existing.qty / pcsPerBox;
+              }
+              existing.amount = (existing.qty * (parseFloat(existing.rate) || 0)).toFixed(2);
+              items[existingIdx] = existing;
+            } else {
+              // Prepare new item row object
+              const isBoxUom = isBoxScan || (item.stock_uom || '').toLowerCase() === 'box';
+              const lastPurRate = parseFloat(item.last_purchase_rate || item.last_buying_rate || item.rate || 0);
+              const newItemRow = {
+                item_code: item.item_code,
+                item_name: item.item_name,
+                uom: isBoxUom ? 'Box' : (item.stock_uom || 'Nos'),
+                qty: isBoxUom ? Math.round(pcsPerBox) : 1,
+                rate: lastPurRate,
+                custom_selling_price: parseFloat(item.custom_selling_price || 0),
+                custom_pieces_per_box: pcsPerBox,
+                default_pieces_per_box: pcsPerBox,
+                custom_box_qty: isBoxUom ? 1 : (pcsPerBox > 0 ? 1 / pcsPerBox : 0),
+                custom_box_price: isBoxUom ? lastPurRate : (lastPurRate * pcsPerBox),
+                use_box_entry: isBoxUom,
+                amount: ((isBoxUom ? pcsPerBox : 1) * lastPurRate).toFixed(2),
+                last_purchase_rate: lastPurRate,
+                last_buying_rate: lastPurRate
+              };
+
+              // If last row in table is empty (unselected), replace it. Otherwise append a new row!
+              const lastIdx = items.length - 1;
+              if (lastIdx >= 0 && !items[lastIdx].item_code) {
+                items[lastIdx] = newItemRow;
+              } else {
+                items.push(newItemRow);
+              }
+            }
+
+            return { ...prev, items };
+          });
         } else {
-          alert('Item not found for barcode: ' + barcodeInput);
+          alert('Item not found for barcode: ' + code);
         }
       } catch (err) {
         console.error('Barcode fetch error:', err);
@@ -1210,8 +1260,8 @@ function PurchaseInvoiceList() {
       if ((msg.success || msg.status === 'success') && msg.name) {
         Swal.fire({
           icon: 'success',
-          title: 'Payment Entry Created',
-          text: `Draft document ${msg.name} created successfully!`,
+          title: 'Payment Entry Created & Submitted',
+          text: `Payment Entry ${msg.name} created & submitted successfully!`,
           confirmButtonColor: '#10b981'
         });
         fetchLinkedDocuments(docName);
@@ -1396,34 +1446,72 @@ function PurchaseInvoiceList() {
         const pcs_per_box = parseFloat(field === 'custom_pieces_per_box' ? value : items[index].custom_pieces_per_box) || 1;
         const total_qty = Math.round(box_qty * pcs_per_box);
         items[index].qty = total_qty;
-        items[index].amount = total_qty * parseFloat(items[index].rate || 0);
         items[index][field] = value;
-      } else if (field === 'qty' || field === 'rate' || field === 'custom_box_price') {
-        const qty = parseFloat(field === 'qty' ? value : items[index].qty) || 0;
-        const rate = parseFloat(field === 'rate' ? value : items[index].rate) || 0;
-        const pPerBox = parseFloat(items[index].custom_pieces_per_box) || 1;
-
-        if (field === 'custom_box_price') {
-          const bp = parseFloat(value) || 0;
-          const newRate = pPerBox > 0 ? bp / pPerBox : 0;
-          items[index].rate = newRate.toFixed(2);
-          items[index].amount = (qty * newRate).toFixed(2);
-        } else if (field === 'rate') {
-          items[index].amount = (qty * rate).toFixed(2);
-          items[index].custom_box_price = (rate * pPerBox).toFixed(2);
-        } else {
-          items[index].amount = (qty * rate).toFixed(2);
-        }
-
-        items[index][field] = value;
-        // Back-calculate Box Qty if needed
-        if (field === 'qty' && pPerBox > 0) items[index].custom_box_qty = Math.round(qty / pPerBox);
       } else {
         items[index][field] = value;
       }
 
+      const qty = parseFloat(items[index].qty) || 0;
+      const rate = parseFloat(items[index].rate) || 0;
+      const pPerBox = parseFloat(items[index].custom_pieces_per_box) || 1;
+      const baseTotal = qty * rate;
+
+      if (field === 'discount_percentage') {
+        const discPct = parseFloat(value) || 0;
+        items[index].discount_amount = (baseTotal * (discPct / 100)).toFixed(2);
+      } else if (field === 'discount_amount') {
+        const discAmt = parseFloat(value) || 0;
+        items[index].discount_percentage = baseTotal > 0 ? ((discAmt / baseTotal) * 100).toFixed(2) : 0;
+      }
+
+      const discAmt = parseFloat(items[index].discount_amount) || 0;
+      items[index].amount = Math.max(0, baseTotal - discAmt).toFixed(2);
+
+      if (field === 'custom_box_price') {
+        const bp = parseFloat(value) || 0;
+        const newRate = pPerBox > 0 ? bp / pPerBox : 0;
+        items[index].rate = newRate.toFixed(2);
+        items[index].amount = Math.max(0, (qty * newRate) - discAmt).toFixed(2);
+      } else if (field === 'rate') {
+        items[index].custom_box_price = (rate * pPerBox).toFixed(2);
+      }
+
+      if (field === 'qty' && pPerBox > 0) items[index].custom_box_qty = Math.round(qty / pPerBox);
+
       return { ...prev, items };
     });
+  };
+
+  const handleNextFocus = (e) => {
+    if (e.key === 'Enter' || e.key === 'Tab') {
+      if (e.key === 'Tab' && e.shiftKey) return;
+      e.preventDefault();
+
+      const row = e.target.closest('tr');
+      if (row) {
+        const rowInputs = Array.from(row.querySelectorAll('input, select')).filter(el => {
+          return !el.disabled && !el.readOnly && el.tabIndex !== -1 && (el.offsetWidth > 0 || el.getClientRects().length > 0);
+        });
+
+        const index = rowInputs.indexOf(e.target);
+        if (index > -1 && index < rowInputs.length - 1) {
+          const next = rowInputs[index + 1];
+          next.focus();
+          if (next.tagName === 'INPUT' && next.select) next.select();
+          next.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+        } else {
+          const nextRow = row.nextElementSibling;
+          if (nextRow) {
+            const firstNextInput = nextRow.querySelector('input:not([disabled]):not([readonly]), select:not([disabled])');
+            if (firstNextInput) {
+              firstNextInput.focus();
+              if (firstNextInput.tagName === 'INPUT' && firstNextInput.select) firstNextInput.select();
+              firstNextInput.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+            }
+          }
+        }
+      }
+    }
   };
 
   const addItemRow = () => setFormData(prev => ({
@@ -1485,14 +1573,17 @@ function PurchaseInvoiceList() {
 
         if (isBox) {
           // Box mode
-          const pPerBox = parseFloat(item.default_pieces_per_box || item.custom_pieces_per_box) || 1;
+          const pPerBox = parseFloat(item.default_pieces_per_box || item.custom_pieces_per_box) || 12;
           item.custom_pieces_per_box = pPerBox;
-          item.qty = Math.round((item.custom_box_qty || 1) * pPerBox);
+          const currentBox = Math.round(parseFloat(item.custom_box_qty) || 1);
+          item.custom_box_qty = currentBox > 0 ? currentBox : 1;
+          item.qty = Math.round(item.custom_box_qty * pPerBox);
         } else {
           // Nos mode
+          const currentNos = Math.round(parseFloat(item.qty) || parseFloat(item.custom_box_qty) || 1);
+          item.qty = currentNos > 0 ? currentNos : 1;
+          item.custom_box_qty = item.qty;
           item.custom_pieces_per_box = 1;
-          item.qty = Math.round(parseFloat(item.custom_box_qty) || 1);
-          item.custom_box_qty = Math.round(item.qty);
         }
         item.amount = (parseFloat(item.qty) * (parseFloat(item.rate) || 0)).toFixed(2);
         items[rowIndex] = item;
@@ -1658,6 +1749,8 @@ function PurchaseInvoiceList() {
             qty: parseFloat(i.qty) || 1,
             uom: i.uom || undefined,
             rate: parseFloat(i.rate || 0),
+            discount_percentage: parseFloat(i.discount_percentage || 0),
+            discount_amount: parseFloat(i.discount_amount || 0),
             custom_box_qty: isBox ? parseFloat(i.custom_box_qty || 0) : parseFloat(i.qty),
             custom_pieces_per_box: isBox ? parseFloat(i.custom_pieces_per_box || 1) : 1,
             custom_box_price: isBox ? parseFloat(i.custom_box_price || 0) : parseFloat(i.rate || 0),
@@ -3096,7 +3189,25 @@ function PurchaseInvoiceList() {
               {/* Items Card */}
               <div className="so-card">
                 <div className="so-card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <p className="so-card-title">Items</p>
+                  <div className="flex items-center gap-4">
+                    <p className="so-card-title">Items</p>
+                    {!isViewMode && (
+                      <div className="flex items-center gap-2 bg-slate-100/80 px-3 py-1.5 rounded-xl border border-slate-200 shadow-inner">
+                        <Barcode size={16} className="text-slate-500 shrink-0" />
+                        <input
+                          ref={barcodeRef}
+                          type="text"
+                          value={barcodeInput}
+                          onChange={e => setBarcodeInput(e.target.value)}
+                          onKeyDown={handleBarcodeScan}
+                          placeholder="Scan Barcode / Enter..."
+                          disabled={barcodeLoading}
+                          className="bg-transparent border-none text-xs font-bold text-slate-800 placeholder:text-slate-400 focus:outline-none w-48"
+                        />
+                        {barcodeLoading && <Loader2 size={14} className="animate-spin text-slate-500 shrink-0" />}
+                      </div>
+                    )}
+                  </div>
                   <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                     <button
                       type="button"
@@ -3120,27 +3231,40 @@ function PurchaseInvoiceList() {
                     <table className="purchase-table">
                       <thead>
                         <tr>
-                          <th style={{ width: '40px', textAlign: 'center' }}>No.</th>
+                          <th style={{ width: '40px', textAlign: 'center', position: 'sticky', left: 0, zIndex: 20, backgroundColor: '#f8fafc' }}>No.</th>
                           {(() => {
                             const activeCols = columnConfig.filter(c => c.visible);
                             const anyBoxUom = formData.items.some(it => (it.uom || '').toLowerCase() === 'box');
+
+                            const stickyLefts = {
+                              'barcode': 40,
+                              'item_code': 170,
+                              'uom': 350,
+                              'custom_box_qty': 440
+                            };
 
                             return activeCols.map(col => {
                               if (col.id === 'custom_box_selling_price' && !anyBoxUom) return null;
                               let finalLabel = col.label;
                               if (col.id === 'custom_box_qty') finalLabel = 'QTY';
                               const isLpr = col.id === 'last_purchase_rate';
+                              const isSticky = ['barcode', 'item_code', 'uom', 'custom_box_qty'].includes(col.id);
+
                               return (
                                 <th
                                   key={col.id}
                                   style={{
                                     width: col.width,
-                                    minWidth: col.id === 'item_code' ? 120 : undefined,
+                                    minWidth: col.id === 'item_code' ? 180 : undefined,
                                     textAlign: ['rate', 'amount', 'custom_selling_price', 'custom_box_selling_price', 'custom_box_price', 'last_purchase_rate'].includes(col.id) ? 'right' :
                                       ['custom_box_qty', 'qty', 'custom_pieces_per_box'].includes(col.id) ? 'left' : 'center',
-                                    backgroundColor: isLpr ? '#fef3c7' : undefined,
+                                    backgroundColor: isLpr ? '#fef3c7' : (isSticky ? '#f8fafc' : undefined),
                                     color: isLpr ? '#92400e' : undefined,
-                                    fontWeight: isLpr ? 900 : undefined
+                                    fontWeight: isLpr ? 900 : undefined,
+                                    position: isSticky ? 'sticky' : undefined,
+                                    left: isSticky ? stickyLefts[col.id] : undefined,
+                                    zIndex: isSticky ? 20 : undefined,
+                                    boxShadow: col.id === 'custom_box_qty' ? '2px 0 5px -2px rgba(0,0,0,0.1)' : undefined
                                   }}
                                 >
                                   {finalLabel}
@@ -3159,20 +3283,36 @@ function PurchaseInvoiceList() {
                       </thead>
                       <tbody>
                         {formData.items.map((item, i) => (
-                          <tr key={i} tabIndex={-1}>
-                            <td style={{ textAlign: 'center', fontSize: '0.75rem', fontWeight: 700, opacity: 0.5 }}>{i + 1}</td>
+                          <tr key={i} tabIndex={-1} onKeyDown={handleNextFocus}>
+                            <td style={{ textAlign: 'center', fontSize: '0.75rem', fontWeight: 700, opacity: 0.5, position: 'sticky', left: 0, zIndex: 10, backgroundColor: '#ffffff' }}>{i + 1}</td>
 
                             {(() => {
                               const activeCols = columnConfig.filter(c => c.visible);
                               const isNosUom = (item.uom || '').toLowerCase() !== 'box';
                               const anyBoxUom = formData.items.some(it => (it.uom || '').toLowerCase() === 'box');
 
+                              const stickyLefts = {
+                                'barcode': 40,
+                                'item_code': 170,
+                                'uom': 350,
+                                'custom_box_qty': 440
+                              };
+
                               return activeCols.map(col => {
                                 if (col.id === 'custom_box_selling_price' && !anyBoxUom) return null;
+                                const isSticky = ['barcode', 'item_code', 'uom', 'custom_box_qty'].includes(col.id);
+                                const tdStyle = isSticky ? {
+                                  position: 'sticky',
+                                  left: stickyLefts[col.id],
+                                  zIndex: 10,
+                                  backgroundColor: '#ffffff',
+                                  boxShadow: col.id === 'custom_box_qty' ? '2px 0 5px -2px rgba(0,0,0,0.1)' : undefined
+                                } : undefined;
+
                                 switch (col.id) {
                                   case 'custom_box_qty':
                                     return (
-                                      <td key={col.id}>
+                                      <td key={col.id} style={tdStyle}>
                                         <div className="premium-cell-container">
                                           <div className="premium-cell-box flex flex-col justify-center items-center py-1 w-full relative">
                                             {isViewMode ? (
@@ -3291,9 +3431,55 @@ function PurchaseInvoiceList() {
                                         </div>
                                       </td>
                                     );
+                                  case 'barcode':
+                                    return (
+                                      <td key={col.id} style={tdStyle}>
+                                        <div className="premium-cell-container">
+                                          <div className="premium-cell-box">
+                                            {isViewMode ? (
+                                              <div className="premium-cell-readonly premium-cell-readonly-center font-bold text-slate-700">
+                                                {item.scanned_barcode || '—'}
+                                              </div>
+                                            ) : (
+                                              <input
+                                                type="text"
+                                                value={item.scanned_barcode || ''}
+                                                onChange={e => updateItem(i, 'scanned_barcode', e.target.value)}
+                                                onKeyDown={async e => {
+                                                  if (e.key === 'Enter' && e.target.value.trim()) {
+                                                    e.preventDefault();
+                                                    const code = e.target.value.trim();
+                                                    try {
+                                                      const warehouseParam = !isAdmin && warehouse ? `&warehouse=${encodeURIComponent(warehouse)}` : '';
+                                                      const res = await axios.get(`${API_PATH}.get_item_by_barcode_pi?${warehouseParam}`, {
+                                                        params: { barcode: code },
+                                                        withCredentials: true
+                                                      });
+                                                      const matched = Array.isArray(res.data.message) ? res.data.message[0] : res.data.message;
+                                                      if (matched && matched.item_code) {
+                                                        matched.scanned_barcode = code;
+                                                        selectItem(i, matched);
+                                                      } else {
+                                                        alert('Item not found for barcode: ' + code);
+                                                      }
+                                                    } catch (err) {
+                                                      console.error(err);
+                                                    }
+                                                  }
+                                                }}
+                                                onFocus={e => e.target.select()}
+                                                onClick={e => e.target.select()}
+                                                placeholder="Scan..."
+                                                className="so-input text-center font-bold text-[11px]"
+                                              />
+                                            )}
+                                          </div>
+                                        </div>
+                                      </td>
+                                    );
                                   case 'item_code':
                                     return (
-                                      <td key={col.id} ref={el => itemRefs.current[i] = el} style={{ minWidth: '200px' }}>
+                                      <td key={col.id} ref={el => itemRefs.current[i] = el} style={{ ...tdStyle, minWidth: '180px' }}>
                                         <div className="premium-cell-container">
                                           <div className="premium-cell-box">
                                             {isViewMode ? (
@@ -3302,19 +3488,29 @@ function PurchaseInvoiceList() {
                                                 <div style={{ fontSize: '0.68rem', color: '#64748b', marginTop: '0.1rem', fontWeight: 600 }}>{item.item_code}</div>
                                               </div>
                                             ) : (
-                                              <CustomSearchDropdown
-                                                placeholder="Search item..."
-                                                value={item.item_code ? { name: item.item_code, item_name: item.item_name } : null}
-                                                onSelect={it => selectItem(i, it)}
-                                                fetchData={fetchItemsAPI}
-                                                createOption={(query) => {
-                                                  window.open('#/itemlist?action=new', '_blank');
-                                                }}
-                                                optionsLabel="item_name"
-                                                globalSearch={true}
-                                                onGlobalSearch={onGlobalItemSearch}
-                                                onActivate={onActivateItem}
-                                              />
+                                              <div>
+                                                <CustomSearchDropdown
+                                                  placeholder="Search item..."
+                                                  value={item.item_code ? { name: item.item_code, item_name: item.item_name } : null}
+                                                  onSelect={it => selectItem(i, it)}
+                                                  fetchData={fetchItemsAPI}
+                                                  createOption={(query) => {
+                                                    window.open('#/itemlist?action=new', '_blank');
+                                                  }}
+                                                  optionsLabel="item_name"
+                                                  globalSearch={true}
+                                                  onGlobalSearch={onGlobalItemSearch}
+                                                  onActivate={onActivateItem}
+                                                />
+                                                {item.scanned_barcode && (
+                                                  <div className="flex items-center gap-1 mt-1 px-1">
+                                                    <span className="text-[9px] font-extrabold text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-200 shadow-xs flex items-center gap-1">
+                                                      <Barcode size={11} className="text-indigo-600 shrink-0" />
+                                                      <span>{item.scanned_barcode}</span>
+                                                    </span>
+                                                  </div>
+                                                )}
+                                              </div>
                                             )}
                                           </div>
                                         </div>
@@ -3361,7 +3557,7 @@ function PurchaseInvoiceList() {
                                     );
                                   case 'uom':
                                     return (
-                                      <td key={col.id}>
+                                      <td key={col.id} style={tdStyle}>
                                         <div className="premium-cell-container">
                                           <div className="premium-cell-box">
                                             {!item.item_code || isViewMode ? (
@@ -3588,6 +3784,58 @@ function PurchaseInvoiceList() {
                                         </td>
                                       );
                                     }
+                                  case 'discount_percentage':
+                                    return (
+                                      <td key={col.id}>
+                                        <div className="premium-cell-container">
+                                          <div className="premium-cell-box">
+                                            {isViewMode ? (
+                                              <div className="premium-cell-readonly premium-cell-readonly-right pr-3 font-bold text-slate-800">
+                                                {parseFloat(item.discount_percentage || 0).toFixed(2)}%
+                                              </div>
+                                            ) : (
+                                              <input
+                                                type="number"
+                                                value={item.discount_percentage || ''}
+                                                onFocus={e => e.target.select()}
+                                                onClick={e => e.target.select()}
+                                                onChange={e => updateItem(i, 'discount_percentage', e.target.value)}
+                                                className="so-input text-right pr-3 font-bold text-rose-600"
+                                                style={{ textAlign: 'right' }}
+                                                step="0.01"
+                                                placeholder="0%"
+                                              />
+                                            )}
+                                          </div>
+                                        </div>
+                                      </td>
+                                    );
+                                  case 'discount_amount':
+                                    return (
+                                      <td key={col.id}>
+                                        <div className="premium-cell-container">
+                                          <div className="premium-cell-box">
+                                            {isViewMode ? (
+                                              <div className="premium-cell-readonly premium-cell-readonly-right pr-3 font-bold text-slate-800">
+                                                {formatPrice(item.discount_amount || 0)}
+                                              </div>
+                                            ) : (
+                                              <input
+                                                type="number"
+                                                value={item.discount_amount || ''}
+                                                onFocus={e => e.target.select()}
+                                                onClick={e => e.target.select()}
+                                                onChange={e => updateItem(i, 'discount_amount', e.target.value)}
+                                                className="so-input text-right pr-3 font-bold text-rose-600"
+                                                style={{ textAlign: 'right' }}
+                                                step="0.01"
+                                                placeholder="0.00"
+                                              />
+                                            )}
+                                          </div>
+                                        </div>
+                                      </td>
+                                    );
                                   case 'amount':
                                     return (
                                       <td key={col.id}>

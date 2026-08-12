@@ -3446,6 +3446,20 @@ function PurchaseOrder() {
                                         </div>
                                       </td>
                                     );
+                                  case 'last_purchase_rate':
+                                    return (
+                                      <td key={col.id} className="purchase-td">
+                                        <div className="premium-cell-container">
+                                          <div className="premium-cell-box">
+                                            <div className="premium-cell-readonly premium-cell-readonly-right pr-3 font-bold text-amber-700 bg-amber-50/50" style={{ textAlign: 'right' }}>
+                                              {item.last_purchase_rate || item.last_buying_rate ? formatPrice(item.last_purchase_rate || item.last_buying_rate) : '—'}
+                                            </div>
+                                          </div>
+                                        </div>
+                                      </td>
+                                    );
+                                  default:
+                                    return <td key={col.id} className="purchase-td"></td>;
                                 }
                               });
                             })()}

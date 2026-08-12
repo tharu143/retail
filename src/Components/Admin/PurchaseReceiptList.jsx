@@ -858,6 +858,38 @@ function PurchaseReceiptList() {
     });
   };
 
+  const handleNextFocus = (e) => {
+    if (e.key === 'Enter' || e.key === 'Tab') {
+      if (e.key === 'Tab' && e.shiftKey) return;
+      e.preventDefault();
+
+      const row = e.target.closest('tr');
+      if (row) {
+        const rowInputs = Array.from(row.querySelectorAll('input, select')).filter(el => {
+          return !el.disabled && !el.readOnly && el.tabIndex !== -1 && (el.offsetWidth > 0 || el.getClientRects().length > 0);
+        });
+
+        const index = rowInputs.indexOf(e.target);
+        if (index > -1 && index < rowInputs.length - 1) {
+          const next = rowInputs[index + 1];
+          next.focus();
+          if (next.tagName === 'INPUT' && next.select) next.select();
+          next.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+        } else {
+          const nextRow = row.nextElementSibling;
+          if (nextRow) {
+            const firstNextInput = nextRow.querySelector('input:not([disabled]):not([readonly]), select:not([disabled])');
+            if (firstNextInput) {
+              firstNextInput.focus();
+              if (firstNextInput.tagName === 'INPUT' && firstNextInput.select) firstNextInput.select();
+              firstNextInput.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+            }
+          }
+        }
+      }
+    }
+  };
+
   const addItemRow = useCallback(() => {
     setFormData(prev => {
       const newItems = [...prev.items, {
@@ -3416,6 +3448,20 @@ function PurchaseReceiptList() {
                                               </div>
                                             </td>
                                           );
+                                         case 'last_purchase_rate':
+                                           return (
+                                             <td key={col.id}>
+                                               <div className="premium-cell-container">
+                                                 <div className="premium-cell-box">
+                                                   <div className="premium-cell-readonly premium-cell-readonly-right pr-3 font-bold text-amber-700 bg-amber-50/50" style={{ textAlign: 'right' }}>
+                                                     {item.last_purchase_rate || item.last_buying_rate ? formatPrice(item.last_purchase_rate || item.last_buying_rate) : '—'}
+                                                   </div>
+                                                 </div>
+                                               </div>
+                                             </td>
+                                           );
+                                         default:
+                                           return <td key={col.id}></td>;
                                       }
                                     });
                                   })()}
@@ -4073,7 +4119,7 @@ function PurchaseReceiptList() {
                           <table className="purchase-table">
                             <thead>
                               <tr>
-                                <th style={{ width: '40px', textAlign: 'center' }}>No.</th>
+                                <th style={{ width: '40px', textAlign: 'center', position: 'sticky', left: 0, zIndex: 20, backgroundColor: '#f8fafc' }}>No.</th>
                                 {(() => {
                                   const hasAnyBox = formData.items.some(i => i.use_box_entry);
                                   const activeCols = columnConfig.filter(c => {
@@ -4082,19 +4128,34 @@ function PurchaseReceiptList() {
                                     return true;
                                   });
 
+                                  const stickyLefts = {
+                                    'barcode': 40,
+                                    'item_code': 170,
+                                    'uom': 350,
+                                    'custom_box_qty': 440
+                                  };
+
                                   return activeCols.map(col => {
                                     let finalLabel = col.label;
-
                                     if (col.id === 'custom_box_qty') finalLabel = 'QTY';
+                                    const isLpr = col.id === 'last_purchase_rate';
+                                    const isSticky = ['barcode', 'item_code', 'uom', 'custom_box_qty'].includes(col.id);
 
                                     return (
                                       <th
                                         key={col.id}
                                         style={{
                                           width: col.width,
-                                          minWidth: col.id === 'item_code' ? 200 : undefined,
-                                          textAlign: ['rate', 'amount', 'custom_selling_price', 'custom_box_selling_price', 'custom_box_price'].includes(col.id) ? 'right' :
-                                            ['custom_box_qty', 'accepted_qty', 'rejected_qty', 'custom_pieces_per_box'].includes(col.id) ? 'left' : 'center'
+                                          minWidth: col.id === 'item_code' ? 180 : undefined,
+                                          textAlign: ['rate', 'amount', 'custom_selling_price', 'custom_box_selling_price', 'custom_box_price', 'last_purchase_rate'].includes(col.id) ? 'right' :
+                                            ['custom_box_qty', 'accepted_qty', 'rejected_qty', 'custom_pieces_per_box'].includes(col.id) ? 'left' : 'center',
+                                          backgroundColor: isLpr ? '#fef3c7' : (isSticky ? '#f8fafc' : undefined),
+                                          color: isLpr ? '#92400e' : undefined,
+                                          fontWeight: isLpr ? 900 : undefined,
+                                          position: isSticky ? 'sticky' : undefined,
+                                          left: isSticky ? stickyLefts[col.id] : undefined,
+                                          zIndex: isSticky ? 20 : undefined,
+                                          boxShadow: col.id === 'custom_box_qty' ? '2px 0 5px -2px rgba(0,0,0,0.1)' : undefined
                                         }}
                                       >
                                         {finalLabel}
@@ -4540,6 +4601,20 @@ function PurchaseReceiptList() {
                                               </div>
                                             </td>
                                           );
+                                        case 'last_purchase_rate':
+                                          return (
+                                            <td key={col.id}>
+                                              <div className="premium-cell-container">
+                                                <div className="premium-cell-box">
+                                                  <div className="premium-cell-readonly premium-cell-readonly-right pr-3 font-bold text-amber-700 bg-amber-50/50" style={{ textAlign: 'right' }}>
+                                                    {item.last_purchase_rate || item.last_buying_rate ? formatPrice(item.last_purchase_rate || item.last_buying_rate) : '—'}
+                                                  </div>
+                                                </div>
+                                              </div>
+                                            </td>
+                                          );
+                                        default:
+                                          return <td key={col.id}></td>;
                                       }
                                     });
                                   })()}
