@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
   Plus, X, Trash2, Building2, Search, Calendar, Filter, MoreVertical, Package,
-  Warehouse as WarehouseIcon, Percent, DollarSign, Loader2, Barcode, Palette, ChevronLeft, ChevronRight, Zap, CheckCircle2, ExternalLink, Link, Edit2, Settings, Copy, ChevronDown
+  Warehouse as WarehouseIcon, Percent, DollarSign, Loader2, Barcode, Palette, ChevronLeft, ChevronRight, Zap, CheckCircle2, CheckCircle, AlertTriangle, ExternalLink, Link, Edit2, Settings, Copy, ChevronDown
 } from 'lucide-react';
 import { useSelector } from 'react-redux';
 import axios from 'axios';
@@ -288,7 +288,9 @@ function PurchaseInvoiceList() {
   const initialState = {
     name: '', supplier: '', supplier_name: '',
     posting_date: getLocalISODate(),
-    due_date: '', bill_no: '',
+    due_date: '', bill_no: '', bill_date: '',
+    custom_supplier_invoice_amount: '',
+    custom_supplier_invoice_status: '',
     update_stock: true,
     accepted_warehouse: warehouse || '',
     rejected_warehouse: '',
@@ -936,11 +938,14 @@ function PurchaseInvoiceList() {
           posting_date: d.posting_date.split('T')[0],
           due_date: d.due_date ? d.due_date.split('T')[0] : '',
           bill_no: d.bill_no || '',
+          bill_date: d.bill_date ? d.bill_date.split('T')[0] : '',
+          custom_supplier_invoice_amount: d.custom_supplier_invoice_amount || '',
+          custom_supplier_invoice_status: d.custom_supplier_invoice_status || '',
           update_stock: !!d.update_stock,
           accepted_warehouse: d.accepted_warehouse || '',
           rejected_warehouse: d.rejected_warehouse || '',
           is_subcontracted: !!d.is_subcontracted,
-          is_cash_purchase: !!(d.custom_is_cash_purchase || d.is_cash_purchase),
+          is_cash_purchase: formData.is_cash_purchase || !!(d.custom_is_cash_purchase || d.is_cash_purchase),
           apply_discount_on: d.apply_discount_on || 'Grand Total',
           additional_discount_percentage: d.additional_discount_percentage || 0,
           discount_amount: d.discount_amount || 0,
@@ -953,6 +958,13 @@ function PurchaseInvoiceList() {
             uom: i.uom || '',
             rate: i.rate || 0,
             amount: i.amount || 0,
+            discount_percentage: i.discount_percentage !== undefined && i.discount_percentage !== null ? parseFloat(i.discount_percentage) : 0,
+            discount_amount: i.discount_amount !== undefined && i.discount_amount !== null 
+              ? (() => {
+                  const calc = parseFloat(i.discount_amount) * (parseFloat(i.qty) || 1);
+                  return Math.abs(calc - Math.round(calc)) < 0.05 ? Math.round(calc) : parseFloat(calc.toFixed(2));
+                })()
+              : 0,
             custom_box_qty: parseFloat(i.custom_box_qty || 0),
             custom_pieces_per_box: parseFloat(i.custom_pieces_per_box || 1),
             default_pieces_per_box: parseFloat(i.custom_pieces_per_box || 1),
@@ -1457,11 +1469,19 @@ function PurchaseInvoiceList() {
       const baseTotal = qty * rate;
 
       if (field === 'discount_percentage') {
-        const discPct = parseFloat(value) || 0;
-        items[index].discount_amount = (baseTotal * (discPct / 100)).toFixed(2);
+        const discPct = value === '' ? '' : parseFloat(value);
+        items[index].discount_percentage = discPct;
+        const numericPct = parseFloat(discPct) || 0;
+        items[index].discount_amount = parseFloat((baseTotal * (numericPct / 100)).toFixed(2));
       } else if (field === 'discount_amount') {
-        const discAmt = parseFloat(value) || 0;
-        items[index].discount_percentage = baseTotal > 0 ? ((discAmt / baseTotal) * 100).toFixed(2) : 0;
+        const discAmt = value === '' ? '' : parseFloat(value);
+        items[index].discount_amount = discAmt;
+        const numericAmt = parseFloat(discAmt) || 0;
+        items[index].discount_percentage = baseTotal > 0 ? parseFloat(((numericAmt / baseTotal) * 100).toFixed(2)) : 0;
+      } else if (parseFloat(items[index].discount_percentage) > 0) {
+        // Recalculate discount_amount if rate or qty changed
+        const discPct = parseFloat(items[index].discount_percentage) || 0;
+        items[index].discount_amount = parseFloat((baseTotal * (discPct / 100)).toFixed(2));
       }
 
       const discAmt = parseFloat(items[index].discount_amount) || 0;
@@ -1714,12 +1734,24 @@ function PurchaseInvoiceList() {
       description: tax.description || tax.account_head
     }));
 
+    const taxTotalCalc = taxes.reduce((sum, t) => sum + (parseFloat(t.tax_amount) || 0), 0);
+    const grandTotalCalc = netTotalCalc + taxTotalCalc;
+
     return {
       name: docName || undefined,
       supplier: formData.supplier,
       posting_date: formData.posting_date,
       due_date: formData.due_date || null,
       bill_no: formData.bill_no || null,
+      bill_date: formData.bill_date || null,
+      custom_supplier_invoice_amount: formData.custom_supplier_invoice_amount ? parseFloat(formData.custom_supplier_invoice_amount) : 0,
+      custom_supplier_invoice_status: (() => {
+        const supp = parseFloat(formData.custom_supplier_invoice_amount) || 0;
+        if (supp > 0) {
+          return Math.abs(supp - grandTotalCalc) < 0.01 ? "MATCHED" : "UNMATCHED";
+        }
+        return "NOT ENTERED";
+      })(),
       update_stock: formData.update_stock ? 1 : 0,
       accepted_warehouse: formData.update_stock ? formData.accepted_warehouse : null,
       rejected_warehouse: formData.update_stock ? formData.rejected_warehouse : null,
@@ -1731,26 +1763,29 @@ function PurchaseInvoiceList() {
       discount_amount: formData.discount_amount > 0 ? parseFloat(formData.discount_amount) : null,
       taxes_and_charges: formData.taxes_and_charges || null,
       taxes: taxes.length > 0 ? taxes : null,
-      payment_schedule: formData.payment_schedule && formData.payment_schedule.length > 0
-        ? formData.payment_schedule.map(row => ({
-          due_date: row.due_date || formData.due_date,
-          payment_amount: parseFloat(row.payment_amount) || 0,
-          description: row.description || undefined
-        }))
-        : null,
+      payment_schedule: null,
       items: formData.items
         .filter(i => i.item_code && i.qty > 0)
         .map(i => {
           const isBox = (i.uom || '').toLowerCase() === 'box' || !!i.use_box_entry;
+          const itemQty = parseFloat(i.qty) || 1;
+          const grossRate = (i.uom || '').toLowerCase() === 'box' || !!i.use_box_entry
+            ? (parseFloat(i.custom_box_price || 0) / (parseFloat(i.custom_pieces_per_box) || 1))
+            : parseFloat(i.rate || 0);
+          const totalDiscAmt = parseFloat(i.discount_amount || 0);
+          const perUnitDiscAmt = itemQty > 0 ? (totalDiscAmt / itemQty) : 0;
+          const netRate = Math.max(0, grossRate - perUnitDiscAmt);
+
           return {
             name: i.name || undefined,
             doctype: "Purchase Invoice Item",
             item_code: i.item_code,
-            qty: parseFloat(i.qty) || 1,
+            qty: itemQty,
             uom: i.uom || undefined,
-            rate: parseFloat(i.rate || 0),
+            rate: netRate,
+            price_list_rate: grossRate,
             discount_percentage: parseFloat(i.discount_percentage || 0),
-            discount_amount: parseFloat(i.discount_amount || 0),
+            discount_amount: perUnitDiscAmt,
             custom_box_qty: isBox ? parseFloat(i.custom_box_qty || 0) : parseFloat(i.qty),
             custom_pieces_per_box: isBox ? parseFloat(i.custom_pieces_per_box || 1) : 1,
             custom_box_price: isBox ? parseFloat(i.custom_box_price || 0) : parseFloat(i.rate || 0),
@@ -1809,8 +1844,12 @@ function PurchaseInvoiceList() {
       let response;
       const GENERIC_API = '/api/method/kyle_retail.retail_api.api.create_generic_doc';
       if (docName) {
-        // Existing draft → UPDATE (PUT)
-        response = await axios.put(`${RESOURCE_API}/${docName}`, payload, { withCredentials: true });
+        // Existing draft → UPDATE via create_generic_doc (POST bypasses CSRF restrictions)
+        response = await axios.post(GENERIC_API, {
+          doctype: "Purchase Invoice",
+          data: { ...payload, name: docName }
+        }, { withCredentials: true });
+        await fetchPurchaseInvoice(docName);
         alert(`Draft updated: ${docName}`);
       } else {
         // New → CREATE (POST) using create_generic_doc
@@ -1870,8 +1909,18 @@ function PurchaseInvoiceList() {
         name = apiResp.name;
         setDocName(name);
       }
-      // Submit
-      await axios.put(`${RESOURCE_API}/${name}`, { docstatus: 1 }, { withCredentials: true });
+      // Submit via custom whitelist API (avoids CSRF issues)
+      const SUBMIT_API = '/api/method/kyle_retail.retail_api.api.submit_generic_doc';
+      const subRes = await axios.post(SUBMIT_API, {
+        doctype: "Purchase Invoice",
+        name: name
+      }, { withCredentials: true });
+
+      const subMsg = subRes.data.message || subRes.data;
+      if (subMsg.status === 'error') {
+        throw new Error(subMsg.message || 'Submit failed');
+      }
+
       alert(`Purchase Invoice Submitted: ${name}`);
       setIsModalOpen(false);
       setDocName('');
@@ -3035,8 +3084,8 @@ function PurchaseInvoiceList() {
                 </div>
                 <div className="so-card-body">
                   <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-                    {/* Left Column 1 (Supplier & Posting Date stacked) */}
-                    <div className="md:col-span-4 flex flex-col gap-5">
+                    {/* Column 1: Supplier, Posting Date, Supplier Invoice No, Payment Type */}
+                    <div className="md:col-span-4 flex flex-col gap-4">
                       <div className="so-field">
                         <label className="so-label">Supplier {!isViewMode && <span style={{ color: '#ef4444' }}>*</span>}</label>
                         <CustomSearchDropdown
@@ -3069,6 +3118,19 @@ function PurchaseInvoiceList() {
                           />
                         </div>
                       </div>
+
+                      <div className="so-field">
+                        <label className="so-label font-bold text-slate-700">Supplier Invoice No</label>
+                        <input
+                          type="text"
+                          value={formData.bill_no}
+                          onChange={e => setFormData(prev => ({ ...prev, bill_no: e.target.value }))}
+                          placeholder="Enter invoice number..."
+                          className="so-input"
+                          disabled={isViewMode}
+                        />
+                      </div>
+
                       <div className="so-field">
                         <label className="so-label font-bold text-slate-700">Payment Type</label>
                         <div className="grid grid-cols-2 gap-2 mt-1">
@@ -3108,8 +3170,8 @@ function PurchaseInvoiceList() {
                       </div>
                     </div>
 
-                    {/* Left Column 2 (Target Warehouse, Due Date & Bill Number stacked) */}
-                    <div className="md:col-span-4 flex flex-col gap-5">
+                    {/* Column 2: Target Warehouse, Due Date, Supplier Invoice Date, Supplier Invoice Amount */}
+                    <div className="md:col-span-4 flex flex-col gap-4">
                       <div className="so-field">
                         <label className="so-label">Target Warehouse (Branch) {!isViewMode && <span style={{ color: '#ef4444' }}>*</span>}</label>
                         {isAdmin ? (
@@ -3164,19 +3226,55 @@ function PurchaseInvoiceList() {
                       </div>
 
                       <div className="so-field">
-                        <label className="so-label">Invoice Number</label>
-                        <input
-                          type="text"
-                          value={formData.bill_no}
-                          onChange={e => setFormData(prev => ({ ...prev, bill_no: e.target.value }))}
-                          placeholder="Enter invoice number..."
-                          className="so-input"
-                          disabled={isViewMode}
-                        />
+                        <label className="so-label font-bold text-slate-700">Supplier Invoice Date</label>
+                        <div className="relative">
+                          <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
+                          <input
+                            type="date"
+                            value={formData.bill_date}
+                            onChange={e => {
+                              const newBillDate = e.target.value;
+                              setFormData(prev => {
+                                let newDueDate = prev.due_date;
+                                // In ERPNext, Due Date cannot be before Supplier Invoice Date (bill_date)
+                                if (newBillDate && prev.due_date && newBillDate > prev.due_date) {
+                                  newDueDate = newBillDate;
+                                }
+                                const schedule = (prev.payment_schedule || []).map(row => ({
+                                  ...row,
+                                  due_date: newDueDate
+                                }));
+                                return { ...prev, bill_date: newBillDate, due_date: newDueDate, payment_schedule: schedule };
+                              });
+                            }}
+                            className="so-input"
+                            style={{ paddingLeft: '2.5rem' }}
+                            disabled={isViewMode}
+                            onFocus={(e) => { try { e.target.showPicker(); } catch (err) { } }}
+                            onClick={(e) => { try { e.target.showPicker(); } catch (err) { } }}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="so-field">
+                        <label className="so-label font-bold text-slate-700">Supplier Invoice Amount (AED)</label>
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-extrabold text-xs pointer-events-none">AED</span>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={formData.custom_supplier_invoice_amount}
+                            onChange={e => setFormData(prev => ({ ...prev, custom_supplier_invoice_amount: e.target.value }))}
+                            placeholder="0.00"
+                            className="so-input font-bold text-slate-900"
+                            style={{ paddingLeft: '3rem' }}
+                            disabled={isViewMode}
+                          />
+                        </div>
                       </div>
                     </div>
 
-                    {/* Right Column (Attachment section) */}
+                    {/* Column 3: Attachments */}
                     <div className="md:col-span-4 flex flex-col h-full justify-start mt-1">
                       <AttachmentSection doctype="Purchase Invoice" docname={docName} />
                     </div>
@@ -3796,7 +3894,7 @@ function PurchaseInvoiceList() {
                                             ) : (
                                               <input
                                                 type="number"
-                                                value={item.discount_percentage || ''}
+                                                value={item.discount_percentage ?? ''}
                                                 onFocus={e => e.target.select()}
                                                 onClick={e => e.target.select()}
                                                 onChange={e => updateItem(i, 'discount_percentage', e.target.value)}
@@ -3822,7 +3920,7 @@ function PurchaseInvoiceList() {
                                             ) : (
                                               <input
                                                 type="number"
-                                                value={item.discount_amount || ''}
+                                                value={item.discount_amount ?? ''}
                                                 onFocus={e => e.target.select()}
                                                 onClick={e => e.target.select()}
                                                 onChange={e => updateItem(i, 'discount_amount', e.target.value)}
@@ -4022,6 +4120,43 @@ function PurchaseInvoiceList() {
                         <span style={{ fontSize: '0.65rem', opacity: 0.6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Inc. All Taxes</span>
                       </div>
                     </div>
+
+                    {/* Supplier Invoice Reconciliation Section */}
+                    {(() => {
+                      const suppAmt = parseFloat(formData.custom_supplier_invoice_amount) || 0;
+                      if (suppAmt <= 0) return null;
+                      const diff = grandTotal - suppAmt;
+                      const isMatched = Math.abs(diff) < 0.01;
+
+                      return (
+                        <div className="mt-3 p-3 rounded-xl border bg-black/20 backdrop-blur-xs flex flex-col gap-2">
+                          <div className="flex justify-between items-center text-xs opacity-90 font-medium">
+                            <span>Supplier Bill Amount:</span>
+                            <span className="font-bold flex items-center gap-1"><DirhamIcon size={11} /> {formatPrice(suppAmt)}</span>
+                          </div>
+                          <div className="flex justify-between items-center text-xs opacity-90 font-medium">
+                            <span>Difference:</span>
+                            <span className={`font-bold flex items-center gap-1 ${diff === 0 ? 'text-emerald-300' : 'text-rose-300'}`}>
+                              {diff > 0 ? '+' : ''}<DirhamIcon size={11} /> {formatPrice(diff)}
+                            </span>
+                          </div>
+                          <div className="pt-2 border-t border-white/10 flex justify-between items-center">
+                            <span className="text-[11px] font-bold uppercase tracking-wider opacity-75">Status</span>
+                            {isMatched ? (
+                              <span className="px-2.5 py-1 rounded-lg bg-emerald-500/25 border border-emerald-400/50 text-emerald-200 text-[11px] font-black tracking-wide flex items-center gap-1.5 shadow-sm">
+                                <CheckCircle size={12} className="text-emerald-400" />
+                                <span>✓ MATCHED</span>
+                              </span>
+                            ) : (
+                              <span className="px-2.5 py-1 rounded-lg bg-rose-500/30 border border-rose-400/50 text-rose-200 text-[11px] font-black tracking-wide flex items-center gap-1.5 shadow-sm animate-pulse">
+                                <AlertTriangle size={12} className="text-rose-300" />
+                                <span>⚠ UNMATCHED</span>
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
               </div>
