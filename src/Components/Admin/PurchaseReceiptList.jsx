@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   Plus, X, Building2, Search, Calendar, Filter, Download, MoreVertical, Package, Warehouse as WarehouseIcon, Barcode, Edit3,
-  Trash2, Palette, Loader2, ChevronLeft, ChevronRight, Zap, CheckCircle2, ExternalLink, Link, Settings, FileText, Copy
+  Trash2, Palette, Loader2, ChevronLeft, ChevronRight, Zap, CheckCircle2, ExternalLink, Link, Settings, FileText, Copy, Printer
 } from 'lucide-react';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { useSelector } from 'react-redux';
@@ -40,6 +40,11 @@ const DEFAULT_PR_COLUMNS = [
 const getLocalISODate = () => {
   const tzoffset = (new Date()).getTimezoneOffset() * 60000;
   return (new Date(Date.now() - tzoffset)).toISOString().split('T')[0];
+};
+
+const getLocalISOTime = () => {
+  const d = new Date();
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 };
 
 function PurchaseReceiptList() {
@@ -1266,26 +1271,60 @@ function PurchaseReceiptList() {
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
   };
+  const handlePrintPDF = (nameToPrint) => {
+    const docToPrint = nameToPrint || docName || formData.name;
+    if (!docToPrint) return;
+    const backendPort = '8089';
+    const host = window.location.hostname;
+    const protocol = window.location.protocol;
+    const printUrl = `${protocol}//${host}:${backendPort}/api/method/frappe.utils.print_format.download_pdf?doctype=Purchase%20Receipt&name=${encodeURIComponent(docToPrint)}&format=Purchase%20Receipt%20Print&no_letterhead=1&letterhead=No%20Letterhead&settings=%7B%7D&_lang=en&pdf_generator=wkhtmltopdf`;
+    window.open(printUrl, '_blank');
+  };
+
   const handleDuplicate = () => {
     setDocName('');
+    setDocStatus(0);
     setFormData(prev => {
       const cleanedItems = (prev.items || []).map(item => {
         const {
           name, parent, parenttype, parentfield, creation, modified, modified_by, owner, docstatus,
+          received_qty, billed_amt, returned_qty, rejected_qty,
+          purchase_order, purchase_order_item, purchase_receipt, purchase_receipt_item,
           ...rest
         } = item;
-        return rest;
+        return {
+          ...rest,
+          name: '',
+          docstatus: 0,
+          received_qty: rest.qty || 0,
+          billed_amt: 0,
+          returned_qty: 0,
+          rejected_qty: 0,
+          purchase_order: '',
+          purchase_order_item: '',
+          purchase_receipt: '',
+          purchase_receipt_item: ''
+        };
       });
       return {
         ...prev,
         name: '',
+        status: 'Draft',
         docstatus: 0,
+        amended_from: null,
+        per_billed: 0,
+        per_returned: 0,
         posting_date: getLocalISODate(),
+        posting_time: getLocalISOTime(),
+        lr_no: '',
+        lr_date: '',
         items: cleanedItems
       };
     });
     setIsViewMode(false);
-    navigate('/purchasereceiptlist');
+    setIsEditMode(true);
+    setIsModalOpen(true);
+    setSearchParams({ name: 'new' }, { replace: true });
     Swal.fire({
       icon: 'success',
       title: 'Duplicated!',
@@ -1825,10 +1864,12 @@ function PurchaseReceiptList() {
         }
       }
     } else {
-      setIsModalOpen(false);
-      setDocName('');
+      if (docName) {
+        setIsModalOpen(false);
+        setDocName('');
+      }
     }
-  }, [searchParams, openCreateModal, isModalOpen]);
+  }, [searchParams, openCreateModal, isModalOpen, docName]);
 
   useEffect(() => {
     const supplierParam = searchParams.get('supplier');
@@ -2662,15 +2703,26 @@ function PurchaseReceiptList() {
 
             <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
               <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-                {/* Always show DUPLICATE if docName exists */}
+                {/* Always show DUPLICATE & PRINT PDF if docName exists */}
                 {docName && (
-                  <button
-                    onClick={handleDuplicate}
-                    className="so-btn-secondary"
-                    style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#f8fafc', color: '#475569', border: '1px solid #cbd5e1', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '0.375rem', transition: 'all 0.2s' }}
-                  >
-                    <Copy size={14} /> DUPLICATE
-                  </button>
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => handlePrintPDF(docName)}
+                      className="so-btn-secondary"
+                      style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#f0f9ff', color: '#0284c7', border: '1px solid #bae6fd', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '0.375rem', transition: 'all 0.2s' }}
+                    >
+                      <Printer size={14} /> PRINT PDF
+                    </button>
+
+                    <button
+                      onClick={handleDuplicate}
+                      className="so-btn-secondary"
+                      style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#f8fafc', color: '#475569', border: '1px solid #cbd5e1', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '0.375rem', transition: 'all 0.2s' }}
+                    >
+                      <Copy size={14} /> DUPLICATE
+                    </button>
+                  </>
                 )}
 
                 {/* DRAFT PHASE */}

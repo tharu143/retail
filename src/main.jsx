@@ -19,6 +19,8 @@ const IS_PROD = IS_ELECTRON;
 // Only use credentials (cookies) in Electron. For Web, we use X-Frappe-SID headers to bypass CSRF.
 axios.defaults.withCredentials = IS_PROD;
 
+let _authCheckPending = false; // Prevent multiple concurrent session checks
+
 const handleGlobalAuthError = () => {
   // In Production (Electron), we often hit 403 due to cookie restrictions.
   // We MUST NOT force logout if we are already logged in locally, as we use X-Frappe-SID headers.
@@ -28,20 +30,54 @@ const handleGlobalAuthError = () => {
   }
 
   if (window.location.hash === '#/' || window.location.hash === '') {
-    return; // Already on login page
+    return; // Already on login page — nothing to do
   }
 
-  // If we have a session but get a 403, it might be a CSRF issue or a guest-access fallback needed.
-  // We warn but don't force logout immediately.
-  if (localStorage.getItem('session')) {
-    console.warn("403 Detected. Attempting to maintain session (Guest Access may be active).");
+  // Prevent duplicate concurrent checks
+  if (_authCheckPending) return;
+  _authCheckPending = true;
+
+  const session = localStorage.getItem('session');
+
+  // If there's no session at all, logout is valid
+  if (!session) {
+    _authCheckPending = false;
+    console.error("No session found. Forcing logout.");
+    store.dispatch(logout());
+    window.location.hash = '#/';
     return;
   }
 
-  console.error("Session expired or missing credentials (403). Forcing logout.");
-  store.dispatch(logout());
-  localStorage.clear();
-  window.location.hash = '#/';
+  // ── Smart session ping: verify if session is ACTUALLY expired ──────────
+  // Use the raw originalFetch with X-Frappe-SID header
+  const pingUrl = `/api/method/frappe.auth.get_logged_user?sid=${session}`;
+  originalFetch(pingUrl, {
+    credentials: 'omit',
+    headers: { 'X-Frappe-SID': session }
+  })
+    .then(async (res) => {
+      let body = {};
+      try { body = await res.json(); } catch (_) {}
+      const loggedUser = body?.message || '';
+
+      if (res.ok && loggedUser && loggedUser !== 'Guest') {
+        // Session is still VALID — the 403 was a CSRF/transient issue, NOT expiry
+        console.warn(`[Auth] 403 received but session is still valid (user: ${loggedUser}). Skipping logout.`);
+      } else {
+        // Session is truly dead — force logout cleanly (don't nuke ALL of localStorage)
+        console.error(`[Auth] Session confirmed expired (response: ${loggedUser || res.status}). Logging out.`);
+        localStorage.removeItem('session');
+        store.dispatch(logout());
+        window.location.hash = '#/';
+      }
+    })
+    .catch(() => {
+      // Network error during ping — don't logout, user might just be offline
+      console.warn('[Auth] Session ping failed (network error). Staying logged in.');
+    })
+    .finally(() => {
+      _authCheckPending = false;
+    });
 };
 
 console.log(`[APP] Mode: ${IS_PROD ? 'Production (Electron)' : (IS_LOCAL ? 'Development (Local)' : 'Web (Server)')}`);
@@ -104,7 +140,11 @@ axios.interceptors.response.use(
       error.config.url &&
       !error.config.url.includes('user_login')
     ) {
-      handleGlobalAuthError();
+      if (localStorage.getItem('session')) {
+        console.warn("[Axios] 403 received, but keeping active local session intact.");
+      } else {
+        handleGlobalAuthError();
+      }
     }
     return Promise.reject(error);
   }

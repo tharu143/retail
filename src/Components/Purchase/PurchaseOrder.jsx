@@ -7,7 +7,7 @@ import Swal from 'sweetalert2';
 import {
   AlertCircle, CheckCircle2, Loader2, FileText, Calendar, Package, Users,
   DollarSign, ShoppingCart, Save, Send, Trash2, Plus, Box, Scan, ChevronDown, ChevronUp, History,
-  Search, File, Camera, X, Upload, Image as ImageIcon, Zap, Palette, Edit2, Edit3, Settings, Link, Copy
+  Search, File, Camera, X, Upload, Image as ImageIcon, Zap, Palette, Edit2, Edit3, Settings, Link, Copy, Printer
 } from 'lucide-react';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { useNavigate } from 'react-router-dom';
@@ -1745,31 +1745,57 @@ function PurchaseOrder() {
     return true;
   };
 
+  const handlePrintPDF = (nameToPrint) => {
+    const docName = nameToPrint || formData.name;
+    if (!docName) return;
+    const backendPort = '8089';
+    const host = window.location.hostname;
+    const protocol = window.location.protocol;
+    const printUrl = `${protocol}//${host}:${backendPort}/api/method/frappe.utils.print_format.download_pdf?doctype=Purchase%20Order&name=${encodeURIComponent(docName)}&format=Purchase%20Order&no_letterhead=1&letterhead=No%20Letterhead&settings=%7B%7D&_lang=en&pdf_generator=wkhtmltopdf`;
+    window.open(printUrl, '_blank');
+  };
+
   const handleDuplicate = () => {
     setFormData(prev => {
+      const todayISO = getLocalISOString();
+      const nextWeekDate = new Date(new Date().setDate(new Date().getDate() + 7)).toISOString().slice(0, 10);
       const cleanedItems = (prev.items || []).map(item => {
         const {
           name, parent, parenttype, parentfield, creation, modified, modified_by, owner, docstatus,
+          received_qty, billed_amt, returned_qty, delivered_qty,
+          purchase_order, purchase_order_item,
           ...rest
         } = item;
         return {
           ...POItemModel,
           ...rest,
-          schedule_date: new Date(new Date().setDate(new Date().getDate() + 7)).toISOString().slice(0, 16)
+          name: '',
+          docstatus: 0,
+          received_qty: 0,
+          billed_amt: 0,
+          returned_qty: 0,
+          delivered_qty: 0,
+          purchase_order: '',
+          purchase_order_item: '',
+          schedule_date: rest.schedule_date || nextWeekDate
         };
       });
       return {
         ...prev,
         name: '',
+        status: 'Draft',
         docstatus: 0,
-        transaction_date: getLocalISOString(),
+        amended_from: null,
+        per_billed: 0,
+        per_received: 0,
+        transaction_date: todayISO,
         items: cleanedItems
       };
     });
     setIsEditMode(true);
     setIsViewOnly(false);
     setCreatedDocName(null);
-    navigate('/purchaseorder');
+    window.history.replaceState(null, '', window.location.pathname + '#/purchaseorder');
     Swal.fire({
       icon: 'success',
       title: 'Duplicated!',
@@ -2626,15 +2652,26 @@ function PurchaseOrder() {
               </button>
             )}
 
-            {/* Always show DUPLICATE if name exists */}
+            {/* Always show DUPLICATE & PRINT PDF if name exists */}
             {formData.name && (
-              <button
-                onClick={handleDuplicate}
-                className="so-btn-secondary"
-                style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#f8fafc', color: '#475569', border: '1px solid #cbd5e1', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '0.375rem', transition: 'all 0.2s' }}
-              >
-                <Copy size={14} /> DUPLICATE
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={() => handlePrintPDF(formData.name)}
+                  className="so-btn-secondary"
+                  style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#f0f9ff', color: '#0284c7', border: '1px solid #bae6fd', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '0.375rem', transition: 'all 0.2s' }}
+                >
+                  <Printer size={14} /> PRINT PDF
+                </button>
+
+                <button
+                  onClick={handleDuplicate}
+                  className="so-btn-secondary"
+                  style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#f8fafc', color: '#475569', border: '1px solid #cbd5e1', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '0.375rem', transition: 'all 0.2s' }}
+                >
+                  <Copy size={14} /> DUPLICATE
+                </button>
+              </>
             )}
 
             {/* NEW: CREATE & CONNECTIONS DROPDOWN BUTTON */}

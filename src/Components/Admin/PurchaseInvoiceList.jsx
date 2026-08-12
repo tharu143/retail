@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
   Plus, X, Trash2, Building2, Search, Calendar, Filter, MoreVertical, Package,
-  Warehouse as WarehouseIcon, Percent, DollarSign, Loader2, Barcode, Palette, ChevronLeft, ChevronRight, Zap, CheckCircle2, CheckCircle, AlertTriangle, ExternalLink, Link, Edit2, Settings, Copy, ChevronDown
+  Warehouse as WarehouseIcon, Percent, DollarSign, Loader2, Barcode, Palette, ChevronLeft, ChevronRight, Zap, CheckCircle2, CheckCircle, AlertTriangle, ExternalLink, Link, Edit2, Settings, Copy, ChevronDown, Printer
 } from 'lucide-react';
 import { useSelector } from 'react-redux';
 import axios from 'axios';
@@ -45,6 +45,11 @@ const DEFAULT_PI_COLUMNS = [
 const getLocalISODate = () => {
   const tzoffset = (new Date()).getTimezoneOffset() * 60000;
   return (new Date(Date.now() - tzoffset)).toISOString().split('T')[0];
+};
+
+const getLocalISOTime = () => {
+  const d = new Date();
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 };
 
 const getDefaultTaxTemplate = (templates, activeWarehouse) => {
@@ -898,26 +903,62 @@ function PurchaseInvoiceList() {
 
   }, [taxTemplates]);
 
+  const handlePrintPDF = (nameToPrint) => {
+    const docToPrint = nameToPrint || docName || formData.name;
+    if (!docToPrint) return;
+    const backendPort = '8089';
+    const host = window.location.hostname;
+    const protocol = window.location.protocol;
+    const printUrl = `${protocol}//${host}:${backendPort}/api/method/frappe.utils.print_format.download_pdf?doctype=Purchase%20Invoice&name=${encodeURIComponent(docToPrint)}&format=Retail%20Purchase%20Invoice&no_letterhead=1&letterhead=No%20Letterhead&settings=%7B%7D&_lang=en&pdf_generator=wkhtmltopdf`;
+    window.open(printUrl, '_blank');
+  };
+
   const handleDuplicate = () => {
     setDocName('');
+    setDocStatus(0);
     setFormData(prev => {
       const cleanedItems = (prev.items || []).map(item => {
         const {
           name, parent, parenttype, parentfield, creation, modified, modified_by, owner, docstatus,
+          received_qty, billed_amt, returned_qty,
+          purchase_order, purchase_order_item, purchase_receipt, purchase_receipt_item, purchase_invoice_item,
           ...rest
         } = item;
-        return rest;
+        return {
+          ...rest,
+          name: '',
+          docstatus: 0,
+          received_qty: 0,
+          billed_amt: 0,
+          returned_qty: 0,
+          purchase_order: '',
+          purchase_order_item: '',
+          purchase_receipt: '',
+          purchase_receipt_item: '',
+          purchase_invoice_item: ''
+        };
       });
       return {
         ...prev,
         name: '',
+        status: 'Draft',
         docstatus: 0,
+        amended_from: null,
         posting_date: getLocalISODate(),
+        posting_time: getLocalISOTime(),
+        bill_date: getLocalISODate(),
+        bill_no: '',
+        due_date: getLocalISODate(),
+        outstanding_amount: 0,
+        paid_amount: 0,
+        base_paid_amount: 0,
         items: cleanedItems
       };
     });
     setIsViewMode(false);
-    navigate('/purchaseinvoicelist');
+    setIsEditMode(true);
+    setIsModalOpen(true);
+    setSearchParams({ name: 'new' }, { replace: true });
     Swal.fire({
       icon: 'success',
       title: 'Duplicated!',
@@ -931,10 +972,32 @@ function PurchaseInvoiceList() {
       const res = await axios.get(`${LEGACY_API}.get_purchase_invoice`, { params: { name }, withCredentials: true });
       if (res.data.message?.success) {
         const d = res.data.message.data;
+        let paymentTerms = d.payment_terms_template || d.payment_terms || '';
+        let creditDays = parseCreditDays(paymentTerms);
+
+        if (d.supplier) {
+          try {
+            const suppRes = await axios.get(`${LEGACY_API}.get_supplier_details`, {
+              params: { supplier_name: d.supplier },
+              withCredentials: true
+            });
+            if (suppRes.data.message) {
+              if (suppRes.data.message.payment_terms) {
+                paymentTerms = suppRes.data.message.payment_terms;
+              }
+              if (suppRes.data.message.credit_days) {
+                creditDays = suppRes.data.message.credit_days;
+              }
+            }
+          } catch (err) { }
+        }
+
         const mapped = {
           name: d.name,
           supplier: d.supplier,
           supplier_name: d.supplier_name || d.supplier,
+          payment_terms_template: paymentTerms,
+          credit_days: creditDays,
           posting_date: d.posting_date.split('T')[0],
           due_date: d.due_date ? d.due_date.split('T')[0] : '',
           bill_no: d.bill_no || '',
@@ -1544,9 +1607,67 @@ function PurchaseInvoiceList() {
     items: prev.items.filter((_, i) => i !== index)
   }));
 
-  const selectSupplier = (supplier) => {
-    setFormData(prev => ({ ...prev, supplier: supplier.name, supplier_name: supplier.supplier_name }));
-    setSearchSupplier(supplier.supplier_name || supplier.name);
+  const parseCreditDays = (paymentTerms) => {
+    if (!paymentTerms) return 0;
+    const match = String(paymentTerms).match(/\d+/);
+    return match ? parseInt(match[0]) : 0;
+  };
+
+  const calcDueDate = (postingDate, isCash, creditDays = 0) => {
+    if (!postingDate) postingDate = getLocalISODate();
+    if (isCash) return postingDate;
+    const days = parseInt(creditDays) || 0;
+    if (days <= 0) return postingDate;
+    const d = new Date(postingDate);
+    d.setDate(d.getDate() + days);
+    return d.toISOString().split('T')[0];
+  };
+
+  const selectSupplier = async (supplier) => {
+    if (!supplier) return;
+    const sName = supplier.name || supplier.supplier_name;
+    let paymentTerms = supplier.payment_terms || supplier.payment_terms_template || '';
+    let creditDays = supplier.credit_days || parseCreditDays(paymentTerms);
+
+    if (sName) {
+      try {
+        const res = await axios.get(`${LEGACY_API}.get_supplier_details`, {
+          params: { supplier_name: sName },
+          withCredentials: true
+        });
+        if (res.data.message) {
+          if (res.data.message.payment_terms) {
+            paymentTerms = res.data.message.payment_terms;
+          }
+          if (res.data.message.credit_days) {
+            creditDays = res.data.message.credit_days;
+          }
+        }
+      } catch (err) { }
+    }
+
+    if (!creditDays && paymentTerms) {
+      creditDays = parseCreditDays(paymentTerms);
+    }
+
+    setFormData(prev => {
+      const postingDate = prev.posting_date || getLocalISODate();
+      const calculatedDueDate = calcDueDate(postingDate, prev.is_cash_purchase, creditDays);
+      const schedule = (prev.payment_schedule || []).map(row => ({
+        ...row,
+        due_date: calculatedDueDate
+      }));
+      return {
+        ...prev,
+        supplier: sName,
+        supplier_name: supplier.supplier_name || sName,
+        payment_terms_template: paymentTerms,
+        credit_days: creditDays,
+        due_date: calculatedDueDate,
+        payment_schedule: schedule
+      };
+    });
+    setSearchSupplier(supplier.supplier_name || sName);
     setShowSupplierDropdown(false);
   };
 
@@ -2028,8 +2149,8 @@ function PurchaseInvoiceList() {
         createPIFromPR(prParam);
       }
     } else {
-      // If no params, ensure modal is closed
-      if (isModalOpen) {
+      // If no params, ensure modal is closed only if docName exists (we were viewing an existing saved doc)
+      if (isModalOpen && docName) {
         setIsModalOpen(false);
         setDocName('');
         setDocStatus(null);
@@ -2039,7 +2160,7 @@ function PurchaseInvoiceList() {
         setAllowedActions([]);
       }
     }
-  }, [searchParams, openCreateModal, createPIFromPR, fetchPurchaseInvoice, isModalOpen]);
+  }, [searchParams, openCreateModal, createPIFromPR, fetchPurchaseInvoice, isModalOpen, docName]);
 
   useEffect(() => {
     const supplierParam = searchParams.get('supplier');
@@ -2863,15 +2984,26 @@ function PurchaseInvoiceList() {
 
             <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
               <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-                {/* Always show DUPLICATE if docName exists */}
+                {/* Always show DUPLICATE & PRINT PDF if docName exists */}
                 {docName && (
-                  <button
-                    onClick={handleDuplicate}
-                    className="so-btn-secondary"
-                    style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#f8fafc', color: '#475569', border: '1px solid #cbd5e1', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '0.375rem', transition: 'all 0.2s' }}
-                  >
-                    <Copy size={14} /> DUPLICATE
-                  </button>
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => handlePrintPDF(docName)}
+                      className="so-btn-secondary"
+                      style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#f0f9ff', color: '#0284c7', border: '1px solid #bae6fd', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '0.375rem', transition: 'all 0.2s' }}
+                    >
+                      <Printer size={14} /> PRINT PDF
+                    </button>
+
+                    <button
+                      onClick={handleDuplicate}
+                      className="so-btn-secondary"
+                      style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#f8fafc', color: '#475569', border: '1px solid #cbd5e1', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '0.375rem', transition: 'all 0.2s' }}
+                    >
+                      <Copy size={14} /> DUPLICATE
+                    </button>
+                  </>
                 )}
 
                 {/* DRAFT PHASE */}
@@ -3109,7 +3241,17 @@ function PurchaseInvoiceList() {
                           <input
                             type="date"
                             value={formData.posting_date}
-                            onChange={e => setFormData(prev => ({ ...prev, posting_date: e.target.value }))}
+                            onChange={e => {
+                              const newPostingDate = e.target.value;
+                              setFormData(prev => {
+                                const calculatedDueDate = calcDueDate(newPostingDate, prev.is_cash_purchase, prev.credit_days);
+                                const schedule = (prev.payment_schedule || []).map(row => ({
+                                  ...row,
+                                  due_date: calculatedDueDate
+                                }));
+                                return { ...prev, posting_date: newPostingDate, due_date: calculatedDueDate, payment_schedule: schedule };
+                              });
+                            }}
                             className="so-input"
                             style={{ paddingLeft: '2.5rem' }}
                             disabled={isViewMode}
@@ -3137,7 +3279,16 @@ function PurchaseInvoiceList() {
                           <button
                             type="button"
                             disabled={isViewMode}
-                            onClick={() => setFormData(prev => ({ ...prev, is_cash_purchase: false }))}
+                            onClick={() => {
+                              setFormData(prev => {
+                                const calculatedDueDate = calcDueDate(prev.posting_date, false, prev.credit_days);
+                                const schedule = (prev.payment_schedule || []).map(row => ({
+                                  ...row,
+                                  due_date: calculatedDueDate
+                                }));
+                                return { ...prev, is_cash_purchase: false, due_date: calculatedDueDate, payment_schedule: schedule };
+                              });
+                            }}
                             className={`py-2 px-3 rounded-xl border text-xs font-black flex items-center justify-center gap-2 transition-all ${
                               !formData.is_cash_purchase
                                 ? 'bg-indigo-50 border-indigo-500 text-indigo-700 shadow-xs'
@@ -3151,7 +3302,16 @@ function PurchaseInvoiceList() {
                           <button
                             type="button"
                             disabled={isViewMode}
-                            onClick={() => setFormData(prev => ({ ...prev, is_cash_purchase: true }))}
+                            onClick={() => {
+                              setFormData(prev => {
+                                const calculatedDueDate = calcDueDate(prev.posting_date, true, prev.credit_days);
+                                const schedule = (prev.payment_schedule || []).map(row => ({
+                                  ...row,
+                                  due_date: calculatedDueDate
+                                }));
+                                return { ...prev, is_cash_purchase: true, due_date: calculatedDueDate, payment_schedule: schedule };
+                              });
+                            }}
                             className={`py-2 px-3 rounded-xl border text-xs font-black flex items-center justify-center gap-2 transition-all ${
                               formData.is_cash_purchase
                                 ? 'bg-emerald-50 border-emerald-500 text-emerald-700 shadow-xs'
@@ -3200,29 +3360,26 @@ function PurchaseInvoiceList() {
                       </div>
 
                       <div className="so-field">
-                        <label className="so-label">Due Date</label>
+                        <label className="so-label font-bold text-slate-700">Due Date</label>
                         <div style={{ position: 'relative' }}>
                           <Calendar size={16} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', opacity: 0.4 }} />
                           <input
                             type="date"
-                            value={formData.due_date}
-                            onChange={e => {
-                              const newDueDate = e.target.value;
-                              setFormData(prev => {
-                                const schedule = (prev.payment_schedule || []).map(row => ({
-                                  ...row,
-                                  due_date: newDueDate
-                                }));
-                                return { ...prev, due_date: newDueDate, payment_schedule: schedule };
-                              });
-                            }}
+                            value={formData.due_date || ''}
+                            disabled={true}
                             className="so-input"
-                            style={{ paddingLeft: '2.5rem' }}
-                            disabled={isViewMode}
-                            onFocus={(e) => { try { e.target.showPicker(); } catch (err) { } }}
-                            onClick={(e) => { try { e.target.showPicker(); } catch (err) { } }}
+                            style={{ paddingLeft: '2.5rem', backgroundColor: '#f1f5f9', color: '#334155', fontWeight: 700, cursor: 'not-allowed' }}
                           />
                         </div>
+                        {formData.is_cash_purchase ? (
+                          <p className="text-[10px] text-emerald-600 font-bold mt-1 shadow-2xs">
+                            ⚡ CASH Purchase: Due Date equals Posting Date
+                          </p>
+                        ) : (
+                          <p className="text-[10px] text-indigo-600 font-bold mt-1 shadow-2xs">
+                            💳 CREDIT Purchase: {formData.payment_terms_template ? `${formData.payment_terms_template} (${formData.credit_days || 0} Days)` : (formData.credit_days ? `${formData.credit_days} Days` : 'Same as Posting Date')}
+                          </p>
+                        )}
                       </div>
 
                       <div className="so-field">
@@ -4423,7 +4580,15 @@ function PurchaseInvoiceList() {
                                       borderRadius: '0.5rem', boxShadow: 'var(--so-shadow)',
                                       minWidth: '120px', overflow: 'hidden'
                                     }}>
-                                      {inv.status === 'Draft' && (
+                                       <button
+                                         style={{ width: '100%', padding: '0.6rem 1rem', textAlign: 'left', background: 'none', border: 'none', fontSize: '0.8rem', color: '#0284c7', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 700 }}
+                                         onMouseEnter={e => e.currentTarget.style.background = '#f0f9ff'}
+                                         onMouseLeave={e => e.currentTarget.style.background = 'none'}
+                                         onClick={() => handlePrintPDF(inv.name)}
+                                       >
+                                         <Printer size={13} /> Print PDF
+                                       </button>
+                                       {inv.status === 'Draft' && (
                                         <button
                                           style={{ width: '100%', padding: '0.6rem 1rem', textAlign: 'left', background: 'none', border: 'none', fontSize: '0.8rem', color: '#ef4444', cursor: 'pointer' }}
                                           onMouseEnter={e => e.currentTarget.style.background = '#fff1f1'}

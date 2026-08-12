@@ -50,6 +50,8 @@ import { frappeCall } from '../../utils/frappe';
 import POSService from '../../utils/posService';
 // QuickStockIn removed - using route /quickstockin
 
+const LEGACY_API = '/api/method/custom_retailpos.custom_retailpos.retail_api.retail';
+
 // ---------- Frappe-style rounding Utilities (Outside for stability) ----------
 const flt = (num, prec = 6) => {
     const factor = Math.pow(10, prec);
@@ -1325,6 +1327,42 @@ function Home() {
     const [creatingCustomer, setCreatingCustomer] = useState(false);
     const [phoneNumber, setPhoneNumber] = useState('');
     const [searchResults, setSearchResults] = useState([]);
+    const [customerLastPrices, setCustomerLastPrices] = useState({});
+
+    useEffect(() => {
+        const custName = selectedCustomer?.name || selectedCustomer?.customer_name || (customerName && customerName !== 'Cash' ? customerName : null);
+        if (custName && custName !== 'Cash') {
+            axios.get(`${LEGACY_API}.get_customer_last_sale_prices`, {
+                params: { customer: custName },
+                withCredentials: true
+            }).then(res => {
+                if (res.data?.message) {
+                    setCustomerLastPrices(res.data.message);
+                } else {
+                    setCustomerLastPrices({});
+                }
+            }).catch(() => setCustomerLastPrices({}));
+        } else {
+            setCustomerLastPrices({});
+        }
+    }, [selectedCustomer, customerName]);
+
+    const getCustomerLastPriceInfo = useCallback((item) => {
+        if (!item || !customerLastPrices || Object.keys(customerLastPrices).length === 0) return null;
+        const itemCode = item.item_code || item.id;
+        if (!itemCode) return null;
+        const itemPrices = customerLastPrices[itemCode];
+        if (!itemPrices) return null;
+
+        const currentUom = item.uom || 'Nos';
+        if (itemPrices[currentUom]) {
+            return itemPrices[currentUom];
+        }
+        if ((currentUom === 'Piece' || currentUom === 'Nos') && (itemPrices['Piece'] || itemPrices['Nos'])) {
+            return itemPrices['Piece'] || itemPrices['Nos'];
+        }
+        return itemPrices['_default'] || null;
+    }, [customerLastPrices]);
 
     useEffect(() => {
         if (selectedBillIndex !== -1) {
@@ -1971,6 +2009,48 @@ function Home() {
         }
 
         const formattedPhone = `${countryCodePrefix}${strippedNumber}`;
+
+        // ── Duplicate mobile number check ──────────────────────────────────────
+        // 1. Check local IndexedDB cache first (fast)
+        const localDup = await db.customers.filter(c =>
+            c.mobile_no && c.mobile_no.replace(/\D/g, '') === strippedNumber
+        ).first();
+
+        if (localDup) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Number Already Registered',
+                html: `Mobile <b>${formattedPhone}</b> is already linked to customer <b>${localDup.customer_name}</b>.<br/>Please use a different number.`,
+                confirmButtonColor: '#f59e0b'
+            });
+            return;
+        }
+
+        // 2. Check ERPNext via Contact (server-side, catches numbers not in local cache)
+        try {
+            const dupRes = await axios.get('/api/resource/Contact', {
+                params: {
+                    filters: JSON.stringify([['mobile_no', '=', formattedPhone]]),
+                    fields: JSON.stringify(['name', 'mobile_no']),
+                    limit: 1
+                },
+                withCredentials: true
+            });
+            const dupList = dupRes.data?.data || [];
+            if (Array.isArray(dupList) && dupList.length > 0) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Number Already Registered',
+                    html: `Mobile <b>${formattedPhone}</b> is already registered in the system.<br/>Please use a different number.`,
+                    confirmButtonColor: '#f59e0b'
+                });
+                return;
+            }
+        } catch (_) {
+            // Network error during dup check – proceed anyway (server create_customer will catch it)
+        }
+        // ──────────────────────────────────────────────────────────────────────
+
         setCreatingCustomer(true);
 
         const addr_parts = [createForm.address_line1, createForm.address_line2, createForm.city, createForm.emirate, createForm.country];
@@ -8369,6 +8449,25 @@ function Home() {
                                                         <DirhamIcon size={10} className="text-slate-800" /> {(item.qty * effectivePrice).toFixed(2)}
                                                     </span>
                                                 </div>
+
+                                                {/* Customer Last Sale Price Badge */}
+                                                {selectedCustomer && selectedCustomer.name !== 'Cash' && (
+                                                    <div className="mt-1 flex items-center gap-1 text-[9px] font-extrabold text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200/80 w-fit">
+                                                        {(() => {
+                                                            const info = getCustomerLastPriceInfo(item);
+                                                            if (info) {
+                                                                return (
+                                                                    <span className="flex items-center gap-1">
+                                                                        <span className="opacity-80">Last Sale ({info.uom}):</span>
+                                                                        <DirhamIcon size={8} /> {parseFloat(info.rate || 0).toFixed(2)}
+                                                                        <span className="text-[8px] text-amber-600 font-normal ml-0.5">({info.posting_date})</span>
+                                                                    </span>
+                                                                );
+                                                            }
+                                                            return <span className="text-slate-400 font-normal italic text-[8.5px]">No previous sale for this customer</span>;
+                                                        })()}
+                                                    </div>
+                                                )}
                                             </div>
                                         );
                                     })
@@ -9060,26 +9159,49 @@ function Home() {
                                                     </td>
                                                 )}
                                                 {visibleClassicCols.some(c => c.id === 'description') && (
-                                                    <td className="p-0 relative group">
-                                                        <input
-                                                            type="text"
-                                                            value={item.item_name || item.name}
-                                                            onChange={e => {
-                                                                const newBill = [...billItems];
-                                                                if (newBill[idx].item_name !== undefined) newBill[idx].item_name = e.target.value;
-                                                                else newBill[idx].name = e.target.value;
-                                                                setBillItems(newBill);
-                                                            }}
-                                                            className="w-full h-full px-2 pr-8 font-black text-slate-700 uppercase bg-transparent border-none outline-none focus:bg-amber-100 placeholder:text-slate-300"
-                                                            placeholder="Description"
-                                                        />
-                                                        <button
-                                                            onClick={(e) => { e.stopPropagation(); showStockBreakdown(item); }}
-                                                            className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-sky-500 transition-colors cursor-pointer"
-                                                            title="Item Info & Stock"
-                                                        >
-                                                            <Info size={14} />
-                                                        </button>
+                                                    <td className="px-2 py-1 relative group">
+                                                        <div className="flex flex-col justify-center">
+                                                            <div className="relative flex items-center">
+                                                                <input
+                                                                    type="text"
+                                                                    value={item.item_name || item.name}
+                                                                    onChange={e => {
+                                                                        const newBill = [...billItems];
+                                                                        if (newBill[idx].item_name !== undefined) newBill[idx].item_name = e.target.value;
+                                                                        else newBill[idx].name = e.target.value;
+                                                                        setBillItems(newBill);
+                                                                    }}
+                                                                    className="w-full px-1 pr-6 font-black text-slate-700 uppercase bg-transparent border-none outline-none focus:bg-amber-100 placeholder:text-slate-300 text-[11px]"
+                                                                    placeholder="Description"
+                                                                />
+                                                                <button
+                                                                    onClick={(e) => { e.stopPropagation(); showStockBreakdown(item); }}
+                                                                    className="absolute right-0 text-slate-400 hover:text-sky-500 transition-colors cursor-pointer"
+                                                                    title="Item Info & Stock"
+                                                                >
+                                                                    <Info size={13} />
+                                                                </button>
+                                                            </div>
+
+                                                            {/* Customer Last Sale Price Badge */}
+                                                            {(selectedCustomer || (customerName && customerName !== 'Cash')) && (
+                                                                <div className="mt-0.5 text-[9px] font-extrabold text-amber-800 flex items-center gap-1">
+                                                                    {(() => {
+                                                                        const info = getCustomerLastPriceInfo(item);
+                                                                        if (info) {
+                                                                            return (
+                                                                                <span className="inline-flex items-center gap-1 bg-amber-50 px-1 py-0.5 rounded border border-amber-200/80 leading-none">
+                                                                                    <span className="opacity-80">Last Sale ({info.uom}):</span>
+                                                                                    <DirhamIcon size={8} /> {parseFloat(info.rate || 0).toFixed(2)}
+                                                                                    <span className="text-[8px] text-amber-600 font-normal ml-0.5">({info.posting_date})</span>
+                                                                                </span>
+                                                                            );
+                                                                        }
+                                                                        return <span className="text-slate-400 font-normal italic text-[8px] leading-none">No previous sale</span>;
+                                                                    })()}
+                                                                </div>
+                                                            )}
+                                                        </div>
                                                     </td>
                                                 )}
                                                 {visibleClassicCols.some(c => c.id === 'uom') && (
@@ -9902,6 +10024,24 @@ function Home() {
                                                                 </span>
                                                             </span>
                                                             <span className="home-bill-item-price flex items-center gap-0.5"><DirhamIcon size={11} /> {item.price} × {item.qty} {item.uom || 'Pc'}</span>
+                                                            {/* Customer Last Sale Price Badge */}
+                                                            {selectedCustomer && selectedCustomer.name !== 'Cash' && (
+                                                                <div style={{ marginTop: '3px', fontSize: '9px', fontWeight: 800, color: '#b45309', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                                    {(() => {
+                                                                        const info = getCustomerLastPriceInfo(item);
+                                                                        if (info) {
+                                                                            return (
+                                                                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', background: '#fef3c7', padding: '1px 6px', borderRadius: '4px', border: '1px solid #fde68a' }}>
+                                                                                    <span>Last Sale ({info.uom}):</span>
+                                                                                    <DirhamIcon size={8} /> {parseFloat(info.rate || 0).toFixed(2)}
+                                                                                    <span style={{ fontSize: '8px', color: '#92400e', fontWeight: 400 }}>({info.posting_date})</span>
+                                                                                </span>
+                                                                            );
+                                                                        }
+                                                                        return <span style={{ color: '#94a3b8', fontWeight: 400, fontStyle: 'italic', fontSize: '8.5px' }}>No previous sale</span>;
+                                                                    })()}
+                                                                </div>
+                                                            )}
                                                         </div>
                                                         <div className="home-bill-item-actions">
                                                             <button className="home-bill-qty-btn" onClick={e => { e.stopPropagation(); updateQuantity(item.id, -1); }}>-</button>
