@@ -8770,30 +8770,6 @@ function Home() {
                     </div>
 
                     <div className="ml-auto flex items-center pr-2" style={{ gap: '14px' }}>
-                        {/* Group 2: User Info Card */}
-                        <div
-                            onClick={() => setShowThemeSidebar(true)}
-                            className="flex items-center gap-2.5 bg-white px-2.5 py-1 rounded-lg border border-slate-200 shadow-sm cursor-pointer hover:bg-slate-50 transition-colors"
-                            title="Open Theme Settings Sidebar"
-                        >
-                            <div className="flex flex-col items-end text-right">
-                                <span className="text-[9px] font-black uppercase leading-tight">
-                                    <span className="text-slate-400 mr-1">USER:</span>
-                                    <span className="text-slate-800 truncate max-w-[140px] inline-block align-bottom">{user?.full_name || user || 'CASHIER'}</span>
-                                </span>
-                                <span className="text-[9px] font-black uppercase leading-tight mt-0.5">
-                                    <span className="text-slate-400 mr-1">BRANCH:</span>
-                                    <span className={isGreen ? 'text-emerald-600' : 'text-sky-600'}>{getBranchName(warehouse)}</span>
-                                </span>
-                                <CurrentTimeDisplay variant="modern" />
-                            </div>
-                            <div className="w-8 h-8 flex items-center justify-center bg-slate-50 border border-slate-200 rounded-full text-slate-400 shrink-0">
-                                <UserIcon size={15} />
-                            </div>
-                        </div>
-
-                        <div style={{ width: '1px', height: '24px', background: isGreen ? '#4a9a72' : '#4a7aaa', opacity: 0.5, flexShrink: 0 }} />
-
                         {/* Group 3: Utilities */}
                         <div className="flex items-center gap-4">
                             {/* Connection Status Badge */}
@@ -8860,11 +8836,6 @@ function Home() {
                                 title={window.location.protocol === 'file:' ? "Go to POS Homepage" : "Open POS in New Tab"}
                             >
                                 <ExternalLink size={18} />
-                            </button>
-
-                            {/* Logout Button */}
-                            <button onClick={handleLogout} className="text-rose-500 hover:text-rose-700 transition-all p-1 hover:bg-rose-50 rounded-full" title="Logout">
-                                <Power size={20} />
                             </button>
 
                             {/* Dropdown Settings Button */}
@@ -9007,6 +8978,30 @@ function Home() {
                                     </div>
                                 )}
                             </div>
+                        </div>
+
+                        <div style={{ width: '1px', height: '24px', background: isGreen ? '#4a9a72' : '#4a7aaa', opacity: 0.5, flexShrink: 0 }} />
+
+                        {/* Group 2: Cashier Profile Info */}
+                        <div className="flex items-center gap-3">
+                            <div
+                                onClick={() => setShowThemeSidebar(true)}
+                                className="flex items-center gap-2.5 cursor-pointer"
+                                title="Open Theme Settings Sidebar"
+                            >
+                                <div className="flex flex-col items-end text-right">
+                                    <span className="user-name font-black uppercase text-slate-800" style={{ fontSize: '12px', fontWeight: 800, color: '#1e293b', lineHeight: '1.2' }}>
+                                        {user?.full_name || (typeof user === 'string' ? user : '') || 'CASHIER'}
+                                    </span>
+                                    <CurrentTimeDisplay variant="modern" />
+                                </div>
+                                <div className="w-8 h-8 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-500 shadow-sm shrink-0">
+                                    <UserIcon size={16} />
+                                </div>
+                            </div>
+                            <button onClick={handleLogout} className="text-rose-500 hover:text-rose-700 transition-all p-1 hover:bg-rose-50 rounded-full cursor-pointer border-none bg-transparent flex items-center justify-center animate-in fade-in" title="Logout">
+                                <Power size={18} />
+                            </button>
                         </div>
                     </div>
                 </nav>
