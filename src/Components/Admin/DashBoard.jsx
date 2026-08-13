@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
+import { useSearchParams } from 'react-router-dom';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { KpiCard, FilterBar, SalesTrendChart, PurchaseTrendChart, ReceivablesPayablesChart, CustomerTrendChart, StockDistributionChart, PendingOperationsChart, ModeOfPaymentsChart, EmployeeCheckinWidget } from './DashboardWidgets';
 import { getDashboardMetrics } from '../../utils/dashboardService';
@@ -141,8 +142,14 @@ function Dashboard() {
     return localStorage.getItem('dashboardActiveItem') || 'home';
   });
 
+  const [searchParams, setSearchParams] = useSearchParams();
+
   useEffect(() => {
     localStorage.setItem('dashboardActiveItem', activeItem);
+    // Clear URL query parameters when switching tabs to prevent state leakage (e.g. ?name=new)
+    if (searchParams.toString() !== "") {
+      setSearchParams({}, { replace: true });
+    }
   }, [activeItem]);
 
   // Dashboard Global State
