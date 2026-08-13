@@ -1864,11 +1864,16 @@ function PurchaseReceiptList() {
         }
       }
     } else {
-      if (docName) {
+      if (isModalOpen) {
         setIsModalOpen(false);
         setDocName('');
+        setIsEditMode(false);
+        setIsViewMode(false);
+        setFormErrors({});
+        setBarcodeInput('');
       }
     }
+
   }, [searchParams, openCreateModal, isModalOpen, docName]);
 
   useEffect(() => {

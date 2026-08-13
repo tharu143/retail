@@ -2149,8 +2149,8 @@ function PurchaseInvoiceList() {
         createPIFromPR(prParam);
       }
     } else {
-      // If no params, ensure modal is closed only if docName exists (we were viewing an existing saved doc)
-      if (isModalOpen && docName) {
+      // If no params, ensure modal is closed
+      if (isModalOpen) {
         setIsModalOpen(false);
         setDocName('');
         setDocStatus(null);
@@ -2160,6 +2160,7 @@ function PurchaseInvoiceList() {
         setAllowedActions([]);
       }
     }
+
   }, [searchParams, openCreateModal, createPIFromPR, fetchPurchaseInvoice, isModalOpen, docName]);
 
   useEffect(() => {
