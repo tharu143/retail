@@ -8761,30 +8761,6 @@ function Home() {
                     </div>
 
                     <div className="ml-auto flex items-center pr-2" style={{ gap: '14px' }}>
-                        {/* Group 1: Navigation */}
-                        <button
-                            onClick={() => navigate('/dashboard')}
-                            className={`font-black text-[11px] uppercase tracking-wider transition-all hover:underline decoration-2 underline-offset-4 ${isGreen ? 'text-emerald-700' : 'text-sky-700'}`}
-                        >
-                            DASHBOARD
-                        </button>
-
-                        <button
-                            onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                console.log("PRINT JOB Legacy Header button clicked!");
-                                setShowPrintJobModal(true);
-                            }}
-                            className="flex items-center gap-1.5 px-2.5 py-1 bg-slate-900 text-sky-400 rounded-lg text-[10px] font-black uppercase tracking-wider hover:bg-slate-800 transition-all shadow-sm cursor-pointer"
-                            title="Print Job Calculator & Barcode Generator (Option + P)"
-                        >
-                            <Printer size={12} className="text-sky-400" />
-                            <span>PRINT JOB</span>
-                        </button>
-
-                        <div style={{ width: '1px', height: '20px', background: isGreen ? '#4a9a72' : '#4a7aaa', opacity: 0.4, flexShrink: 0 }} />
-
                         {/* Group 2: User Info Card */}
                         <div
                             onClick={() => setShowThemeSidebar(true)}
@@ -9473,12 +9449,12 @@ function Home() {
                                     <div className="flex flex-wrap items-center gap-2">
                                         <button
                                             onClick={() => { setShowSettingsMenu(false); setShowDraftsModal(true); }}
-                                            className={`px-3 py-1.5 flex items-center gap-1.5 rounded-lg border transition-all font-bold text-[11px] uppercase tracking-wider select-none ${isGreen ? 'bg-emerald-600 text-white border-emerald-700 hover:bg-emerald-700' : 'bg-emerald-600 text-white border-emerald-700 hover:bg-emerald-700'}`}
+                                            className="px-3 py-1.5 flex items-center gap-1.5 rounded-lg border transition-all font-bold text-[11px] uppercase tracking-wider select-none bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100"
                                             title="View Active Saved Orders (Drafts) (Press F9)"
                                         >
                                             <Package size={14} />
                                             <span>Active Orders</span>
-                                            <span className="inline-flex items-center justify-center font-mono text-[8px] font-bold bg-black/20 text-white/90 px-1 py-0.5 rounded">F9</span>
+                                            <span className="inline-flex items-center justify-center font-mono text-[8px] font-bold bg-emerald-200 text-emerald-800 px-1 py-0.5 rounded">F9</span>
                                             {pendingSyncCount > 0 && (
                                                 <span className="bg-rose-500 text-white text-[9px] px-1.5 py-0.5 rounded-full font-bold">
                                                     {pendingSyncCount}
@@ -9487,23 +9463,24 @@ function Home() {
                                         </button>
                                         <button
                                             onClick={() => { setShowSettingsMenu(false); handleShowRecentInvoicesPrint(); }}
-                                            className="px-3 py-1.5 flex items-center gap-1.5 rounded-lg bg-indigo-600 text-white border border-indigo-700 hover:bg-indigo-700 transition-all font-bold text-[11px] uppercase tracking-wider select-none"
+                                            className="px-3 py-1.5 flex items-center gap-1.5 rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100 transition-all font-bold text-[11px] uppercase tracking-wider select-none"
                                             title="Print Recent Bill (Press F10)"
                                         >
                                             <Printer size={14} />
                                             <span>Print Bill</span>
-                                            <span className="inline-flex items-center justify-center font-mono text-[8px] font-bold bg-black/20 text-white/90 px-1 py-0.5 rounded">F10</span>
+                                            <span className="inline-flex items-center justify-center font-mono text-[8px] font-bold bg-indigo-200 text-indigo-800 px-1 py-0.5 rounded">F10</span>
                                         </button>
                                         <button
                                             onClick={() => setShowPrintJobModal(true)}
-                                            className="px-3 py-1.5 flex items-center gap-1.5 rounded-lg bg-slate-900 text-sky-400 border border-slate-700 hover:bg-slate-800 transition-all font-bold text-[11px] uppercase tracking-wider select-none"
+                                            className="px-3 py-1.5 flex items-center gap-1.5 rounded-lg bg-sky-50 text-sky-700 border border-sky-200 hover:bg-sky-100 transition-all font-bold text-[11px] uppercase tracking-wider select-none"
                                             title="Print Job Calculator"
                                         >
-                                            <Printer size={14} className="text-sky-400" />
+                                            <Printer size={14} className="text-sky-600" />
                                             <span>PRINT JOB</span>
-                                            <span className="inline-flex items-center justify-center font-mono text-[8px] font-bold bg-white/10 text-sky-300 px-1 py-0.5 rounded">⇧P</span>
+                                            <span className="inline-flex items-center justify-center font-mono text-[8px] font-bold bg-sky-200 text-sky-800 px-1 py-0.5 rounded">⇧P</span>
                                         </button>
                                     </div>
+
 
                                     {/* TOTALS AREA INSIDE CARD */}
                                     <div className="flex flex-wrap items-end justify-between gap-3 pt-2 border-t border-slate-100">
@@ -9563,48 +9540,48 @@ function Home() {
                                         <button
                                             onClick={() => { setShowSettingsMenu(false); if (billItems.length > 0) completePayment('Cash'); }}
                                             disabled={grandTotal <= 0 || paymentLoading}
-                                            className="h-[54px] bg-[#047857] hover:bg-[#065f46] disabled:opacity-50 text-white rounded-lg p-2 flex flex-col justify-between transition-all active:scale-95 shadow-sm text-left cursor-pointer border-none"
+                                            className="h-[54px] bg-[#ecfdf5] hover:bg-[#d1fae5] disabled:opacity-50 text-[#047857] border border-[#a7f3d0] rounded-lg p-2 flex flex-col justify-between transition-all active:scale-95 shadow-sm text-left cursor-pointer"
                                         >
-                                            <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
+                                            <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#047857]">
                                                 <Banknote size={15} />
                                                 <span>CASH</span>
                                             </div>
-                                            <span className="inline-flex items-center justify-center font-mono text-[9px] font-black px-1.5 py-0.5 rounded bg-black/40 text-white w-max">Alt+1</span>
+                                            <span className="inline-flex items-center justify-center font-mono text-[9px] font-black px-1.5 py-0.5 rounded bg-[#a7f3d0] text-[#047857] w-max">Alt+1</span>
                                         </button>
 
                                         {/* BANK */}
                                         <button
                                             onClick={() => { setShowSettingsMenu(false); if (billItems.length > 0) completePayment('Bank'); }}
                                             disabled={grandTotal <= 0 || paymentLoading}
-                                            className="h-[54px] bg-[#0284c7] hover:bg-[#0369a1] disabled:opacity-50 text-white rounded-lg p-2 flex flex-col justify-between transition-all active:scale-95 shadow-sm text-left cursor-pointer border-none"
+                                            className="h-[54px] bg-[#f0f9ff] hover:bg-[#e0f2fe] disabled:opacity-50 text-[#0369a1] border border-[#bae6fd] rounded-lg p-2 flex flex-col justify-between transition-all active:scale-95 shadow-sm text-left cursor-pointer"
                                         >
-                                            <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
+                                            <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#0369a1]">
                                                 <Building2 size={15} />
                                                 <span>BANK</span>
                                             </div>
-                                            <span className="inline-flex items-center justify-center font-mono text-[9px] font-black px-1.5 py-0.5 rounded bg-black/40 text-white w-max">Ctrl+V</span>
+                                            <span className="inline-flex items-center justify-center font-mono text-[9px] font-black px-1.5 py-0.5 rounded bg-[#bae6fd] text-[#0369a1] w-max">Ctrl+V</span>
                                         </button>
 
                                         {/* CARD */}
                                         <button
                                             onClick={() => { setShowSettingsMenu(false); if (billItems.length > 0) { setSelectedPaymentMode('Card'); setShowCardTerminalModal(true); } }}
                                             disabled={grandTotal <= 0 || paymentLoading}
-                                            className="h-[54px] bg-[#6d28d9] hover:bg-[#5b21b6] disabled:opacity-50 text-white rounded-lg p-2 flex flex-col justify-between transition-all active:scale-95 shadow-sm text-left cursor-pointer border-none"
+                                            className="h-[54px] bg-[#f5f3ff] hover:bg-[#ede9fe] disabled:opacity-50 text-[#6d28d9] border border-[#ddd6fe] rounded-lg p-2 flex flex-col justify-between transition-all active:scale-95 shadow-sm text-left cursor-pointer"
                                         >
-                                            <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
+                                            <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#6d28d9]">
                                                 <CreditCard size={15} />
                                                 <span>CARD</span>
                                             </div>
-                                            <span className="inline-flex items-center justify-center font-mono text-[9px] font-black px-1.5 py-0.5 rounded bg-black/40 text-white w-max">Alt+2</span>
+                                            <span className="inline-flex items-center justify-center font-mono text-[9px] font-black px-1.5 py-0.5 rounded bg-[#ddd6fe] text-[#6d28d9] w-max">Alt+2</span>
                                         </button>
 
                                         {/* PRINT / LOADING CONTROL IN ROW 1 OR FULL SPAN */}
                                         {paymentLoading ? (
                                             <button
-                                                className="col-span-2 h-[54px] bg-slate-600 text-white border-none rounded-lg p-2 flex items-center justify-center gap-2 opacity-80 cursor-not-allowed font-black text-[11px] uppercase"
+                                                className="col-span-2 h-[54px] bg-slate-100 text-slate-500 border border-slate-200 rounded-lg p-2 flex items-center justify-center gap-2 opacity-80 cursor-not-allowed font-black text-[11px] uppercase"
                                                 disabled
                                             >
-                                                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                                <div className="w-4 h-4 border-2 border-slate-500 border-t-transparent rounded-full animate-spin"></div>
                                                 <span>Processing...</span>
                                             </button>
                                         ) : (
@@ -9613,26 +9590,26 @@ function Home() {
                                                 <button
                                                     onClick={() => { setShowSettingsMenu(false); handleCheckoutWithMode('print'); }}
                                                     disabled={grandTotal <= 0}
-                                                    className="h-[54px] bg-[#047857] hover:bg-[#065f46] disabled:opacity-50 text-white rounded-lg p-2 flex flex-col justify-between transition-all active:scale-95 shadow-sm text-left cursor-pointer border-none"
+                                                    className="h-[54px] bg-[#ecfdf5] hover:bg-[#d1fae5] disabled:opacity-50 text-[#047857] border border-[#a7f3d0] rounded-lg p-2 flex flex-col justify-between transition-all active:scale-95 shadow-sm text-left cursor-pointer"
                                                 >
-                                                    <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
+                                                    <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#047857]">
                                                         <Printer size={15} />
                                                         <span>PRINT</span>
                                                     </div>
-                                                    <span className="inline-flex items-center justify-center font-mono text-[9px] font-black px-1.5 py-0.5 rounded bg-black/40 text-white w-max">Space</span>
+                                                    <span className="inline-flex items-center justify-center font-mono text-[9px] font-black px-1.5 py-0.5 rounded bg-[#a7f3d0] text-[#047857] w-max">Space</span>
                                                 </button>
 
                                                 {/* DIRECT */}
                                                 <button
                                                     onClick={() => { setShowSettingsMenu(false); handleCheckoutWithMode('no-print'); }}
                                                     disabled={grandTotal <= 0}
-                                                    className="h-[54px] bg-[#0284c7] hover:bg-[#0369a1] disabled:opacity-50 text-white rounded-lg p-2 flex flex-col justify-between transition-all active:scale-95 shadow-sm text-left cursor-pointer border-none"
+                                                    className="h-[54px] bg-[#f0f9ff] hover:bg-[#e0f2fe] disabled:opacity-50 text-[#0369a1] border border-[#bae6fd] rounded-lg p-2 flex flex-col justify-between transition-all active:scale-95 shadow-sm text-left cursor-pointer"
                                                 >
-                                                    <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
+                                                    <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#0369a1]">
                                                         <Zap size={15} />
                                                         <span>DIRECT</span>
-                                                    </div>
-                                                    <span className="inline-flex items-center justify-center font-mono text-[9px] font-black px-1.5 py-0.5 rounded bg-black/40 text-white w-max">Alt+N</span>
+                                                     </div>
+                                                    <span className="inline-flex items-center justify-center font-mono text-[9px] font-black px-1.5 py-0.5 rounded bg-[#bae6fd] text-[#0369a1] w-max">Alt+N</span>
                                                 </button>
                                             </>
                                         )}
@@ -9666,40 +9643,41 @@ function Home() {
                                         <button
                                             onClick={() => { setShowSettingsMenu(false); handleSaveDraft(); }}
                                             disabled={billItems.length === 0}
-                                            className="h-[54px] bg-[#d97706] hover:bg-[#b45309] disabled:opacity-50 text-white rounded-lg p-2 flex flex-col justify-between transition-all active:scale-95 shadow-sm text-left cursor-pointer border-none"
+                                            className="h-[54px] bg-[#fffbeb] hover:bg-[#fef3c7] disabled:opacity-50 text-[#b45309] border border-[#fde68a] rounded-lg p-2 flex flex-col justify-between transition-all active:scale-95 shadow-sm text-left cursor-pointer"
                                         >
-                                            <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
+                                            <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#b45309]">
                                                 <Upload size={15} />
                                                 <span>SAVE DRAFT</span>
                                             </div>
-                                            <span className="inline-flex items-center justify-center font-mono text-[9px] font-black px-1.5 py-0.5 rounded bg-black/40 text-white w-max">Alt+S</span>
+                                            <span className="inline-flex items-center justify-center font-mono text-[9px] font-black px-1.5 py-0.5 rounded bg-[#fde68a] text-[#b45309] w-max">Alt+S</span>
                                         </button>
 
                                         {/* A4 */}
                                         <button
                                             onClick={() => { setShowSettingsMenu(false); handleCheckoutWithMode('print-a4'); }}
                                             disabled={grandTotal <= 0 || paymentLoading}
-                                            className="h-[54px] bg-[#6d28d9] hover:bg-[#5b21b6] disabled:opacity-50 text-white rounded-lg p-2 flex flex-col justify-between transition-all active:scale-95 shadow-sm text-left cursor-pointer border-none"
+                                            className="h-[54px] bg-[#f5f3ff] hover:bg-[#ede9fe] disabled:opacity-50 text-[#6d28d9] border border-[#ddd6fe] rounded-lg p-2 flex flex-col justify-between transition-all active:scale-95 shadow-sm text-left cursor-pointer"
                                         >
-                                            <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
+                                            <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#6d28d9]">
                                                 <Printer size={15} />
                                                 <span>A4</span>
                                             </div>
-                                            <span className="inline-flex items-center justify-center font-mono text-[9px] font-black px-1.5 py-0.5 rounded bg-black/40 text-white w-max">Alt+A</span>
+                                            <span className="inline-flex items-center justify-center font-mono text-[9px] font-black px-1.5 py-0.5 rounded bg-[#ddd6fe] text-[#6d28d9] w-max">Alt+A</span>
                                         </button>
 
                                         {/* CLEAR BILL */}
                                         <button
                                             onClick={() => { setShowSettingsMenu(false); clearBillHandler(); }}
-                                            className="h-[54px] bg-[#dc2626] hover:bg-[#b91c1c] text-white rounded-lg p-2 flex flex-col justify-between transition-all active:scale-95 shadow-sm text-left cursor-pointer border-none"
+                                            className="h-[54px] bg-[#fff5f5] hover:bg-[#fed7d7] text-[#c53030] border border-[#feb2b2] rounded-lg p-2 flex flex-col justify-between transition-all active:scale-95 shadow-sm text-left cursor-pointer"
                                         >
-                                            <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
+                                            <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#c53030]">
                                                 <Trash2 size={15} />
                                                 <span>CLEAR BILL</span>
                                             </div>
-                                            <span className="inline-flex items-center justify-center font-mono text-[9px] font-black px-1.5 py-0.5 rounded bg-black/40 text-white w-max">Alt+C</span>
+                                            <span className="inline-flex items-center justify-center font-mono text-[9px] font-black px-1.5 py-0.5 rounded bg-[#feb2b2] text-[#c53030] w-max">Alt+C</span>
                                         </button>
                                     </div>
+
                                 </div>
                             </div>
                         </div>
