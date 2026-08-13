@@ -145,7 +145,7 @@ const CurrentTimeDisplay = ({ variant }) => {
         );
     }
     return (
-        <span className="text-[9px] font-bold uppercase mt-1 tracking-tighter flex items-center gap-1">
+        <span className="text-[9px] font-bold uppercase mt-1 tracking-tighter flex items-center gap-1 whitespace-nowrap">
             <span className="text-slate-400 mr-1">DATE:</span>
             <span className="text-slate-500">{format(currentTime, 'MMM dd, yyyy')}</span>
             <span className="text-slate-300">|</span>
@@ -594,11 +594,20 @@ function Home() {
         from { transform: rotate(0deg); }
         to { transform: rotate(360deg); }
       }
-      .animate-spin-slow {
-        animation: spinSlow 3s linear infinite;
-      }
-    `;
-    }, [legacySubTheme]);
+       .animate-spin-slow {
+         animation: spinSlow 3s linear infinite;
+       }
+       .classic-root .digital-decoder-clock {
+         font-size: 10px !important;
+         padding: 1px 4.5px !important;
+         height: 16px !important;
+         border-radius: 4px !important;
+         display: inline-flex !important;
+         align-items: center !important;
+         justify-content: center !important;
+       }
+     `;
+     }, [legacySubTheme]);
 
     // Connectivity monitoring
     useEffect(() => {

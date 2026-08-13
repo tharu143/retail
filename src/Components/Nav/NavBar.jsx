@@ -589,17 +589,21 @@ function NavBar() {
 
           <div style={{ width: '1.5px', height: '22px', background: '#cbd5e1', opacity: 0.7 }} />
 
-          {/* Group 4: Cashier Profile & Logout Action */}
           <div className="d-flex align-items-center gap-3">
             <div className="text-end d-flex flex-column align-items-end">
-              <span className="user-name">{user || "Guest"}</span>
+              <span className="user-name" style={{ fontSize: '12px', fontWeight: 800, color: '#1e293b', lineHeight: '1.2' }}>
+                {user?.full_name || (typeof user === 'string' ? user : '') || "Guest"}
+              </span>
               <div className="d-flex align-items-center gap-2 mt-1">
                 <small className="text-muted" style={{ fontSize: '10px', fontWeight: 600 }}>{formattedDate}</small>
-                <div className="digital-decoder-clock">
+                <div className="digital-decoder-clock" style={{ fontSize: '11px', padding: '2px 6px', height: '18px', display: 'inline-flex', alignItems: 'center' }}>
                   <div className="digital-decoder-bg">88:88:88</div>
                   <div className="digital-decoder-fg">{formattedTime}</div>
                 </div>
               </div>
+            </div>
+            <div className="w-8 h-8 rounded-full bg-slate-100 border border-slate-200 d-flex align-items-center justify-content-center text-slate-500 shadow-sm shrink-0">
+              <i className="bi bi-person fs-5"></i>
             </div>
             <i className="bi bi-power cursor-pointer nav-icon logout fs-5" onClick={handleLogout} title="Logout"></i>
           </div>
