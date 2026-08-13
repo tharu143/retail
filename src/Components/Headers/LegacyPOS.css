@@ -1,104 +1,245 @@
-/*
- * LegacyPOS.css — Emerald & Slate Theme Override
- * Overrides the dynamically-injected classic-* styles in Home.jsx
- * to match the Purchase Order "Emerald & Slate" design language.
- */
+/* ============================================================
+   LegacyPOS.css — Clean Modern UI Theme Override (Refined)
+   Overrides the dynamically-injected classic-* styles in Home.jsx
+   to match the clean, card-based "Sales Invoice" design language.
+
+   RULE: Only UI / fonts / colours / spacing change. All existing
+   class names and functional behaviour are preserved.
+   ============================================================ */
 
 /* ============================================================
-   CLASSIC ROOT — full-screen layout
+   ROOT — full-screen layout, light slate background
    ============================================================ */
 .classic-root {
-  --legacy-primary: #10b981;
-  --legacy-primary-hover: #059669;
-  --legacy-primary-light: #f0fdf4;
-  --legacy-primary-border: #a7f3d0;
+  --legacy-primary: #0ea5e9; /* sky-500 */
+  --legacy-primary-hover: #0284c7; /* sky-600 */
+  --legacy-primary-light: #f0f9ff; /* sky-50 */
+  --legacy-primary-border: #bae6fd; /* sky-200 */
+  --legacy-accent: #6366f1; /* indigo-500 */
+  --legacy-surface: #ffffff;
+  --legacy-surface-2: #f8fafc; /* slate-50 */
+  --legacy-border: #e2e8f0; /* slate-200 */
+  --legacy-border-strong: #cbd5e1; /* slate-300 */
+  --legacy-text: #0f172a; /* slate-900 */
+  --legacy-text-muted: #64748b; /* slate-500 */
+  --legacy-text-faint: #94a3b8; /* slate-400 */
+  --legacy-radius: 0.625rem; /* 10px */
+  --legacy-radius-sm: 0.375rem; /* 6px */
+  --legacy-radius-lg: 0.875rem; /* 14px */
+  --legacy-gap: 0.625rem;
+  --legacy-font: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --legacy-font-mono: 'JetBrains Mono', 'Share Tech Mono', 'Courier New', monospace;
 
   display: flex !important;
   flex-direction: column !important;
   height: 100vh !important;
   max-height: 100vh !important;
-  background: #f8fafc !important;
-  /* slate-50 — matches PO page */
-  color: #334155 !important;
-  font-family: 'Inter', 'Segoe UI', sans-serif !important;
+  background: var(--legacy-surface-2) !important;
+  color: var(--legacy-text) !important;
+  font-family: var(--legacy-font) !important;
   overflow: hidden !important;
+  gap: 0 !important;
 }
 
-/* Theme Overrides */
+/* Theme Blue override (default) */
 .classic-root.theme-blue {
   --legacy-primary: #0ea5e9;
-  /* sky-500 */
   --legacy-primary-hover: #0284c7;
-  /* sky-600 */
   --legacy-primary-light: #f0f9ff;
-  /* sky-50 */
   --legacy-primary-border: #bae6fd;
-  /* sky-200 */
 }
 
 /* ============================================================
-   CLASSIC NAV — top slim navbar
+   NAV — slim white top navbar (48px)
    ============================================================ */
 .classic-nav {
-  background: #ffffff !important;
-  border-bottom: 1px solid #e2e8f0 !important;
-  height: 48px !important;
+  background: var(--legacy-surface) !important;
+  border-bottom: 1px solid var(--legacy-border) !important;
+  height: auto !important;
+  min-height: 56px !important;
   display: flex !important;
   align-items: center !important;
   justify-content: space-between !important;
-  padding: 0 1.25rem !important;
+  padding: 0.25rem 1rem !important;
   flex-shrink: 0 !important;
   position: relative !important;
-  z-index: 100 !important;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
+  z-index: 200 !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03) !important;
 }
 
 /* ============================================================
-   CLASSIC HEADER FORM — INV NO / CUSTOMER / BARCODE row
+   SHORTCUT GUIDE — clean light bar (overrides dark injected bg)
    ============================================================ */
-.classic-header-form {
-  background: #ffffff !important;
-  padding: 0.6rem 1.25rem !important;
-  border-bottom: 1px solid #e2e8f0 !important;
+.classic-shortcut-guide,
+.classic-shortcut-guide.horizontal {
+  background: var(--legacy-surface) !important;
+  border-bottom: 1px solid var(--legacy-border) !important;
+  border-top: none !important;
+  padding: 0.375rem 1rem !important;
   display: flex !important;
-  flex-wrap: nowrap !important;
-  gap: 1.5rem !important;
+  flex-wrap: wrap !important;
   align-items: center !important;
+  gap: 0.5rem !important;
+  box-shadow: none !important;
   flex-shrink: 0 !important;
-  z-index: 110 !important;
 }
 
-/* Field label + input inside the header form */
+/* Individual shortcut badges — clean pill style */
+.classic-shortcut-badge {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 0.375rem !important;
+  padding: 0.25rem 0.625rem !important;
+  background: var(--legacy-surface-2) !important;
+  border: 1px solid var(--legacy-border) !important;
+  border-radius: var(--legacy-radius-sm) !important;
+  cursor: pointer !important;
+  transition: all 0.15s ease !important;
+  box-shadow: none !important;
+}
+
+.classic-shortcut-badge:hover {
+  background: var(--legacy-primary-light) !important;
+  border-color: var(--legacy-primary-border) !important;
+  transform: none !important;
+  box-shadow: 0 1px 3px rgba(14, 165, 233, 0.1) !important;
+}
+
+.classic-shortcut-badge:active {
+  transform: scale(0.97) !important;
+  box-shadow: none !important;
+}
+
+/* Keyboard key chip — small dark chip */
+.classic-shortcut-key {
+  font-size: 0.625rem !important;
+  font-weight: 700 !important;
+  font-family: var(--legacy-font-mono) !important;
+  color: var(--legacy-text) !important;
+  background: linear-gradient(180deg, #ffffff 0%, #e2e8f0 100%) !important;
+  border: 1px solid var(--legacy-border-strong) !important;
+  border-bottom: 2px solid #94a3b8 !important;
+  padding: 1px 5px !important;
+  border-radius: 3px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  line-height: 1 !important;
+  box-shadow: none !important;
+  text-shadow: none !important;
+  flex-shrink: 0 !important;
+}
+
+.classic-shortcut-badge:active .classic-shortcut-key {
+  border-bottom-width: 1px !important;
+  transform: none !important;
+}
+
+/* Shortcut label — clean readable text */
+.classic-shortcut-label {
+  font-size: 0.68rem !important;
+  font-weight: 600 !important;
+  color: var(--legacy-text) !important;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
+  font-family: var(--legacy-font) !important;
+  text-shadow: none !important;
+  white-space: nowrap !important;
+}
+
+/* Shortcut icon */
+.classic-shortcut-icon {
+  color: var(--legacy-primary) !important;
+  display: inline-flex !important;
+  align-items: center !important;
+}
+
+/* Horizontal shortcut badges — compact */
+.classic-shortcut-guide.horizontal .classic-shortcut-badge {
+  padding: 0.2rem 0.5rem !important;
+  gap: 0.3rem !important;
+  border-radius: 5px !important;
+}
+
+.classic-shortcut-guide.horizontal .classic-shortcut-key {
+  font-size: 0.58rem !important;
+  padding: 1px 4px !important;
+}
+
+.classic-shortcut-guide.horizontal .classic-shortcut-label {
+  font-size: 0.62rem !important;
+}
+
+/* Inline shortcut keys inside action buttons */
+.btn-shortcut-key {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-family: var(--legacy-font-mono) !important;
+  font-size: 0.58rem !important;
+  font-weight: 700 !important;
+  color: rgba(255, 255, 255, 0.7) !important;
+  background: rgba(0, 0, 0, 0.2) !important;
+  border: none !important;
+  padding: 1px 4px !important;
+  border-radius: 3px !important;
+  box-shadow: none !important;
+  text-shadow: none !important;
+  margin-left: 4px !important;
+  line-height: 1 !important;
+  letter-spacing: 0 !important;
+}
+
+/* ============================================================
+   HEADER FORM — Customer / Barcode / Inv No row
+   ============================================================ */
+.classic-header-form {
+  background: var(--legacy-surface) !important;
+  padding: 0.5rem 1rem !important;
+  border-bottom: 1px solid var(--legacy-border) !important;
+  display: flex !important;
+  flex-wrap: nowrap !important;
+  gap: 1.25rem !important;
+  align-items: center !important;
+  flex-shrink: 0 !important;
+  position: relative !important;
+  z-index: 110 !important;
+  height: auto !important;
+  min-height: 56px !important;
+}
+
+/* Field labels */
 .classic-field label {
-  color: #64748b !important;
+  color: var(--legacy-text-muted) !important;
   font-size: 0.6rem !important;
-  font-weight: 800 !important;
+  font-weight: 700 !important;
   text-transform: uppercase !important;
-  letter-spacing: 0.06em !important;
+  letter-spacing: 0.08em !important;
   white-space: nowrap !important;
   display: block !important;
   margin-bottom: 2px !important;
 }
 
+/* Inputs and selects */
 .classic-field input,
 .classic-field select {
-  background: #ffffff !important;
-  border: 1px solid #e2e8f0 !important;
-  border-radius: 0.375rem !important;
+  background: var(--legacy-surface) !important;
+  border: 1px solid var(--legacy-border) !important;
+  border-radius: var(--legacy-radius-sm) !important;
   padding: 0.35rem 0.6rem !important;
   font-size: 0.8rem !important;
-  font-weight: 600 !important;
-  color: #0f172a !important;
+  font-weight: 500 !important;
+  color: var(--legacy-text) !important;
   outline: none !important;
   font-family: inherit !important;
   box-shadow: none !important;
-  transition: border-color 0.2s !important;
+  transition: border-color 0.15s, box-shadow 0.15s !important;
 }
 
 .classic-field input:focus,
 .classic-field select:focus {
   border-color: var(--legacy-primary) !important;
-  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.12) !important;
+  box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1) !important;
 }
 
 /* ============================================================
@@ -108,50 +249,52 @@
   flex: 1 !important;
   display: flex !important;
   flex-direction: column !important;
-  background: #f8fafc !important;
+  background: var(--legacy-surface-2) !important;
   position: relative !important;
   overflow: hidden !important;
 }
 
 .classic-entry-header {
-  background: #ffffff !important;
-  padding: 0.5rem 1rem !important;
+  background: var(--legacy-surface) !important;
+  padding: 0.4rem 0.75rem !important;
   display: flex !important;
   align-items: center !important;
   justify-content: space-between !important;
-  border-bottom: 1px solid #e2e8f0 !important;
+  border-bottom: 1px solid var(--legacy-border) !important;
   flex-shrink: 0 !important;
-  gap: 0.75rem !important;
+  gap: 0.5rem !important;
 }
 
 /* ============================================================
-   CLASSIC TABLE — items grid
+   TABLE — items grid (clean, minimal)
    ============================================================ */
 table.classic-table {
   width: 100% !important;
   border-collapse: collapse !important;
   font-size: 0.8rem !important;
   table-layout: fixed !important;
+  font-family: var(--legacy-font) !important;
 }
 
 table.classic-table thead tr {
-  background: var(--legacy-primary-light) !important;
-  color: var(--legacy-primary) !important;
+  background: var(--legacy-surface-2) !important;
+  color: var(--legacy-text-muted) !important;
   position: sticky !important;
   top: 0 !important;
   z-index: 5 !important;
 }
 
 table.classic-table thead th {
-  padding: 0.6rem 0.75rem !important;
+  padding: 0.5rem 0.6rem !important;
   text-align: left !important;
-  font-size: 0.625rem !important;
+  font-size: 0.62rem !important;
   font-weight: 700 !important;
   text-transform: uppercase !important;
-  letter-spacing: 0.05em !important;
-  border-bottom: 1px solid #e2e8f0 !important;
-  border-right: 1px solid #e2e8f0 !important;
-  color: var(--legacy-primary) !important;
+  letter-spacing: 0.06em !important;
+  border-bottom: 1px solid var(--legacy-border) !important;
+  border-right: 1px solid var(--legacy-border) !important;
+  color: var(--legacy-text-muted) !important;
+  background: var(--legacy-surface-2) !important;
 }
 
 table.classic-table thead th:last-child {
@@ -160,18 +303,23 @@ table.classic-table thead th:last-child {
 
 table.classic-table tbody td {
   padding: 0 !important;
-  border-right: 1px solid #e2e8f0 !important;
+  border-right: 1px solid var(--legacy-border) !important;
   border-bottom: 1px solid #f1f5f9 !important;
-  height: 36px !important;
+  height: 34px !important;
   vertical-align: middle !important;
   overflow: hidden !important;
   text-overflow: ellipsis !important;
   white-space: nowrap !important;
-  color: #0f172a !important;
+  color: var(--legacy-text) !important;
 }
 
 table.classic-table tbody td:last-child {
   border-right: none !important;
+}
+
+table.classic-table tbody tr {
+  background: var(--legacy-surface) !important;
+  transition: background 0.1s !important;
 }
 
 table.classic-table tbody tr:hover {
@@ -179,37 +327,39 @@ table.classic-table tbody tr:hover {
 }
 
 .classic-cell-text {
-  padding: 0 0.6rem !important;
+  padding: 0 0.5rem !important;
   overflow: hidden !important;
   text-overflow: ellipsis !important;
   white-space: nowrap !important;
   display: block !important;
   width: 100% !important;
   font-weight: 500 !important;
-  color: #0f172a !important;
+  color: var(--legacy-text) !important;
 }
 
 /* ============================================================
-   BOTTOM TOTALS BAR
+   BOTTOM TOTALS BAR — clean white with right-aligned totals
    ============================================================ */
 .classic-bottom-bar {
-  background: #ffffff !important;
-  border-top: 1px solid #e2e8f0 !important;
+  background: var(--legacy-surface) !important;
+  border-top: 1px solid var(--legacy-border) !important;
   display: flex !important;
   align-items: center !important;
   justify-content: space-between !important;
-  padding: 0.5rem 1rem !important;
+  padding: 0.4rem 1rem !important;
   flex-shrink: 0 !important;
-  box-shadow: 0 -1px 3px rgba(0, 0, 0, 0.03) !important;
+  box-shadow: 0 -1px 2px rgba(0, 0, 0, 0.02) !important;
+  height: auto !important;
+  min-height: 52px !important;
 }
 
-/* Summary amounts inside bottom bar — override inline colours */
+/* Summary labels */
 .classic-bottom-bar label {
-  font-size: 0.6rem !important;
-  font-weight: 800 !important;
-  color: #64748b !important;
+  font-size: 0.58rem !important;
+  font-weight: 700 !important;
+  color: var(--legacy-text-faint) !important;
   text-transform: uppercase !important;
-  letter-spacing: 0.1em !important;
+  letter-spacing: 0.08em !important;
 }
 
 .classic-bottom-bar span {
@@ -218,51 +368,61 @@ table.classic-table tbody tr:hover {
 
 /* Override the amber/emerald/white text in bottom bar totals */
 .classic-bottom-bar .text-amber-400 {
-  color: #0f172a !important;
+  color: var(--legacy-text) !important;
 }
 
-.classic-bottom-bar .text-amber-400.text-3xl {
+.classic-bottom-bar .text-amber-400.text-3xl,
+.classic-bottom-bar .text-2xl {
   color: var(--legacy-primary) !important;
-  font-size: 1.75rem !important;
+  font-size: 1.5rem !important;
+  font-weight: 800 !important;
 }
 
-.classic-bottom-bar .text-emerald-400 {
+.classic-bottom-bar .text-emerald-400,
+.classic-bottom-bar .text-emerald-500,
+.classic-bottom-bar .text-emerald-600 {
   color: var(--legacy-primary) !important;
 }
 
-.classic-bottom-bar .text-rose-400 {
+.classic-bottom-bar .text-sky-500,
+.classic-bottom-bar .text-sky-600 {
+  color: var(--legacy-primary) !important;
+}
+
+.classic-bottom-bar .text-rose-400,
+.classic-bottom-bar .text-rose-500 {
   color: #ef4444 !important;
 }
 
 /* ============================================================
-   ACTION BUTTONS BAR — Discount, Clear Bill, Payment, Closing
+   ACTION BUTTONS BAR
    ============================================================ */
 .classic-action-bar {
-  background: #f8fafc !important;
-  border-top: 1px solid #e2e8f0 !important;
-  padding: 0.5rem 1rem !important;
+  background: var(--legacy-surface) !important;
+  border-top: 1px solid var(--legacy-border) !important;
+  padding: 0.4rem 0.75rem !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
-  gap: 0.75rem !important;
+  gap: 0.5rem !important;
   flex-shrink: 0 !important;
 }
 
-/* Override all classic-btn styles */
+/* Base button override */
 .classic-btn {
-  padding: 0.5rem 1.25rem !important;
-  font-size: 0.78rem !important;
+  padding: 0.4rem 1rem !important;
+  font-size: 0.7rem !important;
   font-family: inherit !important;
-  font-weight: 700 !important;
+  font-weight: 600 !important;
   cursor: pointer !important;
-  border-radius: 0.4rem !important;
+  border-radius: var(--legacy-radius-sm) !important;
   border: 1px solid transparent !important;
   text-transform: uppercase !important;
-  letter-spacing: 0.04em !important;
-  transition: all 0.2s !important;
+  letter-spacing: 0.03em !important;
+  transition: all 0.15s !important;
   display: inline-flex !important;
   align-items: center !important;
-  gap: 0.35rem !important;
+  gap: 0.3rem !important;
 }
 
 /* DISCOUNT button — blue outline */
@@ -299,7 +459,7 @@ table.classic-table tbody tr:hover {
   background: var(--legacy-primary) !important;
   color: #ffffff !important;
   border: 1px solid var(--legacy-primary-hover) !important;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1) !important;
+  box-shadow: 0 2px 4px rgba(14, 165, 233, 0.15) !important;
 }
 
 .classic-btn.border-emerald-400:hover,
@@ -313,7 +473,7 @@ table.classic-table tbody tr:hover {
   cursor: not-allowed !important;
 }
 
-/* CLOSING (gold) button — slate style */
+/* CLOSING (gold) button — dark slate */
 .classic-btn.gold {
   background: #1e293b !important;
   color: #f1f5f9 !important;
@@ -326,21 +486,22 @@ table.classic-table tbody tr:hover {
 }
 
 /* ============================================================
-   STATUS BAR — bottom-most info strip
+   STATUS BAR — bottom info strip
    ============================================================ */
 .classic-statusbar {
-  background: #ffffff !important;
-  color: #94a3b8 !important;
-  font-size: 0.65rem !important;
+  background: var(--legacy-surface) !important;
+  color: var(--legacy-text-faint) !important;
+  font-size: 0.62rem !important;
   padding: 0.2rem 1rem !important;
   display: flex !important;
-  gap: 1.5rem !important;
+  gap: 1.25rem !important;
   border-top: 1px solid #f1f5f9 !important;
   flex-shrink: 0 !important;
+  align-items: center !important;
 }
 
 .classic-statusbar span.text-white\/20 {
-  color: #94a3b8 !important;
+  color: var(--legacy-text-faint) !important;
 }
 
 .classic-statusbar span.text-amber-400 {
@@ -351,18 +512,23 @@ table.classic-table tbody tr:hover {
   color: var(--legacy-primary) !important;
 }
 
+.classic-statusbar div.ml-auto {
+  color: var(--legacy-text-faint) !important;
+  opacity: 0.7 !important;
+}
+
 /* ============================================================
    TITLEBAR (if used)
    ============================================================ */
 .classic-titlebar {
-  background: #ffffff !important;
-  color: #334155 !important;
+  background: var(--legacy-surface) !important;
+  color: var(--legacy-text-muted) !important;
   padding: 4px 16px !important;
   display: flex !important;
   align-items: center !important;
   justify-content: space-between !important;
-  border-bottom: 1px solid #e2e8f0 !important;
-  font-size: 0.75rem !important;
+  border-bottom: 1px solid var(--legacy-border) !important;
+  font-size: 0.72rem !important;
   flex-shrink: 0 !important;
 }
 
@@ -371,59 +537,59 @@ table.classic-table tbody tr:hover {
    ============================================================ */
 .classic-entry-header .absolute,
 .classic-header-form .absolute {
-  background: #ffffff !important;
-  border: 1px solid #e2e8f0 !important;
-  border-radius: 0.4rem !important;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1) !important;
+  background: var(--legacy-surface) !important;
+  border: 1px solid var(--legacy-border) !important;
+  border-radius: var(--legacy-radius-sm) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08) !important;
 }
 
 /* ============================================================
-   DISCOUNT MODAL / PAYMENT MODAL — text & input overrides
+   DISCOUNT MODAL / PAYMENT MODAL
    ============================================================ */
 .home-discount-toggle {
-  background: #f1f5f9 !important;
-  border: 1.5px solid #e2e8f0 !important;
-  border-radius: 0.5rem !important;
+  background: var(--legacy-surface-2) !important;
+  border: 1px solid var(--legacy-border) !important;
+  border-radius: var(--legacy-radius-sm) !important;
 }
 
 .home-discount-type-btn.active {
-  background: #ffffff !important;
-  color: #10b981 !important;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06) !important;
+  background: var(--legacy-surface) !important;
+  color: var(--legacy-primary) !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06) !important;
 }
 
 /* ============================================================
-   LEGACY (OLDER) THEME-LEGACY OVERRIDES — keep neutral
+   LEGACY THEME OVERRIDES — keep neutral
    ============================================================ */
 .theme-legacy {
-  background-color: #f8fafc !important;
-  font-family: 'Inter', 'Segoe UI', sans-serif !important;
+  background-color: var(--legacy-surface-2) !important;
+  font-family: var(--legacy-font) !important;
 }
 
-/* ---- Cart (bill section) overrides ---- */
+/* Cart (bill section) */
 .theme-legacy .home-bill-section {
-  background: #ffffff !important;
-  border: 1px solid #e2e8f0 !important;
-  border-radius: 0.5rem !important;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
+  background: var(--legacy-surface) !important;
+  border: 1px solid var(--legacy-border) !important;
+  border-radius: var(--legacy-radius) !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03) !important;
 }
 
 .theme-legacy .home-bill-items {
-  background: #ffffff !important;
+  background: var(--legacy-surface) !important;
 }
 
-/* ---- Category sidebar ---- */
+/* Category sidebar */
 .theme-legacy .home-category-sidebar {
-  background: #ffffff !important;
-  border: 1px solid #e2e8f0 !important;
-  border-radius: 0.5rem !important;
+  background: var(--legacy-surface) !important;
+  border: 1px solid var(--legacy-border) !important;
+  border-radius: var(--legacy-radius) !important;
 }
 
 .theme-legacy .home-category-btn {
-  color: #475569 !important;
-  background: #ffffff !important;
-  border-radius: 0.375rem !important;
-  font-weight: 800 !important;
+  color: var(--legacy-text-muted) !important;
+  background: var(--legacy-surface) !important;
+  border-radius: var(--legacy-radius-sm) !important;
+  font-weight: 600 !important;
 }
 
 .theme-legacy .home-category-btn:hover {
@@ -435,80 +601,80 @@ table.classic-table tbody tr:hover {
   background: var(--legacy-primary) !important;
   color: #ffffff !important;
   border: 1px solid var(--legacy-primary-hover) !important;
-  font-weight: 900 !important;
-  box-shadow: 0 4px 10px rgba(16, 185, 129, 0.22) !important;
-  transform: translateY(-1px);
+  font-weight: 700 !important;
+  box-shadow: 0 2px 6px rgba(14, 165, 233, 0.2) !important;
+  transform: none !important;
 }
 
-/* ---- Item cards ---- */
+/* Item cards */
 .theme-legacy .home-item-card {
-  background: #ffffff !important;
-  border: 1px solid #e2e8f0 !important;
-  border-radius: 0.75rem !important;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
+  background: var(--legacy-surface) !important;
+  border: 1px solid var(--legacy-border) !important;
+  border-radius: var(--legacy-radius) !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03) !important;
 }
 
 .theme-legacy .home-item-card:hover {
   border-color: var(--legacy-primary-border) !important;
-  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.1) !important;
+  box-shadow: 0 2px 8px rgba(14, 165, 233, 0.08) !important;
 }
 
 .theme-legacy .home-item-price {
   color: var(--legacy-primary) !important;
 }
 
-/* ---- Bill header (column labels) ---- */
+/* Bill header (column labels) */
 .legacy-bill-header {
-  background: var(--legacy-primary-light) !important;
-  color: var(--legacy-primary) !important;
-  border: 1px solid #e2e8f0 !important;
+  background: var(--legacy-surface-2) !important;
+  color: var(--legacy-text-muted) !important;
+  border: 1px solid var(--legacy-border) !important;
 }
 
 .legacy-bill-header span {
-  border-right-color: #e2e8f0 !important;
+  border-right-color: var(--legacy-border) !important;
 }
 
-/* ---- Bill item rows ---- */
+/* Bill item rows */
 .theme-legacy .home-bill-item-row {
-  background: #ffffff !important;
+  background: var(--legacy-surface) !important;
   border-color: #f1f5f9 !important;
-  color: #0f172a !important;
+  color: var(--legacy-text) !important;
 }
 
 .theme-legacy .home-bill-item-row:hover {
   background: var(--legacy-primary-light) !important;
 }
 
-/* ---- Qty controls ---- */
+/* Qty controls */
 .legacy-qty-btn {
-  border: 1px solid #e2e8f0 !important;
-  background: #ffffff !important;
-  color: #0f172a !important;
-  border-radius: 0.25rem !important;
+  border: 1px solid var(--legacy-border) !important;
+  background: var(--legacy-surface) !important;
+  color: var(--legacy-text) !important;
+  border-radius: var(--legacy-radius-sm) !important;
 }
 
 .legacy-qty-btn:hover {
-  background: #f0fdf4 !important;
-  border-color: #a7f3d0 !important;
+  background: var(--legacy-primary-light) !important;
+  border-color: var(--legacy-primary-border) !important;
 }
 
 .legacy-qty-input:focus {
   border-color: var(--legacy-primary) !important;
-  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.1) !important;
+  box-shadow: 0 0 0 2px rgba(14, 165, 233, 0.1) !important;
 }
 
-/* ---- Customer dropdown ---- */
+/* Customer dropdown */
 .legacy-customer-dropdown {
-  background: #ffffff !important;
-  border: 1px solid #e2e8f0 !important;
-  border-radius: 0.4rem !important;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08) !important;
+  background: var(--legacy-surface) !important;
+  border: 1px solid var(--legacy-border) !important;
+  border-radius: var(--legacy-radius-sm) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06) !important;
 }
 
 .legacy-dropdown-item {
-  color: #334155 !important;
-  font-size: 0.8rem !important;
-  border-bottom-color: #f8fafc !important;
+  color: var(--legacy-text-muted) !important;
+  font-size: 0.78rem !important;
+  border-bottom-color: var(--legacy-surface-2) !important;
 }
 
 .legacy-dropdown-item:hover,
@@ -517,76 +683,76 @@ table.classic-table tbody tr:hover {
   color: var(--legacy-primary) !important;
 }
 
-/* ---- Remove btn ---- */
+/* Remove btn */
 .legacy-remove-btn:hover {
   background: #fee2e2 !important;
   color: #dc2626 !important;
 }
 
-/* ---- Layout background ---- */
+/* Layout background */
 .theme-legacy .home-layout {
-  background: #f8fafc !important;
+  background: var(--legacy-surface-2) !important;
 }
 
-/* ---- Items container (right panel) ---- */
+/* Items container */
 .theme-legacy .home-items-container {
   background: transparent !important;
 }
 
 /* ============================================================
-   FLOATING ACTIVE ORDERS BUTTON (WhatsApp Style)
+   FLOATING ACTIVE ORDERS BUTTON
    ============================================================ */
 .classic-active-orders-float-btn {
   position: fixed;
-  bottom: 110px;
+  bottom: 100px;
   left: 20px;
   z-index: 999;
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 18px;
+  gap: 6px;
+  padding: 8px 14px;
   background: var(--legacy-primary) !important;
   color: #ffffff !important;
   border: 1px solid var(--legacy-primary-hover) !important;
   border-radius: 50px !important;
-  font-size: 0.72rem !important;
-  font-weight: 900 !important;
+  font-size: 0.68rem !important;
+  font-weight: 700 !important;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15), 0 2px 5px rgba(0, 0, 0, 0.1) !important;
+  letter-spacing: 0.04em;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
   cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  transition: all 0.2s ease !important;
 }
 
 .classic-active-orders-float-btn:hover {
   background: var(--legacy-primary-hover) !important;
-  transform: scale(1.05) translateY(-2px);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2), 0 3px 8px rgba(0, 0, 0, 0.15) !important;
+  transform: scale(1.03) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
 }
 
 .classic-active-orders-float-btn:active {
-  transform: scale(0.98) translateY(0);
+  transform: scale(0.98) !important;
 }
 
 .classic-active-orders-text {
-  font-family: 'Share Tech Mono', 'Courier New', monospace;
-  font-size: 0.72rem !important;
-  font-weight: 900 !important;
+  font-family: var(--legacy-font) !important;
+  font-size: 0.68rem !important;
+  font-weight: 700 !important;
 }
 
 .classic-active-orders-badge {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-width: 20px;
-  height: 20px;
-  padding: 0 6px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
   background: #ef4444 !important;
   color: #ffffff !important;
-  font-size: 0.65rem !important;
-  font-weight: 900 !important;
-  border-radius: 10px !important;
-  box-shadow: 0 2px 6px rgba(239, 68, 68, 0.4);
+  font-size: 0.6rem !important;
+  font-weight: 700 !important;
+  border-radius: 9px !important;
+  box-shadow: 0 1px 3px rgba(239, 68, 68, 0.3);
   animation: pulse-classic-badge 2s infinite;
 }
 
@@ -594,11 +760,9 @@ table.classic-table tbody tr:hover {
   0% {
     transform: scale(1);
   }
-
   50% {
-    transform: scale(1.15);
+    transform: scale(1.1);
   }
-
   100% {
     transform: scale(1);
   }
