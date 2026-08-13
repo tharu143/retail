@@ -16,6 +16,9 @@ export default function BarcodePrintModal({ isOpen, onClose, selectedItem }) {
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
+  const [labelStyle, setLabelStyle] = useState('standard'); // 'standard' (Item + UOM + Divider + Barcode), 'barcode_only' (Barcode bars + number only)
+  const [attachLoading, setAttachLoading] = useState(false);
+
   useEffect(() => {
     if (isOpen && selectedItem) {
       setUom(selectedItem.stock_uom || 'Nos');
@@ -27,7 +30,6 @@ export default function BarcodePrintModal({ isOpen, onClose, selectedItem }) {
     try {
       setLoading(true);
       setError('');
-      // Check existing barcodes
       const res = await axios.get('/api/method/custom_retailpos.custom_pos_features.get_item_uom_barcodes', {
         params: { item_code: itemCode }
       });
@@ -42,7 +44,6 @@ export default function BarcodePrintModal({ isOpen, onClose, selectedItem }) {
         }
       }
 
-      // If not present, generate unique UOM barcode
       const genRes = await axios.get('/api/method/custom_retailpos.custom_pos_features.generate_uom_barcode', {
         params: { item_code: itemCode, uom: targetUom }
       });
@@ -91,6 +92,30 @@ export default function BarcodePrintModal({ isOpen, onClose, selectedItem }) {
     }
   };
 
+  const handleAttachToERPNext = async () => {
+    if (!selectedItem || !barcode) return;
+    try {
+      setAttachLoading(true);
+      setSuccessMsg('');
+      setError('');
+
+      const res = await axios.post('/api/method/custom_retailpos.custom_pos_features.generate_and_attach_barcode_image', {
+        item_code: selectedItem.item_code,
+        uom: uom
+      });
+
+      if (res.data?.message?.status === 'success') {
+        setSuccessMsg(`✅ Barcode sticker attached to ERPNext Item record! File: ${res.data.message.file_url}`);
+      } else {
+        setError(res.data?.message?.message || 'Failed to attach barcode to ERPNext.');
+      }
+    } catch (err) {
+      setError('Error communicating with ERPNext server.');
+    } finally {
+      setAttachLoading(false);
+    }
+  };
+
   const handleTriggerPrint = () => {
     if (!selectedItem || !barcode) return;
 
@@ -104,19 +129,21 @@ export default function BarcodePrintModal({ isOpen, onClose, selectedItem }) {
       heightMm = customHeight;
     }
 
-    const printWindow = window.open('', '_blank', 'width=500,height=500');
+    const printWindow = window.open('', '_blank', 'width=600,height=600');
     
-    // Generate repeated labels for printQty
     const labelsHtml = Array.from({ length: printQty }).map(() => `
-      <div className="sticker-label">
-        ${showStoreName ? '<div className="store-name">RETAIL SUPERSTORE</div>' : ''}
-        <div className="item-name">${selectedItem.item_name || selectedItem.item_code}</div>
-        <div className="uom-badge">UOM: ${uom} ${uom === 'Box' ? `(Pack of ${conversionFactor})` : ''}</div>
-        <div className="barcode-svg-container">
+      <div class="sticker-label ${labelStyle}">
+        ${labelStyle === 'standard' ? `
+          ${showStoreName ? '<div class="store-name">RETAIL SUPERSTORE</div>' : ''}
+          <div class="item-name">${selectedItem.item_name || selectedItem.item_code}</div>
+          <div class="uom-badge">UOM: ${uom}</div>
+          <div class="divider"></div>
+        ` : ''}
+        <div class="barcode-svg-container">
           <svg id="barcode-svg-${barcode}"></svg>
-          <div className="barcode-num">${barcode}</div>
+          <div class="barcode-num">${barcode}</div>
         </div>
-        ${showPrice ? `<div className="price-tag">MRP: AED ${parseFloat(selectedItem.standard_rate || 0).toFixed(2)}</div>` : ''}
+        ${(labelStyle === 'standard' && showPrice) ? `<div class="price-tag">AED ${parseFloat(selectedItem.standard_rate || 0).toFixed(2)}</div>` : ''}
       </div>
     `).join('');
 
@@ -134,24 +161,30 @@ export default function BarcodePrintModal({ isOpen, onClose, selectedItem }) {
               margin: 0;
               padding: 0;
               font-family: Arial, sans-serif;
+              background: #fff;
             }
             .sticker-label {
               width: ${widthMm}mm;
               height: ${heightMm}mm;
               box-sizing: border-box;
-              padding: 2mm;
+              padding: 1.5mm 2mm;
               display: flex;
               flex-direction: column;
               align-items: center;
-              justify-content: space-between;
+              justify-content: center;
               text-align: center;
               page-break-after: always;
+              border: 1px solid #ddd;
+              border-radius: 4px;
             }
-            .store-name { font-size: 8px; font-weight: bold; }
-            .item-name { font-size: 9px; font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
-            .uom-badge { font-size: 7px; color: #444; }
-            .barcode-num { font-size: 9px; font-family: monospace; font-weight: bold; }
-            .price-tag { font-size: 10px; font-weight: bold; }
+            .store-name { font-size: 7px; font-weight: bold; text-transform: uppercase; margin-bottom: 1px; }
+            .item-name { font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px; line-height: 1.1; max-width: 95%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+            .uom-badge { font-size: 9px; font-weight: 600; color: #222; margin-bottom: 2px; }
+            .divider { width: 95%; height: 1px; background-color: #000; margin: 2px 0 4px 0; }
+            .barcode-svg-container { display: flex; flex-direction: column; align-items: center; justify-content: center; margin: 2px 0; }
+            .barcode-svg-container svg { width: 90%; height: auto; max-height: 12mm; }
+            .barcode-num { font-size: 10px; font-family: 'Courier New', monospace; font-weight: bold; letter-spacing: 1px; margin-top: 1px; }
+            .price-tag { font-size: 9px; font-weight: bold; margin-top: 2px; }
           </style>
         </head>
         <body>
@@ -160,7 +193,7 @@ export default function BarcodePrintModal({ isOpen, onClose, selectedItem }) {
             window.onload = function() {
               const svgElements = document.querySelectorAll("svg[id^='barcode-svg-']");
               svgElements.forEach(el => {
-                JsBarcode(el, "${barcode}", { format: "CODE128", width: 1.2, height: 25, displayValue: false });
+                JsBarcode(el, "${barcode}", { format: "CODE128", width: 1.4, height: 35, displayValue: false });
               });
               setTimeout(() => {
                 window.print();
@@ -192,6 +225,7 @@ export default function BarcodePrintModal({ isOpen, onClose, selectedItem }) {
             <strong>Item:</strong> {selectedItem.item_code} - {selectedItem.item_name}
           </div>
 
+          {/* UOM Selector & Conversion */}
           <div className="form-row">
             <div className="form-group">
               <label>Target UOM (Unit)</label>
@@ -219,8 +253,76 @@ export default function BarcodePrintModal({ isOpen, onClose, selectedItem }) {
             <div className="barcode-input-row">
               <input type="text" value={barcode} onChange={(e) => setBarcode(e.target.value)} />
               <button className="btn-secondary" onClick={handleSaveBarcode} disabled={loading}>
-                Save to Item
+                Save Barcode
               </button>
+              <button className="btn-attach-erp" onClick={handleAttachToERPNext} disabled={attachLoading || !barcode}>
+                {attachLoading ? 'Attaching...' : '🏷️ Attach to ERPNext'}
+              </button>
+            </div>
+          </div>
+
+          {/* Sticker Style Preset Option */}
+          <div className="form-group">
+            <label>Sticker Style Format</label>
+            <div className="style-toggle-buttons">
+              <button 
+                type="button" 
+                className={`style-btn ${labelStyle === 'standard' ? 'active' : ''}`}
+                onClick={() => setLabelStyle('standard')}
+              >
+                🏷️ Standard (Item Name + UOM + Barcode)
+              </button>
+              <button 
+                type="button" 
+                className={`style-btn ${labelStyle === 'barcode_only' ? 'active' : ''}`}
+                onClick={() => setLabelStyle('barcode_only')}
+              >
+                📊 Compact (Barcode Bars Only)
+              </button>
+            </div>
+          </div>
+
+          {/* Live Barcode Preview Box (Matching user attached image) */}
+          <div className="live-preview-box">
+            <span className="preview-tag">LIVE STICKER PREVIEW</span>
+            <div className={`sticker-preview-card ${labelStyle}`}>
+              {labelStyle === 'standard' && (
+                <>
+                  <div className="preview-item-name">{selectedItem.item_name || selectedItem.item_code}</div>
+                  <div className="preview-uom">UOM: {uom}</div>
+                  <div className="preview-divider"></div>
+                </>
+              )}
+              <div className="preview-barcode-bars">
+                <svg width="180" height="40" viewBox="0 0 180 40">
+                  <rect x="10" y="5" width="3" height="30" fill="#000"/>
+                  <rect x="16" y="5" width="2" height="30" fill="#000"/>
+                  <rect x="22" y="5" width="5" height="30" fill="#000"/>
+                  <rect x="30" y="5" width="2" height="30" fill="#000"/>
+                  <rect x="35" y="5" width="4" height="30" fill="#000"/>
+                  <rect x="42" y="5" width="2" height="30" fill="#000"/>
+                  <rect x="47" y="5" width="6" height="30" fill="#000"/>
+                  <rect x="56" y="5" width="2" height="30" fill="#000"/>
+                  <rect x="61" y="5" width="4" height="30" fill="#000"/>
+                  <rect x="68" y="5" width="3" height="30" fill="#000"/>
+                  <rect x="74" y="5" width="2" height="30" fill="#000"/>
+                  <rect x="80" y="5" width="5" height="30" fill="#000"/>
+                  <rect x="88" y="5" width="2" height="30" fill="#000"/>
+                  <rect x="93" y="5" width="4" height="30" fill="#000"/>
+                  <rect x="100" y="5" width="2" height="30" fill="#000"/>
+                  <rect x="105" y="5" width="6" height="30" fill="#000"/>
+                  <rect x="114" y="5" width="2" height="30" fill="#000"/>
+                  <rect x="119" y="5" width="4" height="30" fill="#000"/>
+                  <rect x="126" y="5" width="3" height="30" fill="#000"/>
+                  <rect x="132" y="5" width="2" height="30" fill="#000"/>
+                  <rect x="138" y="5" width="5" height="30" fill="#000"/>
+                  <rect x="146" y="5" width="2" height="30" fill="#000"/>
+                  <rect x="151" y="5" width="4" height="30" fill="#000"/>
+                  <rect x="158" y="5" width="2" height="30" fill="#000"/>
+                  <rect x="163" y="5" width="4" height="30" fill="#000"/>
+                </svg>
+              </div>
+              <div className="preview-barcode-num">{barcode || '2001234567890'}</div>
             </div>
           </div>
 
@@ -280,3 +382,4 @@ export default function BarcodePrintModal({ isOpen, onClose, selectedItem }) {
     </div>
   );
 }
+
