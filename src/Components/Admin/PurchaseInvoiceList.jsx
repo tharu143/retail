@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
   Plus, X, Trash2, Building2, Search, Calendar, Filter, MoreVertical, Package,
-  Warehouse as WarehouseIcon, Percent, DollarSign, Loader2, Barcode, Palette, ChevronLeft, ChevronRight, Zap, CheckCircle2, ExternalLink, Link, Edit2, Settings, Copy, ChevronDown
+  Warehouse as WarehouseIcon, Percent, DollarSign, Loader2, Barcode, Palette, ChevronLeft, ChevronRight, Zap, CheckCircle2, CheckCircle, AlertTriangle, ExternalLink, Link, Edit2, Settings, Copy, ChevronDown, Printer
 } from 'lucide-react';
 import { useSelector } from 'react-redux';
 import axios from 'axios';
@@ -45,6 +45,11 @@ const DEFAULT_PI_COLUMNS = [
 const getLocalISODate = () => {
   const tzoffset = (new Date()).getTimezoneOffset() * 60000;
   return (new Date(Date.now() - tzoffset)).toISOString().split('T')[0];
+};
+
+const getLocalISOTime = () => {
+  const d = new Date();
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 };
 
 const getDefaultTaxTemplate = (templates, activeWarehouse) => {
@@ -288,7 +293,9 @@ function PurchaseInvoiceList() {
   const initialState = {
     name: '', supplier: '', supplier_name: '',
     posting_date: getLocalISODate(),
-    due_date: '', bill_no: '',
+    due_date: '', bill_no: '', bill_date: '',
+    custom_supplier_invoice_amount: '',
+    custom_supplier_invoice_status: '',
     update_stock: true,
     accepted_warehouse: warehouse || '',
     rejected_warehouse: '',
@@ -896,26 +903,62 @@ function PurchaseInvoiceList() {
 
   }, [taxTemplates]);
 
+  const handlePrintPDF = (nameToPrint) => {
+    const docToPrint = nameToPrint || docName || formData.name;
+    if (!docToPrint) return;
+    const backendPort = '8089';
+    const host = window.location.hostname;
+    const protocol = window.location.protocol;
+    const printUrl = `${protocol}//${host}:${backendPort}/api/method/frappe.utils.print_format.download_pdf?doctype=Purchase%20Invoice&name=${encodeURIComponent(docToPrint)}&format=Retail%20Purchase%20Invoice&no_letterhead=1&letterhead=No%20Letterhead&settings=%7B%7D&_lang=en&pdf_generator=wkhtmltopdf`;
+    window.open(printUrl, '_blank');
+  };
+
   const handleDuplicate = () => {
     setDocName('');
+    setDocStatus(0);
     setFormData(prev => {
       const cleanedItems = (prev.items || []).map(item => {
         const {
           name, parent, parenttype, parentfield, creation, modified, modified_by, owner, docstatus,
+          received_qty, billed_amt, returned_qty,
+          purchase_order, purchase_order_item, purchase_receipt, purchase_receipt_item, purchase_invoice_item,
           ...rest
         } = item;
-        return rest;
+        return {
+          ...rest,
+          name: '',
+          docstatus: 0,
+          received_qty: 0,
+          billed_amt: 0,
+          returned_qty: 0,
+          purchase_order: '',
+          purchase_order_item: '',
+          purchase_receipt: '',
+          purchase_receipt_item: '',
+          purchase_invoice_item: ''
+        };
       });
       return {
         ...prev,
         name: '',
+        status: 'Draft',
         docstatus: 0,
+        amended_from: null,
         posting_date: getLocalISODate(),
+        posting_time: getLocalISOTime(),
+        bill_date: getLocalISODate(),
+        bill_no: '',
+        due_date: getLocalISODate(),
+        outstanding_amount: 0,
+        paid_amount: 0,
+        base_paid_amount: 0,
         items: cleanedItems
       };
     });
     setIsViewMode(false);
-    navigate('/purchaseinvoicelist');
+    setIsEditMode(true);
+    setIsModalOpen(true);
+    setSearchParams({ name: 'new' }, { replace: true });
     Swal.fire({
       icon: 'success',
       title: 'Duplicated!',
@@ -929,18 +972,43 @@ function PurchaseInvoiceList() {
       const res = await axios.get(`${LEGACY_API}.get_purchase_invoice`, { params: { name }, withCredentials: true });
       if (res.data.message?.success) {
         const d = res.data.message.data;
+        let paymentTerms = d.payment_terms_template || d.payment_terms || '';
+        let creditDays = parseCreditDays(paymentTerms);
+
+        if (d.supplier) {
+          try {
+            const suppRes = await axios.get(`${LEGACY_API}.get_supplier_details`, {
+              params: { supplier_name: d.supplier },
+              withCredentials: true
+            });
+            if (suppRes.data.message) {
+              if (suppRes.data.message.payment_terms) {
+                paymentTerms = suppRes.data.message.payment_terms;
+              }
+              if (suppRes.data.message.credit_days) {
+                creditDays = suppRes.data.message.credit_days;
+              }
+            }
+          } catch (err) { }
+        }
+
         const mapped = {
           name: d.name,
           supplier: d.supplier,
           supplier_name: d.supplier_name || d.supplier,
+          payment_terms_template: paymentTerms,
+          credit_days: creditDays,
           posting_date: d.posting_date.split('T')[0],
           due_date: d.due_date ? d.due_date.split('T')[0] : '',
           bill_no: d.bill_no || '',
+          bill_date: d.bill_date ? d.bill_date.split('T')[0] : '',
+          custom_supplier_invoice_amount: d.custom_supplier_invoice_amount || '',
+          custom_supplier_invoice_status: d.custom_supplier_invoice_status || '',
           update_stock: !!d.update_stock,
           accepted_warehouse: d.accepted_warehouse || '',
           rejected_warehouse: d.rejected_warehouse || '',
           is_subcontracted: !!d.is_subcontracted,
-          is_cash_purchase: !!(d.custom_is_cash_purchase || d.is_cash_purchase),
+          is_cash_purchase: formData.is_cash_purchase || !!(d.custom_is_cash_purchase || d.is_cash_purchase),
           apply_discount_on: d.apply_discount_on || 'Grand Total',
           additional_discount_percentage: d.additional_discount_percentage || 0,
           discount_amount: d.discount_amount || 0,
@@ -953,6 +1021,13 @@ function PurchaseInvoiceList() {
             uom: i.uom || '',
             rate: i.rate || 0,
             amount: i.amount || 0,
+            discount_percentage: i.discount_percentage !== undefined && i.discount_percentage !== null ? parseFloat(i.discount_percentage) : 0,
+            discount_amount: i.discount_amount !== undefined && i.discount_amount !== null 
+              ? (() => {
+                  const calc = parseFloat(i.discount_amount) * (parseFloat(i.qty) || 1);
+                  return Math.abs(calc - Math.round(calc)) < 0.05 ? Math.round(calc) : parseFloat(calc.toFixed(2));
+                })()
+              : 0,
             custom_box_qty: parseFloat(i.custom_box_qty || 0),
             custom_pieces_per_box: parseFloat(i.custom_pieces_per_box || 1),
             default_pieces_per_box: parseFloat(i.custom_pieces_per_box || 1),
@@ -1457,11 +1532,19 @@ function PurchaseInvoiceList() {
       const baseTotal = qty * rate;
 
       if (field === 'discount_percentage') {
-        const discPct = parseFloat(value) || 0;
-        items[index].discount_amount = (baseTotal * (discPct / 100)).toFixed(2);
+        const discPct = value === '' ? '' : parseFloat(value);
+        items[index].discount_percentage = discPct;
+        const numericPct = parseFloat(discPct) || 0;
+        items[index].discount_amount = parseFloat((baseTotal * (numericPct / 100)).toFixed(2));
       } else if (field === 'discount_amount') {
-        const discAmt = parseFloat(value) || 0;
-        items[index].discount_percentage = baseTotal > 0 ? ((discAmt / baseTotal) * 100).toFixed(2) : 0;
+        const discAmt = value === '' ? '' : parseFloat(value);
+        items[index].discount_amount = discAmt;
+        const numericAmt = parseFloat(discAmt) || 0;
+        items[index].discount_percentage = baseTotal > 0 ? parseFloat(((numericAmt / baseTotal) * 100).toFixed(2)) : 0;
+      } else if (parseFloat(items[index].discount_percentage) > 0) {
+        // Recalculate discount_amount if rate or qty changed
+        const discPct = parseFloat(items[index].discount_percentage) || 0;
+        items[index].discount_amount = parseFloat((baseTotal * (discPct / 100)).toFixed(2));
       }
 
       const discAmt = parseFloat(items[index].discount_amount) || 0;
@@ -1524,9 +1607,67 @@ function PurchaseInvoiceList() {
     items: prev.items.filter((_, i) => i !== index)
   }));
 
-  const selectSupplier = (supplier) => {
-    setFormData(prev => ({ ...prev, supplier: supplier.name, supplier_name: supplier.supplier_name }));
-    setSearchSupplier(supplier.supplier_name || supplier.name);
+  const parseCreditDays = (paymentTerms) => {
+    if (!paymentTerms) return 0;
+    const match = String(paymentTerms).match(/\d+/);
+    return match ? parseInt(match[0]) : 0;
+  };
+
+  const calcDueDate = (postingDate, isCash, creditDays = 0) => {
+    if (!postingDate) postingDate = getLocalISODate();
+    if (isCash) return postingDate;
+    const days = parseInt(creditDays) || 0;
+    if (days <= 0) return postingDate;
+    const d = new Date(postingDate);
+    d.setDate(d.getDate() + days);
+    return d.toISOString().split('T')[0];
+  };
+
+  const selectSupplier = async (supplier) => {
+    if (!supplier) return;
+    const sName = supplier.name || supplier.supplier_name;
+    let paymentTerms = supplier.payment_terms || supplier.payment_terms_template || '';
+    let creditDays = supplier.credit_days || parseCreditDays(paymentTerms);
+
+    if (sName) {
+      try {
+        const res = await axios.get(`${LEGACY_API}.get_supplier_details`, {
+          params: { supplier_name: sName },
+          withCredentials: true
+        });
+        if (res.data.message) {
+          if (res.data.message.payment_terms) {
+            paymentTerms = res.data.message.payment_terms;
+          }
+          if (res.data.message.credit_days) {
+            creditDays = res.data.message.credit_days;
+          }
+        }
+      } catch (err) { }
+    }
+
+    if (!creditDays && paymentTerms) {
+      creditDays = parseCreditDays(paymentTerms);
+    }
+
+    setFormData(prev => {
+      const postingDate = prev.posting_date || getLocalISODate();
+      const calculatedDueDate = calcDueDate(postingDate, prev.is_cash_purchase, creditDays);
+      const schedule = (prev.payment_schedule || []).map(row => ({
+        ...row,
+        due_date: calculatedDueDate
+      }));
+      return {
+        ...prev,
+        supplier: sName,
+        supplier_name: supplier.supplier_name || sName,
+        payment_terms_template: paymentTerms,
+        credit_days: creditDays,
+        due_date: calculatedDueDate,
+        payment_schedule: schedule
+      };
+    });
+    setSearchSupplier(supplier.supplier_name || sName);
     setShowSupplierDropdown(false);
   };
 
@@ -1714,12 +1855,24 @@ function PurchaseInvoiceList() {
       description: tax.description || tax.account_head
     }));
 
+    const taxTotalCalc = taxes.reduce((sum, t) => sum + (parseFloat(t.tax_amount) || 0), 0);
+    const grandTotalCalc = netTotalCalc + taxTotalCalc;
+
     return {
       name: docName || undefined,
       supplier: formData.supplier,
       posting_date: formData.posting_date,
       due_date: formData.due_date || null,
       bill_no: formData.bill_no || null,
+      bill_date: formData.bill_date || null,
+      custom_supplier_invoice_amount: formData.custom_supplier_invoice_amount ? parseFloat(formData.custom_supplier_invoice_amount) : 0,
+      custom_supplier_invoice_status: (() => {
+        const supp = parseFloat(formData.custom_supplier_invoice_amount) || 0;
+        if (supp > 0) {
+          return Math.abs(supp - grandTotalCalc) < 0.01 ? "MATCHED" : "UNMATCHED";
+        }
+        return "NOT ENTERED";
+      })(),
       update_stock: formData.update_stock ? 1 : 0,
       accepted_warehouse: formData.update_stock ? formData.accepted_warehouse : null,
       rejected_warehouse: formData.update_stock ? formData.rejected_warehouse : null,
@@ -1731,26 +1884,29 @@ function PurchaseInvoiceList() {
       discount_amount: formData.discount_amount > 0 ? parseFloat(formData.discount_amount) : null,
       taxes_and_charges: formData.taxes_and_charges || null,
       taxes: taxes.length > 0 ? taxes : null,
-      payment_schedule: formData.payment_schedule && formData.payment_schedule.length > 0
-        ? formData.payment_schedule.map(row => ({
-          due_date: row.due_date || formData.due_date,
-          payment_amount: parseFloat(row.payment_amount) || 0,
-          description: row.description || undefined
-        }))
-        : null,
+      payment_schedule: null,
       items: formData.items
         .filter(i => i.item_code && i.qty > 0)
         .map(i => {
           const isBox = (i.uom || '').toLowerCase() === 'box' || !!i.use_box_entry;
+          const itemQty = parseFloat(i.qty) || 1;
+          const grossRate = (i.uom || '').toLowerCase() === 'box' || !!i.use_box_entry
+            ? (parseFloat(i.custom_box_price || 0) / (parseFloat(i.custom_pieces_per_box) || 1))
+            : parseFloat(i.rate || 0);
+          const totalDiscAmt = parseFloat(i.discount_amount || 0);
+          const perUnitDiscAmt = itemQty > 0 ? (totalDiscAmt / itemQty) : 0;
+          const netRate = Math.max(0, grossRate - perUnitDiscAmt);
+
           return {
             name: i.name || undefined,
             doctype: "Purchase Invoice Item",
             item_code: i.item_code,
-            qty: parseFloat(i.qty) || 1,
+            qty: itemQty,
             uom: i.uom || undefined,
-            rate: parseFloat(i.rate || 0),
+            rate: netRate,
+            price_list_rate: grossRate,
             discount_percentage: parseFloat(i.discount_percentage || 0),
-            discount_amount: parseFloat(i.discount_amount || 0),
+            discount_amount: perUnitDiscAmt,
             custom_box_qty: isBox ? parseFloat(i.custom_box_qty || 0) : parseFloat(i.qty),
             custom_pieces_per_box: isBox ? parseFloat(i.custom_pieces_per_box || 1) : 1,
             custom_box_price: isBox ? parseFloat(i.custom_box_price || 0) : parseFloat(i.rate || 0),
@@ -1809,8 +1965,12 @@ function PurchaseInvoiceList() {
       let response;
       const GENERIC_API = '/api/method/kyle_retail.retail_api.api.create_generic_doc';
       if (docName) {
-        // Existing draft → UPDATE (PUT)
-        response = await axios.put(`${RESOURCE_API}/${docName}`, payload, { withCredentials: true });
+        // Existing draft → UPDATE via create_generic_doc (POST bypasses CSRF restrictions)
+        response = await axios.post(GENERIC_API, {
+          doctype: "Purchase Invoice",
+          data: { ...payload, name: docName }
+        }, { withCredentials: true });
+        await fetchPurchaseInvoice(docName);
         alert(`Draft updated: ${docName}`);
       } else {
         // New → CREATE (POST) using create_generic_doc
@@ -1870,8 +2030,18 @@ function PurchaseInvoiceList() {
         name = apiResp.name;
         setDocName(name);
       }
-      // Submit
-      await axios.put(`${RESOURCE_API}/${name}`, { docstatus: 1 }, { withCredentials: true });
+      // Submit via custom whitelist API (avoids CSRF issues)
+      const SUBMIT_API = '/api/method/kyle_retail.retail_api.api.submit_generic_doc';
+      const subRes = await axios.post(SUBMIT_API, {
+        doctype: "Purchase Invoice",
+        name: name
+      }, { withCredentials: true });
+
+      const subMsg = subRes.data.message || subRes.data;
+      if (subMsg.status === 'error') {
+        throw new Error(subMsg.message || 'Submit failed');
+      }
+
       alert(`Purchase Invoice Submitted: ${name}`);
       setIsModalOpen(false);
       setDocName('');
@@ -1979,8 +2149,8 @@ function PurchaseInvoiceList() {
         createPIFromPR(prParam);
       }
     } else {
-      // If no params, ensure modal is closed
-      if (isModalOpen) {
+      // If no params, ensure modal is closed only if docName exists (we were viewing an existing saved doc)
+      if (isModalOpen && docName) {
         setIsModalOpen(false);
         setDocName('');
         setDocStatus(null);
@@ -1990,7 +2160,7 @@ function PurchaseInvoiceList() {
         setAllowedActions([]);
       }
     }
-  }, [searchParams, openCreateModal, createPIFromPR, fetchPurchaseInvoice, isModalOpen]);
+  }, [searchParams, openCreateModal, createPIFromPR, fetchPurchaseInvoice, isModalOpen, docName]);
 
   useEffect(() => {
     const supplierParam = searchParams.get('supplier');
@@ -2814,15 +2984,26 @@ function PurchaseInvoiceList() {
 
             <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
               <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-                {/* Always show DUPLICATE if docName exists */}
+                {/* Always show DUPLICATE & PRINT PDF if docName exists */}
                 {docName && (
-                  <button
-                    onClick={handleDuplicate}
-                    className="so-btn-secondary"
-                    style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#f8fafc', color: '#475569', border: '1px solid #cbd5e1', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '0.375rem', transition: 'all 0.2s' }}
-                  >
-                    <Copy size={14} /> DUPLICATE
-                  </button>
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => handlePrintPDF(docName)}
+                      className="so-btn-secondary"
+                      style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#f0f9ff', color: '#0284c7', border: '1px solid #bae6fd', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '0.375rem', transition: 'all 0.2s' }}
+                    >
+                      <Printer size={14} /> PRINT PDF
+                    </button>
+
+                    <button
+                      onClick={handleDuplicate}
+                      className="so-btn-secondary"
+                      style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#f8fafc', color: '#475569', border: '1px solid #cbd5e1', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '0.375rem', transition: 'all 0.2s' }}
+                    >
+                      <Copy size={14} /> DUPLICATE
+                    </button>
+                  </>
                 )}
 
                 {/* DRAFT PHASE */}
@@ -3035,8 +3216,8 @@ function PurchaseInvoiceList() {
                 </div>
                 <div className="so-card-body">
                   <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-                    {/* Left Column 1 (Supplier & Posting Date stacked) */}
-                    <div className="md:col-span-4 flex flex-col gap-5">
+                    {/* Column 1: Supplier, Posting Date, Supplier Invoice No, Payment Type */}
+                    <div className="md:col-span-4 flex flex-col gap-4">
                       <div className="so-field">
                         <label className="so-label">Supplier {!isViewMode && <span style={{ color: '#ef4444' }}>*</span>}</label>
                         <CustomSearchDropdown
@@ -3060,7 +3241,17 @@ function PurchaseInvoiceList() {
                           <input
                             type="date"
                             value={formData.posting_date}
-                            onChange={e => setFormData(prev => ({ ...prev, posting_date: e.target.value }))}
+                            onChange={e => {
+                              const newPostingDate = e.target.value;
+                              setFormData(prev => {
+                                const calculatedDueDate = calcDueDate(newPostingDate, prev.is_cash_purchase, prev.credit_days);
+                                const schedule = (prev.payment_schedule || []).map(row => ({
+                                  ...row,
+                                  due_date: calculatedDueDate
+                                }));
+                                return { ...prev, posting_date: newPostingDate, due_date: calculatedDueDate, payment_schedule: schedule };
+                              });
+                            }}
                             className="so-input"
                             style={{ paddingLeft: '2.5rem' }}
                             disabled={isViewMode}
@@ -3069,13 +3260,35 @@ function PurchaseInvoiceList() {
                           />
                         </div>
                       </div>
+
+                      <div className="so-field">
+                        <label className="so-label font-bold text-slate-700">Supplier Invoice No</label>
+                        <input
+                          type="text"
+                          value={formData.bill_no}
+                          onChange={e => setFormData(prev => ({ ...prev, bill_no: e.target.value }))}
+                          placeholder="Enter invoice number..."
+                          className="so-input"
+                          disabled={isViewMode}
+                        />
+                      </div>
+
                       <div className="so-field">
                         <label className="so-label font-bold text-slate-700">Payment Type</label>
                         <div className="grid grid-cols-2 gap-2 mt-1">
                           <button
                             type="button"
                             disabled={isViewMode}
-                            onClick={() => setFormData(prev => ({ ...prev, is_cash_purchase: false }))}
+                            onClick={() => {
+                              setFormData(prev => {
+                                const calculatedDueDate = calcDueDate(prev.posting_date, false, prev.credit_days);
+                                const schedule = (prev.payment_schedule || []).map(row => ({
+                                  ...row,
+                                  due_date: calculatedDueDate
+                                }));
+                                return { ...prev, is_cash_purchase: false, due_date: calculatedDueDate, payment_schedule: schedule };
+                              });
+                            }}
                             className={`py-2 px-3 rounded-xl border text-xs font-black flex items-center justify-center gap-2 transition-all ${
                               !formData.is_cash_purchase
                                 ? 'bg-indigo-50 border-indigo-500 text-indigo-700 shadow-xs'
@@ -3089,7 +3302,16 @@ function PurchaseInvoiceList() {
                           <button
                             type="button"
                             disabled={isViewMode}
-                            onClick={() => setFormData(prev => ({ ...prev, is_cash_purchase: true }))}
+                            onClick={() => {
+                              setFormData(prev => {
+                                const calculatedDueDate = calcDueDate(prev.posting_date, true, prev.credit_days);
+                                const schedule = (prev.payment_schedule || []).map(row => ({
+                                  ...row,
+                                  due_date: calculatedDueDate
+                                }));
+                                return { ...prev, is_cash_purchase: true, due_date: calculatedDueDate, payment_schedule: schedule };
+                              });
+                            }}
                             className={`py-2 px-3 rounded-xl border text-xs font-black flex items-center justify-center gap-2 transition-all ${
                               formData.is_cash_purchase
                                 ? 'bg-emerald-50 border-emerald-500 text-emerald-700 shadow-xs'
@@ -3108,8 +3330,8 @@ function PurchaseInvoiceList() {
                       </div>
                     </div>
 
-                    {/* Left Column 2 (Target Warehouse, Due Date & Bill Number stacked) */}
-                    <div className="md:col-span-4 flex flex-col gap-5">
+                    {/* Column 2: Target Warehouse, Due Date, Supplier Invoice Date, Supplier Invoice Amount */}
+                    <div className="md:col-span-4 flex flex-col gap-4">
                       <div className="so-field">
                         <label className="so-label">Target Warehouse (Branch) {!isViewMode && <span style={{ color: '#ef4444' }}>*</span>}</label>
                         {isAdmin ? (
@@ -3138,20 +3360,48 @@ function PurchaseInvoiceList() {
                       </div>
 
                       <div className="so-field">
-                        <label className="so-label">Due Date</label>
+                        <label className="so-label font-bold text-slate-700">Due Date</label>
                         <div style={{ position: 'relative' }}>
                           <Calendar size={16} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', opacity: 0.4 }} />
                           <input
                             type="date"
-                            value={formData.due_date}
+                            value={formData.due_date || ''}
+                            disabled={true}
+                            className="so-input"
+                            style={{ paddingLeft: '2.5rem', backgroundColor: '#f1f5f9', color: '#334155', fontWeight: 700, cursor: 'not-allowed' }}
+                          />
+                        </div>
+                        {formData.is_cash_purchase ? (
+                          <p className="text-[10px] text-emerald-600 font-bold mt-1 shadow-2xs">
+                            ⚡ CASH Purchase: Due Date equals Posting Date
+                          </p>
+                        ) : (
+                          <p className="text-[10px] text-indigo-600 font-bold mt-1 shadow-2xs">
+                            💳 CREDIT Purchase: {formData.payment_terms_template ? `${formData.payment_terms_template} (${formData.credit_days || 0} Days)` : (formData.credit_days ? `${formData.credit_days} Days` : 'Same as Posting Date')}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="so-field">
+                        <label className="so-label font-bold text-slate-700">Supplier Invoice Date</label>
+                        <div className="relative">
+                          <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
+                          <input
+                            type="date"
+                            value={formData.bill_date}
                             onChange={e => {
-                              const newDueDate = e.target.value;
+                              const newBillDate = e.target.value;
                               setFormData(prev => {
+                                let newDueDate = prev.due_date;
+                                // In ERPNext, Due Date cannot be before Supplier Invoice Date (bill_date)
+                                if (newBillDate && prev.due_date && newBillDate > prev.due_date) {
+                                  newDueDate = newBillDate;
+                                }
                                 const schedule = (prev.payment_schedule || []).map(row => ({
                                   ...row,
                                   due_date: newDueDate
                                 }));
-                                return { ...prev, due_date: newDueDate, payment_schedule: schedule };
+                                return { ...prev, bill_date: newBillDate, due_date: newDueDate, payment_schedule: schedule };
                               });
                             }}
                             className="so-input"
@@ -3164,19 +3414,24 @@ function PurchaseInvoiceList() {
                       </div>
 
                       <div className="so-field">
-                        <label className="so-label">Invoice Number</label>
-                        <input
-                          type="text"
-                          value={formData.bill_no}
-                          onChange={e => setFormData(prev => ({ ...prev, bill_no: e.target.value }))}
-                          placeholder="Enter invoice number..."
-                          className="so-input"
-                          disabled={isViewMode}
-                        />
+                        <label className="so-label font-bold text-slate-700">Supplier Invoice Amount (AED)</label>
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-extrabold text-xs pointer-events-none">AED</span>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={formData.custom_supplier_invoice_amount}
+                            onChange={e => setFormData(prev => ({ ...prev, custom_supplier_invoice_amount: e.target.value }))}
+                            placeholder="0.00"
+                            className="so-input font-bold text-slate-900"
+                            style={{ paddingLeft: '3rem' }}
+                            disabled={isViewMode}
+                          />
+                        </div>
                       </div>
                     </div>
 
-                    {/* Right Column (Attachment section) */}
+                    {/* Column 3: Attachments */}
                     <div className="md:col-span-4 flex flex-col h-full justify-start mt-1">
                       <AttachmentSection doctype="Purchase Invoice" docname={docName} />
                     </div>
@@ -3796,7 +4051,7 @@ function PurchaseInvoiceList() {
                                             ) : (
                                               <input
                                                 type="number"
-                                                value={item.discount_percentage || ''}
+                                                value={item.discount_percentage ?? ''}
                                                 onFocus={e => e.target.select()}
                                                 onClick={e => e.target.select()}
                                                 onChange={e => updateItem(i, 'discount_percentage', e.target.value)}
@@ -3822,7 +4077,7 @@ function PurchaseInvoiceList() {
                                             ) : (
                                               <input
                                                 type="number"
-                                                value={item.discount_amount || ''}
+                                                value={item.discount_amount ?? ''}
                                                 onFocus={e => e.target.select()}
                                                 onClick={e => e.target.select()}
                                                 onChange={e => updateItem(i, 'discount_amount', e.target.value)}
@@ -4022,6 +4277,43 @@ function PurchaseInvoiceList() {
                         <span style={{ fontSize: '0.65rem', opacity: 0.6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Inc. All Taxes</span>
                       </div>
                     </div>
+
+                    {/* Supplier Invoice Reconciliation Section */}
+                    {(() => {
+                      const suppAmt = parseFloat(formData.custom_supplier_invoice_amount) || 0;
+                      if (suppAmt <= 0) return null;
+                      const diff = grandTotal - suppAmt;
+                      const isMatched = Math.abs(diff) < 0.01;
+
+                      return (
+                        <div className="mt-3 p-3 rounded-xl border bg-black/20 backdrop-blur-xs flex flex-col gap-2">
+                          <div className="flex justify-between items-center text-xs opacity-90 font-medium">
+                            <span>Supplier Bill Amount:</span>
+                            <span className="font-bold flex items-center gap-1"><DirhamIcon size={11} /> {formatPrice(suppAmt)}</span>
+                          </div>
+                          <div className="flex justify-between items-center text-xs opacity-90 font-medium">
+                            <span>Difference:</span>
+                            <span className={`font-bold flex items-center gap-1 ${diff === 0 ? 'text-emerald-300' : 'text-rose-300'}`}>
+                              {diff > 0 ? '+' : ''}<DirhamIcon size={11} /> {formatPrice(diff)}
+                            </span>
+                          </div>
+                          <div className="pt-2 border-t border-white/10 flex justify-between items-center">
+                            <span className="text-[11px] font-bold uppercase tracking-wider opacity-75">Status</span>
+                            {isMatched ? (
+                              <span className="px-2.5 py-1 rounded-lg bg-emerald-500/25 border border-emerald-400/50 text-emerald-200 text-[11px] font-black tracking-wide flex items-center gap-1.5 shadow-sm">
+                                <CheckCircle size={12} className="text-emerald-400" />
+                                <span>✓ MATCHED</span>
+                              </span>
+                            ) : (
+                              <span className="px-2.5 py-1 rounded-lg bg-rose-500/30 border border-rose-400/50 text-rose-200 text-[11px] font-black tracking-wide flex items-center gap-1.5 shadow-sm animate-pulse">
+                                <AlertTriangle size={12} className="text-rose-300" />
+                                <span>⚠ UNMATCHED</span>
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
               </div>
@@ -4288,7 +4580,15 @@ function PurchaseInvoiceList() {
                                       borderRadius: '0.5rem', boxShadow: 'var(--so-shadow)',
                                       minWidth: '120px', overflow: 'hidden'
                                     }}>
-                                      {inv.status === 'Draft' && (
+                                       <button
+                                         style={{ width: '100%', padding: '0.6rem 1rem', textAlign: 'left', background: 'none', border: 'none', fontSize: '0.8rem', color: '#0284c7', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 700 }}
+                                         onMouseEnter={e => e.currentTarget.style.background = '#f0f9ff'}
+                                         onMouseLeave={e => e.currentTarget.style.background = 'none'}
+                                         onClick={() => handlePrintPDF(inv.name)}
+                                       >
+                                         <Printer size={13} /> Print PDF
+                                       </button>
+                                       {inv.status === 'Draft' && (
                                         <button
                                           style={{ width: '100%', padding: '0.6rem 1rem', textAlign: 'left', background: 'none', border: 'none', fontSize: '0.8rem', color: '#ef4444', cursor: 'pointer' }}
                                           onMouseEnter={e => e.currentTarget.style.background = '#fff1f1'}

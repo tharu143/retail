@@ -17,6 +17,7 @@ import {
     QrCode,
     Smartphone,
     Banknote,
+    Wallet,
     Building2,
     Award,
     Coins,
@@ -29,7 +30,8 @@ import {
     ShieldCheck,
     Gift,
     Star,
-    Zap
+    Zap,
+    FileText
 } from 'lucide-react';
 import { BrowserMultiFormatReader, BarcodeFormat, DecodeHintType } from '@zxing/library';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
@@ -43,12 +45,16 @@ import ModernNoImageGrid from './ModernNoImageGrid';
 import PrintJobModal from './PrintJobModal';
 import FastPrintModal from './FastPrintModal';
 import ColumnConfigModal from '../Purchase/ColumnConfigModal';
+import CardTerminalModal from '../Admin/CardTerminalModal';
+
 import OpeningEntryPage from '../../Pages/OpeningEntryPage';
 import { db } from '../../db';
 import Swal from 'sweetalert2';
 import { frappeCall } from '../../utils/frappe';
 import POSService from '../../utils/posService';
 // QuickStockIn removed - using route /quickstockin
+
+const LEGACY_API = '/api/method/custom_retailpos.custom_retailpos.retail_api.retail';
 
 // ---------- Frappe-style rounding Utilities (Outside for stability) ----------
 const flt = (num, prec = 6) => {
@@ -739,6 +745,14 @@ function Home() {
             {showLoyaltyModal && renderLoyaltyModal()}
             {showPaymentModal && renderPaymentModal()}
             {showCreateModal && renderCreateModal()}
+            <CardTerminalModal
+                isOpen={showCardTerminalModal}
+                onClose={() => setShowCardTerminalModal(false)}
+                amount={cardTerminalAmount || (balanceRemaining > 0 ? balanceRemaining : grandTotal)}
+                onPaymentSuccess={handleTerminalSuccess}
+            />
+
+
             <PrintJobModal
                 isOpen={showPrintJobModal}
                 onClose={() => setShowPrintJobModal(false)}
@@ -1325,6 +1339,42 @@ function Home() {
     const [creatingCustomer, setCreatingCustomer] = useState(false);
     const [phoneNumber, setPhoneNumber] = useState('');
     const [searchResults, setSearchResults] = useState([]);
+    const [customerLastPrices, setCustomerLastPrices] = useState({});
+
+    useEffect(() => {
+        const custName = selectedCustomer?.name || selectedCustomer?.customer_name || (customerName && customerName !== 'Cash' ? customerName : null);
+        if (custName && custName !== 'Cash') {
+            axios.get(`${LEGACY_API}.get_customer_last_sale_prices`, {
+                params: { customer: custName },
+                withCredentials: true
+            }).then(res => {
+                if (res.data?.message) {
+                    setCustomerLastPrices(res.data.message);
+                } else {
+                    setCustomerLastPrices({});
+                }
+            }).catch(() => setCustomerLastPrices({}));
+        } else {
+            setCustomerLastPrices({});
+        }
+    }, [selectedCustomer, customerName]);
+
+    const getCustomerLastPriceInfo = useCallback((item) => {
+        if (!item || !customerLastPrices || Object.keys(customerLastPrices).length === 0) return null;
+        const itemCode = item.item_code || item.id;
+        if (!itemCode) return null;
+        const itemPrices = customerLastPrices[itemCode];
+        if (!itemPrices) return null;
+
+        const currentUom = item.uom || 'Nos';
+        if (itemPrices[currentUom]) {
+            return itemPrices[currentUom];
+        }
+        if ((currentUom === 'Piece' || currentUom === 'Nos') && (itemPrices['Piece'] || itemPrices['Nos'])) {
+            return itemPrices['Piece'] || itemPrices['Nos'];
+        }
+        return itemPrices['_default'] || null;
+    }, [customerLastPrices]);
 
     useEffect(() => {
         if (selectedBillIndex !== -1) {
@@ -1444,7 +1494,11 @@ function Home() {
     const [selectedDetailItem, setSelectedDetailItem] = useState(null);
     const [lastInvoiceData, setLastInvoiceData] = useState(null);
     const [selectedPaymentMode, setSelectedPaymentMode] = useState('');
+    const [showCardTerminalModal, setShowCardTerminalModal] = useState(false);
+    const [cardTerminalAmount, setCardTerminalAmount] = useState(0);
     const [tenderedAmount, setTenderedAmount] = useState('');
+
+
     const [deliveryFee, setDeliveryFee] = useState('');
     const [showDeliveryFee, setShowDeliveryFee] = useState(false);
     const [drivers, setDrivers] = useState([]);
@@ -1572,6 +1626,44 @@ function Home() {
         setSelectedPaymentMode('');
         setTenderedAmount('');
     };
+
+    const handleTerminalSuccess = (txnData) => {
+        setShowCardTerminalModal(false);
+
+        // Attach approval metadata to Card payment in payments state
+        const updatedPayments = payments.map(p => {
+            if (p.mode_of_payment === 'Card' || p.mode_of_payment === 'Credit Card') {
+                return {
+                    ...p,
+                    reference_no: txnData?.rrn || '',
+                    approval_code: txnData?.approval_code || 'APPROVED'
+                };
+            }
+            return p;
+        });
+
+        const hasCard = updatedPayments.some(p => p.mode_of_payment === 'Card' || p.mode_of_payment === 'Credit Card');
+        if (!hasCard) {
+            updatedPayments.push({
+                mode_of_payment: 'Card',
+                amount: round2(cardTerminalAmount || grandTotal),
+                reference_no: txnData?.rrn || '',
+                approval_code: txnData?.approval_code || 'APPROVED'
+            });
+        }
+
+        setPayments(updatedPayments);
+        setSelectedPaymentMode('');
+        setTenderedAmount('');
+
+        // Proceed to finalize invoice after card approval
+        setTimeout(() => {
+            completePayment();
+        }, 150);
+    };
+
+
+
 
     const removePayment = (index) => {
         setPayments(payments.filter((_, i) => i !== index));
@@ -1971,6 +2063,48 @@ function Home() {
         }
 
         const formattedPhone = `${countryCodePrefix}${strippedNumber}`;
+
+        // ── Duplicate mobile number check ──────────────────────────────────────
+        // 1. Check local IndexedDB cache first (fast)
+        const localDup = await db.customers.filter(c =>
+            c.mobile_no && c.mobile_no.replace(/\D/g, '') === strippedNumber
+        ).first();
+
+        if (localDup) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Number Already Registered',
+                html: `Mobile <b>${formattedPhone}</b> is already linked to customer <b>${localDup.customer_name}</b>.<br/>Please use a different number.`,
+                confirmButtonColor: '#f59e0b'
+            });
+            return;
+        }
+
+        // 2. Check ERPNext via Contact (server-side, catches numbers not in local cache)
+        try {
+            const dupRes = await axios.get('/api/resource/Contact', {
+                params: {
+                    filters: JSON.stringify([['mobile_no', '=', formattedPhone]]),
+                    fields: JSON.stringify(['name', 'mobile_no']),
+                    limit: 1
+                },
+                withCredentials: true
+            });
+            const dupList = dupRes.data?.data || [];
+            if (Array.isArray(dupList) && dupList.length > 0) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Number Already Registered',
+                    html: `Mobile <b>${formattedPhone}</b> is already registered in the system.<br/>Please use a different number.`,
+                    confirmButtonColor: '#f59e0b'
+                });
+                return;
+            }
+        } catch (_) {
+            // Network error during dup check – proceed anyway (server create_customer will catch it)
+        }
+        // ──────────────────────────────────────────────────────────────────────
+
         setCreatingCustomer(true);
 
         const addr_parts = [createForm.address_line1, createForm.address_line2, createForm.city, createForm.emirate, createForm.country];
@@ -3792,6 +3926,15 @@ function Home() {
             return;
         }
 
+        // Card Terminal Interceptor: Require card machine authorization before invoice creation
+        const cardPaymentItem = finalPayments.find(p => p.mode_of_payment === 'Card' || p.mode_of_payment === 'Credit Card');
+        if (cardPaymentItem && !cardPaymentItem.approval_code) {
+            setCardTerminalAmount(cardPaymentItem.amount || grandTotal);
+            setShowCardTerminalModal(true);
+            return; // Intercept & wait for terminal authorization!
+        }
+
+
         // Validate Credit payment safeguard
         const hasCreditPayment = finalPayments.some(p => p.mode_of_payment === 'Credit');
         if (hasCreditPayment && selectedCustomer?.customer_group !== 'Credit Customer') {
@@ -5169,6 +5312,8 @@ function Home() {
                                             className="payment-method-btn group p-4 bg-sky-50 border-2 border-sky-100 rounded-2xl flex flex-col items-center gap-2 hover:bg-sky-600 hover:border-sky-600 transition-all hover:shadow-lg active:scale-95 relative"
                                             onClick={() => setSelectedPaymentMode('Card')}
                                         >
+
+
                                             <div className="absolute top-2 right-2 px-2 py-0.5 bg-sky-600 text-white text-[9px] font-black rounded shadow-sm">2</div>
                                             <div className="w-10 h-10 bg-white text-sky-600 rounded-xl flex items-center justify-center shadow-sm group-hover:bg-white/20 group-hover:text-white transition-all">
                                                 <CreditCard size={20} />
@@ -7099,7 +7244,8 @@ function Home() {
             { key: getShortcut('pos_home', 'clearBill', 'Alt+C'), label: 'Clear', colorClass: 'rose', action: clearBillHandler },
             { key: getShortcut('pos_home', 'directCash', 'Alt+1'), label: 'Direct Cash', colorClass: 'emerald', action: () => { if (billItems.length > 0) completePayment('Cash'); } },
             { key: getShortcut('pos_home', 'directBank', 'Ctrl+V'), label: 'Direct Bank', colorClass: 'sky', action: () => { if (billItems.length > 0) completePayment('Bank'); } },
-            { key: getShortcut('pos_home', 'directCard', 'Alt+2'), label: 'Direct Card', colorClass: 'indigo', action: () => { if (billItems.length > 0) completePayment('Card'); } },
+            { key: getShortcut('pos_home', 'directCard', 'Alt+2'), label: 'Direct Card', colorClass: 'indigo', action: () => { if (billItems.length > 0) { setSelectedPaymentMode('Card'); setShowCardTerminalModal(true); } } },
+
             {
                 key: getShortcut('pos_home', 'selectItem', 'Alt+I'), label: theme !== 'legacy' ? 'Select Item' : 'Swap Item', colorClass: 'indigo', action: () => {
                     if (theme !== 'legacy') {
@@ -8369,6 +8515,25 @@ function Home() {
                                                         <DirhamIcon size={10} className="text-slate-800" /> {(item.qty * effectivePrice).toFixed(2)}
                                                     </span>
                                                 </div>
+
+                                                {/* Customer Last Sale Price Badge */}
+                                                {selectedCustomer && selectedCustomer.name !== 'Cash' && (
+                                                    <div className="mt-1 flex items-center gap-1 text-[9px] font-extrabold text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200/80 w-fit">
+                                                        {(() => {
+                                                            const info = getCustomerLastPriceInfo(item);
+                                                            if (info) {
+                                                                return (
+                                                                    <span className="flex items-center gap-1">
+                                                                        <span className="opacity-80">Last Sale ({info.uom}):</span>
+                                                                        <DirhamIcon size={8} /> {parseFloat(info.rate || 0).toFixed(2)}
+                                                                        <span className="text-[8px] text-amber-600 font-normal ml-0.5">({info.posting_date})</span>
+                                                                    </span>
+                                                                );
+                                                            }
+                                                            return <span className="text-slate-400 font-normal italic text-[8.5px]">No previous sale for this customer</span>;
+                                                        })()}
+                                                    </div>
+                                                )}
                                             </div>
                                         );
                                     })
@@ -8465,7 +8630,7 @@ function Home() {
                                         <span>Bank</span> <span className="btn-shortcut-key" style={{ margin: 0 }}>Ctrl+V</span>
                                     </button>
                                     <button
-                                        onClick={() => { if (billItems.length > 0) completePayment('Card'); }}
+                                        onClick={() => { if (billItems.length > 0) { setSelectedPaymentMode('Card'); setShowCardTerminalModal(true); } }}
                                         className="so-btn-secondary flex-1 px-3 py-2 text-xs font-bold transition-all hover:-translate-y-0.5 active:translate-y-0"
                                         style={{ height: '36px', borderRadius: '0.625rem', color: '#6366f1', borderColor: '#c7d2fe', backgroundColor: '#e0e7ff', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '6px' }}
                                         disabled={grandTotal <= 0 || paymentLoading}
@@ -8586,21 +8751,20 @@ function Home() {
 
         return (
             <div className={`classic-root ${!isGreen ? 'theme-blue' : ''}`} style={{ position: 'relative' }}>
-                <style>{classicStyles}</style>
 
                 {/* CLASSIC NAVBAR */}
                 <nav className="classic-nav">
-                    <div className="flex items-center gap-4 pl-4 py-2">
+                    <div className="flex items-center gap-3 pl-2 py-1">
                         <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center' }}>
-                            <img src={kyleLogo} alt="Kyle Retail Logo" className="h-16 w-auto max-w-[160px] md:max-w-[220px] object-contain mix-blend-multiply transition-opacity duration-300 hover:opacity-90" />
+                            <img src={kyleLogo} alt="Kyle Retail Logo" className="h-9 w-auto max-w-[140px] md:max-w-[180px] object-contain transition-opacity duration-300 hover:opacity-90" />
                         </div>
                     </div>
 
-                    <div className="ml-auto flex items-center pr-4" style={{ gap: '20px' }}>
+                    <div className="ml-auto flex items-center pr-2" style={{ gap: '14px' }}>
                         {/* Group 1: Navigation */}
                         <button
                             onClick={() => navigate('/dashboard')}
-                            className={`font-black text-[12px] uppercase tracking-wider transition-all hover:underline decoration-2 underline-offset-4 ${isGreen ? 'text-emerald-700' : 'text-sky-700'}`}
+                            className={`font-black text-[11px] uppercase tracking-wider transition-all hover:underline decoration-2 underline-offset-4 ${isGreen ? 'text-emerald-700' : 'text-sky-700'}`}
                         >
                             DASHBOARD
                         </button>
@@ -8612,34 +8776,34 @@ function Home() {
                                 console.log("PRINT JOB Legacy Header button clicked!");
                                 setShowPrintJobModal(true);
                             }}
-                            className="flex items-center gap-1.5 px-3 py-1 bg-slate-900 text-sky-400 rounded-lg text-[11px] font-black uppercase tracking-wider hover:bg-slate-800 transition-all shadow-sm cursor-pointer"
+                            className="flex items-center gap-1.5 px-2.5 py-1 bg-slate-900 text-sky-400 rounded-lg text-[10px] font-black uppercase tracking-wider hover:bg-slate-800 transition-all shadow-sm cursor-pointer"
                             title="Print Job Calculator & Barcode Generator (Option + P)"
                         >
-                            <Printer size={13} className="text-sky-400" />
+                            <Printer size={12} className="text-sky-400" />
                             <span>PRINT JOB</span>
                         </button>
 
-                        <div style={{ width: '1px', height: '24px', background: isGreen ? '#4a9a72' : '#4a7aaa', opacity: 0.5, flexShrink: 0 }} />
+                        <div style={{ width: '1px', height: '20px', background: isGreen ? '#4a9a72' : '#4a7aaa', opacity: 0.4, flexShrink: 0 }} />
 
                         {/* Group 2: User Info Card */}
                         <div
                             onClick={() => setShowThemeSidebar(true)}
-                            className="flex items-center gap-3 bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm cursor-pointer hover:bg-slate-50 transition-colors"
+                            className="flex items-center gap-2.5 bg-white px-2.5 py-1 rounded-lg border border-slate-200 shadow-sm cursor-pointer hover:bg-slate-50 transition-colors"
                             title="Open Theme Settings Sidebar"
                         >
                             <div className="flex flex-col items-end text-right">
-                                <span className="text-[10px] font-black uppercase leading-tight">
+                                <span className="text-[9px] font-black uppercase leading-tight">
                                     <span className="text-slate-400 mr-1">USER:</span>
-                                    <span className="text-slate-800">{user?.full_name || user || 'CASHIER'}</span>
+                                    <span className="text-slate-800 truncate max-w-[140px] inline-block align-bottom">{user?.full_name || user || 'CASHIER'}</span>
                                 </span>
-                                <span className="text-[10px] font-black uppercase leading-tight mt-0.5">
+                                <span className="text-[9px] font-black uppercase leading-tight mt-0.5">
                                     <span className="text-slate-400 mr-1">BRANCH:</span>
                                     <span className={isGreen ? 'text-emerald-600' : 'text-sky-600'}>{getBranchName(warehouse)}</span>
                                 </span>
                                 <CurrentTimeDisplay variant="modern" />
                             </div>
-                            <div className="w-10 h-10 flex items-center justify-center bg-slate-50 border border-slate-200 rounded-full text-slate-400">
-                                <UserIcon size={18} />
+                            <div className="w-8 h-8 flex items-center justify-center bg-slate-50 border border-slate-200 rounded-full text-slate-400 shrink-0">
+                                <UserIcon size={15} />
                             </div>
                         </div>
 
@@ -9060,26 +9224,49 @@ function Home() {
                                                     </td>
                                                 )}
                                                 {visibleClassicCols.some(c => c.id === 'description') && (
-                                                    <td className="p-0 relative group">
-                                                        <input
-                                                            type="text"
-                                                            value={item.item_name || item.name}
-                                                            onChange={e => {
-                                                                const newBill = [...billItems];
-                                                                if (newBill[idx].item_name !== undefined) newBill[idx].item_name = e.target.value;
-                                                                else newBill[idx].name = e.target.value;
-                                                                setBillItems(newBill);
-                                                            }}
-                                                            className="w-full h-full px-2 pr-8 font-black text-slate-700 uppercase bg-transparent border-none outline-none focus:bg-amber-100 placeholder:text-slate-300"
-                                                            placeholder="Description"
-                                                        />
-                                                        <button
-                                                            onClick={(e) => { e.stopPropagation(); showStockBreakdown(item); }}
-                                                            className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-sky-500 transition-colors cursor-pointer"
-                                                            title="Item Info & Stock"
-                                                        >
-                                                            <Info size={14} />
-                                                        </button>
+                                                    <td className="px-2 py-1 relative group">
+                                                        <div className="flex flex-col justify-center">
+                                                            <div className="relative flex items-center">
+                                                                <input
+                                                                    type="text"
+                                                                    value={item.item_name || item.name}
+                                                                    onChange={e => {
+                                                                        const newBill = [...billItems];
+                                                                        if (newBill[idx].item_name !== undefined) newBill[idx].item_name = e.target.value;
+                                                                        else newBill[idx].name = e.target.value;
+                                                                        setBillItems(newBill);
+                                                                    }}
+                                                                    className="w-full px-1 pr-6 font-black text-slate-700 uppercase bg-transparent border-none outline-none focus:bg-amber-100 placeholder:text-slate-300 text-[11px]"
+                                                                    placeholder="Description"
+                                                                />
+                                                                <button
+                                                                    onClick={(e) => { e.stopPropagation(); showStockBreakdown(item); }}
+                                                                    className="absolute right-0 text-slate-400 hover:text-sky-500 transition-colors cursor-pointer"
+                                                                    title="Item Info & Stock"
+                                                                >
+                                                                    <Info size={13} />
+                                                                </button>
+                                                            </div>
+
+                                                            {/* Customer Last Sale Price Badge */}
+                                                            {(selectedCustomer || (customerName && customerName !== 'Cash')) && (
+                                                                <div className="mt-0.5 text-[9px] font-extrabold text-amber-800 flex items-center gap-1">
+                                                                    {(() => {
+                                                                        const info = getCustomerLastPriceInfo(item);
+                                                                        if (info) {
+                                                                            return (
+                                                                                <span className="inline-flex items-center gap-1 bg-amber-50 px-1 py-0.5 rounded border border-amber-200/80 leading-none">
+                                                                                    <span className="opacity-80">Last Sale ({info.uom}):</span>
+                                                                                    <DirhamIcon size={8} /> {parseFloat(info.rate || 0).toFixed(2)}
+                                                                                    <span className="text-[8px] text-amber-600 font-normal ml-0.5">({info.posting_date})</span>
+                                                                                </span>
+                                                                            );
+                                                                        }
+                                                                        return <span className="text-slate-400 font-normal italic text-[8px] leading-none">No previous sale</span>;
+                                                                    })()}
+                                                                </div>
+                                                            )}
+                                                        </div>
                                                     </td>
                                                 )}
                                                 {visibleClassicCols.some(c => c.id === 'uom') && (
@@ -9276,206 +9463,265 @@ function Home() {
                             </table>
                         </div>
 
-                        {/* BOTTOM BAR: TOTALS ONLY */}
-                        <div className="classic-bottom-bar flex flex-col md:flex-row items-stretch md:items-center justify-between px-4 py-2 bg-slate-50 border-t border-slate-200 gap-4">
-
-                            {/* Active Orders and Print Bill Buttons on Left Side */}
-                            <div className="flex gap-2" style={{ alignSelf: 'center', height: 'fit-content' }}>
-                                <button
-                                    onClick={() => { setShowSettingsMenu(false); setShowDraftsModal(true); }}
-                                    className={`px-4 py-1.5 flex items-center gap-2 rounded-lg border transition-all font-black text-[11px] uppercase tracking-wider shadow-sm select-none ${isGreen ? 'bg-emerald-600 text-white border-emerald-700 hover:bg-emerald-700' : 'bg-sky-600 text-white border-sky-700 hover:bg-sky-700'}`}
-                                    title="View Active Saved Orders (Drafts) (Press F9)"
-                                >
-                                    <Package size={14} />
-                                    <span className="classic-active-orders-text">Active Orders</span>
-                                    <span className="btn-shortcut-key">F9</span>
-                                    {pendingSyncCount > 0 && (
-                                        <span className="classic-active-orders-badge">
-                                            {pendingSyncCount}
-                                        </span>
-                                    )}
-                                </button>
-                                <button
-                                    onClick={() => { setShowSettingsMenu(false); handleShowRecentInvoicesPrint(); }}
-                                    className="px-4 py-1.5 flex items-center gap-2 rounded-lg border border-indigo-700 bg-indigo-600 text-white hover:bg-indigo-700 transition-all font-black text-[11px] uppercase tracking-wider shadow-sm select-none"
-                                    title="Print Recent Bill (Press F10)"
-                                >
-                                    <Printer size={14} />
-                                    <span>Print Bill</span>
-                                    <span className="btn-shortcut-key">F10</span>
-                                </button>
-                                <button
-                                    onClick={() => setShowPrintJobModal(true)}
-                                    className="px-3 py-1.5 flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-900 text-sky-400 hover:bg-slate-800 transition-all font-black text-[11px] uppercase tracking-wider shadow-sm select-none"
-                                    title="Print Job Calculator"
-                                >
-                                    <Printer size={14} className="text-sky-400" />
-                                    <span>PRINT JOB</span>
-                                </button>
-                            </div>
-
-                            {/* Totals Section */}
-                            <div className="flex items-center gap-4 ml-auto py-1">
-                                <div className="flex flex-col items-start px-3 border-r border-slate-200">
-                                    <span className="text-[9px] font-black text-slate-400 uppercase">Tax Template</span>
-                                    <select
-                                        value={selectedTaxTemplate}
-                                        onChange={(e) => setSelectedTaxTemplate(e.target.value)}
-                                        className="bg-transparent text-[10px] font-black text-slate-700 outline-none cursor-pointer"
-                                    >
-                                        {(() => {
-                                            const filtered = taxTemplates.filter(t => t.name.toLowerCase().includes("vat 5%"));
-                                            const displayList = filtered.length > 0 ? filtered : taxTemplates;
-                                            return displayList.map(t => <option key={t.name} value={t.name}>{t.name}</option>);
-                                        })()}
-                                    </select>
-                                </div>
-
-                                <div className="flex flex-col items-end px-3 border-r border-slate-200">
-                                    <span className="text-[9px] font-black text-slate-400 uppercase">Subtotal</span>
-                                    <span className="text-slate-800 font-black text-base leading-none flex items-center gap-0.5"><DirhamIcon size={13} /> {displaySubtotal.toFixed(2)}</span>
-                                </div>
-
-                                {displayDiscount > 0 && (
-                                    <div className="flex flex-col items-end px-3 border-r border-slate-200">
-                                        <span className="text-[9px] font-black text-rose-400 uppercase">Disc.</span>
-                                        <span className="text-rose-500 font-black text-base leading-none flex items-center gap-0.5">-<DirhamIcon size={13} /> {displayDiscount.toFixed(2)}</span>
+                        {/* BOTTOM SECTION — REDESIGNED TO MATCH IMAGE 2 EXACTLY */}
+                        <div className="p-3 bg-[#f8fafc] border-t border-slate-200">
+                            <div className="grid grid-cols-1 xl:grid-cols-12 gap-3.5 items-stretch">
+                                
+                                {/* 1. TOTALS CARD (LEFT SIDE - ~45% width) */}
+                                <div className="xl:col-span-5 bg-white rounded-xl border border-slate-200 p-3 shadow-sm flex flex-col justify-between gap-3">
+                                    {/* TOP ROW: 3 BUTTONS */}
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <button
+                                            onClick={() => { setShowSettingsMenu(false); setShowDraftsModal(true); }}
+                                            className={`px-3 py-1.5 flex items-center gap-1.5 rounded-lg border transition-all font-bold text-[11px] uppercase tracking-wider select-none ${isGreen ? 'bg-emerald-600 text-white border-emerald-700 hover:bg-emerald-700' : 'bg-emerald-600 text-white border-emerald-700 hover:bg-emerald-700'}`}
+                                            title="View Active Saved Orders (Drafts) (Press F9)"
+                                        >
+                                            <Package size={14} />
+                                            <span>Active Orders</span>
+                                            <span className="inline-flex items-center justify-center font-mono text-[8px] font-bold bg-black/20 text-white/90 px-1 py-0.5 rounded">F9</span>
+                                            {pendingSyncCount > 0 && (
+                                                <span className="bg-rose-500 text-white text-[9px] px-1.5 py-0.5 rounded-full font-bold">
+                                                    {pendingSyncCount}
+                                                </span>
+                                            )}
+                                        </button>
+                                        <button
+                                            onClick={() => { setShowSettingsMenu(false); handleShowRecentInvoicesPrint(); }}
+                                            className="px-3 py-1.5 flex items-center gap-1.5 rounded-lg bg-indigo-600 text-white border border-indigo-700 hover:bg-indigo-700 transition-all font-bold text-[11px] uppercase tracking-wider select-none"
+                                            title="Print Recent Bill (Press F10)"
+                                        >
+                                            <Printer size={14} />
+                                            <span>Print Bill</span>
+                                            <span className="inline-flex items-center justify-center font-mono text-[8px] font-bold bg-black/20 text-white/90 px-1 py-0.5 rounded">F10</span>
+                                        </button>
+                                        <button
+                                            onClick={() => setShowPrintJobModal(true)}
+                                            className="px-3 py-1.5 flex items-center gap-1.5 rounded-lg bg-slate-900 text-sky-400 border border-slate-700 hover:bg-slate-800 transition-all font-bold text-[11px] uppercase tracking-wider select-none"
+                                            title="Print Job Calculator"
+                                        >
+                                            <Printer size={14} className="text-sky-400" />
+                                            <span>PRINT JOB</span>
+                                            <span className="inline-flex items-center justify-center font-mono text-[8px] font-bold bg-white/10 text-sky-300 px-1 py-0.5 rounded">⇧P</span>
+                                        </button>
                                     </div>
-                                )}
 
-                                {loyaltyAmount > 0 && (
-                                    <div className="flex flex-col items-end px-3 border-r border-slate-200">
-                                        <span className="text-[9px] font-black text-emerald-500 uppercase">Loyalty</span>
-                                        <span className="text-emerald-500 font-black text-base leading-none flex items-center gap-0.5">-<DirhamIcon size={13} /> {loyaltyAmount.toFixed(2)}</span>
+                                    {/* TOTALS AREA INSIDE CARD */}
+                                    <div className="flex flex-wrap items-end justify-between gap-3 pt-2 border-t border-slate-100">
+                                        {/* TAX TEMPLATE ON LEFT */}
+                                        <div className="flex flex-col items-start">
+                                            <span className="text-[9px] font-bold uppercase text-slate-400 tracking-wider">TAX TEMPLATE</span>
+                                            <select
+                                                value={selectedTaxTemplate}
+                                                onChange={(e) => setSelectedTaxTemplate(e.target.value)}
+                                                className="bg-transparent text-[10px] font-bold text-slate-700 outline-none cursor-pointer p-0 m-0 border-none"
+                                            >
+                                                {(() => {
+                                                    const filtered = taxTemplates.filter(t => t.name.toLowerCase().includes("vat 5%"));
+                                                    const displayList = filtered.length > 0 ? filtered : taxTemplates;
+                                                    return displayList.map(t => <option key={t.name} value={t.name}>{t.name}</option>);
+                                                })()}
+                                            </select>
+                                        </div>
+
+                                        {/* RIGHT ALIGNED TOTALS COLUMN */}
+                                        <div className="flex flex-col items-end gap-1">
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-[9px] font-bold uppercase text-slate-400">SUBTOTAL</span>
+                                                <span className="text-slate-800 font-bold text-sm flex items-center gap-0.5"><DirhamIcon size={12} /> {displaySubtotal.toFixed(2)}</span>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-[9px] font-bold uppercase text-slate-400">VAT ({taxRate}%)</span>
+                                                <span className="text-slate-600 font-bold text-sm flex items-center gap-0.5"><DirhamIcon size={12} /> {displayTax.toFixed(2)}</span>
+                                            </div>
+                                            {displayDiscount > 0 && (
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-[9px] font-bold uppercase text-rose-400">DISCOUNT</span>
+                                                    <span className="text-rose-600 font-bold text-sm flex items-center gap-0.5">-<DirhamIcon size={12} /> {displayDiscount.toFixed(2)}</span>
+                                                </div>
+                                            )}
+                                            {loyaltyAmount > 0 && (
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-[9px] font-bold uppercase text-emerald-500">LOYALTY</span>
+                                                    <span className="text-emerald-600 font-bold text-sm flex items-center gap-0.5">-<DirhamIcon size={12} /> {loyaltyAmount.toFixed(2)}</span>
+                                                </div>
+                                            )}
+                                            <div className="flex flex-col items-end mt-1">
+                                                <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">GRAND TOTAL</span>
+                                                <span className={`text-2xl font-black ${isGreen ? 'text-emerald-600' : 'text-sky-600'} leading-none flex items-center gap-0.5 mt-0.5`}>
+                                                    <DirhamIcon size={18} /> {grandTotal.toFixed(2)}
+                                                </span>
+                                            </div>
+                                        </div>
                                     </div>
-                                )}
-
-                                <div className="flex flex-col items-end px-3 border-r border-slate-200">
-                                    <span className={`text-[9px] font-black ${isGreen ? 'text-emerald-500' : 'text-sky-500'} uppercase`}>VAT ({taxRate}%)</span>
-                                    <span className={`${isGreen ? 'text-emerald-500' : 'text-sky-500'} font-black text-base leading-none flex items-center gap-0.5`}><DirhamIcon size={13} /> {displayTax.toFixed(2)}</span>
                                 </div>
 
-                                <div className="flex flex-col items-end pl-3">
-                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Grand Total</span>
-                                    <span className={`text-2xl font-black ${isGreen ? 'text-emerald-600' : 'text-sky-600'} leading-none flex items-center gap-0.5`}>
-                                        <DirhamIcon size={18} /> {grandTotal.toFixed(2)}
-                                    </span>
+                                {/* 2. ACTION BUTTON GRID (RIGHT SIDE - ~55% width) */}
+                                <div className="xl:col-span-7">
+                                    <div className="grid grid-cols-5 gap-2">
+                                        {/* ROW 1: CASH, BANK, CARD, PRINT, DIRECT */}
+                                        {/* CASH */}
+                                        <button
+                                            onClick={() => { setShowSettingsMenu(false); if (billItems.length > 0) completePayment('Cash'); }}
+                                            disabled={grandTotal <= 0 || paymentLoading}
+                                            className="h-[54px] bg-[#047857] hover:bg-[#065f46] disabled:opacity-50 text-white rounded-lg p-2 flex flex-col justify-between transition-all active:scale-95 shadow-sm text-left cursor-pointer border-none"
+                                        >
+                                            <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
+                                                <Banknote size={15} />
+                                                <span>CASH</span>
+                                            </div>
+                                            <span className="inline-flex items-center justify-center font-mono text-[9px] font-black px-1.5 py-0.5 rounded bg-black/40 text-white w-max">Alt+1</span>
+                                        </button>
+
+                                        {/* BANK */}
+                                        <button
+                                            onClick={() => { setShowSettingsMenu(false); if (billItems.length > 0) completePayment('Bank'); }}
+                                            disabled={grandTotal <= 0 || paymentLoading}
+                                            className="h-[54px] bg-[#0284c7] hover:bg-[#0369a1] disabled:opacity-50 text-white rounded-lg p-2 flex flex-col justify-between transition-all active:scale-95 shadow-sm text-left cursor-pointer border-none"
+                                        >
+                                            <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
+                                                <Building2 size={15} />
+                                                <span>BANK</span>
+                                            </div>
+                                            <span className="inline-flex items-center justify-center font-mono text-[9px] font-black px-1.5 py-0.5 rounded bg-black/40 text-white w-max">Ctrl+V</span>
+                                        </button>
+
+                                        {/* CARD */}
+                                        <button
+                                            onClick={() => { setShowSettingsMenu(false); if (billItems.length > 0) { setSelectedPaymentMode('Card'); setShowCardTerminalModal(true); } }}
+                                            disabled={grandTotal <= 0 || paymentLoading}
+                                            className="h-[54px] bg-[#6d28d9] hover:bg-[#5b21b6] disabled:opacity-50 text-white rounded-lg p-2 flex flex-col justify-between transition-all active:scale-95 shadow-sm text-left cursor-pointer border-none"
+                                        >
+                                            <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
+                                                <CreditCard size={15} />
+                                                <span>CARD</span>
+                                            </div>
+                                            <span className="inline-flex items-center justify-center font-mono text-[9px] font-black px-1.5 py-0.5 rounded bg-black/40 text-white w-max">Alt+2</span>
+                                        </button>
+
+                                        {/* PRINT / LOADING CONTROL IN ROW 1 OR FULL SPAN */}
+                                        {paymentLoading ? (
+                                            <button
+                                                className="col-span-2 h-[54px] bg-slate-600 text-white border-none rounded-lg p-2 flex items-center justify-center gap-2 opacity-80 cursor-not-allowed font-black text-[11px] uppercase"
+                                                disabled
+                                            >
+                                                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                                <span>Processing...</span>
+                                            </button>
+                                        ) : (
+                                            <>
+                                                {/* PRINT */}
+                                                <button
+                                                    onClick={() => { setShowSettingsMenu(false); handleCheckoutWithMode('print'); }}
+                                                    disabled={grandTotal <= 0}
+                                                    className="h-[54px] bg-[#047857] hover:bg-[#065f46] disabled:opacity-50 text-white rounded-lg p-2 flex flex-col justify-between transition-all active:scale-95 shadow-sm text-left cursor-pointer border-none"
+                                                >
+                                                    <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
+                                                        <Printer size={15} />
+                                                        <span>PRINT</span>
+                                                    </div>
+                                                    <span className="inline-flex items-center justify-center font-mono text-[9px] font-black px-1.5 py-0.5 rounded bg-black/40 text-white w-max">Space</span>
+                                                </button>
+
+                                                {/* DIRECT */}
+                                                <button
+                                                    onClick={() => { setShowSettingsMenu(false); handleCheckoutWithMode('no-print'); }}
+                                                    disabled={grandTotal <= 0}
+                                                    className="h-[54px] bg-[#0284c7] hover:bg-[#0369a1] disabled:opacity-50 text-white rounded-lg p-2 flex flex-col justify-between transition-all active:scale-95 shadow-sm text-left cursor-pointer border-none"
+                                                >
+                                                    <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
+                                                        <Zap size={15} />
+                                                        <span>DIRECT</span>
+                                                    </div>
+                                                    <span className="inline-flex items-center justify-center font-mono text-[9px] font-black px-1.5 py-0.5 rounded bg-black/40 text-white w-max">Alt+N</span>
+                                                </button>
+                                            </>
+                                        )}
+
+                                        {/* ROW 2: DISCOUNT, LOYALTY, SAVE DRAFT, A4, CLEAR BILL */}
+                                        {/* DISCOUNT */}
+                                        <button
+                                            onClick={() => { setShowSettingsMenu(false); setShowDiscountModal(true); }}
+                                            className="h-[54px] bg-white hover:bg-slate-100 text-slate-900 border border-slate-300 rounded-lg p-2 flex flex-col justify-between transition-all active:scale-95 shadow-sm text-left cursor-pointer"
+                                        >
+                                            <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-slate-900">
+                                                <Percent size={15} className="text-slate-700" />
+                                                <span>DISCOUNT</span>
+                                            </div>
+                                            <span className="inline-flex items-center justify-center font-mono text-[9px] font-black px-1.5 py-0.5 rounded bg-slate-200 text-slate-800 w-max border border-slate-300">F1</span>
+                                        </button>
+
+                                        {/* LOYALTY */}
+                                        <button
+                                            onClick={() => { setShowSettingsMenu(false); handleLoyaltyPointsClick(); }}
+                                            className="h-[54px] bg-white hover:bg-slate-100 text-slate-900 border border-slate-300 rounded-lg p-2 flex flex-col justify-between transition-all active:scale-95 shadow-sm text-left cursor-pointer"
+                                        >
+                                            <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-slate-900">
+                                                <Award size={15} className="text-slate-700" />
+                                                <span>LOYALTY</span>
+                                            </div>
+                                            <span className="inline-flex items-center justify-center font-mono text-[9px] font-black px-1.5 py-0.5 rounded bg-slate-200 text-slate-800 w-max border border-slate-300">Alt+L</span>
+                                        </button>
+
+                                        {/* SAVE DRAFT */}
+                                        <button
+                                            onClick={() => { setShowSettingsMenu(false); handleSaveDraft(); }}
+                                            disabled={billItems.length === 0}
+                                            className="h-[54px] bg-[#d97706] hover:bg-[#b45309] disabled:opacity-50 text-white rounded-lg p-2 flex flex-col justify-between transition-all active:scale-95 shadow-sm text-left cursor-pointer border-none"
+                                        >
+                                            <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
+                                                <Upload size={15} />
+                                                <span>SAVE DRAFT</span>
+                                            </div>
+                                            <span className="inline-flex items-center justify-center font-mono text-[9px] font-black px-1.5 py-0.5 rounded bg-black/40 text-white w-max">Alt+S</span>
+                                        </button>
+
+                                        {/* A4 */}
+                                        <button
+                                            onClick={() => { setShowSettingsMenu(false); handleCheckoutWithMode('print-a4'); }}
+                                            disabled={grandTotal <= 0 || paymentLoading}
+                                            className="h-[54px] bg-[#6d28d9] hover:bg-[#5b21b6] disabled:opacity-50 text-white rounded-lg p-2 flex flex-col justify-between transition-all active:scale-95 shadow-sm text-left cursor-pointer border-none"
+                                        >
+                                            <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
+                                                <Printer size={15} />
+                                                <span>A4</span>
+                                            </div>
+                                            <span className="inline-flex items-center justify-center font-mono text-[9px] font-black px-1.5 py-0.5 rounded bg-black/40 text-white w-max">Alt+A</span>
+                                        </button>
+
+                                        {/* CLEAR BILL */}
+                                        <button
+                                            onClick={() => { setShowSettingsMenu(false); clearBillHandler(); }}
+                                            className="h-[54px] bg-[#dc2626] hover:bg-[#b91c1c] text-white rounded-lg p-2 flex flex-col justify-between transition-all active:scale-95 shadow-sm text-left cursor-pointer border-none"
+                                        >
+                                            <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
+                                                <Trash2 size={15} />
+                                                <span>CLEAR BILL</span>
+                                            </div>
+                                            <span className="inline-flex items-center justify-center font-mono text-[9px] font-black px-1.5 py-0.5 rounded bg-black/40 text-white w-max">Alt+C</span>
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
 
-                        {/* ACTION BAR */}
-                        <div className="flex justify-end bg-white border-t border-slate-200 w-full px-3 py-2 items-center">
-                            <div className="grid grid-cols-12 gap-2 flex-grow flex-shrink-0" style={{ width: '100%', maxWidth: '900px' }}>
-                                {/* Row 1: DISCOUNT, LOYALTY, CASH, BANK, CARD */}
-                                <button
-                                    className={`bg-white border border-slate-300 ${isGreen ? 'text-emerald-700 hover:bg-slate-50' : 'text-sky-700 hover:bg-slate-50'} transition-all font-black text-[9px] rounded-lg shadow-sm uppercase tracking-wide flex items-center justify-between gap-1 py-2 px-3 col-span-3`}
-                                    onClick={() => { setShowSettingsMenu(false); setShowDiscountModal(true); }}
-                                    style={{ height: '32px', cursor: 'pointer' }}
-                                >
-                                    <span className="flex items-center gap-0.5 flex-shrink-0" style={{ whiteSpace: 'nowrap', marginRight: '8px' }}><Palette size={10} /> DISCOUNT</span> <span className="btn-shortcut-key" style={{ fontSize: '8px', padding: '1px 4px', margin: 0, flexShrink: 0 }}>F1</span>
-                                </button>
-                                <button
-                                    className={`bg-white border border-slate-300 ${loyaltyAmount > 0 ? 'text-emerald-600 border-emerald-200 bg-emerald-50 hover:bg-emerald-100' : 'text-slate-700 hover:bg-slate-50'} transition-all font-black text-[9px] rounded-lg shadow-sm uppercase tracking-wide flex items-center justify-between gap-1 py-2 px-3 col-span-3`}
-                                    onClick={() => { setShowSettingsMenu(false); handleLoyaltyPointsClick(); }}
-                                    style={{ height: '32px', cursor: 'pointer' }}
-                                >
-                                    <span className="flex items-center gap-0.5 flex-shrink-0" style={{ whiteSpace: 'nowrap', marginRight: '8px' }}><Award size={10} /> LOYALTY</span> <span className="btn-shortcut-key" style={{ fontSize: '8px', padding: '1px 4px', margin: 0, flexShrink: 0 }}>{getShortcut('pos_home', 'loyalty', 'Alt+L')}</span>
-                                </button>
-                                <button
-                                    className="bg-emerald-700 text-white border-none hover:bg-emerald-800 transition-all font-black text-[9px] rounded-lg shadow-md uppercase tracking-wider active:scale-95 flex items-center justify-between py-2 px-3 col-span-2"
-                                    onClick={() => { setShowSettingsMenu(false); if (billItems.length > 0) completePayment('Cash'); }}
-                                    disabled={grandTotal <= 0 || paymentLoading}
-                                    style={{ height: '32px', cursor: 'pointer' }}
-                                >
-                                    <span className="flex-shrink-0" style={{ whiteSpace: 'nowrap', marginRight: '8px' }}>CASH</span> <span className="btn-shortcut-key" style={{ fontSize: '8px', padding: '1px 4px', margin: 0, flexShrink: 0 }}>{getShortcut('pos_home', 'directCash', 'Alt+1')}</span>
-                                </button>
-                                <button
-                                    className="bg-sky-600 text-white border-none hover:bg-sky-700 transition-all font-black text-[9px] rounded-lg shadow-md uppercase tracking-wider active:scale-95 flex items-center justify-between py-2 px-3 col-span-2"
-                                    onClick={() => { setShowSettingsMenu(false); if (billItems.length > 0) completePayment('Bank'); }}
-                                    disabled={grandTotal <= 0 || paymentLoading}
-                                    style={{ height: '32px', cursor: 'pointer' }}
-                                >
-                                    <span className="flex-shrink-0" style={{ whiteSpace: 'nowrap', marginRight: '8px' }}>BANK</span> <span className="btn-shortcut-key" style={{ fontSize: '8px', padding: '1px 4px', margin: 0, flexShrink: 0 }}>Ctrl+V</span>
-                                </button>
-                                <button
-                                    className="bg-indigo-600 text-white border-none hover:bg-indigo-700 transition-all font-black text-[9px] rounded-lg shadow-md uppercase tracking-wider active:scale-95 flex items-center justify-between py-2 px-3 col-span-2"
-                                    onClick={() => { setShowSettingsMenu(false); if (billItems.length > 0) completePayment('Card'); }}
-                                    disabled={grandTotal <= 0 || paymentLoading}
-                                    style={{ height: '32px', cursor: 'pointer' }}
-                                >
-                                    <span className="flex-shrink-0" style={{ whiteSpace: 'nowrap', marginRight: '8px' }}>CARD</span> <span className="btn-shortcut-key" style={{ fontSize: '8px', padding: '1px 4px', margin: 0, flexShrink: 0 }}>{getShortcut('pos_home', 'directCard', 'Alt+2')}</span>
-                                </button>
-
-                                {/* Row 2: CLEAR BILL, SAVE DRAFT, [PRINT, DIRECT, A4 / Processing] */}
-                                <button
-                                    className={`bg-white border border-rose-200 text-rose-600 hover:bg-rose-50 transition-all font-black text-[9px] rounded-lg shadow-sm uppercase tracking-wide flex items-center justify-between gap-1 py-2 px-3 col-span-3`}
-                                    onClick={() => { setShowSettingsMenu(false); clearBillHandler(); }}
-                                    style={{ height: '32px', cursor: 'pointer' }}
-                                >
-                                    <span className="flex items-center gap-0.5 flex-shrink-0" style={{ whiteSpace: 'nowrap', marginRight: '8px' }}><Trash2 size={10} /> CLEAR BILL</span> <span className="btn-shortcut-key" style={{ fontSize: '8px', padding: '1px 4px', margin: 0, flexShrink: 0 }}>{getShortcut('pos_home', 'clearBill', 'Alt+C')}</span>
-                                </button>
-                                <button
-                                    className={`bg-amber-500 text-white border border-amber-600 hover:bg-amber-600 transition-all font-black text-[9px] rounded-lg shadow-md uppercase tracking-wide active:scale-95 flex items-center justify-between gap-1 py-2 px-3 col-span-3`}
-                                    onClick={() => { setShowSettingsMenu(false); handleSaveDraft(); }}
-                                    disabled={billItems.length === 0}
-                                    style={{ height: '32px', cursor: 'pointer' }}
-                                >
-                                    <span className="flex items-center gap-0.5 flex-shrink-0" style={{ whiteSpace: 'nowrap', marginRight: '8px' }}><Package size={10} /> SAVE DRAFT</span> <span className="btn-shortcut-key" style={{ fontSize: '8px', padding: '1px 4px', margin: 0, flexShrink: 0 }}>{getShortcut('pos_home', 'saveDraft', 'Alt+S')}</span>
-                                </button>
-                                {paymentLoading ? (
-                                    <button
-                                        className="col-span-6 bg-slate-500 text-white border-none transition-all font-black text-[9px] rounded-lg shadow-md uppercase tracking-wider opacity-70 cursor-not-allowed flex items-center justify-center gap-1.5 py-2 px-3"
-                                        disabled
-                                        style={{ height: '32px' }}
-                                    >
-                                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                                        <span>Processing...</span>
-                                    </button>
-                                ) : (
-                                    <>
-                                        <button
-                                            className="text-white border-none transition-all font-black text-[9px] rounded-lg shadow-md uppercase tracking-wider active:scale-95 flex items-center justify-between py-2 px-3 col-span-2"
-                                            style={{ backgroundColor: '#10b981', height: '32px', cursor: 'pointer' }}
-                                            onClick={() => { setShowSettingsMenu(false); handleCheckoutWithMode('print'); }}
-                                            disabled={grandTotal <= 0}
-                                        >
-                                            <span className="flex items-center gap-0.5 flex-shrink-0" style={{ whiteSpace: 'nowrap', marginRight: '8px' }}><Printer size={10} /> PRINT</span> <span className="btn-shortcut-key" style={{ fontSize: '8px', padding: '1px 4px', margin: 0, flexShrink: 0 }}>Space</span>
-                                        </button>
-                                        <button
-                                            className="text-white border-none transition-all font-black text-[9px] rounded-lg shadow-md uppercase tracking-wider active:scale-95 flex items-center justify-between py-2 px-3 col-span-2"
-                                            style={{ backgroundColor: '#3b82f6', height: '32px', cursor: 'pointer' }}
-                                            onClick={() => { setShowSettingsMenu(false); handleCheckoutWithMode('no-print'); }}
-                                            disabled={grandTotal <= 0}
-                                        >
-                                            <span className="flex items-center gap-0.5 flex-shrink-0" style={{ whiteSpace: 'nowrap', marginRight: '8px' }}><CreditCard size={10} /> DIRECT</span> <span className="btn-shortcut-key" style={{ fontSize: '8px', padding: '1px 4px', margin: 0, flexShrink: 0 }}>Alt+N</span>
-                                        </button>
-                                        <button
-                                            className="text-white border-none transition-all font-black text-[9px] rounded-lg shadow-md uppercase tracking-wider active:scale-95 flex items-center justify-between py-2 px-3 col-span-2"
-                                            style={{ backgroundColor: '#8b5cf6', height: '32px', cursor: 'pointer' }}
-                                            onClick={() => { setShowSettingsMenu(false); handleCheckoutWithMode('print-a4'); }}
-                                            disabled={grandTotal <= 0}
-                                        >
-                                            <span className="flex items-center gap-0.5 flex-shrink-0" style={{ whiteSpace: 'nowrap', marginRight: '8px' }}><Printer size={10} /> A4</span> <span className="btn-shortcut-key" style={{ fontSize: '8px', padding: '1px 4px', margin: 0, flexShrink: 0 }}>Alt+A</span>
-                                        </button>
-                                    </>
-                                )}
+                        {/* 3. STATUS BAR (FULL WIDTH, BELOW BOTH SECTIONS) */}
+                        <div className="bg-white border-t border-slate-100 px-4 py-1 text-[10px] color-[#94a3b8] flex items-center gap-5">
+                            <div className="flex items-center gap-1.5">
+                                <span className="text-slate-400 font-bold uppercase">Items:</span>
+                                <span className="font-bold text-slate-800">{billItems.length}</span>
                             </div>
-                        </div>{/* STATUS BAR */}
-                        <div className="classic-statusbar">
-                            <div className="flex items-center gap-2">
-                                <span className="text-white/20 font-bold uppercase">Items:</span>
-                                <span className="font-black text-amber-400">{billItems.length}</span>
+                            <div className="flex items-center gap-1.5">
+                                <span className="text-slate-400 font-bold uppercase">Customer:</span>
+                                <span className={`font-bold ${isGreen ? 'text-emerald-600' : 'text-sky-600'}`}>{customerName}</span>
                             </div>
-                            <div className="flex items-center gap-2">
-                                <span className="text-white/20 font-bold uppercase">Customer:</span>
-                                <span className="font-black text-amber-400">{customerName}</span>
+                            <div className="flex items-center gap-1.5">
+                                <span className="text-slate-400 font-bold uppercase">Branch:</span>
+                                <span className={`font-bold ${isGreen ? 'text-emerald-600' : 'text-sky-600'}`}>{warehouse || 'No Branch'}</span>
                             </div>
-                            <div className="flex items-center gap-2">
-                                <span className="text-white/20 font-bold uppercase">Branch:</span>
-                                <span className="font-black text-emerald-400">{warehouse || 'No Branch'}</span>
+                            <div className="ml-auto flex items-center gap-1.5 font-bold text-slate-400 opacity-60">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
+                                <span>READY · SYSTEM OK</span>
                             </div>
-                            <div className="ml-auto opacity-50 font-bold">READY · SYSTEM OK</div>
                         </div>
                     </div>
                     {!hideAllShortcuts && shortcutsPosition === 'right' && renderClassicShortcutsVertical('right')}
@@ -9902,6 +10148,24 @@ function Home() {
                                                                 </span>
                                                             </span>
                                                             <span className="home-bill-item-price flex items-center gap-0.5"><DirhamIcon size={11} /> {item.price} × {item.qty} {item.uom || 'Pc'}</span>
+                                                            {/* Customer Last Sale Price Badge */}
+                                                            {selectedCustomer && selectedCustomer.name !== 'Cash' && (
+                                                                <div style={{ marginTop: '3px', fontSize: '9px', fontWeight: 800, color: '#b45309', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                                    {(() => {
+                                                                        const info = getCustomerLastPriceInfo(item);
+                                                                        if (info) {
+                                                                            return (
+                                                                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', background: '#fef3c7', padding: '1px 6px', borderRadius: '4px', border: '1px solid #fde68a' }}>
+                                                                                    <span>Last Sale ({info.uom}):</span>
+                                                                                    <DirhamIcon size={8} /> {parseFloat(info.rate || 0).toFixed(2)}
+                                                                                    <span style={{ fontSize: '8px', color: '#92400e', fontWeight: 400 }}>({info.posting_date})</span>
+                                                                                </span>
+                                                                            );
+                                                                        }
+                                                                        return <span style={{ color: '#94a3b8', fontWeight: 400, fontStyle: 'italic', fontSize: '8.5px' }}>No previous sale</span>;
+                                                                    })()}
+                                                                </div>
+                                                            )}
                                                         </div>
                                                         <div className="home-bill-item-actions">
                                                             <button className="home-bill-qty-btn" onClick={e => { e.stopPropagation(); updateQuantity(item.id, -1); }}>-</button>
