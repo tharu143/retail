@@ -80,6 +80,7 @@ const routeMap = {
   'POS Health': { icon: TrendingUp },
   'Settings': { icon: SettingsIcon },
   'Sync Manager': { icon: ClipboardList },
+  'Documentation': { icon: FileText },
 };
 
 const sections = [
@@ -130,7 +131,7 @@ const sections = [
     icon: SettingsIcon,
     colorClass: 'icon-pos',
     cardClass: 'card-pos',
-    items: ['POS Health', 'Settings', 'Sync Manager'],
+    items: ['POS Health', 'Settings', 'Sync Manager', 'Documentation'],
   },
 ];
 
@@ -184,6 +185,7 @@ function Sidebar({ activeItem: propsActiveItem, setActiveItem: propsSetActiveIte
     if (pathname === '/poshealth') return 'POS Health';
     if (pathname === '/settings') return 'Settings';
     if (pathname === '/syncmanager') return 'Sync Manager';
+    if (pathname === '/documentation') return 'Documentation';
 
     return 'home';
   };

@@ -72,6 +72,7 @@ import POSHealth from './POSHealth';
 import Settings from './Settings';
 import SyncManager from './SyncManager';
 import Sidebar from '../Nav/Sidebar';
+import DocumentationPage from './DocumentationPage';
 
 import {
   ProcurementDashboard,
@@ -129,6 +130,7 @@ const routeMap = {
   'POS Health': { icon: TrendingUp },
   'Settings': { icon: SettingsIcon },
   'Sync Manager': { icon: ClipboardList },
+  'Documentation': { icon: FileText },
 };
 
 function Dashboard() {
@@ -284,7 +286,7 @@ function Dashboard() {
       icon: SettingsIcon,
       colorClass: 'icon-pos',
       cardClass: 'card-pos',
-      items: ['POS Health', 'Settings', 'Sync Manager'],
+      items: ['POS Health', 'Settings', 'Sync Manager', 'Documentation'],
     },
   ];
 
@@ -357,6 +359,8 @@ function Dashboard() {
         return <Settings />;
       case 'Sync Manager':
         return <SyncManager />;
+      case 'Documentation':
+        return <DocumentationPage />;
       case 'Procurement':
         return <ProcurementDashboard branchMetrics={metrics} startDate={startDate} setStartDate={setStartDate} endDate={endDate} setEndDate={setEndDate} isAdmin={isAdmin} branches={branches} />;
       case 'Sales & Returns':

@@ -62,6 +62,7 @@ import StockEntryList from '../Components/Admin/StockEntryList'
 import ProductBundleList from '../Components/Admin/ProductBundleList'
 import SidebarLayout from '../Components/Nav/SidebarLayout'
 import DriverDashboardPage from '../Pages/DriverDashboardPage'
+import DocumentationPage from '../Components/Admin/DocumentationPage'
 
 function UserRouter() {
   const location = useLocation();
@@ -326,7 +327,7 @@ function UserRouter() {
           <Route path='dashboard' element={<DashboardPage />} />
           <Route path='driver-dashboard' element={<DriverDashboardPage />} />
 
-          <Route element={<SidebarLayout />}>
+            <Route element={<SidebarLayout />}>
             <Route path='closingentry' element={<ClosingEntryPage />} />
             <Route path='invoicelist' element={<InvoiceListPage />} />
             <Route path='purchaseorder' element={<PurchaseOrderPage />} />
@@ -382,6 +383,7 @@ function UserRouter() {
             <Route path='stock-entry/:id' element={<StockEntryDetails />} />
             <Route path='stock-entries' element={<StockEntryList />} />
             <Route path='product-bundles' element={<ProductBundleList />} />
+            <Route path='documentation' element={<DocumentationPage />} />
           </Route>
         </Routes>
       </div>
