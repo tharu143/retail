@@ -9097,34 +9097,6 @@ function Home() {
                         </div>
                     </div>
 
-
-                    <div className="classic-field flex items-center gap-3 relative">
-                        <label className="uppercase font-black text-[11px] text-slate-500 tracking-tight whitespace-nowrap">BARCODE</label>
-                        <div className="flex items-center gap-1.5" ref={itemDropdownRef}>
-                            <input
-                                ref={barcodeInputRef}
-                                value={barcodeInput}
-                                onChange={e => { setBarcodeInput(e.target.value); setSearchContext('header'); setShowItemDropdown(true); }}
-                                onKeyDown={onBarcodeKeyDown}
-                                onFocus={() => { setBarcodeInput(''); setSearchContext('header'); setShowItemDropdown(false); setActiveItemIndex(-1); }}
-                                onClick={() => { setBarcodeInput(''); setSearchContext('header'); setShowItemDropdown(false); }}
-                                onBlur={() => setTimeout(() => setShowItemDropdown(false), 300)}
-                                id="legacy-header-search"
-                                className="w-48 h-11 px-3 border-2 border-slate-200 rounded-xl text-sm font-bold text-slate-900 outline-none focus:border-sky-500 transition-all bg-amber-50/30"
-                                autoFocus
-                            />
-                            <div className="flex items-center gap-1">
-                                <button
-                                    onClick={() => setShowCamera(true)}
-                                    className="w-11 h-11 bg-slate-100 text-slate-600 border-2 border-slate-200 flex items-center justify-center hover:bg-slate-200 transition-all rounded-xl shadow-sm"
-                                    title="Camera Scanner"
-                                >
-                                    <Camera size={18} />
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
                     <div className="classic-field flex items-center gap-3 ml-auto">
                         <label className="uppercase font-black text-[11px] text-slate-500 tracking-tight whitespace-nowrap">INV NO:</label>
                         <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
@@ -9353,6 +9325,7 @@ function Home() {
                                         <td className="text-center font-bold text-amber-600">{billItems.length + 1}</td>
                                         <td colSpan={Math.min(2, visibleClassicCols.filter(c => c.id === 'item_code' || c.id === 'description').length) || 1} className="p-0 relative h-10">
                                             <input
+                                                ref={barcodeInputRef}
                                                 type="text"
                                                 id="legacy-inline-search"
                                                 className="w-full h-full px-4 font-black italic text-slate-400 focus:text-slate-900 bg-transparent outline-none placeholder:text-slate-300 cursor-pointer"
@@ -9363,7 +9336,9 @@ function Home() {
                                                 onClick={(e) => { e.stopPropagation(); setBarcodeInput(''); setSearchContext('inline'); setShowItemDropdown(false); }}
                                                 onBlur={() => setTimeout(() => setShowItemDropdown(false), 300)}
                                                 onKeyDown={onBarcodeKeyDown}
+                                                autoFocus
                                             />
+
                                             {/* Fixed-position dropdown — avoids overflow:auto clipping — shifted for UOM column */}
                                             {showItemDropdown && itemSearchResults.length > 0 && searchContext === 'inline' && (() => {
                                                 const searchEl = document.getElementById('legacy-inline-search');
