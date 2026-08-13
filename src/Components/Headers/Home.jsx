@@ -43,6 +43,8 @@ import ModernNoImageGrid from './ModernNoImageGrid';
 import PrintJobModal from './PrintJobModal';
 import FastPrintModal from './FastPrintModal';
 import ColumnConfigModal from '../Purchase/ColumnConfigModal';
+import CardTerminalModal from '../Admin/CardTerminalModal';
+
 import OpeningEntryPage from '../../Pages/OpeningEntryPage';
 import { db } from '../../db';
 import Swal from 'sweetalert2';
@@ -741,6 +743,14 @@ function Home() {
             {showLoyaltyModal && renderLoyaltyModal()}
             {showPaymentModal && renderPaymentModal()}
             {showCreateModal && renderCreateModal()}
+            <CardTerminalModal
+                isOpen={showCardTerminalModal}
+                onClose={() => setShowCardTerminalModal(false)}
+                amount={cardTerminalAmount || (balanceRemaining > 0 ? balanceRemaining : grandTotal)}
+                onPaymentSuccess={handleTerminalSuccess}
+            />
+
+
             <PrintJobModal
                 isOpen={showPrintJobModal}
                 onClose={() => setShowPrintJobModal(false)}
@@ -1482,7 +1492,11 @@ function Home() {
     const [selectedDetailItem, setSelectedDetailItem] = useState(null);
     const [lastInvoiceData, setLastInvoiceData] = useState(null);
     const [selectedPaymentMode, setSelectedPaymentMode] = useState('');
+    const [showCardTerminalModal, setShowCardTerminalModal] = useState(false);
+    const [cardTerminalAmount, setCardTerminalAmount] = useState(0);
     const [tenderedAmount, setTenderedAmount] = useState('');
+
+
     const [deliveryFee, setDeliveryFee] = useState('');
     const [showDeliveryFee, setShowDeliveryFee] = useState(false);
     const [drivers, setDrivers] = useState([]);
@@ -1610,6 +1624,44 @@ function Home() {
         setSelectedPaymentMode('');
         setTenderedAmount('');
     };
+
+    const handleTerminalSuccess = (txnData) => {
+        setShowCardTerminalModal(false);
+        
+        // Attach approval metadata to Card payment in payments state
+        const updatedPayments = payments.map(p => {
+            if (p.mode_of_payment === 'Card' || p.mode_of_payment === 'Credit Card') {
+                return {
+                    ...p,
+                    reference_no: txnData?.rrn || '',
+                    approval_code: txnData?.approval_code || 'APPROVED'
+                };
+            }
+            return p;
+        });
+
+        const hasCard = updatedPayments.some(p => p.mode_of_payment === 'Card' || p.mode_of_payment === 'Credit Card');
+        if (!hasCard) {
+            updatedPayments.push({
+                mode_of_payment: 'Card',
+                amount: round2(cardTerminalAmount || grandTotal),
+                reference_no: txnData?.rrn || '',
+                approval_code: txnData?.approval_code || 'APPROVED'
+            });
+        }
+
+        setPayments(updatedPayments);
+        setSelectedPaymentMode('');
+        setTenderedAmount('');
+
+        // Proceed to finalize invoice after card approval
+        setTimeout(() => {
+            completePayment();
+        }, 150);
+    };
+
+
+
 
     const removePayment = (index) => {
         setPayments(payments.filter((_, i) => i !== index));
@@ -3872,6 +3924,15 @@ function Home() {
             return;
         }
 
+        // Card Terminal Interceptor: Require card machine authorization before invoice creation
+        const cardPaymentItem = finalPayments.find(p => p.mode_of_payment === 'Card' || p.mode_of_payment === 'Credit Card');
+        if (cardPaymentItem && !cardPaymentItem.approval_code) {
+            setCardTerminalAmount(cardPaymentItem.amount || grandTotal);
+            setShowCardTerminalModal(true);
+            return; // Intercept & wait for terminal authorization!
+        }
+
+
         // Validate Credit payment safeguard
         const hasCreditPayment = finalPayments.some(p => p.mode_of_payment === 'Credit');
         if (hasCreditPayment && selectedCustomer?.customer_group !== 'Credit Customer') {
@@ -5249,6 +5310,8 @@ function Home() {
                                             className="payment-method-btn group p-4 bg-sky-50 border-2 border-sky-100 rounded-2xl flex flex-col items-center gap-2 hover:bg-sky-600 hover:border-sky-600 transition-all hover:shadow-lg active:scale-95 relative"
                                             onClick={() => setSelectedPaymentMode('Card')}
                                         >
+
+
                                             <div className="absolute top-2 right-2 px-2 py-0.5 bg-sky-600 text-white text-[9px] font-black rounded shadow-sm">2</div>
                                             <div className="w-10 h-10 bg-white text-sky-600 rounded-xl flex items-center justify-center shadow-sm group-hover:bg-white/20 group-hover:text-white transition-all">
                                                 <CreditCard size={20} />
@@ -7179,7 +7242,8 @@ function Home() {
             { key: getShortcut('pos_home', 'clearBill', 'Alt+C'), label: 'Clear', colorClass: 'rose', action: clearBillHandler },
             { key: getShortcut('pos_home', 'directCash', 'Alt+1'), label: 'Direct Cash', colorClass: 'emerald', action: () => { if (billItems.length > 0) completePayment('Cash'); } },
             { key: getShortcut('pos_home', 'directBank', 'Ctrl+V'), label: 'Direct Bank', colorClass: 'sky', action: () => { if (billItems.length > 0) completePayment('Bank'); } },
-            { key: getShortcut('pos_home', 'directCard', 'Alt+2'), label: 'Direct Card', colorClass: 'indigo', action: () => { if (billItems.length > 0) completePayment('Card'); } },
+            { key: getShortcut('pos_home', 'directCard', 'Alt+2'), label: 'Direct Card', colorClass: 'indigo', action: () => { if (billItems.length > 0) { setSelectedPaymentMode('Card'); setShowCardTerminalModal(true); } } },
+
             {
                 key: getShortcut('pos_home', 'selectItem', 'Alt+I'), label: theme !== 'legacy' ? 'Select Item' : 'Swap Item', colorClass: 'indigo', action: () => {
                     if (theme !== 'legacy') {
@@ -8564,7 +8628,7 @@ function Home() {
                                         <span>Bank</span> <span className="btn-shortcut-key" style={{ margin: 0 }}>Ctrl+V</span>
                                     </button>
                                     <button
-                                        onClick={() => { if (billItems.length > 0) completePayment('Card'); }}
+                                        onClick={() => { if (billItems.length > 0) { setSelectedPaymentMode('Card'); setShowCardTerminalModal(true); } }}
                                         className="so-btn-secondary flex-1 px-3 py-2 text-xs font-bold transition-all hover:-translate-y-0.5 active:translate-y-0"
                                         style={{ height: '36px', borderRadius: '0.625rem', color: '#6366f1', borderColor: '#c7d2fe', backgroundColor: '#e0e7ff', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '6px' }}
                                         disabled={grandTotal <= 0 || paymentLoading}
@@ -9522,7 +9586,8 @@ function Home() {
                                 </button>
                                 <button
                                     className="bg-indigo-600 text-white border-none hover:bg-indigo-700 transition-all font-black text-[9px] rounded-lg shadow-md uppercase tracking-wider active:scale-95 flex items-center justify-between py-2 px-3 col-span-2"
-                                    onClick={() => { setShowSettingsMenu(false); if (billItems.length > 0) completePayment('Card'); }}
+                                    onClick={() => { setShowSettingsMenu(false); if (billItems.length > 0) { setSelectedPaymentMode('Card'); setShowCardTerminalModal(true); } }}
+
                                     disabled={grandTotal <= 0 || paymentLoading}
                                     style={{ height: '32px', cursor: 'pointer' }}
                                 >

@@ -15,6 +15,11 @@ import Swal from 'sweetalert2';
 import DirhamIcon from '../../assets/Currency/DirhamIcon';
 import './SalesOrder.css';
 import ListCustomizer from './ListCustomizer';
+import CreateVariantModal from './CreateVariantModal';
+import NbiItemGeneratorModal from './NbiItemGeneratorModal';
+import SubgroupFilterNavbar from './SubgroupFilterNavbar';
+import BarcodePrintModal from './BarcodePrintModal';
+
 
 /* ========== DESIGN TOKENS ========== */
 const T = {
@@ -478,6 +483,18 @@ export default function ItemList() {
   const [barcodeFilter, setBarcodeFilter] = useState('');
   const [showGlobalScan, setShowGlobalScan] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
+
+  // New POS 5 features states
+  const [showVariantModal, setShowVariantModal] = useState(false);
+  const [showNbiModal, setShowNbiModal] = useState(false);
+  const [showBarcodePrintModal, setShowBarcodePrintModal] = useState(false);
+  const [selectedBarcodeItem, setSelectedBarcodeItem] = useState(null);
+  const [subgroupFilterMain, setSubgroupFilterMain] = useState('All');
+  const [subgroupFilterSub, setSubgroupFilterSub] = useState('All');
+  const [groupHierarchy, setGroupHierarchy] = useState([]);
+  const [formMainGroup, setFormMainGroup] = useState('');
+
+
   const [showCameraScanner, setShowCameraScanner] = useState(false);
   const [barcodes, setBarcodes] = useState([]);
   const [barcodeInput, setBarcodeInput] = useState('');
@@ -672,8 +689,14 @@ export default function ItemList() {
         const value = g.name || g.value || g.item_group_name || g.label;
         return { label, value };
       }));
+      // Fetch hierarchy structure for main group / subgroup pairing
+      const hRes = await axios.get('/api/method/custom_retailpos.custom_pos_features.get_item_group_hierarchy');
+      if (hRes.data?.message?.status === 'success') {
+        setGroupHierarchy(hRes.data.message.hierarchy || []);
+      }
     } catch { }
   };
+
 
   const fetchBrands = async () => {
     try {
@@ -1198,6 +1221,20 @@ export default function ItemList() {
               >
                 <Warehouse size={14} />Sync Items to Branch
               </button>
+              <button 
+                className="il-btn il-btn-secondary" 
+                onClick={() => setShowVariantModal(true)}
+                style={{ color: '#4f46e5', borderColor: '#c7d2fe', background: '#e0e7ff', gap: 6 }}
+              >
+                <Box size={14} />Create Variant
+              </button>
+              <button 
+                className="il-btn il-btn-secondary" 
+                onClick={() => setShowNbiModal(true)}
+                style={{ color: '#166534', borderColor: '#bbf7d0', background: '#f0fdf4', gap: 6 }}
+              >
+                <Tag size={14} />No Barcode Item (NBI)
+              </button>
               <button className="il-btn il-btn-primary" onClick={() => {
                 resetForm();
                 const myWh = localStorage.getItem('warehouse');
@@ -1208,8 +1245,28 @@ export default function ItemList() {
           </div>
         </div>
 
+
+        {/* SUBGROUP HIERARCHY FILTER NAVBAR */}
+        <div style={{ padding: '10px 28px 0 28px' }}>
+          <SubgroupFilterNavbar 
+            activeMainGroup={subgroupFilterMain}
+            activeSubgroup={subgroupFilterSub}
+            onSelectMainGroup={(g) => {
+              setSubgroupFilterMain(g);
+              if (g === 'All') setFilterGroup('');
+              else setFilterGroup(g);
+            }}
+            onSelectSubgroup={(sub) => {
+              setSubgroupFilterSub(sub);
+              if (sub !== 'All') setFilterGroup(sub);
+              else setFilterGroup(subgroupFilterMain === 'All' ? '' : subgroupFilterMain);
+            }}
+          />
+        </div>
+
         {/* FILTER BAR */}
         <div style={{ background: T.surface, borderBottom: `1.5px solid ${T.border}`, padding: '14px 28px' }}>
+
           <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap' }}>
             <div style={{ flex: 1, minWidth: 220 }}>
               <span className="il-section-label">Barcode / Scan</span>
@@ -1718,6 +1775,16 @@ export default function ItemList() {
                   </button>
                   <button
                     className="il-btn il-btn-secondary"
+                    style={{ height: 36, padding: '0 16px', borderRadius: 10, background: '#f0f9ff', color: '#0369a1', borderColor: '#bae6fd', display: 'flex', alignItems: 'center', gap: 6 }}
+                    onClick={() => {
+                      setSelectedBarcodeItem(itemDoc || { item_code: editingItemCode, item_name: form.item_name, stock_uom: form.stock_uom, standard_rate: form.standard_rate });
+                      setShowBarcodePrintModal(true);
+                    }}
+                  >
+                    <Barcode size={14} /> <span style={{ fontSize: 11, fontWeight: 800 }}>Print Barcode</span>
+                  </button>
+                  <button
+                    className="il-btn il-btn-secondary"
                     style={{ height: 36, padding: '0 16px', borderRadius: 10, background: '#fff' }}
                     onClick={() => { setIsViewMode(false); setIsEditMode(true); }}
                   >
@@ -1726,6 +1793,7 @@ export default function ItemList() {
                   <button className="il-btn il-btn-danger" style={{ height: 36, padding: '0 12px', borderRadius: 10 }} onClick={() => handleDelete(editingItemCode)}>
                     <Trash2 size={14} />
                   </button>
+
                 </div>
               )}
 
@@ -1784,7 +1852,8 @@ export default function ItemList() {
                       <CardSection title="Catalog Info" icon={<Info size={14} />}>
                         <div style={{ padding: '14px 16px' }}>
                           {[
-                            ['Group', form.item_group],
+                            ['Main Category', formMainGroup || '—'],
+                            ['Subgroup / Item Group', form.item_group || '—'],
                             ['Brand', form.brand || '—'],
                             ['Base UOM', form.default_uom],
                             ['Valuation', `AED ${Number(form.valuation_rate || 0).toFixed(2)}`],
@@ -1792,6 +1861,7 @@ export default function ItemList() {
                             ['Origin', form.country_of_origin || '—'],
                             ['Packing', `${form.custom_pieces_per_box || 0} ${form.default_uom} / Box`],
                           ].map(([l, v]) => (
+
                             <div key={l} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: `1px solid ${T.borderLight}`, alignItems: 'center' }}>
                               <span style={{ fontSize: 12, color: T.textMuted, fontWeight: 600 }}>{l}</span>
                               <span style={{ fontSize: 13, fontWeight: 600, color: T.text }}>{v}</span>
@@ -2229,14 +2299,29 @@ export default function ItemList() {
                         <input className="il-input" value={form.item_name} onChange={e => setForm({ ...form, item_name: e.target.value })} placeholder="Full item name" />
                       </div>
                       <SearchableSelect
-                        label="Item Group"
+                        label="Main Item Category"
+                        value={formMainGroup}
+                        options={groupHierarchy.map(h => ({ label: h.main_group, value: h.main_group }))}
+                        placeholder="Select Main Category"
+                        onChange={val => {
+                          setFormMainGroup(val);
+                          setForm({ ...form, item_group: '' });
+                        }}
+                      />
+                      <SearchableSelect
+                        label="Item Subgroup (Saved to ERPNext)"
                         value={form.item_group}
-                        options={itemGroups}
+                        options={
+                          formMainGroup && groupHierarchy.find(h => h.main_group === formMainGroup)
+                            ? (groupHierarchy.find(h => h.main_group === formMainGroup).subgroups || []).map(s => ({ label: s, value: s }))
+                            : itemGroups
+                        }
                         required
-                        placeholder="Select Group"
+                        placeholder="Select Subgroup"
                         onChange={val => setForm({ ...form, item_group: val })}
                         onAction={() => { const n = prompt('New Item Group:'); if (n) fetchItemGroups(); }}
                       />
+
                       <SearchableSelect
                         label="Brand"
                         value={form.brand}
@@ -2486,6 +2571,26 @@ export default function ItemList() {
           </div>
         </div>
       )}
+      {/* Modals for POS 5 Features */}
+      <CreateVariantModal 
+        isOpen={showVariantModal} 
+        onClose={() => setShowVariantModal(false)}
+        onVariantCreated={() => fetchItems()}
+      />
+      <NbiItemGeneratorModal 
+        isOpen={showNbiModal} 
+        onClose={() => setShowNbiModal(false)}
+        onItemCreated={() => fetchItems()}
+      />
+      <BarcodePrintModal 
+        isOpen={showBarcodePrintModal} 
+        selectedItem={selectedBarcodeItem}
+        onClose={() => {
+          setShowBarcodePrintModal(false);
+          setSelectedBarcodeItem(null);
+        }}
+      />
     </>
   );
+
 }
