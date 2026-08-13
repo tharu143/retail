@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import kyleLogo from '../../assets/kyleretail.png';
 import { useSelector } from 'react-redux';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import {
   ArrowRight,
   ShoppingCart,
@@ -138,6 +138,7 @@ const sections = [
 function Sidebar({ activeItem: propsActiveItem, setActiveItem: propsSetActiveItem, isStandalone = false }) {
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useSelector(state => state.user || {});
 
   const [sidebarTheme, setSidebarTheme] = useState(() => localStorage.getItem('sidebarTheme') || 'light');
@@ -195,6 +196,9 @@ function Sidebar({ activeItem: propsActiveItem, setActiveItem: propsSetActiveIte
 
   const handleItemClick = (itemName) => {
     localStorage.setItem('dashboardActiveItem', itemName);
+    if (searchParams.toString() !== "") {
+      setSearchParams({}, { replace: true });
+    }
     if (isStandalone) {
       navigate('/dashboard');
     } else {
