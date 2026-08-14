@@ -4884,57 +4884,79 @@ function Home() {
             }}
         >
             <div
-                className="home-modal animate-in zoom-in-95 duration-200"
+                className="animate-in zoom-in-95 duration-200"
                 onClick={e => e.stopPropagation()}
                 style={{
-                    width: '100%',
-                    maxWidth: '820px',
+                    width: '95%',
+                    maxWidth: '860px',
                     backgroundColor: '#ffffff',
-                    borderRadius: '28px',
+                    borderRadius: '16px',
                     overflow: 'hidden',
-                    boxShadow: '0 30px 60px -15px rgba(15, 23, 42, 0.15), 0 0 0 1px rgba(15, 23, 42, 0.05)',
+                    boxShadow: '0 25px 50px -12px rgba(15, 23, 42, 0.3), 0 0 0 1px rgba(15, 23, 42, 0.1)',
                     display: 'flex',
                     flexDirection: 'column',
-                    margin: '15px'
+                    maxHeight: '90vh'
                 }}
             >
-                <div className="home-modal-header bg-white border-b border-slate-100 px-8 py-5 flex justify-between items-start" style={{ padding: '22px 32px' }}>
-                    <div>
-                        <span className="text-[10px] font-extrabold uppercase tracking-widest text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-md mb-1.5 inline-block">Customer Directory</span>
-                        <h3 className="text-xl font-black text-slate-800 tracking-tight m-0">Register New Customer</h3>
+                {/* Header */}
+                <div
+                    className="bg-slate-900 flex justify-between items-center text-white border-b border-slate-800"
+                    style={{ padding: '16px 24px', flexShrink: 0 }}
+                >
+                    <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-lg bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0">
+                            <UserPlus size={18} />
+                        </div>
+                        <div>
+                            <div className="flex items-center gap-2">
+                                <h3 className="text-sm font-bold text-white tracking-wide uppercase m-0">Register New Customer</h3>
+                                <span className="text-[9px] font-bold uppercase tracking-wider text-emerald-400 bg-emerald-950 border border-emerald-800 px-2 py-0.5 rounded">Directory</span>
+                            </div>
+                            <p className="text-[11px] text-slate-400 m-0">Quickly add customer details to your directory</p>
+                        </div>
                     </div>
                     <button
-                        className="w-9 h-9 flex items-center justify-center text-slate-400 hover:bg-slate-50 hover:text-slate-700 rounded-xl border border-slate-100 transition-all shadow-sm"
+                        className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg border border-slate-700 transition-all cursor-pointer"
                         onClick={() => setShowCreateModal(false)}
                     >
-                        <X size={18} />
+                        <X size={16} />
                     </button>
                 </div>
 
-                <div className="home-modal-body px-8 py-6 flex flex-col md:flex-row gap-8" style={{ padding: '24px 32px' }}>
+                {/* Body */}
+                <div
+                    className="bg-slate-100/60 flex flex-col md:flex-row gap-5 overflow-y-auto"
+                    style={{ padding: '20px 24px', flex: '1 1 auto' }}
+                >
                     {/* Left Column: Primary Details */}
-                    <div className="flex-1 flex flex-col gap-4">
-                        <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
-                            <User size={16} className="text-slate-400" />
-                            <span className="text-xs font-black uppercase tracking-wider text-slate-700">Primary Details</span>
+                    <div
+                        className="flex-1 bg-white border border-slate-200 shadow-sm flex flex-col gap-3.5"
+                        style={{ padding: '20px', borderRadius: '12px' }}
+                    >
+                        <div className="flex items-center gap-2 pb-2.5 border-b border-slate-100">
+                            <div className="w-6 h-6 rounded-md bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold text-xs">
+                                <User size={13} />
+                            </div>
+                            <span className="text-[11px] font-black uppercase tracking-wider text-slate-800">Primary Details</span>
                         </div>
 
                         <div>
-                            <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1.5 ml-0.5">Customer Name *</label>
+                            <label className="text-[11px] font-bold text-slate-600 block mb-1">Customer Name <span className="text-rose-500">*</span></label>
                             <input
                                 type="text"
-                                placeholder="Customer Name"
+                                placeholder="Enter customer name"
                                 value={createForm.name}
                                 onChange={e => {
                                     const val = e.target.value.replace(/[^a-zA-Z0-9\s.\-_/&()#]/g, '');
                                     setCreateForm({ ...createForm, name: val });
                                 }}
-                                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-500/10 rounded-xl text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 shadow-sm"
+                                style={{ borderRadius: '8px', boxShadow: 'none' }}
+                                className="w-full h-10 px-3 bg-white border border-slate-300 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 text-xs font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 placeholder:font-normal"
                             />
                         </div>
 
                         <div>
-                            <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1.5 ml-0.5">Phone Number *</label>
+                            <label className="text-[11px] font-bold text-slate-600 block mb-1">Phone Number <span className="text-rose-500">*</span></label>
                             <div className="flex gap-2">
                                 <select
                                     value={countryCodePrefix}
@@ -4947,15 +4969,15 @@ function Home() {
                                             setCreateForm(prev => ({ ...prev, phone: prev.phone.slice(0, limit) }));
                                         }
                                     }}
-                                    className="pl-3 pr-6 py-2.5 bg-slate-50 border border-slate-200 focus:border-emerald-500 focus:bg-white rounded-xl text-sm font-bold text-slate-800 outline-none cursor-pointer transition-all shrink-0 shadow-sm"
-                                    style={{ width: '105px' }}
+                                    style={{ borderRadius: '8px', boxShadow: 'none', width: '90px' }}
+                                    className="h-10 px-2 bg-slate-50 border border-slate-300 focus:border-emerald-500 text-xs font-bold text-slate-800 outline-none cursor-pointer transition-all shrink-0"
                                 >
                                     <option value="+971">🇦🇪 +971</option>
                                     <option value="+91">🇮🇳 +91</option>
                                 </select>
                                 <input
                                     type="tel"
-                                    placeholder={`${countryCodePrefix === '+971' ? '9-digit' : '10-digit'} phone`}
+                                    placeholder={`${countryCodePrefix === '+971' ? '9-digit' : '10-digit'} mobile number`}
                                     value={createForm.phone}
                                     onChange={e => {
                                         const val = e.target.value.replace(/\D/g, '');
@@ -4964,84 +4986,96 @@ function Home() {
                                             setCreateForm({ ...createForm, phone: val });
                                         }
                                     }}
-                                    className="flex-1 min-w-0 px-4 py-2.5 bg-slate-50 border border-slate-200 focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-500/10 rounded-xl text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 shadow-sm"
+                                    style={{ borderRadius: '8px', boxShadow: 'none' }}
+                                    className="flex-1 min-w-0 h-10 px-3 bg-white border border-slate-300 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 text-xs font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 placeholder:font-normal"
                                 />
                             </div>
                         </div>
 
                         <div>
-                            <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1.5 ml-0.5">Email Address</label>
+                            <label className="text-[11px] font-bold text-slate-600 block mb-1">Email Address</label>
                             <input
                                 type="email"
-                                placeholder="customer@example.com"
+                                placeholder="e.g. name@domain.com"
                                 value={createForm.email}
                                 onChange={e => setCreateForm({ ...createForm, email: e.target.value })}
-                                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-500/10 rounded-xl text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 shadow-sm"
+                                style={{ borderRadius: '8px', boxShadow: 'none' }}
+                                className="w-full h-10 px-3 bg-white border border-slate-300 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 text-xs font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 placeholder:font-normal"
                             />
                         </div>
 
                         <div>
-                            <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1.5 ml-0.5">TRN (Tax ID)</label>
+                            <label className="text-[11px] font-bold text-slate-600 block mb-1">TRN (Tax Registration No.)</label>
                             <input
                                 type="text"
-                                placeholder="15-digit Tax ID"
+                                placeholder="15-digit TRN"
                                 value={createForm.custom_trn}
                                 onChange={e => {
                                     const val = e.target.value.replace(/\D/g, '').slice(0, 15);
                                     setCreateForm({ ...createForm, custom_trn: val });
                                 }}
-                                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-500/10 rounded-xl text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 shadow-sm"
+                                style={{ borderRadius: '8px', boxShadow: 'none' }}
+                                className="w-full h-10 px-3 bg-white border border-slate-300 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 text-xs font-mono font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 placeholder:font-normal"
                             />
                         </div>
                     </div>
 
                     {/* Right Column: Address & Location */}
-                    <div className="flex-1 flex flex-col gap-4">
-                        <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
-                            <MapPin size={16} className="text-slate-400" />
-                            <span className="text-xs font-black uppercase tracking-wider text-slate-700">Address & Location</span>
+                    <div
+                        className="flex-1 bg-white border border-slate-200 shadow-sm flex flex-col gap-3.5"
+                        style={{ padding: '20px', borderRadius: '12px' }}
+                    >
+                        <div className="flex items-center gap-2 pb-2.5 border-b border-slate-100">
+                            <div className="w-6 h-6 rounded-md bg-sky-50 text-sky-600 flex items-center justify-center font-bold text-xs">
+                                <MapPin size={13} />
+                            </div>
+                            <span className="text-[11px] font-black uppercase tracking-wider text-slate-800">Address & Location</span>
                         </div>
 
                         <div>
-                            <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1.5 ml-0.5">Address Line 1</label>
+                            <label className="text-[11px] font-bold text-slate-600 block mb-1">Address Line 1</label>
                             <input
                                 type="text"
-                                placeholder="Street, Building, Apartment"
+                                placeholder="Building / Flat / Villa / Street"
                                 value={createForm.address_line1}
                                 onChange={e => setCreateForm({ ...createForm, address_line1: e.target.value })}
-                                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-500/10 rounded-xl text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 shadow-sm"
+                                style={{ borderRadius: '8px', boxShadow: 'none' }}
+                                className="w-full h-10 px-3 bg-white border border-slate-300 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 text-xs font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 placeholder:font-normal"
                             />
                         </div>
 
                         <div>
-                            <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1.5 ml-0.5">Address Line 2</label>
+                            <label className="text-[11px] font-bold text-slate-600 block mb-1">Address Line 2</label>
                             <input
                                 type="text"
-                                placeholder="Area, Landmark"
+                                placeholder="Area, Landmark / Nearby Location"
                                 value={createForm.address_line2}
                                 onChange={e => setCreateForm({ ...createForm, address_line2: e.target.value })}
-                                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-500/10 rounded-xl text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 shadow-sm"
+                                style={{ borderRadius: '8px', boxShadow: 'none' }}
+                                className="w-full h-10 px-3 bg-white border border-slate-300 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 text-xs font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 placeholder:font-normal"
                             />
                         </div>
 
                         <div>
-                            <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1.5 ml-0.5">City</label>
+                            <label className="text-[11px] font-bold text-slate-600 block mb-1">City</label>
                             <input
                                 type="text"
-                                placeholder="e.g. Dubai"
+                                placeholder="e.g. Dubai / Abu Dhabi"
                                 value={createForm.city}
                                 onChange={e => setCreateForm({ ...createForm, city: e.target.value })}
-                                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-500/10 rounded-xl text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 shadow-sm"
+                                style={{ borderRadius: '8px', boxShadow: 'none' }}
+                                className="w-full h-10 px-3 bg-white border border-slate-300 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 text-xs font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 placeholder:font-normal"
                             />
                         </div>
 
-                        <div className="flex gap-4">
+                        <div className="flex gap-3">
                             <div style={{ flex: 1.2 }}>
-                                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1.5 ml-0.5">Emirate</label>
+                                <label className="text-[11px] font-bold text-slate-600 block mb-1">Emirate / State</label>
                                 <select
                                     value={createForm.emirate}
                                     onChange={e => setCreateForm({ ...createForm, emirate: e.target.value })}
-                                    className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 focus:border-emerald-500 focus:bg-white rounded-xl text-sm font-bold text-slate-800 outline-none cursor-pointer transition-all shadow-sm"
+                                    style={{ borderRadius: '8px', boxShadow: 'none' }}
+                                    className="w-full h-10 px-3 bg-white border border-slate-300 focus:border-sky-500 text-xs font-semibold text-slate-800 outline-none cursor-pointer transition-all"
                                 >
                                     <option value="">Select Emirate</option>
                                     {["Abu Dhabi", "Ajman", "Dubai", "Fujairah", "Ras Al Khaimah", "Sharjah", "Umm Al Quwain"].map(opt => (
@@ -5050,40 +5084,56 @@ function Home() {
                                 </select>
                             </div>
                             <div style={{ flex: 1 }}>
-                                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1.5 ml-0.5">Country</label>
+                                <label className="text-[11px] font-bold text-slate-600 block mb-1">Country</label>
                                 <input
                                     type="text"
                                     placeholder="Country"
                                     value={createForm.country}
                                     onChange={e => setCreateForm({ ...createForm, country: e.target.value })}
-                                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-500/10 rounded-xl text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 shadow-sm"
+                                    style={{ borderRadius: '8px', boxShadow: 'none' }}
+                                    className="w-full h-10 px-3 bg-white border border-slate-300 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 text-xs font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 placeholder:font-normal"
                                 />
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <div className="px-8 py-5 bg-slate-50 flex gap-4 items-center border-t border-slate-100" style={{ padding: '20px 32px' }}>
-                    <button
-                        className="flex-1 py-3 text-slate-600 bg-white border border-slate-200 hover:border-slate-300 rounded-xl font-bold uppercase tracking-wider hover:bg-slate-50 active:scale-[0.98] transition-all text-xs shadow-sm"
-                        onClick={() => setShowCreateModal(false)}
-                    >
-                        Cancel
-                    </button>
-                    <button
-                        onClick={createCustomer}
-                        disabled={creatingCustomer}
-                        className="flex-[1.5] py-3 bg-emerald-600 text-white rounded-xl font-bold uppercase tracking-wider shadow-lg shadow-emerald-600/15 hover:bg-emerald-700 active:scale-[0.98] transition-all text-xs flex items-center justify-center gap-1.5"
-                    >
-                        {creatingCustomer ? (
-                            <>
-                                <Loader2 size={14} className="animate-spin mr-1" />
-                                Creating...
-                            </>
-                        ) : (
-                            "Create Customer"
-                        )}
-                    </button>
+                {/* Footer */}
+                <div
+                    className="bg-slate-50 flex items-center justify-between border-t border-slate-200"
+                    style={{ padding: '16px 24px', flexShrink: 0 }}
+                >
+                    <div className="text-[11px] font-medium text-slate-500">
+                        Fields with <span className="text-rose-500 font-bold">*</span> are required
+                    </div>
+                    <div className="flex items-center gap-3 shrink-0">
+                        <button
+                            type="button"
+                            className="h-10 px-5 text-slate-700 bg-white border border-slate-300 hover:bg-slate-100 hover:border-slate-400 rounded-lg font-bold text-xs transition-all cursor-pointer shadow-sm active:scale-95 flex items-center gap-1.5"
+                            onClick={() => setShowCreateModal(false)}
+                        >
+                            <X size={14} />
+                            <span>Cancel</span>
+                        </button>
+                        <button
+                            type="button"
+                            onClick={createCustomer}
+                            disabled={creatingCustomer}
+                            className="h-10 px-6 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white rounded-lg font-bold text-xs shadow-sm hover:shadow transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                        >
+                            {creatingCustomer ? (
+                                <>
+                                    <Loader2 size={14} className="animate-spin" />
+                                    <span>Creating...</span>
+                                </>
+                            ) : (
+                                <>
+                                    <UserPlus size={15} />
+                                    <span>Create Customer</span>
+                                </>
+                            )}
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -7473,30 +7523,27 @@ function Home() {
 
     const renderShortcutsHorizontal = () => {
         return (
-            <div className="so-shortcuts-strip" style={{
+            <div className="classic-shortcut-guide horizontal" style={{
                 display: 'flex', alignItems: 'center', gap: '8px',
-                padding: '6px 14px', background: '#f8fafc',
-                borderBottom: shortcutsPosition === 'top' ? '1px solid #e2e8f0' : 'none',
-                borderTop: shortcutsPosition === 'bottom' ? '1px solid #e2e8f0' : 'none',
-                overflow: 'visible',
-                boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.02)',
-                flexShrink: 0
+                padding: '6px 16px', background: '#0f172a',
+                borderBottom: shortcutsPosition === 'top' ? '2px solid #1e293b' : 'none',
+                borderTop: shortcutsPosition === 'bottom' ? '2px solid #1e293b' : 'none',
+                flexShrink: 0,
+                overflow: 'hidden'
             }}>
                 {renderDragHandle()}
                 {renderShortcutsSelector()}
-                <div style={{ height: '36px', width: '1px', background: '#cbd5e1', margin: '0 2px', flexShrink: 0 }}></div>
+                <div style={{ height: '32px', width: '1px', background: '#334155', margin: '0 2px', flexShrink: 0 }}></div>
                 <div style={{
                     display: 'flex',
-                    flexWrap: 'wrap',
                     alignItems: 'center',
-                    gap: '4px 6px',
-                    width: '100%',
-                    overflowY: 'auto',
-                    maxHeight: '68px',
-                    scrollbarWidth: 'none',
-                    msOverflowStyle: 'none'
+                    gap: '4px 8px',
+                    flex: 1,
+                    minWidth: 0,
+                    flexWrap: 'wrap',
+                    overflow: 'hidden'
                 }}>
-                    {renderShortcutsList(false)}
+                    {renderClassicShortcutsList(false)}
                 </div>
             </div>
         );
@@ -7504,33 +7551,31 @@ function Home() {
 
     const renderShortcutsVertical = (pos) => {
         return (
-            <div style={{
-                display: 'flex', flexDirection: 'column', gap: '8px',
-                width: '190px', flexShrink: 0, padding: '14px 10px',
-                background: '#f8fafc',
-                borderRight: '1px solid #e2e8f0',
+            <div className="classic-shortcut-guide vertical" style={{
+                display: 'flex', flexDirection: 'column', gap: '6px',
+                width: '185px', flexShrink: 0, padding: '10px',
+                background: '#ffffff',
+                borderRight: pos === 'left' ? '1px solid #e2e8f0' : 'none',
                 borderLeft: pos === 'right' ? '1px solid #e2e8f0' : 'none',
-                boxShadow: pos === 'left' ? 'inset -1px 0 2px rgba(0,0,0,0.02)' : 'inset 1px 0 2px rgba(0,0,0,0.02)',
                 height: '100%',
-                overflow: 'visible'
+                overflowY: 'auto'
             }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px', width: '100%', marginBottom: '4px', flexShrink: 0 }}>
                     {renderDragHandle()}
                     {renderShortcutsSelector()}
                 </div>
 
-                <div style={{ height: '1px', width: '100%', background: '#cbd5e1', marginBottom: '2px', flexShrink: 0 }}></div>
+                <div style={{ height: '1px', width: '100%', background: '#e2e8f0', marginBottom: '2px', flexShrink: 0 }}></div>
                 <div style={{
                     display: 'flex',
                     flexDirection: 'column',
-                    gap: '8px',
+                    gap: '6px',
                     overflowY: 'auto',
                     scrollbarWidth: 'none',
                     msOverflowStyle: 'none',
-                    flex: 1,
-                    overflowX: 'visible'
+                    flex: 1
                 }}>
-                    {renderShortcutsList(true)}
+                    {renderClassicShortcutsList(true)}
                 </div>
             </div>
         );
@@ -7732,39 +7777,56 @@ function Home() {
         return classicShortcutsData.filter(s => isShortcutShown(s.key)).map((s, idx) => (
             <div
                 key={idx}
-                className="classic-shortcut-badge group"
+                className="classic-shortcut-badge group hover:border-sky-400 hover:bg-sky-50 transition-all cursor-pointer shadow-sm active:scale-95"
                 onClick={s.action}
                 style={{
                     flexShrink: 0,
                     width: isVertical ? '100%' : '160px',
                     display: 'flex',
-                    justifyContent: isVertical ? 'space-between' : 'flex-start',
+                    justifyContent: 'space-between',
                     alignItems: 'center',
-                    gap: isVertical ? '10px' : '8px'
+                    gap: '6px',
+                    padding: '3px 8px',
+                    background: '#ffffff',
+                    border: '1.5px solid #cbd5e1',
+                    borderRadius: '6px',
+                    boxShadow: '0 1px 2px rgba(0,0,0,0.08)'
                 }}
             >
-                <span className="classic-shortcut-key" style={{ flexShrink: 0 }}>
-                    {s.key}
-                </span>
-                <div className="classic-shortcut-icon" style={{ display: isVertical ? 'none' : 'flex', flexShrink: 0 }}>
-                    {s.icon}
-                </div>
-                <span className="classic-shortcut-label" style={{
-                    flexGrow: isVertical ? 1 : 0,
-                    textAlign: isVertical ? 'right' : 'left'
-                }}>
-                    {s.label}
-                </span>
-                {s.action && (
-                    <span
-                        onClick={(e) => { e.stopPropagation(); toggleHideShortcut(s.key); }}
-                        className="ml-1 opacity-0 group-hover:opacity-100 transition-opacity hover:text-red-400 cursor-pointer flex items-center justify-center shrink-0"
-                        title="Hide Shortcut"
-                        style={{ color: '#ef4444' }}
-                    >
-                        <EyeOff size={11} />
+                <div style={{ display: 'flex', alignItems: 'center', gap: '5px', flex: 1, minWidth: 0, overflow: 'hidden' }}>
+                    <div className="classic-shortcut-icon" style={{ display: 'flex', flexShrink: 0, color: s.color || '#0ea5e9' }}>
+                        {s.icon}
+                    </div>
+                    <span className="classic-shortcut-label text-[11px] font-black text-slate-850" style={{
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                        color: '#0f172a',
+                        fontWeight: 800
+                    }}>
+                        {s.label}
                     </span>
-                )}
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+                    <span
+                        className="classic-shortcut-key font-mono font-black text-slate-900 text-[9.5px]"
+                        style={{
+                            background: 'linear-gradient(180deg, #ffffff 0%, #e2e8f0 100%)',
+                            border: '1px solid #94a3b8',
+                            borderBottom: '2px solid #64748b',
+                            padding: '1px 5px',
+                            borderRadius: '4px',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            lineHeight: 1,
+                            color: '#0f172a',
+                            fontWeight: 900
+                        }}
+                    >
+                        {s.key}
+                    </span>
+                </div>
             </div>
         ));
     };
@@ -8126,27 +8188,6 @@ function Home() {
                                             </span>
                                         </button>
 
-                                        {/* Direct Color Switcher */}
-                                        {theme === 'legacy' && (
-                                            <button
-                                                onClick={() => {
-                                                    toggleTheme();
-                                                }}
-                                                className="w-full mt-2 p-3.5 bg-slate-50/40 hover:bg-slate-50 border border-slate-100 rounded-xl flex items-center justify-between transition-all group text-left"
-                                            >
-                                                <div className="flex items-center gap-2.5 font-bold text-[11px] text-slate-600 uppercase tracking-wider">
-                                                    <div className={`p-1.5 rounded-lg ${isGreen ? 'bg-sky-50 text-sky-500' : 'bg-emerald-50 text-emerald-500'} group-hover:scale-110 transition-transform`}>
-                                                        <Palette size={14} />
-                                                    </div>
-                                                    Switch Color
-                                                </div>
-                                                <span className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-md shadow-sm border border-slate-200/40 ${isGreen ? 'bg-sky-50 text-sky-600' : 'bg-emerald-50 text-emerald-600'}`}>
-                                                    {isGreen ? 'BLUE' : 'GREEN'}
-                                                </span>
-                                            </button>
-                                        )}
-
-
                                         {/* Hidden Shortcuts Panel */}
                                         <div className="border-t border-slate-100 pt-3 mt-1 text-left">
                                             <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1 mb-2">
@@ -8331,14 +8372,6 @@ function Home() {
                                                                     </span>
                                                                 )}
                                                             </div>
-
-                                                            {isBundle && (
-                                                                <div className="grid grid-cols-3 gap-0.5 text-[7px] font-bold text-emerald-800 bg-emerald-50/90 border border-emerald-200/70 rounded px-1 py-1 mt-1 text-center">
-                                                                    <span className="flex items-center justify-center gap-0.5 truncate"><ShieldCheck size={9} className="text-emerald-600 shrink-0" /> Reliable</span>
-                                                                    <span className="flex items-center justify-center gap-0.5 truncate border-x border-emerald-200/60"><Gift size={9} className="text-emerald-600 shrink-0" /> Combo</span>
-                                                                    <span className="flex items-center justify-center gap-0.5 truncate"><Star size={9} className="text-emerald-600 shrink-0" /> Value</span>
-                                                                </div>
-                                                            )}
 
                                                             <div className="flex items-center justify-between pt-2">
                                                                 <div className="flex flex-col">
@@ -8968,34 +9001,6 @@ function Home() {
                                             </span>
                                         </button>
 
-                                        {/* Direct Color Switcher */}
-                                        {theme === 'legacy' && (
-                                            <button
-                                                onClick={() => {
-                                                    toggleTheme();
-                                                }}
-                                                className="w-full bg-slate-50/50 hover:bg-slate-100/70 flex items-center justify-between transition-all group text-left mt-1.5"
-                                                style={{
-                                                    height: '46px',
-                                                    padding: '8px 14px',
-                                                    border: '1px solid #e2e8f0',
-                                                    borderRadius: '12px',
-                                                    cursor: 'pointer'
-                                                }}
-                                            >
-                                                <div className="flex items-center gap-2.5 font-bold text-[11px] text-slate-700 uppercase tracking-wider">
-                                                    <div className={`p-1.5 rounded-lg ${isGreen ? 'bg-sky-50 text-sky-500' : 'bg-emerald-50 text-emerald-500'} group-hover:scale-110 transition-transform flex items-center justify-center`}>
-                                                        <Palette size={14} />
-                                                    </div>
-                                                    Switch Color
-                                                </div>
-                                                <span className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-md shadow-sm border border-slate-200/40 ${isGreen ? 'bg-sky-50 text-sky-600' : 'bg-emerald-50 text-emerald-600'}`} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
-                                                    {isGreen ? 'BLUE' : 'GREEN'}
-                                                </span>
-                                            </button>
-                                        )}
-
-
                                         {/* Hidden Shortcuts Panel */}
                                         <div className="border-t border-slate-100 pt-3 mt-1 text-left">
                                             <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1 mb-2">
@@ -9538,39 +9543,39 @@ function Home() {
                                         <button
                                             onClick={() => { setShowSettingsMenu(false); if (billItems.length > 0) { completePayment('Cash'); } else { Swal.fire('Info', 'No items in bill', 'info'); } }}
                                             disabled={paymentLoading}
-                                            className="h-full bg-[#ecfdf5] hover:bg-[#d1fae5] disabled:opacity-50 text-[#064e3b] border-2 border-[#6ee7b7] rounded-xl p-2 flex flex-col items-center justify-between transition-all active:scale-95 shadow-sm text-center cursor-pointer"
+                                            className="h-full bg-[#ecfdf5] hover:bg-[#d1fae5] disabled:opacity-50 text-[#064e3b] border-2 border-[#6ee7b7] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-sm cursor-pointer"
                                         >
-                                            <div className="flex items-center justify-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#064e3b] w-full">
+                                            <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#064e3b]">
                                                 <Banknote size={15} />
                                                 <span>CASH</span>
                                             </div>
-                                            <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2.5 py-0.5 rounded bg-[#047857] text-white w-max mx-auto">Alt+1</span>
+                                            <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2.5 py-0.5 rounded bg-[#047857] text-white">Alt+1</span>
                                         </button>
 
                                         {/* BANK */}
                                         <button
                                             onClick={() => { setShowSettingsMenu(false); if (billItems.length > 0) { completePayment('Bank'); } else { Swal.fire('Info', 'No items in bill', 'info'); } }}
                                             disabled={paymentLoading}
-                                            className="h-full bg-[#f0f9ff] hover:bg-[#e0f2fe] disabled:opacity-50 text-[#0c4a6e] border-2 border-[#7dd3fc] rounded-xl p-2 flex flex-col items-center justify-between transition-all active:scale-95 shadow-sm text-center cursor-pointer"
+                                            className="h-full bg-[#f0f9ff] hover:bg-[#e0f2fe] disabled:opacity-50 text-[#0c4a6e] border-2 border-[#7dd3fc] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-sm cursor-pointer"
                                         >
-                                            <div className="flex items-center justify-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#0c4a6e] w-full">
+                                            <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#0c4a6e]">
                                                 <Building2 size={15} />
                                                 <span>BANK</span>
                                             </div>
-                                            <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2.5 py-0.5 rounded bg-[#0284c7] text-white w-max mx-auto">Ctrl+V</span>
+                                            <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2.5 py-0.5 rounded bg-[#0284c7] text-white">Ctrl+V</span>
                                         </button>
 
                                         {/* CARD */}
                                         <button
                                             onClick={() => { setShowSettingsMenu(false); if (billItems.length > 0) { setSelectedPaymentMode('Card'); setShowCardTerminalModal(true); } else { Swal.fire('Info', 'No items in bill', 'info'); } }}
                                             disabled={paymentLoading}
-                                            className="h-full bg-[#f5f3ff] hover:bg-[#ede9fe] disabled:opacity-50 text-[#4c1d95] border-2 border-[#c084fc] rounded-xl p-2 flex flex-col items-center justify-between transition-all active:scale-95 shadow-sm text-center cursor-pointer"
+                                            className="h-full bg-[#f5f3ff] hover:bg-[#ede9fe] disabled:opacity-50 text-[#4c1d95] border-2 border-[#c084fc] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-sm cursor-pointer"
                                         >
-                                            <div className="flex items-center justify-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#4c1d95] w-full">
+                                            <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#4c1d95]">
                                                 <CreditCard size={15} />
                                                 <span>CARD</span>
                                             </div>
-                                            <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2.5 py-0.5 rounded bg-[#7c3aed] text-white w-max mx-auto">Alt+2</span>
+                                            <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2.5 py-0.5 rounded bg-[#7c3aed] text-white">Alt+2</span>
                                         </button>
 
                                         {/* PRINT / LOADING CONTROL IN ROW 1 OR FULL SPAN */}
@@ -9588,26 +9593,26 @@ function Home() {
                                                 <button
                                                     onClick={() => { setShowSettingsMenu(false); handleCheckoutWithMode('print'); }}
                                                     disabled={paymentLoading}
-                                                    className="h-full bg-[#ecfdf5] hover:bg-[#d1fae5] disabled:opacity-50 text-[#064e3b] border-2 border-[#6ee7b7] rounded-xl p-2 flex flex-col items-center justify-between transition-all active:scale-95 shadow-sm text-center cursor-pointer"
+                                                    className="h-full bg-[#ecfdf5] hover:bg-[#d1fae5] disabled:opacity-50 text-[#064e3b] border-2 border-[#6ee7b7] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-sm cursor-pointer"
                                                 >
-                                                    <div className="flex items-center justify-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#064e3b] w-full">
+                                                    <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#064e3b]">
                                                         <Printer size={15} />
                                                         <span>PRINT</span>
                                                     </div>
-                                                    <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2.5 py-0.5 rounded bg-[#047857] text-white w-max mx-auto">Space</span>
+                                                    <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2.5 py-0.5 rounded bg-[#047857] text-white">Space</span>
                                                 </button>
 
                                                 {/* DIRECT */}
                                                 <button
                                                     onClick={() => { setShowSettingsMenu(false); handleCheckoutWithMode('no-print'); }}
                                                     disabled={paymentLoading}
-                                                    className="h-full bg-[#f0f9ff] hover:bg-[#e0f2fe] disabled:opacity-50 text-[#0c4a6e] border-2 border-[#7dd3fc] rounded-xl p-2 flex flex-col items-center justify-between transition-all active:scale-95 shadow-sm text-center cursor-pointer"
+                                                    className="h-full bg-[#f0f9ff] hover:bg-[#e0f2fe] disabled:opacity-50 text-[#0c4a6e] border-2 border-[#7dd3fc] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-sm cursor-pointer"
                                                 >
-                                                    <div className="flex items-center justify-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#0c4a6e] w-full">
+                                                    <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#0c4a6e]">
                                                         <Zap size={15} />
                                                         <span>DIRECT</span>
                                                     </div>
-                                                    <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2.5 py-0.5 rounded bg-[#0284c7] text-white w-max mx-auto">Alt+N</span>
+                                                    <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2.5 py-0.5 rounded bg-[#0284c7] text-white">Alt+N</span>
                                                 </button>
                                             </>
                                         )}
@@ -9616,62 +9621,62 @@ function Home() {
                                         {/* DISCOUNT */}
                                         <button
                                             onClick={() => { setShowSettingsMenu(false); setShowDiscountModal(true); }}
-                                            className="h-full bg-white hover:bg-slate-100 text-[#1e293b] border-2 border-slate-300 rounded-xl p-2 flex flex-col items-center justify-between transition-all active:scale-95 shadow-sm text-center cursor-pointer"
+                                            className="h-full bg-white hover:bg-slate-100 text-[#1e293b] border-2 border-slate-300 rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-sm cursor-pointer"
                                         >
-                                            <div className="flex items-center justify-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#1e293b] w-full">
+                                            <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#1e293b]">
                                                 <Percent size={15} className="text-slate-700" />
                                                 <span>DISCOUNT</span>
                                             </div>
-                                            <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2.5 py-0.5 rounded bg-[#475569] text-white w-max mx-auto">F1</span>
+                                            <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2.5 py-0.5 rounded bg-[#475569] text-white">F1</span>
                                         </button>
 
                                         {/* LOYALTY */}
                                         <button
                                             onClick={() => { setShowSettingsMenu(false); handleLoyaltyPointsClick(); }}
-                                            className="h-full bg-white hover:bg-slate-100 text-[#1e293b] border-2 border-slate-300 rounded-xl p-2 flex flex-col items-center justify-between transition-all active:scale-95 shadow-sm text-center cursor-pointer"
+                                            className="h-full bg-white hover:bg-slate-100 text-[#1e293b] border-2 border-slate-300 rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-sm cursor-pointer"
                                         >
-                                            <div className="flex items-center justify-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#1e293b] w-full">
+                                            <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#1e293b]">
                                                 <Award size={15} className="text-slate-700" />
                                                 <span>LOYALTY</span>
                                             </div>
-                                            <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2.5 py-0.5 rounded bg-[#475569] text-white w-max mx-auto">Alt+L</span>
+                                            <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2.5 py-0.5 rounded bg-[#475569] text-white">Alt+L</span>
                                         </button>
 
                                         {/* SAVE DRAFT */}
                                         <button
                                             onClick={() => { setShowSettingsMenu(false); handleSaveDraft(); }}
-                                            className="h-full bg-[#fffbeb] hover:bg-[#fef3c7] disabled:opacity-50 text-[#78350f] border-2 border-[#fcd34d] rounded-xl p-2 flex flex-col items-center justify-between transition-all active:scale-95 shadow-sm text-center cursor-pointer"
+                                            className="h-full bg-[#fffbeb] hover:bg-[#fef3c7] disabled:opacity-50 text-[#78350f] border-2 border-[#fcd34d] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-sm cursor-pointer"
                                         >
-                                            <div className="flex items-center justify-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#78350f] w-full">
+                                            <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#78350f]">
                                                 <Upload size={15} />
                                                 <span>SAVE DRAFT</span>
                                             </div>
-                                            <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2.5 py-0.5 rounded bg-[#d97706] text-white w-max mx-auto">Alt+S</span>
+                                            <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2.5 py-0.5 rounded bg-[#d97706] text-white">Alt+S</span>
                                         </button>
 
                                         {/* A4 */}
                                         <button
                                             onClick={() => { setShowSettingsMenu(false); handleCheckoutWithMode('print-a4'); }}
                                             disabled={paymentLoading}
-                                            className="h-full bg-[#f5f3ff] hover:bg-[#ede9fe] disabled:opacity-50 text-[#4c1d95] border-2 border-[#c084fc] rounded-xl p-2 flex flex-col items-center justify-between transition-all active:scale-95 shadow-sm text-center cursor-pointer"
+                                            className="h-full bg-[#f5f3ff] hover:bg-[#ede9fe] disabled:opacity-50 text-[#4c1d95] border-2 border-[#c084fc] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-sm cursor-pointer"
                                         >
-                                            <div className="flex items-center justify-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#4c1d95] w-full">
+                                            <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#4c1d95]">
                                                 <Printer size={15} />
                                                 <span>A4</span>
                                             </div>
-                                            <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2.5 py-0.5 rounded bg-[#7c3aed] text-white w-max mx-auto">Alt+A</span>
+                                            <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2.5 py-0.5 rounded bg-[#7c3aed] text-white">Alt+A</span>
                                         </button>
 
                                         {/* CLEAR BILL */}
                                         <button
                                             onClick={() => { setShowSettingsMenu(false); clearBillHandler(); }}
-                                            className="h-full bg-[#fff5f5] hover:bg-[#fed7d7] text-[#7f1d1d] border-2 border-[#fca5a5] rounded-xl p-2 flex flex-col items-center justify-between transition-all active:scale-95 shadow-sm text-center cursor-pointer"
+                                            className="h-full bg-[#fff5f5] hover:bg-[#fed7d7] text-[#7f1d1d] border-2 border-[#fca5a5] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-sm cursor-pointer"
                                         >
-                                            <div className="flex items-center justify-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#7f1d1d] w-full">
+                                            <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#7f1d1d]">
                                                 <Trash2 size={15} />
                                                 <span>CLEAR BILL</span>
                                             </div>
-                                            <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2.5 py-0.5 rounded bg-[#dc2626] text-white w-max mx-auto">Alt+C</span>
+                                            <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2.5 py-0.5 rounded bg-[#dc2626] text-white">Alt+C</span>
                                         </button>
                                     </div>
                                 </div>
@@ -9820,46 +9825,8 @@ function Home() {
                 <div className="home-layout">
                     <div className="home-main-section">
                         {theme !== 'legacy' && (
-                            <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
-                                <div className="flex flex-wrap gap-4 items-center">
-                                    <div className="flex items-center gap-2 px-3 py-1.5 bg-sky-50 rounded-xl border border-sky-100">
-                                        <kbd className="bg-white px-2 py-0.5 rounded shadow-sm text-[10px] font-black text-sky-600 border border-sky-200">F2</kbd>
-                                        <span className="text-[10px] font-black text-sky-900 uppercase tracking-tight">Customer</span>
-                                    </div>
-                                    <div className="flex items-center gap-2 px-3 py-1.5 bg-sky-50 rounded-xl border border-sky-100">
-                                        <kbd className="bg-white px-2 py-0.5 rounded shadow-sm text-[10px] font-black text-sky-600 border border-sky-200">F4</kbd>
-                                        <span className="text-[10px] font-black text-sky-900 uppercase tracking-tight">Search</span>
-                                    </div>
-                                    <div className="flex items-center gap-2 px-3 py-1.5 bg-sky-50 rounded-xl border border-sky-100">
-                                        <kbd className="bg-white px-2 py-0.5 rounded shadow-sm text-[10px] font-black text-sky-600 border border-sky-200">Space</kbd>
-                                        <span className="text-[10px] font-black text-sky-900 uppercase tracking-tight">Pay</span>
-                                    </div>
-                                    <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-50 rounded-xl border border-amber-100">
-                                        <kbd className="bg-white px-2 py-0.5 rounded shadow-sm text-[10px] font-black text-amber-600 border border-amber-200">Esc</kbd>
-                                        <span className="text-[10px] font-black text-amber-900 uppercase tracking-tight">Clear</span>
-                                    </div>
-                                    <button
-                                        onClick={() => dispatch(toggleTheme())}
-                                        className="flex items-center gap-2 px-3 py-1.5 bg-sky-500 rounded-xl border border-sky-400 hover:bg-sky-400 transition-all cursor-pointer shadow-lg active:scale-95"
-                                        title="Switch POS Theme"
-                                    >
-                                        <Palette size={14} className="text-white" />
-                                        <span className="text-[10px] font-black text-white uppercase tracking-tight">Theme</span>
-                                    </button>
-                                </div>
-
-                                <div className="flex items-center gap-4 bg-slate-50 px-4 py-2 rounded-xl border border-slate-100">
-                                    <div className="flex items-center gap-2">
-                                        <div className={`w-2 h-2 rounded-full ${isOffline ? 'bg-rose-500 animate-pulse' : 'bg-emerald-500'}`}></div>
-                                        <span className={`text-[10px] font-black uppercase tracking-widest ${isOffline ? 'text-rose-600' : 'text-emerald-600'}`}>
-                                            {isOffline ? 'OFFLINE' : 'ONLINE'}
-                                        </span>
-                                    </div>
-                                    <div className="h-4 w-[1px] bg-slate-200"></div>
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{branchPrefix || 'DXB'} Branch</span>
-                                    </div>
-                                </div>
+                            <div className="classic-shortcut-guide horizontal mb-3" style={{ borderRadius: '12px', border: '1px solid #e2e8f0', padding: '6px 12px', background: '#ffffff', display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center' }}>
+                                {renderClassicShortcutsList(false)}
                             </div>
                         )}
                         {/* Removed pending sync text from Home as per request */}

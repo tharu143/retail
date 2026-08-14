@@ -1370,6 +1370,60 @@
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+/* Global Classic Shortcut Badges Support (For Modern, Modern No Image, & Legacy POS) */
+.classic-shortcut-guide {
+  background: #ffffff !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+}
+
+.classic-shortcut-badge {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 0.375rem !important;
+  padding: 0.25rem 0.5rem !important;
+  background: #f8fafc !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 0.375rem !important;
+  cursor: pointer !important;
+  transition: all 0.15s ease !important;
+  box-shadow: none !important;
+}
+
+.classic-shortcut-badge:hover {
+  background: #f0f9ff !important;
+  border-color: #bae6fd !important;
+}
+
+.classic-shortcut-key {
+  font-size: 0.625rem !important;
+  font-weight: 700 !important;
+  font-family: 'JetBrains Mono', monospace, sans-serif !important;
+  color: #0f172a !important;
+  background: linear-gradient(180deg, #ffffff 0%, #e2e8f0 100%) !important;
+  border: 1px solid #cbd5e1 !important;
+  border-bottom: 2px solid #94a3b8 !important;
+  padding: 1px 5px !important;
+  border-radius: 3px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  line-height: 1 !important;
+  flex-shrink: 0 !important;
+}
+
+.classic-shortcut-label {
+  font-size: 0.68rem !important;
+  font-weight: 700 !important;
+  color: #334155 !important;
+  text-transform: none !important;
+  white-space: nowrap !important;
+}
+
+.classic-shortcut-icon {
+  display: inline-flex !important;
+  align-items: center !important;
+}
+
 /* Compact layout horizontal badges override to fit all items */
 .so-shortcuts-strip .so-shortcut-badge {
   padding: 0.2rem 0.5rem !important;
