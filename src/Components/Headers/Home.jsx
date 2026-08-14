@@ -9530,7 +9530,153 @@ function Home() {
                         <div className="p-3 bg-[#f8fafc] border-t border-slate-200">
                             <div className="grid grid-cols-1 xl:grid-cols-12 gap-3.5 items-stretch">
 
-                                {/* 1. TOTALS CARD (LEFT SIDE - ~45% width) */}
+                                {/* 2. ACTION BUTTON GRID (LEFT SIDE - ~55% width) */}
+                                <div className="xl:col-span-7 flex">
+                                    <div className="grid grid-cols-5 grid-rows-2 gap-2 w-full h-full">
+                                        {/* ROW 1: CASH, BANK, CARD, PRINT, DIRECT */}
+                                        {/* CASH */}
+                                        <button
+                                            onClick={() => { setShowSettingsMenu(false); if (billItems.length > 0) { completePayment('Cash'); } else { Swal.fire('Info', 'No items in bill', 'info'); } }}
+                                            disabled={paymentLoading}
+                                            className="h-full bg-[#ecfdf5] hover:bg-[#d1fae5] disabled:opacity-50 text-[#064e3b] border-2 border-[#6ee7b7] rounded-xl p-2 flex flex-col items-center justify-between transition-all active:scale-95 shadow-sm text-center cursor-pointer"
+                                        >
+                                            <div className="flex items-center justify-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#064e3b] w-full">
+                                                <Banknote size={15} />
+                                                <span>CASH</span>
+                                            </div>
+                                            <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2.5 py-0.5 rounded bg-[#047857] text-white w-max mx-auto">Alt+1</span>
+                                        </button>
+
+                                        {/* BANK */}
+                                        <button
+                                            onClick={() => { setShowSettingsMenu(false); if (billItems.length > 0) { completePayment('Bank'); } else { Swal.fire('Info', 'No items in bill', 'info'); } }}
+                                            disabled={paymentLoading}
+                                            className="h-full bg-[#f0f9ff] hover:bg-[#e0f2fe] disabled:opacity-50 text-[#0c4a6e] border-2 border-[#7dd3fc] rounded-xl p-2 flex flex-col items-center justify-between transition-all active:scale-95 shadow-sm text-center cursor-pointer"
+                                        >
+                                            <div className="flex items-center justify-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#0c4a6e] w-full">
+                                                <Building2 size={15} />
+                                                <span>BANK</span>
+                                            </div>
+                                            <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2.5 py-0.5 rounded bg-[#0284c7] text-white w-max mx-auto">Ctrl+V</span>
+                                        </button>
+
+                                        {/* CARD */}
+                                        <button
+                                            onClick={() => { setShowSettingsMenu(false); if (billItems.length > 0) { setSelectedPaymentMode('Card'); setShowCardTerminalModal(true); } else { Swal.fire('Info', 'No items in bill', 'info'); } }}
+                                            disabled={paymentLoading}
+                                            className="h-full bg-[#f5f3ff] hover:bg-[#ede9fe] disabled:opacity-50 text-[#4c1d95] border-2 border-[#c084fc] rounded-xl p-2 flex flex-col items-center justify-between transition-all active:scale-95 shadow-sm text-center cursor-pointer"
+                                        >
+                                            <div className="flex items-center justify-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#4c1d95] w-full">
+                                                <CreditCard size={15} />
+                                                <span>CARD</span>
+                                            </div>
+                                            <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2.5 py-0.5 rounded bg-[#7c3aed] text-white w-max mx-auto">Alt+2</span>
+                                        </button>
+
+                                        {/* PRINT / LOADING CONTROL IN ROW 1 OR FULL SPAN */}
+                                        {paymentLoading ? (
+                                            <button
+                                                className="col-span-2 h-full bg-slate-100 text-slate-500 border border-slate-200 rounded-lg p-2 flex items-center justify-center gap-2 opacity-80 cursor-not-allowed font-black text-[11px] uppercase"
+                                                disabled
+                                            >
+                                                <div className="w-4 h-4 border-2 border-slate-500 border-t-transparent rounded-full animate-spin"></div>
+                                                <span>Processing...</span>
+                                            </button>
+                                        ) : (
+                                            <>
+                                                {/* PRINT */}
+                                                <button
+                                                    onClick={() => { setShowSettingsMenu(false); handleCheckoutWithMode('print'); }}
+                                                    disabled={paymentLoading}
+                                                    className="h-full bg-[#ecfdf5] hover:bg-[#d1fae5] disabled:opacity-50 text-[#064e3b] border-2 border-[#6ee7b7] rounded-xl p-2 flex flex-col items-center justify-between transition-all active:scale-95 shadow-sm text-center cursor-pointer"
+                                                >
+                                                    <div className="flex items-center justify-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#064e3b] w-full">
+                                                        <Printer size={15} />
+                                                        <span>PRINT</span>
+                                                    </div>
+                                                    <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2.5 py-0.5 rounded bg-[#047857] text-white w-max mx-auto">Space</span>
+                                                </button>
+
+                                                {/* DIRECT */}
+                                                <button
+                                                    onClick={() => { setShowSettingsMenu(false); handleCheckoutWithMode('no-print'); }}
+                                                    disabled={paymentLoading}
+                                                    className="h-full bg-[#f0f9ff] hover:bg-[#e0f2fe] disabled:opacity-50 text-[#0c4a6e] border-2 border-[#7dd3fc] rounded-xl p-2 flex flex-col items-center justify-between transition-all active:scale-95 shadow-sm text-center cursor-pointer"
+                                                >
+                                                    <div className="flex items-center justify-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#0c4a6e] w-full">
+                                                        <Zap size={15} />
+                                                        <span>DIRECT</span>
+                                                    </div>
+                                                    <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2.5 py-0.5 rounded bg-[#0284c7] text-white w-max mx-auto">Alt+N</span>
+                                                </button>
+                                            </>
+                                        )}
+
+                                        {/* ROW 2: DISCOUNT, LOYALTY, SAVE DRAFT, A4, CLEAR BILL */}
+                                        {/* DISCOUNT */}
+                                        <button
+                                            onClick={() => { setShowSettingsMenu(false); setShowDiscountModal(true); }}
+                                            className="h-full bg-white hover:bg-slate-100 text-[#1e293b] border-2 border-slate-300 rounded-xl p-2 flex flex-col items-center justify-between transition-all active:scale-95 shadow-sm text-center cursor-pointer"
+                                        >
+                                            <div className="flex items-center justify-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#1e293b] w-full">
+                                                <Percent size={15} className="text-slate-700" />
+                                                <span>DISCOUNT</span>
+                                            </div>
+                                            <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2.5 py-0.5 rounded bg-[#475569] text-white w-max mx-auto">F1</span>
+                                        </button>
+
+                                        {/* LOYALTY */}
+                                        <button
+                                            onClick={() => { setShowSettingsMenu(false); handleLoyaltyPointsClick(); }}
+                                            className="h-full bg-white hover:bg-slate-100 text-[#1e293b] border-2 border-slate-300 rounded-xl p-2 flex flex-col items-center justify-between transition-all active:scale-95 shadow-sm text-center cursor-pointer"
+                                        >
+                                            <div className="flex items-center justify-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#1e293b] w-full">
+                                                <Award size={15} className="text-slate-700" />
+                                                <span>LOYALTY</span>
+                                            </div>
+                                            <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2.5 py-0.5 rounded bg-[#475569] text-white w-max mx-auto">Alt+L</span>
+                                        </button>
+
+                                        {/* SAVE DRAFT */}
+                                        <button
+                                            onClick={() => { setShowSettingsMenu(false); handleSaveDraft(); }}
+                                            className="h-full bg-[#fffbeb] hover:bg-[#fef3c7] disabled:opacity-50 text-[#78350f] border-2 border-[#fcd34d] rounded-xl p-2 flex flex-col items-center justify-between transition-all active:scale-95 shadow-sm text-center cursor-pointer"
+                                        >
+                                            <div className="flex items-center justify-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#78350f] w-full">
+                                                <Upload size={15} />
+                                                <span>SAVE DRAFT</span>
+                                            </div>
+                                            <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2.5 py-0.5 rounded bg-[#d97706] text-white w-max mx-auto">Alt+S</span>
+                                        </button>
+
+                                        {/* A4 */}
+                                        <button
+                                            onClick={() => { setShowSettingsMenu(false); handleCheckoutWithMode('print-a4'); }}
+                                            disabled={paymentLoading}
+                                            className="h-full bg-[#f5f3ff] hover:bg-[#ede9fe] disabled:opacity-50 text-[#4c1d95] border-2 border-[#c084fc] rounded-xl p-2 flex flex-col items-center justify-between transition-all active:scale-95 shadow-sm text-center cursor-pointer"
+                                        >
+                                            <div className="flex items-center justify-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#4c1d95] w-full">
+                                                <Printer size={15} />
+                                                <span>A4</span>
+                                            </div>
+                                            <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2.5 py-0.5 rounded bg-[#7c3aed] text-white w-max mx-auto">Alt+A</span>
+                                        </button>
+
+                                        {/* CLEAR BILL */}
+                                        <button
+                                            onClick={() => { setShowSettingsMenu(false); clearBillHandler(); }}
+                                            className="h-full bg-[#fff5f5] hover:bg-[#fed7d7] text-[#7f1d1d] border-2 border-[#fca5a5] rounded-xl p-2 flex flex-col items-center justify-between transition-all active:scale-95 shadow-sm text-center cursor-pointer"
+                                        >
+                                            <div className="flex items-center justify-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#7f1d1d] w-full">
+                                                <Trash2 size={15} />
+                                                <span>CLEAR BILL</span>
+                                            </div>
+                                            <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2.5 py-0.5 rounded bg-[#dc2626] text-white w-max mx-auto">Alt+C</span>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {/* 1. TOTALS CARD (RIGHT SIDE - ~45% width) */}
                                 <div className="xl:col-span-5 bg-white rounded-xl border border-slate-200 p-3 shadow-sm flex flex-col justify-between gap-3">
                                     {/* TOP ROW: 3 BUTTONS */}
                                     <div className="flex flex-wrap items-center gap-2">
@@ -9567,7 +9713,6 @@ function Home() {
                                             <span className="inline-flex items-center justify-center font-mono text-[8px] font-bold bg-sky-200 text-sky-800 px-1 py-0.5 rounded">⇧P</span>
                                         </button>
                                     </div>
-
 
                                     {/* TOTALS AREA INSIDE CARD */}
                                     <div className="flex flex-wrap items-end justify-between gap-3 pt-2 border-t border-slate-100">
@@ -9616,152 +9761,6 @@ function Home() {
                                                 </span>
                                             </div>
                                         </div>
-                                    </div>
-                                </div>
-
-                                {/* 2. ACTION BUTTON GRID (RIGHT SIDE - ~55% width) */}
-                                <div className="xl:col-span-7 flex">
-                                    <div className="grid grid-cols-5 grid-rows-2 gap-2 w-full h-full">
-                                        {/* ROW 1: CASH, BANK, CARD, PRINT, DIRECT */}
-                                        {/* CASH */}
-                                        <button
-                                            onClick={() => { setShowSettingsMenu(false); if (billItems.length > 0) { completePayment('Cash'); } else { Swal.fire('Info', 'No items in bill', 'info'); } }}
-                                            disabled={paymentLoading}
-                                            className="h-full bg-[#ecfdf5] hover:bg-[#d1fae5] disabled:opacity-50 text-[#047857] border border-[#a7f3d0] rounded-lg p-2 flex flex-col justify-between transition-all active:scale-95 shadow-sm text-left cursor-pointer"
-                                        >
-                                            <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#047857]">
-                                                <Banknote size={15} />
-                                                <span>CASH</span>
-                                            </div>
-                                            <span className="inline-flex items-center justify-center font-mono text-[9px] font-black px-1.5 py-0.5 rounded bg-[#a7f3d0] text-[#047857] w-max">Alt+1</span>
-                                        </button>
-
-                                        {/* BANK */}
-                                        <button
-                                            onClick={() => { setShowSettingsMenu(false); if (billItems.length > 0) { completePayment('Bank'); } else { Swal.fire('Info', 'No items in bill', 'info'); } }}
-                                            disabled={paymentLoading}
-                                            className="h-full bg-[#f0f9ff] hover:bg-[#e0f2fe] disabled:opacity-50 text-[#0369a1] border border-[#bae6fd] rounded-lg p-2 flex flex-col justify-between transition-all active:scale-95 shadow-sm text-left cursor-pointer"
-                                        >
-                                            <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#0369a1]">
-                                                <Building2 size={15} />
-                                                <span>BANK</span>
-                                            </div>
-                                            <span className="inline-flex items-center justify-center font-mono text-[9px] font-black px-1.5 py-0.5 rounded bg-[#bae6fd] text-[#0369a1] w-max">Ctrl+V</span>
-                                        </button>
-
-                                        {/* CARD */}
-                                        <button
-                                            onClick={() => { setShowSettingsMenu(false); if (billItems.length > 0) { setSelectedPaymentMode('Card'); setShowCardTerminalModal(true); } else { Swal.fire('Info', 'No items in bill', 'info'); } }}
-                                            disabled={paymentLoading}
-                                            className="h-full bg-[#f5f3ff] hover:bg-[#ede9fe] disabled:opacity-50 text-[#6d28d9] border border-[#ddd6fe] rounded-lg p-2 flex flex-col justify-between transition-all active:scale-95 shadow-sm text-left cursor-pointer"
-                                        >
-                                            <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#6d28d9]">
-                                                <CreditCard size={15} />
-                                                <span>CARD</span>
-                                            </div>
-                                            <span className="inline-flex items-center justify-center font-mono text-[9px] font-black px-1.5 py-0.5 rounded bg-[#ddd6fe] text-[#6d28d9] w-max">Alt+2</span>
-                                        </button>
-
-                                        {/* PRINT / LOADING CONTROL IN ROW 1 OR FULL SPAN */}
-                                        {paymentLoading ? (
-                                            <button
-                                                className="col-span-2 h-full bg-slate-100 text-slate-500 border border-slate-200 rounded-lg p-2 flex items-center justify-center gap-2 opacity-80 cursor-not-allowed font-black text-[11px] uppercase"
-                                                disabled
-                                            >
-                                                <div className="w-4 h-4 border-2 border-slate-500 border-t-transparent rounded-full animate-spin"></div>
-                                                <span>Processing...</span>
-                                            </button>
-                                        ) : (
-                                            <>
-                                                {/* PRINT */}
-                                                <button
-                                                    onClick={() => { setShowSettingsMenu(false); handleCheckoutWithMode('print'); }}
-                                                    disabled={paymentLoading}
-                                                    className="h-full bg-[#ecfdf5] hover:bg-[#d1fae5] disabled:opacity-50 text-[#047857] border border-[#a7f3d0] rounded-lg p-2 flex flex-col justify-between transition-all active:scale-95 shadow-sm text-left cursor-pointer"
-                                                >
-                                                    <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#047857]">
-                                                        <Printer size={15} />
-                                                        <span>PRINT</span>
-                                                    </div>
-                                                    <span className="inline-flex items-center justify-center font-mono text-[9px] font-black px-1.5 py-0.5 rounded bg-[#a7f3d0] text-[#047857] w-max">Space</span>
-                                                </button>
-
-                                                {/* DIRECT */}
-                                                <button
-                                                    onClick={() => { setShowSettingsMenu(false); handleCheckoutWithMode('no-print'); }}
-                                                    disabled={paymentLoading}
-                                                    className="h-full bg-[#f0f9ff] hover:bg-[#e0f2fe] disabled:opacity-50 text-[#0369a1] border border-[#bae6fd] rounded-lg p-2 flex flex-col justify-between transition-all active:scale-95 shadow-sm text-left cursor-pointer"
-                                                >
-                                                    <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#0369a1]">
-                                                        <Zap size={15} />
-                                                        <span>DIRECT</span>
-                                                    </div>
-                                                    <span className="inline-flex items-center justify-center font-mono text-[9px] font-black px-1.5 py-0.5 rounded bg-[#bae6fd] text-[#0369a1] w-max">Alt+N</span>
-                                                </button>
-                                            </>
-                                        )}
-
-                                        {/* ROW 2: DISCOUNT, LOYALTY, SAVE DRAFT, A4, CLEAR BILL */}
-                                        {/* DISCOUNT */}
-                                        <button
-                                            onClick={() => { setShowSettingsMenu(false); setShowDiscountModal(true); }}
-                                            className="h-full bg-white hover:bg-slate-100 text-slate-900 border border-slate-300 rounded-lg p-2 flex flex-col justify-between transition-all active:scale-95 shadow-sm text-left cursor-pointer"
-                                        >
-                                            <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-slate-900">
-                                                <Percent size={15} className="text-slate-700" />
-                                                <span>DISCOUNT</span>
-                                            </div>
-                                            <span className="inline-flex items-center justify-center font-mono text-[9px] font-black px-1.5 py-0.5 rounded bg-slate-200 text-slate-800 w-max border border-slate-300">F1</span>
-                                        </button>
-
-                                        {/* LOYALTY */}
-                                        <button
-                                            onClick={() => { setShowSettingsMenu(false); handleLoyaltyPointsClick(); }}
-                                            className="h-full bg-white hover:bg-slate-100 text-slate-900 border border-slate-300 rounded-lg p-2 flex flex-col justify-between transition-all active:scale-95 shadow-sm text-left cursor-pointer"
-                                        >
-                                            <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-slate-900">
-                                                <Award size={15} className="text-slate-700" />
-                                                <span>LOYALTY</span>
-                                            </div>
-                                            <span className="inline-flex items-center justify-center font-mono text-[9px] font-black px-1.5 py-0.5 rounded bg-slate-200 text-slate-800 w-max border border-slate-300">Alt+L</span>
-                                        </button>
-
-                                        {/* SAVE DRAFT */}
-                                        <button
-                                            onClick={() => { setShowSettingsMenu(false); handleSaveDraft(); }}
-                                            className="h-full bg-[#fffbeb] hover:bg-[#fef3c7] disabled:opacity-50 text-[#b45309] border border-[#fde68a] rounded-lg p-2 flex flex-col justify-between transition-all active:scale-95 shadow-sm text-left cursor-pointer"
-                                        >
-                                            <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#b45309]">
-                                                <Upload size={15} />
-                                                <span>SAVE DRAFT</span>
-                                            </div>
-                                            <span className="inline-flex items-center justify-center font-mono text-[9px] font-black px-1.5 py-0.5 rounded bg-[#fde68a] text-[#b45309] w-max">Alt+S</span>
-                                        </button>
-
-                                        {/* A4 */}
-                                        <button
-                                            onClick={() => { setShowSettingsMenu(false); handleCheckoutWithMode('print-a4'); }}
-                                            disabled={paymentLoading}
-                                            className="h-full bg-[#f5f3ff] hover:bg-[#ede9fe] disabled:opacity-50 text-[#6d28d9] border border-[#ddd6fe] rounded-lg p-2 flex flex-col justify-between transition-all active:scale-95 shadow-sm text-left cursor-pointer"
-                                        >
-                                            <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#6d28d9]">
-                                                <Printer size={15} />
-                                                <span>A4</span>
-                                            </div>
-                                            <span className="inline-flex items-center justify-center font-mono text-[9px] font-black px-1.5 py-0.5 rounded bg-[#ddd6fe] text-[#6d28d9] w-max">Alt+A</span>
-                                        </button>
-
-                                        {/* CLEAR BILL */}
-                                        <button
-                                            onClick={() => { setShowSettingsMenu(false); clearBillHandler(); }}
-                                            className="h-full bg-[#fff5f5] hover:bg-[#fed7d7] text-[#c53030] border border-[#feb2b2] rounded-lg p-2 flex flex-col justify-between transition-all active:scale-95 shadow-sm text-left cursor-pointer"
-                                        >
-                                            <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#c53030]">
-                                                <Trash2 size={15} />
-                                                <span>CLEAR BILL</span>
-                                            </div>
-                                            <span className="inline-flex items-center justify-center font-mono text-[9px] font-black px-1.5 py-0.5 rounded bg-[#feb2b2] text-[#c53030] w-max">Alt+C</span>
-                                        </button>
                                     </div>
                                 </div>
                             </div>
