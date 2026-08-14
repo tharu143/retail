@@ -7,7 +7,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
     RefreshCw, ExternalLink, LayoutDashboard, ChevronLeft, Settings, Power, Wifi, WifiOff, User as UserIcon,
-    Search, Layers, SearchSlash, ChevronRight, X, UserPlus, Loader2, CreditCard, Phone,
+    Search, Layers, SearchSlash, ChevronRight, X, UserPlus, Loader2, CreditCard, Phone, Mail, MapPin,
     DollarSign, Trash2, Info, Package, Palette, MonitorSmartphone, Camera, Video, Scan, Printer,
     ShoppingCart, Minus, Plus, Upload, Percent,
     User,
@@ -607,7 +607,7 @@ function Home() {
          justify-content: center !important;
        }
      `;
-     }, [legacySubTheme]);
+    }, [legacySubTheme]);
 
     // Connectivity monitoring
     useEffect(() => {
@@ -1982,9 +1982,25 @@ function Home() {
 
     const pickCustomer = async (cust) => {
         justSelectedCustomerRef.current = true;
-        setSelectedCustomer(cust);
-        setCustomerName(cust.customer_name);
-        setPhoneNumber(cust.mobile_no || '');
+
+        let finalCust = cust;
+        if (cust && cust.name && cust.name !== 'Cash' && (!cust.customer_name || cust.customer_name === cust.name)) {
+            try {
+                const fetched = await frappeCall({
+                    method: 'frappe.client.get',
+                    args: { doctype: 'Customer', name: cust.name }
+                });
+                if (fetched) {
+                    finalCust = fetched;
+                }
+            } catch (err) {
+                console.error("Failed to fetch customer document details", err);
+            }
+        }
+
+        setSelectedCustomer(finalCust);
+        setCustomerName(finalCust.customer_name || finalCust.name || 'Cash');
+        setPhoneNumber(finalCust.mobile_no || '');
         setCustomerMobile(''); // Clear mobile search
         setShowDropdown(false);
         setActiveCustomerIndex(-1);
@@ -2664,7 +2680,19 @@ function Home() {
                 };
                 handleAddToBill(printJobItem, 'Nos', jobResult.total_qty);
                 setBarcodeInput('');
-                barcodeInputRef.current?.focus();
+                if (theme === 'legacy') {
+                    setTimeout(() => {
+                        const itemIndex = billItems.findIndex(i => i.id === printJobItem.id && i.uom === 'Nos');
+                        const finalIndex = itemIndex !== -1 ? itemIndex : billItems.length;
+                        const targetInput = document.getElementById(`desc-input-${finalIndex}`) || document.getElementById(`qty-input-${finalIndex}`);
+                        if (targetInput) {
+                            targetInput.focus();
+                            targetInput.select();
+                        }
+                    }, 50);
+                } else {
+                    barcodeInputRef.current?.focus();
+                }
                 const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 2500 });
                 Toast.fire({ icon: 'success', title: `Loaded Print Job ${jobResult.job_name}: AED ${jobResult.total_amount}` });
                 setSearchLoading(false);
@@ -2721,7 +2749,19 @@ function Home() {
 
                 handleAddToBill(itemToBill, scannedUom);
                 setBarcodeInput('');
-                barcodeInputRef.current?.focus();
+                if (theme === 'legacy') {
+                    setTimeout(() => {
+                        const itemIndex = billItems.findIndex(i => i.id === itemToBill.id && i.uom === scannedUom);
+                        const finalIndex = itemIndex !== -1 ? itemIndex : billItems.length;
+                        const targetInput = document.getElementById(`desc-input-${finalIndex}`) || document.getElementById(`qty-input-${finalIndex}`);
+                        if (targetInput) {
+                            targetInput.focus();
+                            targetInput.select();
+                        }
+                    }, 50);
+                } else {
+                    barcodeInputRef.current?.focus();
+                }
 
                 // Green flash
                 if (barcodeInputRef.current) {
@@ -3010,15 +3050,22 @@ function Home() {
             }
         } else if (e.key === 'Enter') {
             if (activeItemIndex >= 0 && itemSearchResults[activeItemIndex]) {
-                handleAddToBill(itemSearchResults[activeItemIndex]);
+                const selectedItem = itemSearchResults[activeItemIndex];
+                handleAddToBill(selectedItem);
                 setBarcodeInput('');
                 setShowItemDropdown(false);
                 setActiveItemIndex(-1);
                 if (theme === 'legacy') {
                     setTimeout(() => {
-                        const targetId = searchContext === 'header' ? 'legacy-header-search' : 'legacy-inline-search';
-                        document.getElementById(targetId)?.focus();
-                    }, 10);
+                        const uom = selectedItem.uom_conversions?.Nos ? 'Nos' : (selectedItem.uom_conversions?.Piece ? 'Piece' : 'Nos');
+                        const itemIndex = billItems.findIndex(i => i.id === selectedItem.id && i.uom === uom);
+                        const finalIndex = itemIndex !== -1 ? itemIndex : billItems.length;
+                        const targetInput = document.getElementById(`desc-input-${finalIndex}`) || document.getElementById(`qty-input-${finalIndex}`);
+                        if (targetInput) {
+                            targetInput.focus();
+                            targetInput.select();
+                        }
+                    }, 50);
                 } else {
                     barcodeInputRef.current?.focus();
                 }
@@ -4828,8 +4875,8 @@ function Home() {
             style={{
                 position: 'fixed',
                 inset: 0,
-                backgroundColor: 'rgba(15, 23, 42, 0.75)',
-                backdropFilter: 'blur(8px)',
+                backgroundColor: 'rgba(15, 23, 42, 0.45)',
+                backdropFilter: 'blur(16px)',
                 display: 'flex',
                 justifyContent: 'center',
                 alignItems: 'center',
@@ -4841,38 +4888,39 @@ function Home() {
                 onClick={e => e.stopPropagation()}
                 style={{
                     width: '100%',
-                    maxWidth: '680px',
+                    maxWidth: '820px',
                     backgroundColor: '#ffffff',
-                    borderRadius: '24px',
+                    borderRadius: '28px',
                     overflow: 'hidden',
-                    boxShadow: '0 20px 40px -15px rgba(0,0,0,0.3)',
+                    boxShadow: '0 30px 60px -15px rgba(15, 23, 42, 0.15), 0 0 0 1px rgba(15, 23, 42, 0.05)',
                     display: 'flex',
                     flexDirection: 'column',
                     margin: '15px'
                 }}
             >
-                <div className="home-modal-header bg-slate-50 border-b border-slate-100 px-5 py-3.5 flex justify-between items-center">
-                    <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 bg-emerald-600 text-white rounded-lg flex items-center justify-center shadow-md shadow-emerald-100">
-                            <UserPlus size={16} />
-                        </div>
-                        <div>
-                            <h3 className="text-base font-black text-slate-800 uppercase tracking-tight m-0">Create New Customer</h3>
-                        </div>
+                <div className="home-modal-header bg-white border-b border-slate-100 px-8 py-5 flex justify-between items-start" style={{ padding: '22px 32px' }}>
+                    <div>
+                        <span className="text-[10px] font-extrabold uppercase tracking-widest text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-md mb-1.5 inline-block">Customer Directory</span>
+                        <h3 className="text-xl font-black text-slate-800 tracking-tight m-0">Register New Customer</h3>
                     </div>
                     <button
-                        className="w-8 h-8 flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-600 rounded-full transition-all"
+                        className="w-9 h-9 flex items-center justify-center text-slate-400 hover:bg-slate-50 hover:text-slate-700 rounded-xl border border-slate-100 transition-all shadow-sm"
                         onClick={() => setShowCreateModal(false)}
                     >
-                        <X size={16} />
+                        <X size={18} />
                     </button>
                 </div>
 
-                <div className="home-modal-body px-5 py-4 flex flex-col gap-3">
-                    {/* Row 1: Name and Phone */}
-                    <div style={{ display: 'flex', gap: '12px' }}>
-                        <div style={{ flex: 1 }}>
-                            <label className="text-[9px] font-black uppercase tracking-[0.15em] text-slate-400 ml-0.5 block mb-1">Customer Name *</label>
+                <div className="home-modal-body px-8 py-6 flex flex-col md:flex-row gap-8" style={{ padding: '24px 32px' }}>
+                    {/* Left Column: Primary Details */}
+                    <div className="flex-1 flex flex-col gap-4">
+                        <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
+                            <User size={16} className="text-slate-400" />
+                            <span className="text-xs font-black uppercase tracking-wider text-slate-700">Primary Details</span>
+                        </div>
+
+                        <div>
+                            <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1.5 ml-0.5">Customer Name *</label>
                             <input
                                 type="text"
                                 placeholder="Customer Name"
@@ -4881,12 +4929,13 @@ function Home() {
                                     const val = e.target.value.replace(/[^a-zA-Z0-9\s.\-_/&()#]/g, '');
                                     setCreateForm({ ...createForm, name: val });
                                 }}
-                                className="w-full px-3 py-2 bg-slate-50/60 border-2 border-slate-100 rounded-xl text-sm font-bold text-slate-800 outline-none focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-50/50 transition-all placeholder:text-slate-400"
+                                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-500/10 rounded-xl text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 shadow-sm"
                             />
                         </div>
-                        <div style={{ flex: 1 }}>
-                            <label className="text-[9px] font-black uppercase tracking-[0.15em] text-slate-400 ml-0.5 block mb-1">Phone Number *</label>
-                            <div style={{ display: 'flex', gap: '6px' }}>
+
+                        <div>
+                            <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1.5 ml-0.5">Phone Number *</label>
+                            <div className="flex gap-2">
                                 <select
                                     value={countryCodePrefix}
                                     onChange={e => {
@@ -4898,8 +4947,8 @@ function Home() {
                                             setCreateForm(prev => ({ ...prev, phone: prev.phone.slice(0, limit) }));
                                         }
                                     }}
-                                    className="px-2 py-2 bg-slate-50/60 border-2 border-slate-100 rounded-xl text-sm font-bold text-slate-800 outline-none cursor-pointer focus:bg-white focus:border-emerald-500 transition-all shrink-0"
-                                    style={{ width: '85px' }}
+                                    className="pl-3 pr-6 py-2.5 bg-slate-50 border border-slate-200 focus:border-emerald-500 focus:bg-white rounded-xl text-sm font-bold text-slate-800 outline-none cursor-pointer transition-all shrink-0 shadow-sm"
+                                    style={{ width: '105px' }}
                                 >
                                     <option value="+971">🇦🇪 +971</option>
                                     <option value="+91">🇮🇳 +91</option>
@@ -4915,16 +4964,24 @@ function Home() {
                                             setCreateForm({ ...createForm, phone: val });
                                         }
                                     }}
-                                    className="flex-1 min-w-0 px-3 py-2 bg-slate-50/60 border-2 border-slate-100 rounded-xl text-sm font-bold text-slate-800 outline-none focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-50/50 transition-all placeholder:text-slate-400"
+                                    className="flex-1 min-w-0 px-4 py-2.5 bg-slate-50 border border-slate-200 focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-500/10 rounded-xl text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 shadow-sm"
                                 />
                             </div>
                         </div>
-                    </div>
 
-                    {/* Row 2: TRN and Email */}
-                    <div style={{ display: 'flex', gap: '12px' }}>
-                        <div style={{ flex: 1 }}>
-                            <label className="text-[9px] font-black uppercase tracking-[0.15em] text-slate-400 ml-0.5 block mb-1">TRN (optional)</label>
+                        <div>
+                            <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1.5 ml-0.5">Email Address</label>
+                            <input
+                                type="email"
+                                placeholder="customer@example.com"
+                                value={createForm.email}
+                                onChange={e => setCreateForm({ ...createForm, email: e.target.value })}
+                                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-500/10 rounded-xl text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 shadow-sm"
+                            />
+                        </div>
+
+                        <div>
+                            <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1.5 ml-0.5">TRN (Tax ID)</label>
                             <input
                                 type="text"
                                 placeholder="15-digit Tax ID"
@@ -4933,86 +4990,82 @@ function Home() {
                                     const val = e.target.value.replace(/\D/g, '').slice(0, 15);
                                     setCreateForm({ ...createForm, custom_trn: val });
                                 }}
-                                className="w-full px-3 py-2 bg-slate-50/60 border-2 border-slate-100 rounded-xl text-sm font-bold text-slate-800 outline-none focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-50/50 transition-all placeholder:text-slate-400"
-                            />
-                        </div>
-                        <div style={{ flex: 1 }}>
-                            <label className="text-[9px] font-black uppercase tracking-[0.15em] text-slate-400 ml-0.5 block mb-1">Email (optional)</label>
-                            <input
-                                type="email"
-                                placeholder="customer@example.com"
-                                value={createForm.email}
-                                onChange={e => setCreateForm({ ...createForm, email: e.target.value })}
-                                className="w-full px-3 py-2 bg-slate-50/60 border-2 border-slate-100 rounded-xl text-sm font-bold text-slate-800 outline-none focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-50/50 transition-all placeholder:text-slate-400"
+                                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-500/10 rounded-xl text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 shadow-sm"
                             />
                         </div>
                     </div>
 
-                    {/* Row 3: Address Line 1 and Address Line 2 */}
-                    <div style={{ display: 'flex', gap: '12px' }}>
-                        <div style={{ flex: 1 }}>
-                            <label className="text-[9px] font-black uppercase tracking-[0.15em] text-slate-400 ml-0.5 block mb-1">Address Line 1 (optional)</label>
+                    {/* Right Column: Address & Location */}
+                    <div className="flex-1 flex flex-col gap-4">
+                        <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
+                            <MapPin size={16} className="text-slate-400" />
+                            <span className="text-xs font-black uppercase tracking-wider text-slate-700">Address & Location</span>
+                        </div>
+
+                        <div>
+                            <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1.5 ml-0.5">Address Line 1</label>
                             <input
                                 type="text"
-                                placeholder="Street, Building, Flat"
+                                placeholder="Street, Building, Apartment"
                                 value={createForm.address_line1}
                                 onChange={e => setCreateForm({ ...createForm, address_line1: e.target.value })}
-                                className="w-full px-3 py-2 bg-slate-50/60 border-2 border-slate-100 rounded-xl text-sm font-bold text-slate-800 outline-none focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-50/50 transition-all placeholder:text-slate-400"
+                                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-500/10 rounded-xl text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 shadow-sm"
                             />
                         </div>
-                        <div style={{ flex: 1 }}>
-                            <label className="text-[9px] font-black uppercase tracking-[0.15em] text-slate-400 ml-0.5 block mb-1">Address Line 2 (optional)</label>
+
+                        <div>
+                            <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1.5 ml-0.5">Address Line 2</label>
                             <input
                                 type="text"
                                 placeholder="Area, Landmark"
                                 value={createForm.address_line2}
                                 onChange={e => setCreateForm({ ...createForm, address_line2: e.target.value })}
-                                className="w-full px-3 py-2 bg-slate-50/60 border-2 border-slate-100 rounded-xl text-sm font-bold text-slate-800 outline-none focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-50/50 transition-all placeholder:text-slate-400"
+                                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-500/10 rounded-xl text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 shadow-sm"
                             />
                         </div>
-                    </div>
 
-                    {/* Row 4: City, Emirate, Country */}
-                    <div style={{ display: 'flex', gap: '12px' }}>
-                        <div style={{ flex: 1 }}>
-                            <label className="text-[9px] font-black uppercase tracking-[0.15em] text-slate-400 ml-0.5 block mb-1">City (optional)</label>
+                        <div>
+                            <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1.5 ml-0.5">City</label>
                             <input
                                 type="text"
                                 placeholder="e.g. Dubai"
                                 value={createForm.city}
                                 onChange={e => setCreateForm({ ...createForm, city: e.target.value })}
-                                className="w-full px-3 py-2 bg-slate-50/60 border-2 border-slate-100 rounded-xl text-sm font-bold text-slate-800 outline-none focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-50/50 transition-all placeholder:text-slate-400"
+                                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-500/10 rounded-xl text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 shadow-sm"
                             />
                         </div>
-                        <div style={{ flex: 1 }}>
-                            <label className="text-[9px] font-black uppercase tracking-[0.15em] text-slate-400 ml-0.5 block mb-1">Emirate (optional)</label>
-                            <select
-                                value={createForm.emirate}
-                                onChange={e => setCreateForm({ ...createForm, emirate: e.target.value })}
-                                className="w-full px-3 py-2 bg-slate-50/60 border-2 border-slate-100 rounded-xl text-sm font-bold text-slate-800 outline-none cursor-pointer focus:bg-white focus:border-emerald-500 transition-all"
-                            >
-                                <option value="">Select Emirate</option>
-                                {["Abu Dhabi", "Ajman", "Dubai", "Fujairah", "Ras Al Khaimah", "Sharjah", "Umm Al Quwain"].map(opt => (
-                                    <option key={opt} value={opt}>{opt}</option>
-                                ))}
-                            </select>
-                        </div>
-                        <div style={{ flex: 1 }}>
-                            <label className="text-[9px] font-black uppercase tracking-[0.15em] text-slate-400 ml-0.5 block mb-1">Country</label>
-                            <input
-                                type="text"
-                                placeholder="Country"
-                                value={createForm.country}
-                                onChange={e => setCreateForm({ ...createForm, country: e.target.value })}
-                                className="w-full px-3 py-2 bg-slate-50/60 border-2 border-slate-100 rounded-xl text-sm font-bold text-slate-800 outline-none focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-50/50 transition-all placeholder:text-slate-400"
-                            />
+
+                        <div className="flex gap-4">
+                            <div style={{ flex: 1.2 }}>
+                                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1.5 ml-0.5">Emirate</label>
+                                <select
+                                    value={createForm.emirate}
+                                    onChange={e => setCreateForm({ ...createForm, emirate: e.target.value })}
+                                    className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 focus:border-emerald-500 focus:bg-white rounded-xl text-sm font-bold text-slate-800 outline-none cursor-pointer transition-all shadow-sm"
+                                >
+                                    <option value="">Select Emirate</option>
+                                    {["Abu Dhabi", "Ajman", "Dubai", "Fujairah", "Ras Al Khaimah", "Sharjah", "Umm Al Quwain"].map(opt => (
+                                        <option key={opt} value={opt}>{opt}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div style={{ flex: 1 }}>
+                                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1.5 ml-0.5">Country</label>
+                                <input
+                                    type="text"
+                                    placeholder="Country"
+                                    value={createForm.country}
+                                    onChange={e => setCreateForm({ ...createForm, country: e.target.value })}
+                                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-500/10 rounded-xl text-sm font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 shadow-sm"
+                                />
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                <div className="px-5 py-4 bg-slate-50 flex gap-3 items-center border-t border-slate-100">
+                <div className="px-8 py-5 bg-slate-50 flex gap-4 items-center border-t border-slate-100" style={{ padding: '20px 32px' }}>
                     <button
-                        className="flex-1 py-3 text-slate-500 bg-white border border-slate-200 rounded-xl font-bold uppercase tracking-wider hover:bg-slate-100 hover:text-slate-700 transition-all text-xs"
+                        className="flex-1 py-3 text-slate-600 bg-white border border-slate-200 hover:border-slate-300 rounded-xl font-bold uppercase tracking-wider hover:bg-slate-50 active:scale-[0.98] transition-all text-xs shadow-sm"
                         onClick={() => setShowCreateModal(false)}
                     >
                         Cancel
@@ -5020,7 +5073,7 @@ function Home() {
                     <button
                         onClick={createCustomer}
                         disabled={creatingCustomer}
-                        className="flex-[1.5] py-3 bg-emerald-600 text-white rounded-xl font-bold uppercase tracking-wider shadow-md shadow-emerald-100 hover:bg-emerald-700 active:scale-95 transition-all text-xs flex items-center justify-center gap-1.5"
+                        className="flex-[1.5] py-3 bg-emerald-600 text-white rounded-xl font-bold uppercase tracking-wider shadow-lg shadow-emerald-600/15 hover:bg-emerald-700 active:scale-[0.98] transition-all text-xs flex items-center justify-center gap-1.5"
                     >
                         {creatingCustomer ? (
                             <>
@@ -7683,7 +7736,7 @@ function Home() {
                 onClick={s.action}
                 style={{
                     flexShrink: 0,
-                    width: isVertical ? '100%' : 'auto',
+                    width: isVertical ? '100%' : '160px',
                     display: 'flex',
                     justifyContent: isVertical ? 'space-between' : 'flex-start',
                     alignItems: 'center',
@@ -9015,11 +9068,17 @@ function Home() {
                         <label className="uppercase font-black text-[11px] text-slate-500 tracking-tight whitespace-nowrap">CUSTOMER</label>
                         <div className="relative group flex-1" ref={dropdownRef}>
                             {/* Country code + mobile input wrapper */}
-                            <div className="flex items-center h-11 border-2 border-slate-200 rounded-xl overflow-hidden bg-slate-50/50 focus-within:border-sky-500 transition-all w-full">
+                            <div className={`flex items-center h-11 border-2 rounded-xl overflow-hidden transition-all w-full ${selectedCustomer && selectedCustomer.name !== 'Cash'
+                                    ? 'border-emerald-200 focus-within:border-emerald-500 bg-emerald-50/10'
+                                    : 'border-slate-200 focus-within:border-sky-500 bg-slate-50/50'
+                                }`}>
                                 <select
                                     value={countryCodePrefix}
                                     onChange={e => { setCountryCodePrefix(e.target.value); localStorage.setItem('pos_country_code', e.target.value); }}
-                                    className="h-full px-2.5 bg-slate-100 border-r-2 border-slate-200 text-xs font-black text-slate-700 outline-none cursor-pointer"
+                                    className={`h-full px-2.5 border-r-2 text-xs font-black outline-none cursor-pointer transition-all ${selectedCustomer && selectedCustomer.name !== 'Cash'
+                                            ? 'bg-emerald-50 border-emerald-100 text-emerald-800'
+                                            : 'bg-slate-100 border-slate-200 text-slate-700'
+                                        }`}
                                     style={{ minWidth: '65px' }}
                                     title="Country Code (Press F4 to toggle)"
                                 >
@@ -9028,7 +9087,7 @@ function Home() {
                                 </select>
                                 <input
                                     ref={mobileInputRef}
-                                    value={customerMobile || customerName}
+                                    value={customerMobile || (selectedCustomer && selectedCustomer.name !== 'Cash' ? (selectedCustomer.mobile_no || selectedCustomer.name) : customerName)}
                                     onChange={e => {
                                         justSelectedCustomerRef.current = false;
                                         setActiveCustomerIndex(-1);
@@ -9049,10 +9108,14 @@ function Home() {
                                     onClick={() => { setSearchContext('customer'); if (!selectedCustomer && !justSelectedCustomerRef.current && (customerMobile || customerName).trim().length >= 1) setShowDropdown(true); setShowSettingsMenu(false); }}
                                     onBlur={() => setTimeout(() => setShowDropdown(false), 300)}
                                     onKeyDown={handleMobileEnter}
-                                    className="flex-1 h-full px-3 text-base font-black text-slate-900 outline-none bg-transparent"
+                                    className={`flex-1 h-full px-3 text-base font-black outline-none bg-transparent ${selectedCustomer && selectedCustomer.name !== 'Cash'
+                                            ? 'text-emerald-950 font-black'
+                                            : 'text-slate-900'
+                                        }`}
                                     placeholder="Mobile or Name..."
                                     style={{ minWidth: '110px' }}
                                 />
+
                                 {customerLoading && (
                                     <div className="pr-2 flex items-center">
                                         <div className="w-3 h-3 border-2 border-sky-500 border-t-transparent rounded-full animate-spin" />
@@ -9096,8 +9159,19 @@ function Home() {
                                 </div>
                             )}
                         </div>
-                        <div className="h-11 px-3 flex items-center bg-slate-100 border-2 border-slate-200 text-slate-700 rounded-xl text-xs font-black uppercase tracking-wider shadow-sm shrink-0">
-                            {selectedCustomer ? (selectedCustomer.customer_group || 'Retail Customer') : 'Retail Customer'}
+                        {selectedCustomer && selectedCustomer.name !== 'Cash' && selectedCustomer.customer_name && (
+                            <div className="h-11 px-3 flex items-center gap-1.5 bg-emerald-50 border-2 border-emerald-200 text-emerald-700 rounded-xl text-xs font-black uppercase tracking-wider shadow-sm shrink-0 animate-in slide-in-from-left-2 duration-200">
+                                <User size={13} className="text-emerald-600" />
+                                <span>{selectedCustomer.customer_name}</span>
+                            </div>
+                        )}
+
+                        <div className={`h-11 px-3 flex items-center border-2 rounded-xl text-xs font-black uppercase tracking-wider shadow-sm shrink-0 gap-1.5 transition-all ${selectedCustomer && selectedCustomer.name !== 'Cash'
+                                ? 'bg-sky-50 border-sky-200 text-sky-700'
+                                : 'bg-slate-100 border-slate-200 text-slate-700'
+                            }`}>
+                            <Layers size={13} className={selectedCustomer && selectedCustomer.name !== 'Cash' ? 'text-sky-500' : 'text-slate-500'} />
+                            <span>{selectedCustomer ? (selectedCustomer.customer_group || 'Retail Customer') : 'Retail Customer'}</span>
                         </div>
                     </div>
 
@@ -9181,6 +9255,7 @@ function Home() {
                                                             <div className="relative flex items-center">
                                                                 <input
                                                                     type="text"
+                                                                    id={`desc-input-${idx}`}
                                                                     value={item.item_name || item.name}
                                                                     onChange={e => {
                                                                         const newBill = [...billItems];
@@ -9190,11 +9265,18 @@ function Home() {
                                                                     }}
                                                                     className="w-full px-1 pr-6 font-black text-slate-700 uppercase bg-transparent border-none outline-none focus:bg-amber-100 placeholder:text-slate-300 text-[11px]"
                                                                     placeholder="Description"
+                                                                    onKeyDown={e => {
+                                                                        if (e.key === 'Enter') {
+                                                                            e.preventDefault();
+                                                                            document.getElementById(`qty-input-${idx}`)?.focus();
+                                                                        }
+                                                                    }}
                                                                 />
                                                                 <button
                                                                     onClick={(e) => { e.stopPropagation(); showStockBreakdown(item); }}
                                                                     className="absolute right-0 text-slate-400 hover:text-sky-500 transition-colors cursor-pointer"
                                                                     title="Item Info & Stock"
+                                                                    tabIndex={-1}
                                                                 >
                                                                     <Info size={13} />
                                                                 </button>
@@ -9248,12 +9330,7 @@ function Home() {
                                                             onKeyDown={e => {
                                                                 if (e.key === 'Enter') {
                                                                     e.preventDefault();
-                                                                    if (theme === 'legacy') {
-                                                                        const targetId = searchContext === 'header' ? 'legacy-header-search' : 'legacy-inline-search';
-                                                                        document.getElementById(targetId)?.focus();
-                                                                    } else {
-                                                                        barcodeInputRef.current?.focus();
-                                                                    }
+                                                                    document.getElementById(`price-input-${idx}`)?.focus();
                                                                 } else if (e.key === '+' || e.key === '=') {
                                                                     e.preventDefault();
                                                                     updateQuantity(item.id, 1);
@@ -9275,6 +9352,7 @@ function Home() {
                                                     <td className="p-0">
                                                         <div className="flex items-center gap-1 px-1 h-full w-full">
                                                             <input
+                                                                id={`price-input-${idx}`}
                                                                 type="number"
                                                                 step="0.01"
                                                                 value={item._price_input_val !== undefined ? item._price_input_val : (parseFloat(effectivePrice) || 0).toFixed(2)}
@@ -9282,6 +9360,20 @@ function Home() {
                                                                 className="w-0 flex-1 text-right font-black text-slate-800 focus:bg-amber-100 outline-none border-none bg-transparent h-full text-[11px]"
                                                                 onFocus={e => e.target.select()}
                                                                 onClick={e => e.target.select()}
+                                                                onKeyDown={e => {
+                                                                    if (e.key === 'Enter' || (e.key === 'Tab' && !e.shiftKey)) {
+                                                                        e.preventDefault();
+                                                                        if (idx === billItems.length - 1) {
+                                                                            const el = document.getElementById('legacy-inline-search');
+                                                                            el?.focus();
+                                                                            el?.select();
+                                                                        } else {
+                                                                            const el = document.getElementById(`desc-input-${idx + 1}`);
+                                                                            el?.focus();
+                                                                            el?.select();
+                                                                        }
+                                                                    }
+                                                                }}
                                                             />
                                                             <button
                                                                 onClick={(e) => {
@@ -9295,6 +9387,7 @@ function Home() {
                                                                     : 'bg-amber-100 text-amber-600 hover:bg-amber-200'
                                                                     }`}
                                                                 style={{ fontSize: '8px', lineHeight: '1' }}
+                                                                tabIndex={-1}
                                                             >
                                                                 {item.is_tax_inclusive !== false ? 'INC' : 'EXC'}
                                                             </button>
@@ -9316,7 +9409,7 @@ function Home() {
                                                     </td>
                                                 )}
                                                 <td className="text-center">
-                                                    <button onClick={() => removeFromBill(item.id)} className="text-rose-400 hover:text-rose-600 font-bold">×</button>
+                                                    <button onClick={() => removeFromBill(item.id)} className="text-rose-400 hover:text-rose-600 font-bold" tabIndex={-1}>×</button>
                                                 </td>
                                             </tr>
                                         );
@@ -9375,7 +9468,22 @@ function Home() {
                                                                     background: activeItemIndex === i ? (isGreen ? '#fef3c7' : '#e0f2fe') : (i === 0 ? (isGreen ? '#f0fdf4' : '#f0f9ff') : '#fff')
                                                                 }}
                                                                 className={activeItemIndex === i ? 'active-dropdown-item' : ''}
-                                                                onMouseDown={(e) => { e.preventDefault(); handleAddToBill(it); setBarcodeInput(''); setShowItemDropdown(false); const el2 = document.getElementById('legacy-inline-search'); if (el2) el2.focus(); }}
+                                                                onMouseDown={(e) => {
+                                                                    e.preventDefault();
+                                                                    handleAddToBill(it);
+                                                                    setBarcodeInput('');
+                                                                    setShowItemDropdown(false);
+                                                                    setTimeout(() => {
+                                                                        const uom = it.uom_conversions?.Nos ? 'Nos' : (it.uom_conversions?.Piece ? 'Piece' : 'Nos');
+                                                                        const itemIndex = billItems.findIndex(bi => bi.id === it.id && bi.uom === uom);
+                                                                        const finalIndex = itemIndex !== -1 ? itemIndex : billItems.length;
+                                                                        const targetInput = document.getElementById(`desc-input-${finalIndex}`) || document.getElementById(`qty-input-${finalIndex}`);
+                                                                        if (targetInput) {
+                                                                            targetInput.focus();
+                                                                            targetInput.select();
+                                                                        }
+                                                                    }, 50);
+                                                                }}
                                                                 onMouseEnter={() => setActiveItemIndex(i)}
                                                             >
                                                                 <div>
@@ -9421,7 +9529,7 @@ function Home() {
                         {/* BOTTOM SECTION — REDESIGNED TO MATCH IMAGE 2 EXACTLY */}
                         <div className="p-3 bg-[#f8fafc] border-t border-slate-200">
                             <div className="grid grid-cols-1 xl:grid-cols-12 gap-3.5 items-stretch">
-                                
+
                                 {/* 1. TOTALS CARD (LEFT SIDE - ~45% width) */}
                                 <div className="xl:col-span-5 bg-white rounded-xl border border-slate-200 p-3 shadow-sm flex flex-col justify-between gap-3">
                                     {/* TOP ROW: 3 BUTTONS */}
@@ -9512,14 +9620,14 @@ function Home() {
                                 </div>
 
                                 {/* 2. ACTION BUTTON GRID (RIGHT SIDE - ~55% width) */}
-                                <div className="xl:col-span-7">
-                                    <div className="grid grid-cols-5 gap-2">
+                                <div className="xl:col-span-7 flex">
+                                    <div className="grid grid-cols-5 grid-rows-2 gap-2 w-full h-full">
                                         {/* ROW 1: CASH, BANK, CARD, PRINT, DIRECT */}
                                         {/* CASH */}
                                         <button
-                                            onClick={() => { setShowSettingsMenu(false); if (billItems.length > 0) completePayment('Cash'); }}
-                                            disabled={grandTotal <= 0 || paymentLoading}
-                                            className="h-[54px] bg-[#ecfdf5] hover:bg-[#d1fae5] disabled:opacity-50 text-[#047857] border border-[#a7f3d0] rounded-lg p-2 flex flex-col justify-between transition-all active:scale-95 shadow-sm text-left cursor-pointer"
+                                            onClick={() => { setShowSettingsMenu(false); if (billItems.length > 0) { completePayment('Cash'); } else { Swal.fire('Info', 'No items in bill', 'info'); } }}
+                                            disabled={paymentLoading}
+                                            className="h-full bg-[#ecfdf5] hover:bg-[#d1fae5] disabled:opacity-50 text-[#047857] border border-[#a7f3d0] rounded-lg p-2 flex flex-col justify-between transition-all active:scale-95 shadow-sm text-left cursor-pointer"
                                         >
                                             <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#047857]">
                                                 <Banknote size={15} />
@@ -9530,9 +9638,9 @@ function Home() {
 
                                         {/* BANK */}
                                         <button
-                                            onClick={() => { setShowSettingsMenu(false); if (billItems.length > 0) completePayment('Bank'); }}
-                                            disabled={grandTotal <= 0 || paymentLoading}
-                                            className="h-[54px] bg-[#f0f9ff] hover:bg-[#e0f2fe] disabled:opacity-50 text-[#0369a1] border border-[#bae6fd] rounded-lg p-2 flex flex-col justify-between transition-all active:scale-95 shadow-sm text-left cursor-pointer"
+                                            onClick={() => { setShowSettingsMenu(false); if (billItems.length > 0) { completePayment('Bank'); } else { Swal.fire('Info', 'No items in bill', 'info'); } }}
+                                            disabled={paymentLoading}
+                                            className="h-full bg-[#f0f9ff] hover:bg-[#e0f2fe] disabled:opacity-50 text-[#0369a1] border border-[#bae6fd] rounded-lg p-2 flex flex-col justify-between transition-all active:scale-95 shadow-sm text-left cursor-pointer"
                                         >
                                             <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#0369a1]">
                                                 <Building2 size={15} />
@@ -9543,9 +9651,9 @@ function Home() {
 
                                         {/* CARD */}
                                         <button
-                                            onClick={() => { setShowSettingsMenu(false); if (billItems.length > 0) { setSelectedPaymentMode('Card'); setShowCardTerminalModal(true); } }}
-                                            disabled={grandTotal <= 0 || paymentLoading}
-                                            className="h-[54px] bg-[#f5f3ff] hover:bg-[#ede9fe] disabled:opacity-50 text-[#6d28d9] border border-[#ddd6fe] rounded-lg p-2 flex flex-col justify-between transition-all active:scale-95 shadow-sm text-left cursor-pointer"
+                                            onClick={() => { setShowSettingsMenu(false); if (billItems.length > 0) { setSelectedPaymentMode('Card'); setShowCardTerminalModal(true); } else { Swal.fire('Info', 'No items in bill', 'info'); } }}
+                                            disabled={paymentLoading}
+                                            className="h-full bg-[#f5f3ff] hover:bg-[#ede9fe] disabled:opacity-50 text-[#6d28d9] border border-[#ddd6fe] rounded-lg p-2 flex flex-col justify-between transition-all active:scale-95 shadow-sm text-left cursor-pointer"
                                         >
                                             <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#6d28d9]">
                                                 <CreditCard size={15} />
@@ -9557,7 +9665,7 @@ function Home() {
                                         {/* PRINT / LOADING CONTROL IN ROW 1 OR FULL SPAN */}
                                         {paymentLoading ? (
                                             <button
-                                                className="col-span-2 h-[54px] bg-slate-100 text-slate-500 border border-slate-200 rounded-lg p-2 flex items-center justify-center gap-2 opacity-80 cursor-not-allowed font-black text-[11px] uppercase"
+                                                className="col-span-2 h-full bg-slate-100 text-slate-500 border border-slate-200 rounded-lg p-2 flex items-center justify-center gap-2 opacity-80 cursor-not-allowed font-black text-[11px] uppercase"
                                                 disabled
                                             >
                                                 <div className="w-4 h-4 border-2 border-slate-500 border-t-transparent rounded-full animate-spin"></div>
@@ -9568,8 +9676,8 @@ function Home() {
                                                 {/* PRINT */}
                                                 <button
                                                     onClick={() => { setShowSettingsMenu(false); handleCheckoutWithMode('print'); }}
-                                                    disabled={grandTotal <= 0}
-                                                    className="h-[54px] bg-[#ecfdf5] hover:bg-[#d1fae5] disabled:opacity-50 text-[#047857] border border-[#a7f3d0] rounded-lg p-2 flex flex-col justify-between transition-all active:scale-95 shadow-sm text-left cursor-pointer"
+                                                    disabled={paymentLoading}
+                                                    className="h-full bg-[#ecfdf5] hover:bg-[#d1fae5] disabled:opacity-50 text-[#047857] border border-[#a7f3d0] rounded-lg p-2 flex flex-col justify-between transition-all active:scale-95 shadow-sm text-left cursor-pointer"
                                                 >
                                                     <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#047857]">
                                                         <Printer size={15} />
@@ -9581,13 +9689,13 @@ function Home() {
                                                 {/* DIRECT */}
                                                 <button
                                                     onClick={() => { setShowSettingsMenu(false); handleCheckoutWithMode('no-print'); }}
-                                                    disabled={grandTotal <= 0}
-                                                    className="h-[54px] bg-[#f0f9ff] hover:bg-[#e0f2fe] disabled:opacity-50 text-[#0369a1] border border-[#bae6fd] rounded-lg p-2 flex flex-col justify-between transition-all active:scale-95 shadow-sm text-left cursor-pointer"
+                                                    disabled={paymentLoading}
+                                                    className="h-full bg-[#f0f9ff] hover:bg-[#e0f2fe] disabled:opacity-50 text-[#0369a1] border border-[#bae6fd] rounded-lg p-2 flex flex-col justify-between transition-all active:scale-95 shadow-sm text-left cursor-pointer"
                                                 >
                                                     <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#0369a1]">
                                                         <Zap size={15} />
                                                         <span>DIRECT</span>
-                                                     </div>
+                                                    </div>
                                                     <span className="inline-flex items-center justify-center font-mono text-[9px] font-black px-1.5 py-0.5 rounded bg-[#bae6fd] text-[#0369a1] w-max">Alt+N</span>
                                                 </button>
                                             </>
@@ -9597,7 +9705,7 @@ function Home() {
                                         {/* DISCOUNT */}
                                         <button
                                             onClick={() => { setShowSettingsMenu(false); setShowDiscountModal(true); }}
-                                            className="h-[54px] bg-white hover:bg-slate-100 text-slate-900 border border-slate-300 rounded-lg p-2 flex flex-col justify-between transition-all active:scale-95 shadow-sm text-left cursor-pointer"
+                                            className="h-full bg-white hover:bg-slate-100 text-slate-900 border border-slate-300 rounded-lg p-2 flex flex-col justify-between transition-all active:scale-95 shadow-sm text-left cursor-pointer"
                                         >
                                             <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-slate-900">
                                                 <Percent size={15} className="text-slate-700" />
@@ -9609,7 +9717,7 @@ function Home() {
                                         {/* LOYALTY */}
                                         <button
                                             onClick={() => { setShowSettingsMenu(false); handleLoyaltyPointsClick(); }}
-                                            className="h-[54px] bg-white hover:bg-slate-100 text-slate-900 border border-slate-300 rounded-lg p-2 flex flex-col justify-between transition-all active:scale-95 shadow-sm text-left cursor-pointer"
+                                            className="h-full bg-white hover:bg-slate-100 text-slate-900 border border-slate-300 rounded-lg p-2 flex flex-col justify-between transition-all active:scale-95 shadow-sm text-left cursor-pointer"
                                         >
                                             <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-slate-900">
                                                 <Award size={15} className="text-slate-700" />
@@ -9621,8 +9729,7 @@ function Home() {
                                         {/* SAVE DRAFT */}
                                         <button
                                             onClick={() => { setShowSettingsMenu(false); handleSaveDraft(); }}
-                                            disabled={billItems.length === 0}
-                                            className="h-[54px] bg-[#fffbeb] hover:bg-[#fef3c7] disabled:opacity-50 text-[#b45309] border border-[#fde68a] rounded-lg p-2 flex flex-col justify-between transition-all active:scale-95 shadow-sm text-left cursor-pointer"
+                                            className="h-full bg-[#fffbeb] hover:bg-[#fef3c7] disabled:opacity-50 text-[#b45309] border border-[#fde68a] rounded-lg p-2 flex flex-col justify-between transition-all active:scale-95 shadow-sm text-left cursor-pointer"
                                         >
                                             <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#b45309]">
                                                 <Upload size={15} />
@@ -9634,8 +9741,8 @@ function Home() {
                                         {/* A4 */}
                                         <button
                                             onClick={() => { setShowSettingsMenu(false); handleCheckoutWithMode('print-a4'); }}
-                                            disabled={grandTotal <= 0 || paymentLoading}
-                                            className="h-[54px] bg-[#f5f3ff] hover:bg-[#ede9fe] disabled:opacity-50 text-[#6d28d9] border border-[#ddd6fe] rounded-lg p-2 flex flex-col justify-between transition-all active:scale-95 shadow-sm text-left cursor-pointer"
+                                            disabled={paymentLoading}
+                                            className="h-full bg-[#f5f3ff] hover:bg-[#ede9fe] disabled:opacity-50 text-[#6d28d9] border border-[#ddd6fe] rounded-lg p-2 flex flex-col justify-between transition-all active:scale-95 shadow-sm text-left cursor-pointer"
                                         >
                                             <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#6d28d9]">
                                                 <Printer size={15} />
@@ -9647,7 +9754,7 @@ function Home() {
                                         {/* CLEAR BILL */}
                                         <button
                                             onClick={() => { setShowSettingsMenu(false); clearBillHandler(); }}
-                                            className="h-[54px] bg-[#fff5f5] hover:bg-[#fed7d7] text-[#c53030] border border-[#feb2b2] rounded-lg p-2 flex flex-col justify-between transition-all active:scale-95 shadow-sm text-left cursor-pointer"
+                                            className="h-full bg-[#fff5f5] hover:bg-[#fed7d7] text-[#c53030] border border-[#feb2b2] rounded-lg p-2 flex flex-col justify-between transition-all active:scale-95 shadow-sm text-left cursor-pointer"
                                         >
                                             <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#c53030]">
                                                 <Trash2 size={15} />
@@ -9656,7 +9763,6 @@ function Home() {
                                             <span className="inline-flex items-center justify-center font-mono text-[9px] font-black px-1.5 py-0.5 rounded bg-[#feb2b2] text-[#c53030] w-max">Alt+C</span>
                                         </button>
                                     </div>
-
                                 </div>
                             </div>
                         </div>
