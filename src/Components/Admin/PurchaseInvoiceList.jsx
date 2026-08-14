@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
   Plus, X, Trash2, Building2, Search, Calendar, Filter, MoreVertical, Package,
-  Warehouse as WarehouseIcon, Percent, DollarSign, Loader2, Barcode, Palette, ChevronLeft, ChevronRight, Zap, CheckCircle2, CheckCircle, AlertTriangle, ExternalLink, Link, Edit2, Settings, Copy, ChevronDown, Printer
+  Warehouse as WarehouseIcon, Percent, DollarSign, Loader2, Barcode, Palette, ChevronLeft, ChevronRight, Zap, CheckCircle2, CheckCircle, AlertTriangle, ExternalLink, Link, Edit2, Settings, Copy, ChevronDown, Printer, Save, Send, FileText, Box
 } from 'lucide-react';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
+import { toggleTheme } from '../../Redux/Slices/userSlice';
 import axios from 'axios';
 import CustomSearchDropdown from '../Purchase/CustomSearchDropdown';
 import ColumnConfigModal from '../Purchase/ColumnConfigModal';
@@ -79,6 +80,7 @@ const getDefaultTaxTemplate = (templates, activeWarehouse) => {
 };
 
 function PurchaseInvoiceList() {
+  const dispatch = useDispatch();
   const { getShortcut, isShortcutPressed } = useCustomShortcuts();
   const [customColumns, setCustomColumns] = useState(() => {
     const saved = localStorage.getItem('custom_columns_Purchase Invoice');
@@ -2602,6 +2604,571 @@ function PurchaseInvoiceList() {
     return () => window.removeEventListener('keydown', handleGlobalShortcuts);
   }, [isModalOpen, formData, allowedActions, isViewMode, saving, taxTemplates, isDirty, docName]);
 
+  // =========================================================================
+  // CLASSIC POS FULL TERMINAL LAYOUT FOR PURCHASE INVOICE (theme === 'legacy')
+  // =========================================================================
+  if (theme === 'legacy' && isModalOpen) {
+    return (
+      <div className="classic-root" style={{ position: 'fixed', inset: 0, zIndex: 10000, display: 'flex', flexDirection: 'column', background: '#f8fafc', overflow: 'hidden' }}>
+        {/* CLASSIC NAVBAR */}
+        <nav className="classic-nav" style={{ background: '#ffffff', borderBottom: '1px solid #e2e8f0', padding: '0.4rem 1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '52px', flexShrink: 0 }}>
+          <div className="flex items-center gap-3">
+            <div onClick={() => setIsModalOpen(false)} className="cursor-pointer flex items-center">
+              <span className="font-black text-sm tracking-tight text-slate-800 flex items-center gap-1.5 uppercase">
+                <Package className="w-5 h-5 text-emerald-600" />
+                <span>KYLE POS • PURCHASE INVOICE</span>
+              </span>
+            </div>
+          </div>
+
+          <div className="ml-auto flex items-center gap-3">
+            <div className="flex items-center gap-2 px-3 py-1 bg-emerald-50 border border-emerald-200 rounded-xl shadow-xs select-none">
+              <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+              <span className="text-[10px] font-black uppercase tracking-widest text-emerald-700">
+                {formData.docstatus === 1 ? 'SUBMITTED' : 'INVOICE TERMINAL'}
+              </span>
+            </div>
+
+            {/* Theme Toggle Button */}
+            <button
+              type="button"
+              onClick={() => dispatch(toggleTheme())}
+              className="px-3 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-300 rounded-xl font-black text-[10px] uppercase flex items-center gap-1.5 cursor-pointer transition-all shadow-xs"
+              title="Switch Theme"
+            >
+              <Palette size={13} />
+              <span>THEME: CLASSIC</span>
+            </button>
+
+            <button onClick={() => setIsModalOpen(false)} className="p-1 hover:bg-rose-50 text-rose-500 rounded-full cursor-pointer ml-2">
+              <X size={18} />
+            </button>
+          </div>
+        </nav>
+
+        {/* CLASSIC SHORTCUTS GUIDE BAR */}
+        <div className="so-shortcut-guide-banner" style={{ background: '#0f172a', borderBottom: '1px solid #1e293b', padding: '6px 14px', display: 'flex', alignItems: 'center', gap: '8px', overflowX: 'auto', flexShrink: 0 }}>
+          <div className="so-shortcut-banner-title" style={{ color: '#94a3b8', fontSize: '9px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.08em', display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}>
+            <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block animate-ping mr-1"></span>
+            SHORTCUTS
+          </div>
+          <div className="so-shortcut-badges-wrapper" style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'nowrap' }}>
+            <div className="so-shortcut-badge" style={{ background: '#ffffff', border: '1.5px solid #cbd5e1', borderRadius: '6px', padding: '3px 7px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+              <span className="so-shortcut-key" style={{ background: '#3b82f6', color: '#fff', fontSize: '9px', fontWeight: 900, padding: '1px 5px', borderRadius: '4px' }}>F2</span>
+              <span className="so-shortcut-label" style={{ fontSize: '11px', fontWeight: 900, color: '#0f172a' }}>SUPPLIER</span>
+            </div>
+            <div className="so-shortcut-badge" style={{ background: '#ffffff', border: '1.5px solid #cbd5e1', borderRadius: '6px', padding: '3px 7px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+              <span className="so-shortcut-key" style={{ background: '#6366f1', color: '#fff', fontSize: '9px', fontWeight: 900, padding: '1px 5px', borderRadius: '4px' }}>F3</span>
+              <span className="so-shortcut-label" style={{ fontSize: '11px', fontWeight: 900, color: '#0f172a' }}>ITEM SEARCH</span>
+            </div>
+            <div className="so-shortcut-badge" style={{ background: '#ffffff', border: '1.5px solid #cbd5e1', borderRadius: '6px', padding: '3px 7px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+              <span className="so-shortcut-key" style={{ background: '#06b6d4', color: '#fff', fontSize: '9px', fontWeight: 900, padding: '1px 5px', borderRadius: '4px' }}>F4</span>
+              <span className="so-shortcut-label" style={{ fontSize: '11px', fontWeight: 900, color: '#0f172a' }}>BARCODE</span>
+            </div>
+            <div className="so-shortcut-badge" style={{ background: '#ffffff', border: '1.5px solid #cbd5e1', borderRadius: '6px', padding: '3px 7px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+              <span className="so-shortcut-key" style={{ background: '#d946ef', color: '#fff', fontSize: '9px', fontWeight: 900, padding: '1px 5px', borderRadius: '4px' }}>F6</span>
+              <span className="so-shortcut-label" style={{ fontSize: '11px', fontWeight: 900, color: '#0f172a' }}>BULK QTY</span>
+            </div>
+            <div className="so-shortcut-badge" style={{ background: '#ffffff', border: '1.5px solid #cbd5e1', borderRadius: '6px', padding: '3px 7px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+              <span className="so-shortcut-key" style={{ background: '#f59e0b', color: '#fff', fontSize: '9px', fontWeight: 900, padding: '1px 5px', borderRadius: '4px' }}>F7</span>
+              <span className="so-shortcut-label" style={{ fontSize: '11px', fontWeight: 900, color: '#0f172a' }}>SAVE DRAFT</span>
+            </div>
+            <div className="so-shortcut-badge" style={{ background: '#ffffff', border: '1.5px solid #cbd5e1', borderRadius: '6px', padding: '3px 7px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+              <span className="so-shortcut-key" style={{ background: '#0ea5e9', color: '#fff', fontSize: '9px', fontWeight: 900, padding: '1px 5px', borderRadius: '4px' }}>F10</span>
+              <span className="so-shortcut-label" style={{ fontSize: '11px', fontWeight: 900, color: '#0f172a' }}>ADD ROW</span>
+            </div>
+            <div className="so-shortcut-badge" style={{ background: '#ffffff', border: '1.5px solid #cbd5e1', borderRadius: '6px', padding: '3px 7px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+              <span className="so-shortcut-key" style={{ background: '#10b981', color: '#fff', fontSize: '9px', fontWeight: 900, padding: '1px 5px', borderRadius: '4px' }}>Ctrl+Enter</span>
+              <span className="so-shortcut-label" style={{ fontSize: '11px', fontWeight: 900, color: '#0f172a' }}>SUBMIT</span>
+            </div>
+          </div>
+        </div>
+
+        {/* CLASSIC HEADER FORM */}
+        <div className="classic-header-form" style={{ background: '#ffffff', borderBottom: '1px solid #e2e8f0', padding: '0.45rem 1rem', display: 'flex', alignItems: 'center', gap: '1.25rem', flexShrink: 0 }}>
+          <div className="classic-field flex items-center gap-3 relative flex-1">
+            <label className="uppercase font-black text-[11px] text-slate-500 tracking-tight whitespace-nowrap">SUPPLIER</label>
+            <div className="relative group flex-1" ref={supplierRef}>
+              <CustomSearchDropdown
+                placeholder="Search supplier / vendor..."
+                value={formData.supplier ? { name: formData.supplier, supplier_name: formData.supplier_name } : null}
+                onSelect={(val) => {
+                  setFormData(prev => ({ ...prev, supplier: val ? val.name : '', supplier_name: val ? val.supplier_name : '' }));
+                }}
+                fetchData={fetchSuppliers}
+                optionsLabel="supplier_name"
+                globalSearch={true}
+                themeColor="#10b981"
+              />
+            </div>
+
+            {formData.supplier && (
+              <div className="h-11 px-3 flex items-center gap-1.5 bg-emerald-50 border-2 border-emerald-200 text-emerald-700 rounded-xl text-xs font-black uppercase tracking-wider shadow-sm shrink-0">
+                <Building2 size={13} className="text-emerald-600" />
+                <span>{formData.supplier_name || formData.supplier}</span>
+              </div>
+            )}
+
+            {/* Warehouse Selector Tag */}
+            <div className="h-11 px-3 flex items-center border-2 border-slate-200 bg-slate-50 rounded-xl text-xs font-black uppercase tracking-wider text-slate-700 shadow-sm shrink-0 gap-1.5">
+              <Package size={13} className="text-slate-500" />
+              {isAdmin ? (
+                <select
+                  name="set_warehouse"
+                  value={formData.set_warehouse || ''}
+                  onChange={(e) => setFormData(prev => ({ ...prev, set_warehouse: e.target.value }))}
+                  disabled={isViewMode}
+                  className="bg-transparent border-none outline-none font-black text-xs cursor-pointer"
+                >
+                  <option value="">Select Branch...</option>
+                  {warehouses.map(w => (
+                    <option key={w.name} value={w.name}>{w.name}</option>
+                  ))}
+                </select>
+              ) : (
+                <span>{formData.set_warehouse || warehouse || 'Main Warehouse'}</span>
+              )}
+            </div>
+          </div>
+
+          <div className="classic-field flex items-center gap-3 ml-auto">
+            <label className="uppercase font-black text-[11px] text-slate-500 tracking-tight whitespace-nowrap">PI NO:</label>
+            <div className="h-11 px-4 flex items-center bg-slate-100 border-2 border-slate-200 rounded-xl text-xs font-mono font-black text-slate-800">
+              {docName || 'NEW-PUR-INV'}
+            </div>
+          </div>
+        </div>
+
+        {/* CLASSIC MAIN BODY: TABLE AREA */}
+        <div className="flex-1 flex flex-col overflow-hidden bg-slate-100">
+          <div className="flex-1 min-h-0 overflow-y-auto overflow-x-auto">
+            <table className="classic-table" style={{ width: '100%', borderCollapse: 'collapse', background: '#ffffff' }}>
+              <thead>
+                <tr style={{ background: '#f8fafc', borderBottom: '1.5px solid #cbd5e1' }}>
+                  <th style={{ width: '40px', textAlign: 'center', padding: '8px 4px', fontSize: '11px', fontWeight: 900, color: '#475569', textTransform: 'uppercase' }}>#</th>
+                  {columnConfig.filter(c => c.visible).map(col => (
+                    <th
+                      key={col.id}
+                      style={{
+                        textAlign: ['rate', 'custom_box_price', 'custom_selling_price', 'custom_box_selling_price', 'discount_amount', 'discount_percentage', 'amount', 'last_purchase_rate'].includes(col.id) ? 'right' : (['uom', 'custom_box_qty', 'custom_pieces_per_box', 'qty'].includes(col.id) ? 'center' : 'left'),
+                        padding: '8px 8px',
+                        fontSize: '11px',
+                        fontWeight: 900,
+                        color: '#475569',
+                        textTransform: 'uppercase'
+                      }}
+                    >
+                      {col.label}
+                    </th>
+                  ))}
+                  <th style={{ width: '40px', textAlign: 'center', padding: '8px 4px' }}>
+                    <button type="button" onClick={() => setShowColConfig(true)} className="text-slate-400 hover:text-emerald-600 cursor-pointer" title="Configure Columns">
+                      <Settings size={14} />
+                    </button>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {formData.items.filter(it => it.item_code).map((item, idx) => (
+                  <tr key={idx} className="border-b border-slate-100 hover:bg-emerald-50/30 transition-colors">
+                    <td className="text-center font-bold text-slate-400 text-xs py-2">{idx + 1}</td>
+                    {columnConfig.filter(c => c.visible).map(col => {
+                      switch (col.id) {
+                        case 'item_code':
+                          return (
+                            <td key={col.id} className="px-2 py-1">
+                              <div className="flex flex-col">
+                                <span className="font-black text-slate-900 text-xs">{item.item_code}</span>
+                                <span className="font-semibold text-slate-500 text-[10px] truncate max-w-[180px]">{item.item_name || ''}</span>
+                              </div>
+                            </td>
+                          );
+                        case 'barcode':
+                          return (
+                            <td key={col.id} className="px-1 py-1">
+                              <input
+                                type="text"
+                                value={item.barcode || ''}
+                                onChange={(e) => updateItem(idx, "barcode", e.target.value)}
+                                placeholder="Barcode"
+                                className="w-full h-8 px-2 text-xs font-bold bg-slate-50 border border-slate-200 rounded-lg outline-none focus:bg-white focus:border-emerald-500"
+                              />
+                            </td>
+                          );
+                        case 'custom_ref_sl_no':
+                          return (
+                            <td key={col.id} className="px-1 py-1">
+                              <input
+                                type="text"
+                                value={item.custom_ref_sl_no || item.custom_supplier_sl_num || ''}
+                                onChange={(e) => updateItem(idx, "custom_ref_sl_no", e.target.value)}
+                                placeholder="Ref / SL #"
+                                className="w-full h-8 px-2 text-xs font-bold bg-slate-50 border border-slate-200 rounded-lg outline-none focus:bg-white focus:border-emerald-500"
+                              />
+                            </td>
+                          );
+                        case 'uom':
+                          return (
+                            <td key={col.id} className="px-1 py-1 text-center">
+                              <select
+                                value={item.uom || 'Nos'}
+                                onChange={(e) => handleUOMChange(idx, e.target.value)}
+                                className="h-8 px-1 text-center font-black text-xs bg-slate-50 border border-slate-200 rounded-lg outline-none focus:bg-white focus:border-emerald-500 cursor-pointer"
+                              >
+                                <option value="Nos">Nos</option>
+                                <option value="Box">Box</option>
+                              </select>
+                            </td>
+                          );
+                        case 'custom_box_qty':
+                          return (
+                            <td key={col.id} className="px-1 py-1 text-center">
+                              <div className="flex flex-col items-center">
+                                <input
+                                  type="number"
+                                  value={item.use_box_entry ? (item.custom_box_qty || '') : (item.qty || '')}
+                                  onChange={(e) => updateItem(idx, item.use_box_entry ? "custom_box_qty" : "qty", e.target.value)}
+                                  className="w-16 h-8 text-center font-black text-xs border border-slate-200 rounded-lg bg-slate-50 focus:bg-white focus:border-emerald-500 outline-none"
+                                />
+                                <span className="text-[8px] font-extrabold uppercase text-slate-400 mt-0.5">{item.use_box_entry ? 'BOX' : 'NOS'}</span>
+                              </div>
+                            </td>
+                          );
+                        case 'custom_pieces_per_box':
+                          return (
+                            <td key={col.id} className="px-1 py-1 text-center font-bold text-xs text-slate-700">
+                              {item.use_box_entry ? (
+                                <input
+                                  type="number"
+                                  value={item.custom_pieces_per_box || ''}
+                                  onChange={(e) => updateItem(idx, "custom_pieces_per_box", e.target.value)}
+                                  className="w-14 h-8 text-center font-black text-xs border border-slate-200 rounded-lg bg-slate-50 focus:bg-white focus:border-emerald-500 outline-none"
+                                />
+                              ) : (
+                                <span className="text-slate-300">—</span>
+                              )}
+                            </td>
+                          );
+                        case 'custom_box_price':
+                          return (
+                            <td key={col.id} className="px-1 py-1 text-right font-bold text-xs text-slate-700">
+                              {item.use_box_entry ? (
+                                <input
+                                  type="number"
+                                  value={item.custom_box_price || ''}
+                                  onChange={(e) => updateItem(idx, "custom_box_price", e.target.value)}
+                                  className="w-20 h-8 text-right font-black text-xs border border-slate-200 rounded-lg bg-slate-50 focus:bg-white focus:border-emerald-500 outline-none px-1"
+                                />
+                              ) : (
+                                <span className="text-slate-300">—</span>
+                              )}
+                            </td>
+                          );
+                        case 'rate':
+                          return (
+                            <td key={col.id} className="px-1 py-1 text-right">
+                              <input
+                                type="number"
+                                value={item.rate || ''}
+                                onChange={(e) => updateItem(idx, "rate", e.target.value)}
+                                className="w-20 h-8 text-right font-black text-xs border border-slate-200 rounded-lg bg-slate-50 focus:bg-white focus:border-emerald-500 outline-none px-2"
+                              />
+                            </td>
+                          );
+                        case 'custom_selling_price':
+                          return (
+                            <td key={col.id} className="px-1 py-1 text-right">
+                              <input
+                                type="number"
+                                value={item.custom_selling_price || ''}
+                                onChange={(e) => updateItem(idx, "custom_selling_price", e.target.value)}
+                                className="w-20 h-8 text-right font-black text-xs border border-slate-200 rounded-lg bg-emerald-50/50 text-emerald-700 focus:bg-white focus:border-emerald-500 outline-none px-2"
+                              />
+                            </td>
+                          );
+                        case 'custom_box_selling_price':
+                          return (
+                            <td key={col.id} className="px-1 py-1 text-right">
+                              <input
+                                type="number"
+                                value={item.custom_box_selling_price || ''}
+                                onChange={(e) => updateItem(idx, "custom_box_selling_price", e.target.value)}
+                                className="w-20 h-8 text-right font-black text-xs border border-slate-200 rounded-lg bg-emerald-50/50 text-emerald-700 focus:bg-white focus:border-emerald-500 outline-none px-2"
+                              />
+                            </td>
+                          );
+                        case 'discount_percentage':
+                          return (
+                            <td key={col.id} className="px-1 py-1 text-right">
+                              <input
+                                type="number"
+                                value={item.discount_percentage || ''}
+                                onChange={(e) => updateItem(idx, "discount_percentage", e.target.value)}
+                                className="w-14 h-8 text-right font-black text-xs border border-slate-200 rounded-lg bg-slate-50 focus:bg-white focus:border-emerald-500 outline-none px-1"
+                              />
+                            </td>
+                          );
+                        case 'discount_amount':
+                          return (
+                            <td key={col.id} className="px-1 py-1 text-right">
+                              <input
+                                type="number"
+                                value={item.discount_amount || ''}
+                                onChange={(e) => updateItem(idx, "discount_amount", e.target.value)}
+                                className="w-16 h-8 text-right font-black text-xs border border-slate-200 rounded-lg bg-slate-50 focus:bg-white focus:border-emerald-500 outline-none px-1"
+                              />
+                            </td>
+                          );
+                        case 'qty':
+                          return (
+                            <td key={col.id} className="px-2 py-1 text-center font-black text-xs text-slate-800">
+                              {item.qty || 0}
+                            </td>
+                          );
+                        case 'amount':
+                          return (
+                            <td key={col.id} className="px-2 py-1 text-right font-black text-xs text-slate-900">
+                              {formatPrice(item.amount || 0)}
+                            </td>
+                          );
+                        case 'last_purchase_rate':
+                          return (
+                            <td key={col.id} className="px-2 py-1 text-right font-bold text-xs text-amber-700 bg-amber-50/40">
+                              {item.last_purchase_rate || item.last_buying_rate ? formatPrice(item.last_purchase_rate || item.last_buying_rate) : '—'}
+                            </td>
+                          );
+                        default:
+                          return <td key={col.id} className="px-2 py-1 text-xs">{item[col.id] || '—'}</td>;
+                      }
+                    })}
+                    <td className="text-center px-1">
+                      <button type="button" onClick={() => removeItemRow(idx)} className="text-rose-400 hover:text-rose-600 font-black text-sm cursor-pointer">×</button>
+                    </td>
+                  </tr>
+                ))}
+                  {/* ADVANCED: Smart Inline Search Row with Amber Border */}
+                <tr className="bg-emerald-50/40 border-y-2 border-amber-400 cursor-pointer hover:bg-amber-50/60 transition-all">
+                  <td className="text-center font-black text-amber-600 text-xs py-2">{formData.items.filter(it => it.item_code).length + 1}</td>
+                  <td colSpan={columnConfig.filter(c => c.visible).length > 2 ? 2 : 1} className="p-0 relative h-10">
+                    <CustomSearchDropdown
+                      placeholder="SCAN BARCODE OR TYPE ITEM NAME HERE TO ADD..."
+                      value={null}
+                      onSelect={(selectedItem) => {
+                        if (selectedItem) {
+                          selectItem(formData.items.length - 1, selectedItem);
+                        }
+                      }}
+                      fetchData={fetchItems}
+                      optionsLabel="item_name"
+                      globalSearch={true}
+                      themeColor="#10b981"
+                      className="w-full h-full font-black italic text-slate-600"
+                    />
+                  </td>
+                  {Array.from({ length: Math.max(0, columnConfig.filter(c => c.visible).length - (columnConfig.filter(c => c.visible).length > 2 ? 2 : 1) - 1) }).map((_, emptyI) => (
+                    <td key={`search-empty-${emptyI}`} className="text-center bg-black/5 font-bold text-xs">-</td>
+                  ))}
+                  <td className="text-center px-2 font-black text-amber-600 bg-black/5 text-xs">NEXT ITEM</td>
+                  <td className="text-center">
+                    <Search size={14} className="mx-auto text-amber-500" />
+                  </td>
+                </tr>
+
+                {/* Aesthetic empty placeholder rows */}
+                {Array.from({ length: Math.max(0, 14 - formData.items.filter(it => it.item_code).length) }).map((_, i) => (
+                  <tr key={`empty-${i}`} className="bg-white/40 border-b border-slate-100 opacity-40">
+                    <td className="text-center text-slate-300 font-bold text-xs py-2">{formData.items.filter(it => it.item_code).length + i + 2}</td>
+                    {columnConfig.filter(c => c.visible).map(col => (
+                      <td key={`empty-cell-${col.id}`} className="border-r border-slate-100"></td>
+                    ))}
+                    <td></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* BOTTOM SECTION: ACTIONS GRID + TOTALS CARD */}
+          <div className="p-3 bg-[#f8fafc] border-t border-slate-200 flex-shrink-0">
+            <div className="grid grid-cols-1 xl:grid-cols-12 gap-3.5 items-stretch">
+              {/* ACTION BUTTON GRID (LEFT SIDE) */}
+              <div className="xl:col-span-7 flex">
+                <div className="grid grid-cols-4 grid-rows-2 gap-2 w-full h-full">
+                  {/* SAVE DRAFT */}
+                  <button
+                    type="button"
+                    onClick={handleSaveDraft}
+                    disabled={saving}
+                    className="h-full bg-[#fffbeb] hover:bg-[#fef3c7] text-[#78350f] border-2 border-[#fcd34d] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer"
+                  >
+                    <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#78350f]">
+                      <Save size={15} />
+                      <span>SAVE DRAFT</span>
+                    </div>
+                    <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-[#d97706] text-white">Alt+S</span>
+                  </button>
+
+                  {/* SUBMIT */}
+                  <button
+                    type="button"
+                    onClick={handleSubmit}
+                    disabled={saving}
+                    className="h-full bg-[#ecfdf5] hover:bg-[#d1fae5] text-[#064e3b] border-2 border-[#6ee7b7] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer"
+                  >
+                    <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#064e3b]">
+                      <Send size={15} />
+                      <span>SUBMIT</span>
+                    </div>
+                    <span className="inline-flex items-center justify-center font-mono text-[10px] font-black px-1.5 py-0.5 rounded bg-[#047857] text-white">Ctrl+↵</span>
+                  </button>
+
+                  {/* PRINT PDF */}
+                  <button
+                    type="button"
+                    onClick={() => handlePrintPDF(docName)}
+                    disabled={!docName}
+                    className="h-full bg-[#f0f9ff] hover:bg-[#e0f2fe] text-[#0c4a6e] border-2 border-[#7dd3fc] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-50"
+                  >
+                    <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#0c4a6e]">
+                      <Printer size={15} />
+                      <span>PRINT PDF</span>
+                    </div>
+                    <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-[#0284c7] text-white">Space</span>
+                  </button>
+
+                  {/* DUPLICATE */}
+                  <button
+                    type="button"
+                    onClick={handleDuplicate}
+                    disabled={!docName}
+                    className="h-full bg-[#f5f3ff] hover:bg-[#ede9fe] text-[#4c1d95] border-2 border-[#c084fc] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-50"
+                  >
+                    <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#4c1d95]">
+                      <Copy size={15} />
+                      <span>DUPLICATE</span>
+                    </div>
+                    <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-[#7c3aed] text-white">Alt+D</span>
+                  </button>
+
+                  {/* ADD ROW */}
+                  <button
+                    type="button"
+                    onClick={addItemRow}
+                    className="h-full bg-white hover:bg-slate-100 text-[#1e293b] border-2 border-slate-300 rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer"
+                  >
+                    <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#1e293b]">
+                      <Plus size={15} />
+                      <span>ADD ROW</span>
+                    </div>
+                    <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-[#475569] text-white">Alt+A</span>
+                  </button>
+
+                  {/* BULK QTY */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (formData.items.length > 0) {
+                        const firstIdx = formData.items.findIndex(it => it.item_code);
+                        if (firstIdx !== -1) {
+                          handleUOMChange(formData.items[firstIdx].use_box_entry ? 'Nos' : 'Box', firstIdx);
+                        }
+                      }
+                    }}
+                    className="h-full bg-white hover:bg-slate-100 text-[#1e293b] border-2 border-slate-300 rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer"
+                  >
+                    <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#1e293b]">
+                      <Package size={15} />
+                      <span>BULK QTY</span>
+                    </div>
+                    <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-[#475569] text-white">F6</span>
+                  </button>
+
+                  {/* CLOSE MODAL */}
+                  <button
+                    type="button"
+                    onClick={() => setIsModalOpen(false)}
+                    className="h-full bg-[#fff5f5] hover:bg-[#fed7d7] text-[#7f1d1d] border-2 border-[#fca5a5] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer"
+                  >
+                    <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#7f1d1d]">
+                      <Trash2 size={15} />
+                      <span>CLOSE</span>
+                    </div>
+                    <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-[#dc2626] text-white">Esc</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* TOTALS CARD (RIGHT SIDE) */}
+              <div className="xl:col-span-5 bg-white rounded-xl border border-slate-200 p-3 shadow-xs flex flex-col justify-between gap-3">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-2">
+                  <div className="flex flex-col items-start">
+                    <span className="text-[9px] font-bold uppercase text-slate-400 tracking-wider">TAX TEMPLATE</span>
+                    <select
+                      value={formData.taxes_and_charges || ''}
+                      onChange={(e) => setFormData(prev => ({ ...prev, taxes_and_charges: e.target.value }))}
+                      className="bg-transparent text-xs font-black text-slate-800 outline-none cursor-pointer p-0 m-0 border-none"
+                    >
+                      <option value="">No Tax Schedule...</option>
+                      {taxTemplates.map((t) => <option key={t.name} value={t.name}>{t.title || t.name}</option>)}
+                    </select>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-black uppercase text-slate-500">TOTAL QTY:</span>
+                    <span className="text-sm font-black text-slate-900">{formData.items.reduce((sum, it) => sum + (parseFloat(it.qty) || 0), 0).toFixed(2)}</span>
+                  </div>
+                </div>
+
+                <div className="flex items-end justify-between gap-3 pt-1">
+                  <div className="flex flex-col gap-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[9px] font-bold uppercase text-slate-400">SUBTOTAL</span>
+                      <span className="text-slate-800 font-bold text-sm">{formatPrice(subtotal)}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[9px] font-bold uppercase text-slate-400">TAX</span>
+                      <span className="text-slate-600 font-bold text-sm">{formatPrice(taxTotal)}</span>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col items-end">
+                    <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">GRAND TOTAL</span>
+                    <span className="text-2xl font-black text-emerald-600 leading-none flex items-center gap-0.5 mt-0.5">
+                      <DirhamIcon size={18} /> {formatPrice(grandTotal)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* STATUS BAR FOOTER */}
+          <div className="bg-white border-t border-slate-100 px-4 py-1 text-[10px] text-slate-400 flex items-center gap-5 flex-shrink-0">
+            <div className="flex items-center gap-1.5">
+              <span className="font-bold uppercase">Items:</span>
+              <span className="font-bold text-slate-800">{formData.items.filter(it => it.item_code).length}</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="font-bold uppercase">Supplier:</span>
+              <span className="font-bold text-emerald-600">{formData.supplier_name || formData.supplier || 'Not Selected'}</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="font-bold uppercase">Branch:</span>
+              <span className="font-bold text-emerald-600">{formData.set_warehouse || warehouse || 'No Branch'}</span>
+            </div>
+            <div className="ml-auto flex items-center gap-1.5 font-bold text-slate-400 opacity-60">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
+              <span>READY · SYSTEM OK</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // =========================================================================
+  // MODERN / MODAL RENDER
+  // =========================================================================
   if (isModalOpen) {
     return (
       <>
@@ -2985,6 +3552,32 @@ function PurchaseInvoiceList() {
 
             <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
               <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                {/* Theme Toggle Button */}
+                <button
+                  type="button"
+                  onClick={() => dispatch(toggleTheme())}
+                  className="so-btn-secondary"
+                  style={{
+                    padding: '0.45rem 1rem',
+                    fontSize: '0.75rem',
+                    background: theme === 'legacy' ? '#ecfdf5' : (theme === 'modern_no_image' ? '#e0e7ff' : '#f0f9ff'),
+                    color: theme === 'legacy' ? '#059669' : (theme === 'modern_no_image' ? '#4f46e5' : '#0284c7'),
+                    border: `1.5px solid ${theme === 'legacy' ? '#a7f3d0' : (theme === 'modern_no_image' ? '#c7d2fe' : '#bae6fd')}`,
+                    borderRadius: '0.75rem',
+                    fontWeight: 900,
+                    textTransform: 'uppercase',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.375rem',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s'
+                  }}
+                  title="Switch UI Theme (Modern / No Image / Classic)"
+                >
+                  <Palette size={14} />
+                  <span>THEME: {(theme || 'modern').toUpperCase()}</span>
+                </button>
+
                 {/* Always show DUPLICATE & PRINT PDF if docName exists */}
                 {docName && (
                   <>
