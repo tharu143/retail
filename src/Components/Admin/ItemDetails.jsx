@@ -565,6 +565,7 @@ const ItemDetails = () => {
 
       <CreateVariantModal
         isOpen={showVariantModal}
+        templateItemCode={item?.name || item?.item_code}
         onClose={() => setShowVariantModal(false)}
         onVariantCreated={() => {
           setShowVariantModal(false);

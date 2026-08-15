@@ -7716,7 +7716,6 @@ function Home() {
     // ---------- CLASSIC THEME RENDERERS (Green & Blue) ----------
     const renderClassicShortcutsList = (isVertical) => {
         const classicShortcutsData = [
-            { key: getShortcut('pos_home', 'discount', 'F1'), label: 'Discount', color: '#ec4899', icon: <Percent size={12} />, action: () => setShowDiscountModal(prev => !prev) },
             { key: getShortcut('pos_home', 'customer', 'F2'), label: 'Customer', color: '#3b82f6', icon: <User size={12} />, action: () => mobileInputRef.current?.focus() },
             { key: getShortcut('pos_home', 'search', 'F3'), label: 'Search', color: '#a855f7', icon: <Search size={12} />, action: () => barcodeInputRef.current?.focus() },
             {
@@ -7764,13 +7763,7 @@ function Home() {
             { key: getShortcut('pos_home', 'printBill', 'F10'), label: 'Print Bill', color: '#6366f1', icon: <Printer size={12} />, action: handleShowRecentInvoicesPrint },
             { key: isMac ? '⌥P' : 'Alt+P', label: 'PRINT JOB', color: '#0ea5e9', icon: <Printer size={12} />, action: () => setShowPrintJobModal(true) },
             { key: isMac ? '⌥F' : 'Alt+F', label: 'FAST PRINT', color: '#e11d48', icon: <Zap size={12} />, action: () => setShowFastPrintModal(true) },
-            { key: getShortcut('pos_home', 'loyalty', 'Alt+L'), label: 'Loyalty', color: '#10b981', icon: <Award size={12} />, action: handleLoyaltyPointsClick },
-            { key: getShortcut('pos_home', 'saveDraft', 'Alt+S'), label: 'Save Draft', color: '#f59e0b', icon: <Upload size={12} />, action: handleSaveDraft },
-            { key: getShortcut('pos_home', 'clearBill', 'Alt+C'), label: 'Clear', color: '#ef4444', icon: <Trash2 size={12} />, action: clearBillHandler },
             { key: getShortcut('pos_home', 'selectItem', 'Alt+I'), label: 'Swap Item', color: '#a855f7', icon: <RefreshCw size={12} />, action: triggerSwapItem },
-            { key: 'SPACE', label: 'Pay & Print', color: '#10b981', icon: <Printer size={12} />, action: () => handleCheckoutWithMode('print') },
-            { key: 'Alt+N', label: 'Pay No Print', color: '#3b82f6', icon: <CreditCard size={12} />, action: () => handleCheckoutWithMode('no-print') },
-            { key: 'Alt+A', label: 'Pay A4 Print', color: '#8b5cf6', icon: <Printer size={12} />, action: () => handleCheckoutWithMode('print-a4') },
             { key: '↑↓', label: 'Navigate', color: '#64748b', icon: <Move size={12} /> },
             { key: '+/-', label: 'Adjust Qty', color: '#64748b', icon: <Minus size={12} /> },
             { key: '←→', label: 'Tax Toggle', color: '#64748b', icon: <ArrowLeftRight size={12} /> },
@@ -7783,8 +7776,8 @@ function Home() {
                 onClick={s.action}
                 style={{
                     flexShrink: 0,
-                    width: isVertical ? '100%' : 'auto',
-                    minWidth: isVertical ? '100%' : '140px',
+                    width: isVertical ? '100%' : '155px',
+                    minWidth: isVertical ? '100%' : '155px',
                     display: 'flex',
                     justifyContent: 'space-between',
                     alignItems: 'center',
@@ -9073,15 +9066,15 @@ function Home() {
                         <div className="relative group flex-1" ref={dropdownRef}>
                             {/* Country code + mobile input wrapper */}
                             <div className={`flex items-center h-11 border-2 rounded-xl overflow-hidden transition-all w-full ${selectedCustomer && selectedCustomer.name !== 'Cash'
-                                    ? 'border-emerald-200 focus-within:border-emerald-500 bg-emerald-50/10'
-                                    : 'border-slate-200 focus-within:border-sky-500 bg-slate-50/50'
+                                ? 'border-emerald-200 focus-within:border-emerald-500 bg-emerald-50/10'
+                                : 'border-slate-200 focus-within:border-sky-500 bg-slate-50/50'
                                 }`}>
                                 <select
                                     value={countryCodePrefix}
                                     onChange={e => { setCountryCodePrefix(e.target.value); localStorage.setItem('pos_country_code', e.target.value); }}
                                     className={`h-full px-2.5 border-r-2 text-xs font-black outline-none cursor-pointer transition-all ${selectedCustomer && selectedCustomer.name !== 'Cash'
-                                            ? 'bg-emerald-50 border-emerald-100 text-emerald-800'
-                                            : 'bg-slate-100 border-slate-200 text-slate-700'
+                                        ? 'bg-emerald-50 border-emerald-100 text-emerald-800'
+                                        : 'bg-slate-100 border-slate-200 text-slate-700'
                                         }`}
                                     style={{ minWidth: '65px' }}
                                     title="Country Code (Press F4 to toggle)"
@@ -9113,8 +9106,8 @@ function Home() {
                                     onBlur={() => setTimeout(() => setShowDropdown(false), 300)}
                                     onKeyDown={handleMobileEnter}
                                     className={`flex-1 h-full px-3 text-base font-black outline-none bg-transparent ${selectedCustomer && selectedCustomer.name !== 'Cash'
-                                            ? 'text-emerald-950 font-black'
-                                            : 'text-slate-900'
+                                        ? 'text-emerald-950 font-black'
+                                        : 'text-slate-900'
                                         }`}
                                     placeholder="Mobile or Name..."
                                     style={{ minWidth: '110px' }}
@@ -9171,8 +9164,8 @@ function Home() {
                         )}
 
                         <div className={`h-11 px-3 flex items-center border-2 rounded-xl text-xs font-black uppercase tracking-wider shadow-sm shrink-0 gap-1.5 transition-all ${selectedCustomer && selectedCustomer.name !== 'Cash'
-                                ? 'bg-sky-50 border-sky-200 text-sky-700'
-                                : 'bg-slate-100 border-slate-200 text-slate-700'
+                            ? 'bg-sky-50 border-sky-200 text-sky-700'
+                            : 'bg-slate-100 border-slate-200 text-slate-700'
                             }`}>
                             <Layers size={13} className={selectedCustomer && selectedCustomer.name !== 'Cash' ? 'text-sky-500' : 'text-slate-500'} />
                             <span>{selectedCustomer ? (selectedCustomer.customer_group || 'Retail Customer') : 'Retail Customer'}</span>
@@ -9602,7 +9595,7 @@ function Home() {
                                                     >
                                                         <div className="flex items-center gap-1.5 text-[11px] font-extrabold uppercase tracking-wider text-white">
                                                             <Printer size={15} />
-                                                            <span>PRINT</span>
+                                                            <span>PAY & PRINT</span>
                                                         </div>
                                                         <span className="inline-flex items-center justify-center font-mono text-[9px] font-extrabold px-2 py-0.5 rounded-full border border-white/30 bg-white/10 text-white">SPACE</span>
                                                     </button>

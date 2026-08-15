@@ -3,7 +3,7 @@ import axios from 'axios';
 import DirhamIcon from '../../assets/Currency/DirhamIcon';
 import './CreateVariantModal.css';
 
-export default function CreateVariantModal({ isOpen, onClose, onVariantCreated }) {
+export default function CreateVariantModal({ isOpen, onClose, onVariantCreated, templateItemCode }) {
   const [templates, setTemplates] = useState([]);
   const [selectedTemplate, setSelectedTemplate] = useState('');
   const [templateDetails, setTemplateDetails] = useState(null);
@@ -19,8 +19,20 @@ export default function CreateVariantModal({ isOpen, onClose, onVariantCreated }
   useEffect(() => {
     if (isOpen) {
       fetchTemplates();
+      if (templateItemCode) {
+        handleTemplateChange(templateItemCode);
+      }
+    } else {
+      setSelectedTemplate('');
+      setTemplateDetails(null);
+      setSelectedAttributes({});
+      setCustomItemCode('');
+      setVariantName('');
+      setStandardRate('');
+      setError('');
+      setSuccessMsg('');
     }
-  }, [isOpen]);
+  }, [isOpen, templateItemCode]);
 
   const fetchTemplates = async () => {
     try {

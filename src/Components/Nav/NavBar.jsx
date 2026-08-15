@@ -398,18 +398,34 @@ function NavBar() {
             <div
               className="d-flex align-items-center cursor-pointer gap-1 back-link"
               onClick={() => {
+                // If a document or modal is open in search params (e.g. ?name=...), go back to clean list
+                const search = window.location.search || window.location.hash.split('?')[1];
+                if (search && search.includes('name=')) {
+                  navigate(location.pathname, { replace: true });
+                  return;
+                }
+
                 if (location.pathname.includes('/item-details')) {
                   navigate('/itemlist');
-                } else if (location.pathname.includes('/customer-details')) {
+                } else if (location.pathname.includes('/customer-details') || location.pathname.includes('/customer-edit')) {
                   navigate('/customerlist');
-                } else if (location.pathname.includes('/supplier-details')) {
+                } else if (location.pathname.includes('/supplier-details') || location.pathname.includes('/supplier-edit')) {
                   navigate('/supplierlist');
-                } else if (location.pathname.includes('/salesorder-details')) {
+                } else if (location.pathname.includes('/salesorder-details') || location.pathname.includes('/salesorder/create')) {
                   navigate('/salesorderlist');
-                } else if (location.pathname.includes('/deliverynote-details')) {
+                } else if (location.pathname.includes('/deliverynote-details') || location.pathname.includes('/deliverynote/create')) {
                   navigate('/deliverynote');
+                } else if (location.pathname.includes('/interbranchtransfer-details')) {
+                  navigate('/interbranchtransfer');
+                } else if (location.pathname.includes('/stockentry-details')) {
+                  navigate('/stockentry');
                 } else {
-                  navigate(-1);
+                  // Intelligent history back: if user has history in this session, step back 1 page
+                  if (window.history.state && window.history.state.idx > 0) {
+                    navigate(-1);
+                  } else {
+                    navigate('/dashboard');
+                  }
                 }
               }}
               style={{ color: '#64748b' }}

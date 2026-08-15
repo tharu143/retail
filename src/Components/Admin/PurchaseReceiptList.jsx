@@ -23,17 +23,18 @@ const LEGACY_API = '/api/method/custom_retailpos.custom_retailpos.retail_api.ret
 const RESOURCE_BASE = '/api/resource';
 
 const DEFAULT_PR_COLUMNS = [
-  { id: 'item_code', label: 'Item Code', visible: true, width: 120 },
-  { id: 'custom_ref_sl_no', label: 'Ref / Supplier SL #', visible: true, width: 120 },
-  { id: 'custom_box_qty', label: 'QTY', visible: true, width: 90 },
+  { id: 'barcode', label: 'Scan Barcode', visible: true, width: 130 },
+  { id: 'item_code', label: 'Item Code', visible: true, width: 180 },
   { id: 'uom', label: 'UOM', visible: true, width: 90 },
+  { id: 'custom_box_qty', label: 'QTY', visible: true, width: 90 },
+  { id: 'custom_ref_sl_no', label: 'Ref / Supplier SL #', visible: true, width: 120 },
   { id: 'custom_pieces_per_box', label: 'Pcs/Box', visible: true, width: 90 },
   { id: 'custom_box_price', label: 'Box Price', visible: true, width: 90 },
   { id: 'rate', label: 'Rate (Nos)', visible: true, width: 90 },
   { id: 'custom_selling_price', label: 'Selling Price (Nos)', visible: true, width: 100 },
   { id: 'custom_box_selling_price', label: 'Selling Price (Box)', visible: true, width: 100 },
   { id: 'accepted_qty', label: 'Total Qty', visible: true, width: 90 },
-  { id: 'rejected_qty', label: 'Rejected Qty', visible: true, width: 90 },
+  { id: 'rejected_qty', label: 'Rejected Qty', visible: false, width: 90 },
   { id: 'amount', label: 'Subtotal', visible: true, width: 90 },
   { id: 'last_purchase_rate', label: 'Last Purchase Price', visible: true, width: 110 }
 ];
@@ -80,7 +81,7 @@ function PurchaseReceiptList() {
   // ----- Column Config -----
   const loadColumnConfig = () => {
     try {
-      const saved = localStorage.getItem('pr_column_config');
+      const saved = localStorage.getItem('pr_column_config_v2');
       if (saved) {
         const parsed = JSON.parse(saved);
         const defaultIds = DEFAULT_PR_COLUMNS.map(c => c.id);
@@ -97,10 +98,10 @@ function PurchaseReceiptList() {
   const handleColConfigUpdate = (newConfig) => {
     if (newConfig === null) {
       setColumnConfig(DEFAULT_PR_COLUMNS);
-      localStorage.removeItem('pr_column_config');
+      localStorage.removeItem('pr_column_config_v2');
     } else {
       setColumnConfig(newConfig);
-      localStorage.setItem('pr_column_config', JSON.stringify(newConfig));
+      localStorage.setItem('pr_column_config_v2', JSON.stringify(newConfig));
     }
     setShowColConfig(false);
   };
@@ -338,7 +339,15 @@ function PurchaseReceiptList() {
       const success = rawMsg.success || rawMsg.status === 'success';
 
       if (success) {
-        Swal.fire('Operation Complete', `${action.toUpperCase()} processed successfully.`, 'success');
+        // Subtle non-blocking Toast feedback
+        Swal.fire({
+          icon: 'success',
+          title: `${action === 'save' ? 'Draft Saved' : action === 'submit' ? 'Receipt Submitted' : action.toUpperCase() + ' Successful'}`,
+          toast: true,
+          position: 'top-end',
+          timer: 2000,
+          showConfirmButton: false
+        });
 
         if (action === 'delete') {
           setIsModalOpen(false);
@@ -359,7 +368,15 @@ function PurchaseReceiptList() {
         throw new Error(rawMsg.message || "Operation failed");
       }
     } catch (err) {
-      Swal.fire('Matrix Failure', err.response?.data?.message || err.message, 'error');
+      Swal.fire({
+        icon: 'error',
+        title: 'Action Failed',
+        text: err.response?.data?.message || err.message,
+        toast: true,
+        position: 'top-end',
+        timer: 4000,
+        showConfirmButton: false
+      });
     } finally {
       setSaving(false);
     }
@@ -549,8 +566,16 @@ function PurchaseReceiptList() {
         withCredentials: true
       });
       if (res.data.message?.success) {
-        const rate = res.data.message.rate || 0;
+        const rate = parseFloat(res.data.message.rate) || 0;
+        const lastPurRate = parseFloat(res.data.message.last_purchase_rate || res.data.message.last_buying_rate) || rate;
+        const pPerBox = parseFloat(rowItem?.custom_pieces_per_box) || 1;
         updateItem(rowIndex, 'rate', rate);
+        if (lastPurRate > 0) {
+          updateItem(rowIndex, 'last_purchase_rate', lastPurRate);
+        }
+        if (rowItem?.use_box_entry || (rowItem?.uom || '').toLowerCase() === 'box') {
+          updateItem(rowIndex, 'custom_box_price', parseFloat((rate * pPerBox).toFixed(2)));
+        }
       }
     } catch (err) {
       console.error('Error fetching item rate:', err.response?.data || err.message);
@@ -767,11 +792,16 @@ function PurchaseReceiptList() {
     }
   };
 
-  const handleUOMChange = (uomValue, rowIndex) => {
+  const handleUOMChange = (arg1, arg2) => {
+    // Robust against both (uomValue, rowIndex) and (rowIndex, uomValue)
+    let uomValue = typeof arg1 === 'string' ? arg1 : (typeof arg2 === 'string' ? arg2 : 'Nos');
+    let rowIndex = typeof arg1 === 'number' ? arg1 : (typeof arg2 === 'number' ? arg2 : 0);
+
     setFormData(prev => {
       const items = [...prev.items];
+      if (!items[rowIndex]) return prev;
       const item = { ...items[rowIndex] };
-      const isBox = uomValue.toLowerCase() === 'box';
+      const isBox = String(uomValue || '').toLowerCase() === 'box';
       item.uom = uomValue;
       item.use_box_entry = isBox;
 
@@ -840,7 +870,45 @@ function PurchaseReceiptList() {
           items[index].custom_box_qty = isBoxMode ? accepted_qty / pPerBox : accepted_qty;
         }
       } else if (field === 'custom_selling_price') {
-        items[index][field] = value;
+        items[index].custom_selling_price = value;
+        const sellNos = parseFloat(value) || 0;
+        const pcs = parseFloat(items[index].custom_pieces_per_box) || 1;
+        if (sellNos > 0 && pcs > 0) {
+          items[index].custom_box_selling_price = parseFloat((sellNos * pcs).toFixed(2));
+        } else if (value === '' || sellNos === 0) {
+          items[index].custom_box_selling_price = '';
+        }
+      } else if (field === 'custom_box_selling_price') {
+        items[index].custom_box_selling_price = value;
+        const sellBox = parseFloat(value) || 0;
+        const pcs = parseFloat(items[index].custom_pieces_per_box) || 1;
+        if (sellBox > 0 && pcs > 0) {
+          items[index].custom_selling_price = parseFloat((sellBox / pcs).toFixed(4));
+        } else if (value === '' || sellBox === 0) {
+          items[index].custom_selling_price = '';
+        }
+      } else if (field === 'discount_amount') {
+        const discAmt = value === '' ? '' : parseFloat(value);
+        items[index].discount_amount = discAmt;
+        const baseTotal = (parseFloat(items[index].qty) || 0) * (parseFloat(items[index].rate) || 0);
+        const numericAmt = parseFloat(discAmt) || 0;
+        items[index].discount_percentage = baseTotal > 0 ? parseFloat(((numericAmt / baseTotal) * 100).toFixed(2)) : 0;
+        items[index].amount = Math.max(0, baseTotal - numericAmt).toFixed(2);
+      } else if (field === 'discount_percentage') {
+        const discPct = value === '' ? '' : parseFloat(value);
+        items[index].discount_percentage = discPct;
+        const baseTotal = (parseFloat(items[index].qty) || 0) * (parseFloat(items[index].rate) || 0);
+        const numericPct = parseFloat(discPct) || 0;
+        const discAmt = parseFloat((baseTotal * (numericPct / 100)).toFixed(2));
+        items[index].discount_amount = discAmt;
+        items[index].amount = Math.max(0, baseTotal - discAmt).toFixed(2);
+      }
+
+      // Re-apply item discount if qty or rate changed
+      if (field === 'custom_box_qty' || field === 'custom_pieces_per_box' || field === 'accepted_qty' || field === 'rate' || field === 'custom_box_price') {
+        const baseTotal = (parseFloat(items[index].qty) || 0) * (parseFloat(items[index].rate) || 0);
+        const discAmt = parseFloat(items[index].discount_amount) || 0;
+        items[index].amount = Math.max(0, baseTotal - discAmt).toFixed(2);
       }
       const total_qty = items.reduce((sum, i) => sum + parseFloat(i.received_qty || 0), 0);
       const net_total = items.reduce((sum, i) => sum + parseFloat(i.amount || 0), 0);
@@ -945,21 +1013,30 @@ function PurchaseReceiptList() {
   // UPDATED: Non-blocking async (fire-and-forget)
   const selectItem = (rowIndex, item) => {
     let existingIdx = -1;
+    let targetIndex = -1;
     setFormData(prev => {
-      const items = [...prev.items];
-      existingIdx = items.findIndex((i, idx) => i.item_code === item.item_code && idx !== rowIndex);
+      let items = [...prev.items];
+      const isBoxScan = (item.scanned_uom || item.uom || '').toLowerCase() === 'box';
+      existingIdx = items.findIndex((i, idx) => 
+        idx !== rowIndex && 
+        i.item_code === item.item_code && 
+        (isBoxScan ? i.use_box_entry : !i.use_box_entry)
+      );
+      const pcsPerBox = parseFloat(item.custom_pcs_per_box || item.custom_pieces_per_box || 12);
 
       if (existingIdx !== -1) {
         // Merge with existing item!
         const existingItem = { ...items[existingIdx] };
-        if (existingItem.use_box_entry) {
-          existingItem.custom_box_qty = (parseFloat(existingItem.custom_box_qty) || 0) + 1;
-          existingItem.accepted_qty = existingItem.custom_box_qty * (parseFloat(existingItem.custom_pieces_per_box) || 1);
+        if (isBoxScan || existingItem.use_box_entry) {
+          existingItem.use_box_entry = true;
+          existingItem.uom = 'Box';
+          existingItem.custom_pieces_per_box = pcsPerBox;
+          existingItem.custom_box_qty = Math.round((parseFloat(existingItem.custom_box_qty) || 0) + 1);
+          existingItem.accepted_qty = Math.round(existingItem.custom_box_qty * pcsPerBox);
         } else {
-          existingItem.accepted_qty = (parseFloat(existingItem.accepted_qty) || 0) + 1;
-          const pPerBox = parseFloat(existingItem.custom_pieces_per_box) || 1;
-          if (pPerBox > 0) {
-            existingItem.custom_box_qty = existingItem.accepted_qty / pPerBox;
+          existingItem.accepted_qty = Math.round((parseFloat(existingItem.accepted_qty) || 0) + 1);
+          if (pcsPerBox > 0) {
+            existingItem.custom_box_qty = Math.round(existingItem.accepted_qty / pcsPerBox);
           }
         }
         existingItem.received_qty = existingItem.accepted_qty + (parseFloat(existingItem.rejected_qty) || 0);
@@ -967,50 +1044,52 @@ function PurchaseReceiptList() {
         existingItem.amount = (existingItem.accepted_qty * (parseFloat(existingItem.rate) || 0)).toFixed(2);
         items[existingIdx] = existingItem;
 
-        // Reset current row to empty
-        items[rowIndex] = {
-          item_code: '',
-          item_name: '',
-          accepted_qty: 0,
-          rejected_qty: 0,
-          received_qty: 0,
-          qty: 0,
-          uom: '',
-          rate: 0,
-          amount: '0.00',
-          custom_box_qty: 0,
-          custom_pieces_per_box: 1,
-          custom_selling_price: 0,
-          custom_supplier_sl_num: '',
-          custom_ref_sl_no: '',
-          use_box_entry: false,
-          uom_list: [],
-          stock_uom: ''
-        };
+        // Remove empty row if rowIndex was an empty placeholder
+        items = items.filter(it => it.item_code);
+        targetIndex = existingIdx;
       } else {
-        const isBoxUom = (item.stock_uom || '').toLowerCase() === 'box' || (item.uom || '').toLowerCase() === 'box' || (item.scanned_uom || '').toLowerCase() === 'box';
-        const pcsPerBox = parseFloat(item.custom_pcs_per_box || item.custom_pieces_per_box || 12);
-        const currentAccepted = parseFloat(items[rowIndex].accepted_qty) || 0;
-        const newAccepted = currentAccepted > 0 ? currentAccepted : 1;
-        const currentRejected = parseFloat(items[rowIndex].rejected_qty) || 0;
+        const isBoxUom = isBoxScan || (item.stock_uom || '').toLowerCase() === 'box';
+        const sellNos = parseFloat(item.custom_selling_price || 0);
+        const sellBox = parseFloat(item.custom_box_selling_price || 0) || (sellNos * pcsPerBox);
+        const lastPurRate = parseFloat(item.last_purchase_rate || item.last_buying_rate || item.rate || 0);
+        const initialBoxPrice = isBoxUom ? (lastPurRate * pcsPerBox) : 0;
 
-        items[rowIndex] = {
-          ...items[rowIndex],
+        // First find if there is an existing empty row (without item_code)
+        const emptyRowIdx = items.findIndex(it => !it.item_code);
+        const actualTarget = emptyRowIdx !== -1 ? emptyRowIdx : items.length;
+
+        const newRow = {
           item_code: item.item_code,
           item_name: item.item_name,
           uom: isBoxUom ? 'Box' : (item.stock_uom || 'Nos'),
-          accepted_qty: newAccepted,
-          received_qty: newAccepted + currentRejected,
-          qty: isBoxUom ? pcsPerBox : newAccepted,
+          accepted_qty: isBoxUom ? Math.round(pcsPerBox) : 1,
+          received_qty: isBoxUom ? Math.round(pcsPerBox) : 1,
+          rejected_qty: 0,
+          qty: isBoxUom ? Math.round(pcsPerBox) : 1,
+          rate: lastPurRate,
+          last_purchase_rate: lastPurRate,
+          custom_box_price: initialBoxPrice,
           custom_box_qty: 1,
           custom_pieces_per_box: pcsPerBox,
           default_pieces_per_box: pcsPerBox,
-          custom_selling_price: parseFloat(item.custom_selling_price || 0),
+          custom_selling_price: sellNos,
+          custom_box_selling_price: sellBox,
           custom_supplier_sl_num: item.custom_ref_sl_no || item.custom_supplier_sl_num || item.supplier_part_no || '',
           custom_ref_sl_no: item.custom_ref_sl_no || item.custom_supplier_sl_num || '',
           use_box_entry: isBoxUom,
-          amount: (newAccepted * (parseFloat(items[rowIndex].rate) || 0)).toFixed(2)
+          amount: ((isBoxUom ? Math.round(pcsPerBox) : 1) * lastPurRate).toFixed(2)
         };
+
+        if (emptyRowIdx !== -1) {
+          items[emptyRowIdx] = newRow;
+          targetIndex = emptyRowIdx;
+        } else {
+          items.push(newRow);
+          targetIndex = items.length - 1;
+        }
+
+        // Clean any leftover empty rows
+        items = items.filter(it => it.item_code);
       }
 
       const total_qty = items.reduce((sum, i) => sum + parseFloat(i.received_qty || 0), 0);
@@ -1026,15 +1105,14 @@ function PurchaseReceiptList() {
     });
     setItemSearches(prev => ({ ...prev, [rowIndex]: '' }));
     setShowItemDropdowns(prev => ({ ...prev, [rowIndex]: false }));
-    if (existingIdx === -1) {
-      fetchItemRate(rowIndex, item.item_code);
-      // Fetch UOMs and update the row's uom_list
+    if (existingIdx === -1 && targetIndex !== -1) {
+      fetchItemRate(targetIndex, item.item_code);
       fetchItemUOMs(item.item_code).then(uomList => {
         if (uomList && uomList.length > 0) {
           setFormData(current => {
             const currentItems = [...current.items];
-            if (currentItems[rowIndex] && currentItems[rowIndex].item_code === item.item_code) {
-              currentItems[rowIndex].uom_list = uomList;
+            if (currentItems[targetIndex] && currentItems[targetIndex].item_code === item.item_code) {
+              currentItems[targetIndex].uom_list = uomList;
             }
             return { ...current, items: currentItems };
           });
@@ -1771,11 +1849,12 @@ function PurchaseReceiptList() {
   };
   const filteredReceipts = useMemo(() => {
     return receipts.filter(rec => {
-      const matchesName = !filterName || rec.name.toLowerCase().includes(filterName.toLowerCase());
-      const matchesSupplier = !filterSupplier || rec.supplier_name.toLowerCase().includes(filterSupplier.toLowerCase());
+      const matchesName = !filterName || (rec.name || '').toLowerCase().includes(filterName.toLowerCase());
+      const matchesSupplier = !filterSupplier || (rec.supplier_name || rec.supplier || '').toLowerCase().includes(filterSupplier.toLowerCase());
       const matchesStatus = !filterStatus || rec.status === filterStatus;
-      const matchesFrom = !filterDateFrom || new Date(rec.posting_date) >= new Date(filterDateFrom);
-      const matchesTo = !filterDateTo || new Date(rec.posting_date) <= new Date(filterDateTo);
+      const recDateStr = String(rec.posting_date || '').slice(0, 10);
+      const matchesFrom = !filterDateFrom || recDateStr >= String(filterDateFrom).slice(0, 10);
+      const matchesTo = !filterDateTo || recDateStr <= String(filterDateTo).slice(0, 10);
       return matchesName && matchesSupplier && matchesStatus && matchesFrom && matchesTo;
     });
   }, [receipts, filterName, filterSupplier, filterStatus, filterDateFrom, filterDateTo]);
@@ -1906,6 +1985,14 @@ function PurchaseReceiptList() {
           setIsViewMode(false);
           setIsEditMode(true);
         }
+      }
+    } else {
+      // If no nameParam and no po_name, close modal automatically so page responds to browser navigation
+      if (isModalOpen) {
+        setIsModalOpen(false);
+        setDocName('');
+        setIsViewMode(false);
+        setIsEditMode(false);
       }
     }
 
@@ -2056,14 +2143,10 @@ function PurchaseReceiptList() {
       }
 
       // Save Draft / Update Draft
-      if (isShortcutPressed(e, 'doc_editor', 'saveDraft', 'F7') || (e.ctrlKey && (e.key.toLowerCase() === 's' || e.code === 'KeyS'))) {
+      if (isShortcutPressed(e, 'doc_editor', 'saveDraft', 'F7') || (e.ctrlKey && (e.key.toLowerCase() === 's' || e.code === 'KeyS')) || (e.altKey && (e.key === 's' || e.key === 'S'))) {
         e.preventDefault();
         if (!saving && (formData.docstatus === 0 || formData.docstatus === undefined)) {
-          if (docName && !isDirty) {
-            handleDocAction('submit');
-          } else {
-            handleDocAction('save');
-          }
+          handleDocAction('save');
         }
       }
 
@@ -2375,98 +2458,12 @@ function PurchaseReceiptList() {
     return () => window.removeEventListener('keydown', handleGlobalShortcuts);
   }, [isModalOpen, formData, allowedActions, isViewMode, saving, taxesTemplates]);
 
-  if (!isModalOpen) {
-    return (
-      <div className="so-page">
-        <div className="so-page-header">
-          <div>
-            <h1 className="so-page-title">
-              <Package size={22} />
-              Purchase Receipts
-            </h1>
-            <p className="so-page-subtitle">Track and manage goods receipt notes and vendor deliveries</p>
-          </div>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => {
-                setDocName('');
-                setFormData(initialState);
-                setIsEditMode(false);
-                setIsViewMode(false);
-                setIsModalOpen(true);
-              }}
-              className="so-btn-primary"
-            >
-              <Plus size={16} /> New Receipt
-            </button>
-          </div>
-        </div>
 
-        {/* List Content */}
-        <div className="so-layout">
-          <div className="p-6">
-            <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-xs">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-slate-50 border-b border-slate-200 text-[10px] font-black uppercase text-slate-500 tracking-wider">
-                    <th className="py-3 px-4">Receipt No</th>
-                    <th className="py-3 px-4">Supplier</th>
-                    <th className="py-3 px-4">Branch</th>
-                    <th className="py-3 px-4">Date</th>
-                    <th className="py-3 px-4 text-right">Grand Total</th>
-                    <th className="py-3 px-4 text-center">Status</th>
-                    <th className="py-3 px-4 text-center">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 text-xs font-bold text-slate-700">
-                  {receipts.length === 0 ? (
-                    <tr>
-                      <td colSpan={7} className="py-8 text-center text-slate-400 font-bold">
-                        {loading ? 'Loading Receipts...' : 'No purchase receipts found'}
-                      </td>
-                    </tr>
-                  ) : (
-                    receipts.map((rc) => (
-                      <tr key={rc.name} className="hover:bg-slate-50/80 transition-colors">
-                        <td className="py-3 px-4 font-black text-indigo-600">{rc.name}</td>
-                        <td className="py-3 px-4">{rc.supplier_name || rc.supplier}</td>
-                        <td className="py-3 px-4">{rc.set_warehouse || '—'}</td>
-                        <td className="py-3 px-4">{format(new Date(rc.posting_date || rc.creation), 'dd-MM-yyyy')}</td>
-                        <td className="py-3 px-4 text-right font-black text-slate-900">{formatPrice(rc.grand_total)}</td>
-                        <td className="py-3 px-4 text-center">
-                          <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase ${rc.docstatus === 1 ? 'bg-emerald-100 text-emerald-700' : (rc.docstatus === 2 ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-700')}`}>
-                            {rc.docstatus === 1 ? 'Submitted' : (rc.docstatus === 2 ? 'Cancelled' : 'Draft')}
-                          </span>
-                        </td>
-                        <td className="py-3 px-4 text-center">
-                          <button
-                            onClick={() => {
-                              setDocName(rc.name);
-                              fetchReceiptForEdit(rc.name);
-                              setIsViewMode(true);
-                              setIsModalOpen(true);
-                            }}
-                            className="p-1 hover:bg-slate-100 rounded text-slate-500 hover:text-indigo-600"
-                          >
-                            <Edit3 size={14} />
-                          </button>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   // =========================================================================
-  // CLASSIC POS FULL TERMINAL LAYOUT FOR PURCHASE RECEIPT (Create & Edit Mode Only)
+  // CLASSIC POS FULL TERMINAL LAYOUT FOR PURCHASE RECEIPT (All Modes: New, Edit, View / Submitted)
   // =========================================================================
-  if (isModalOpen && !isViewMode) {
+  if (isModalOpen) {
     return (
       <div className="classic-root" style={{ position: 'fixed', inset: 0, zIndex: 10000, display: 'flex', flexDirection: 'column', background: '#f8fafc', overflow: 'hidden' }}>
         {/* CLASSIC NAVBAR */}
@@ -2480,27 +2477,70 @@ function PurchaseReceiptList() {
             </div>
           </div>
 
-          <div className="ml-auto flex items-center gap-3">
-            <div className="flex items-center gap-2 px-3 py-1 bg-emerald-50 border border-emerald-200 rounded-xl shadow-xs select-none">
-              <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
-              <span className="text-[10px] font-black uppercase tracking-widest text-emerald-700">
-                {formData.docstatus === 1 ? 'SUBMITTED' : 'RECEIPT TERMINAL'}
-              </span>
-            </div>
+          <div className="ml-auto flex items-center gap-2">
+            {/* DOCSTATUS BADGE */}
+            {formData.docstatus === 1 ? (
+              <div className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 border border-emerald-300 rounded-lg shadow-2xs select-none">
+                <CheckCircle2 size={13} className="text-emerald-600" />
+                <span className="text-[10px] font-black uppercase tracking-wider text-emerald-700">SUBMITTED</span>
+              </div>
+            ) : formData.docstatus === 2 ? (
+              <div className="flex items-center gap-1.5 px-2.5 py-1 bg-rose-50 border border-rose-300 rounded-lg shadow-2xs select-none">
+                <span className="text-[10px] font-black uppercase tracking-wider text-rose-700">CANCELLED</span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1.5 px-2.5 py-1 bg-slate-100 border border-slate-200 rounded-lg shadow-2xs select-none">
+                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+                <span className="text-[10px] font-black uppercase tracking-wider text-slate-700">
+                  {docName ? 'DRAFT' : 'NEW'}
+                </span>
+              </div>
+            )}
 
-            {/* Theme Toggle Button */}
-            <button
+            {/* ACTION: CANCEL (When Submitted) */}
+            {formData.docstatus === 1 && (
+              <button
+                type="button"
+                onClick={() => handleDocAction('cancel')}
+                disabled={saving}
+                className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg font-black text-[11px] uppercase tracking-wider transition-all shadow-xs cursor-pointer disabled:opacity-50"
+              >
+                CANCEL
+              </button>
+            )}
+
+            {/* PRINT PDF */}
+            {docName && (
+              <button
+                type="button"
+                onClick={() => handlePrintPDF(docName)}
+                className="px-3 py-1.5 bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 rounded-lg font-black text-[11px] uppercase tracking-wider flex items-center gap-1.5 cursor-pointer transition-all shadow-2xs"
+              >
+                <Printer size={13} />
+                <span>PRINT PDF</span>
+              </button>
+            )}
+
+            {/* DUPLICATE */}
+            {docName && (
+              <button
+                type="button"
+                onClick={handleDuplicate}
+                className="px-3 py-1.5 bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 rounded-lg font-black text-[11px] uppercase tracking-wider flex items-center gap-1.5 cursor-pointer transition-all shadow-2xs"
+              >
+                <Copy size={13} />
+                <span>DUPLICATE</span>
+              </button>
+            )}
+
+            {/* CLOSE / BACK TO LIST */}
+            <button 
               type="button"
-              onClick={() => dispatch(toggleTheme())}
-              className="px-3 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-300 rounded-xl font-black text-[10px] uppercase flex items-center gap-1.5 cursor-pointer transition-all shadow-xs"
-              title="Switch Theme"
+              onClick={() => setIsModalOpen(false)} 
+              className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded-lg font-black text-[11px] uppercase tracking-wider flex items-center gap-1.5 cursor-pointer transition-all shadow-2xs ml-1"
             >
-              <Palette size={13} />
-              <span>THEME: CLASSIC</span>
-            </button>
-
-            <button onClick={() => setIsModalOpen(false)} className="p-1 hover:bg-rose-50 text-rose-500 rounded-full cursor-pointer ml-2">
-              <X size={18} />
+              <ChevronLeft size={14} />
+              <span>BACK TO LIST</span>
             </button>
           </div>
         </nav>
@@ -2631,11 +2671,28 @@ function PurchaseReceiptList() {
                 </tr>
               </thead>
               <tbody>
-                {formData.items.filter(it => it.item_code).map((item, idx) => (
-                  <tr key={idx} className="border-b border-slate-100 hover:bg-emerald-50/30 transition-colors">
-                    <td className="text-center font-bold text-slate-400 text-xs py-2 border-r border-slate-100">{idx + 1}</td>
+                {formData.items.map((item, idx) => {
+                  if (!item || !item.item_code) return null;
+                  const itemIndex = formData.items.indexOf(item);
+                  const displayIndex = formData.items.slice(0, idx + 1).filter(it => it && it.item_code).length;
+                  return (
+                    <tr key={item.item_code ? `${item.item_code}-${idx}` : idx} data-row-index={idx} className="border-b border-slate-100 hover:bg-emerald-50/30 transition-colors">
+                    <td className="text-center font-bold text-slate-400 text-xs py-2 border-r border-slate-100">{displayIndex}</td>
                     {columnConfig.filter(c => c.visible).map(col => {
                       switch (col.id) {
+                        case 'barcode':
+                          return (
+                            <td key={col.id} className="px-2 py-1 border-r border-slate-100 align-middle">
+                              <input
+                                type="text"
+                                value={item.barcode || ''}
+                                onChange={(e) => updateItem(idx, "barcode", e.target.value)}
+                                disabled={isViewMode || formData.docstatus !== 0}
+                                placeholder="Barcode"
+                                className="w-full h-8 px-2 text-xs font-bold text-slate-800 bg-transparent border-none outline-none focus:bg-emerald-50/40 disabled:bg-slate-100 disabled:text-slate-500"
+                              />
+                            </td>
+                          );
                         case 'item_code':
                           return (
                             <td key={col.id} className="px-2 py-1 border-r border-slate-100 align-middle">
@@ -2663,7 +2720,7 @@ function PurchaseReceiptList() {
                             <td key={col.id} className="px-2 py-1 text-center border-r border-slate-100 align-middle">
                               <select
                                 value={item.uom || 'Nos'}
-                                onChange={(e) => handleUOMChange(idx, e.target.value)}
+                                onChange={(e) => handleUOMChange(e.target.value, idx)}
                                 disabled={isViewMode || formData.docstatus !== 0}
                                 className="w-full h-8 px-1 text-center font-black text-xs text-slate-800 bg-transparent border-none outline-none cursor-pointer focus:bg-emerald-50/40 disabled:bg-slate-100 disabled:text-slate-500"
                               >
@@ -2820,32 +2877,54 @@ function PurchaseReceiptList() {
                       <button type="button" onClick={() => removeItemRow(idx)} className="text-rose-400 hover:text-rose-600 font-black text-sm cursor-pointer">×</button>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
 
                 {/* ADVANCED: Smart Inline Search Row with Amber Border */}
                 <tr className="bg-emerald-50/40 border-y-2 border-amber-400 cursor-pointer hover:bg-amber-50/60 transition-all">
                   <td className="text-center font-black text-amber-600 text-xs py-2">{formData.items.filter(it => it.item_code).length + 1}</td>
-                  <td colSpan={columnConfig.filter(c => c.visible).length > 2 ? 2 : 1} className="p-0 relative h-10">
-                    <CustomSearchDropdown
-                      placeholder="SCAN BARCODE OR TYPE ITEM NAME HERE TO ADD..."
-                      value={null}
-                      onSelect={(selectedItem) => {
-                        if (selectedItem) {
-                          selectItem(formData.items.length - 1, selectedItem);
-                        }
-                      }}
-                      fetchData={fetchItems}
-                      optionsLabel="item_name"
-                      globalSearch={true}
-                      themeColor="#10b981"
-                      className="w-full h-full font-black italic text-slate-600"
-                    />
-                  </td>
-                  {Array.from({ length: Math.max(0, columnConfig.filter(c => c.visible).length - (columnConfig.filter(c => c.visible).length > 2 ? 2 : 1) - 1) }).map((_, emptyI) => (
-                    <td key={`search-empty-${emptyI}`} className="text-center bg-black/5 font-bold text-xs">-</td>
-                  ))}
-                  <td className="text-center px-2 font-black text-amber-600 bg-black/5 text-xs">NEXT ITEM</td>
-                  <td className="text-center">
+                  {(() => {
+                    const visibleCols = columnConfig.filter(c => c.visible);
+                    const barcodeIdx = visibleCols.findIndex(c => c.id === 'barcode');
+                    const itemCodeIdx = visibleCols.findIndex(c => c.id === 'item_code');
+                    const hasBoth = barcodeIdx !== -1 && itemCodeIdx !== -1;
+                    const primaryIdx = hasBoth ? Math.min(barcodeIdx, itemCodeIdx) : (barcodeIdx !== -1 ? barcodeIdx : itemCodeIdx);
+                    const secondaryIdx = hasBoth ? Math.max(barcodeIdx, itemCodeIdx) : -1;
+
+                    return visibleCols.map((col, cIdx) => {
+                      if (cIdx === primaryIdx) {
+                        return (
+                          <td 
+                            key="search-input-col" 
+                            colSpan={hasBoth && Math.abs(barcodeIdx - itemCodeIdx) === 1 ? 2 : 1} 
+                            className="p-0 relative h-10 align-middle"
+                          >
+                            <CustomSearchDropdown
+                              placeholder="SCAN BARCODE OR TYPE ITEM NAME HERE TO ADD..."
+                              value={null}
+                              onSelect={(selectedItem) => {
+                                if (selectedItem) {
+                                  selectItem(formData.items.length, selectedItem);
+                                }
+                              }}
+                              fetchData={fetchItems}
+                              optionsLabel="item_name"
+                              globalSearch={true}
+                              themeColor="#10b981"
+                              className="w-full h-full font-black italic text-slate-600"
+                            />
+                          </td>
+                        );
+                      }
+                      if (hasBoth && Math.abs(barcodeIdx - itemCodeIdx) === 1 && cIdx === secondaryIdx) {
+                        return null; // Covered by colSpan=2 above
+                      }
+                      return (
+                        <td key={`search-empty-${col.id}`} className="text-center bg-black/5 font-bold text-xs border-r border-slate-100">-</td>
+                      );
+                    });
+                  })()}
+                  <td className="text-center px-1">
                     <Search size={14} className="mx-auto text-amber-500" />
                   </td>
                 </tr>
@@ -2871,32 +2950,54 @@ function PurchaseReceiptList() {
               <div className="xl:col-span-7 flex">
                 <div className="grid grid-cols-4 grid-rows-2 gap-2 w-full h-full">
                   {/* SAVE DRAFT */}
-                  <button
-                    type="button"
-                    onClick={() => handleDocAction('save')}
-                    disabled={saving}
-                    className="h-full bg-[#fffbeb] hover:bg-[#fef3c7] text-[#78350f] border-2 border-[#fcd34d] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer"
-                  >
-                    <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#78350f]">
-                      <Save size={15} />
-                      <span>SAVE DRAFT</span>
-                    </div>
-                    <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-[#d97706] text-white">Alt+S</span>
-                  </button>
+                  {formData.docstatus === 0 || formData.docstatus === undefined ? (
+                    <button
+                      type="button"
+                      onClick={() => handleDocAction('save')}
+                      disabled={saving}
+                      className="h-full bg-[#fffbeb] hover:bg-[#fef3c7] text-[#78350f] border-2 border-[#fcd34d] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-60"
+                    >
+                      <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#78350f]">
+                        {saving ? <Loader2 size={15} className="animate-spin text-[#d97706]" /> : <Save size={15} />}
+                        <span>{saving ? 'SAVING...' : 'SAVE DRAFT'}</span>
+                      </div>
+                      <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-[#d97706] text-white">Alt+S</span>
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => handleDocAction('cancel')}
+                      disabled={saving || formData.docstatus === 2}
+                      className="h-full bg-rose-50 hover:bg-rose-100 text-rose-800 border-2 border-rose-300 rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-50"
+                    >
+                      <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-rose-800">
+                        {saving ? <Loader2 size={15} className="animate-spin text-rose-600" /> : <X size={15} />}
+                        <span>CANCEL</span>
+                      </div>
+                      <span className="inline-flex items-center justify-center font-mono text-[10px] font-black px-1.5 py-0.5 rounded bg-rose-600 text-white">Alt+C</span>
+                    </button>
+                  )}
 
-                  {/* SUBMIT */}
-                  <button
-                    type="button"
-                    onClick={() => handleDocAction('submit')}
-                    disabled={saving}
-                    className="h-full bg-[#ecfdf5] hover:bg-[#d1fae5] text-[#064e3b] border-2 border-[#6ee7b7] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer"
-                  >
-                    <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#064e3b]">
-                      <CheckCircle2 size={15} />
-                      <span>SUBMIT</span>
+                  {/* SUBMIT (Only in Draft Mode) */}
+                  {formData.docstatus === 0 || formData.docstatus === undefined ? (
+                    <button
+                      type="button"
+                      onClick={() => handleDocAction('submit')}
+                      disabled={saving}
+                      className="h-full bg-[#ecfdf5] hover:bg-[#d1fae5] text-[#064e3b] border-2 border-[#6ee7b7] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-60"
+                    >
+                      <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#064e3b]">
+                        {saving ? <Loader2 size={15} className="animate-spin text-[#047857]" /> : <CheckCircle2 size={15} />}
+                        <span>{saving ? 'SUBMITTING...' : 'SUBMIT'}</span>
+                      </div>
+                      <span className="inline-flex items-center justify-center font-mono text-[10px] font-black px-1.5 py-0.5 rounded bg-[#047857] text-white">Ctrl+↵</span>
+                    </button>
+                  ) : (
+                    <div className="h-full bg-emerald-50/60 border-2 border-emerald-200 rounded-xl px-3 py-2 flex items-center justify-center text-emerald-700 font-black text-[11px] uppercase tracking-wider select-none animate-in fade-in zoom-in duration-200">
+                      <CheckCircle2 size={15} className="mr-1.5 text-emerald-600" />
+                      <span>{formData.docstatus === 1 ? 'SUBMITTED' : 'CANCELLED'}</span>
                     </div>
-                    <span className="inline-flex items-center justify-center font-mono text-[10px] font-black px-1.5 py-0.5 rounded bg-[#047857] text-white">Ctrl+↵</span>
-                  </button>
+                  )}
 
                   {/* PRINT PDF */}
                   <button
@@ -2926,38 +3027,70 @@ function PurchaseReceiptList() {
                     <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-[#7c3aed] text-white">Alt+D</span>
                   </button>
 
-                  {/* ADD ROW */}
-                  <button
-                    type="button"
-                    onClick={addItemRow}
-                    className="h-full bg-white hover:bg-slate-100 text-[#1e293b] border-2 border-slate-300 rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer"
-                  >
-                    <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#1e293b]">
-                      <Plus size={15} />
-                      <span>ADD ROW</span>
-                    </div>
-                    <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-[#475569] text-white">Alt+A</span>
-                  </button>
+                  {/* ADD ROW / PURCHASE RETURN (If Submitted) */}
+                  {formData.docstatus === 1 ? (
+                    <button
+                      type="button"
+                      onClick={() => handleCreateReturn()}
+                      disabled={saving}
+                      className="h-full bg-rose-50 hover:bg-rose-100 text-rose-900 border-2 border-rose-300 rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer"
+                    >
+                      <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-rose-900">
+                        <Link size={14} />
+                        <span>PURCHASE RETURN</span>
+                      </div>
+                      <span className="inline-flex items-center justify-center font-mono text-[10px] font-black px-1.5 py-0.5 rounded bg-rose-600 text-white">+Ret</span>
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={addItemRow}
+                      disabled={formData.docstatus !== 0 && formData.docstatus !== undefined}
+                      className="h-full bg-white hover:bg-slate-100 text-[#1e293b] border-2 border-slate-300 rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-40"
+                    >
+                      <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#1e293b]">
+                        <Plus size={15} />
+                        <span>ADD ROW</span>
+                      </div>
+                      <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-[#475569] text-white">Alt+A</span>
+                    </button>
+                  )}
 
-                  {/* BULK QTY */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (formData.items.length > 0) {
-                        const firstIdx = formData.items.findIndex(it => it.item_code);
-                        if (firstIdx !== -1) {
-                          handleUOMChange(firstIdx, formData.items[firstIdx].use_box_entry ? 'Nos' : 'Box');
+                  {/* BULK QTY / CREATE INVOICE (If Submitted) */}
+                  {formData.docstatus === 1 ? (
+                    <button
+                      type="button"
+                      onClick={handleCreateInvoice}
+                      disabled={saving}
+                      className="h-full bg-amber-50 hover:bg-amber-100 text-amber-900 border-2 border-amber-300 rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer"
+                    >
+                      <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-amber-900">
+                        <Plus size={15} />
+                        <span>CREATE INVOICE</span>
+                      </div>
+                      <span className="inline-flex items-center justify-center font-mono text-[10px] font-black px-1.5 py-0.5 rounded bg-amber-600 text-white">+Inv</span>
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled={formData.docstatus !== 0 && formData.docstatus !== undefined}
+                      onClick={() => {
+                        if (formData.items.length > 0) {
+                          const firstIdx = formData.items.findIndex(it => it.item_code);
+                          if (firstIdx !== -1) {
+                            handleUOMChange(formData.items[firstIdx].use_box_entry ? 'Nos' : 'Box', firstIdx);
+                          }
                         }
-                      }
-                    }}
-                    className="h-full bg-white hover:bg-slate-100 text-[#1e293b] border-2 border-slate-300 rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer"
-                  >
-                    <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#1e293b]">
-                      <Package size={15} />
-                      <span>BULK QTY</span>
-                    </div>
-                    <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-[#475569] text-white">F6</span>
-                  </button>
+                      }}
+                      className="h-full bg-white hover:bg-slate-100 text-[#1e293b] border-2 border-slate-300 rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-40"
+                    >
+                      <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#1e293b]">
+                        <Package size={15} />
+                        <span>BULK QTY</span>
+                      </div>
+                      <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-[#475569] text-white">F6</span>
+                    </button>
+                  )}
 
                   {/* DELETE / CLOSE */}
                   {formData.docstatus === 0 && docName ? (
@@ -3053,6 +3186,15 @@ function PurchaseReceiptList() {
             </div>
           </div>
         </div>
+
+        {/* COLUMN CONFIGURATION MODAL IN CLASSIC VIEW */}
+        <ColumnConfigModal
+          isOpen={showColConfig}
+          onClose={() => setShowColConfig(false)}
+          columns={columnConfig}
+          onUpdate={handleColConfigUpdate}
+          doctype="Purchase Receipt"
+        />
       </div>
     );
   }
@@ -4363,7 +4505,7 @@ function PurchaseReceiptList() {
     <>
       <div className="so-page">
         {/* Header */}
-        <div className="so-page-header-container">
+        <div className="so-page-header-container" style={{ display: isModalOpen ? 'none' : 'block' }}>
           <div className="so-page-tabs">
             <span className="so-page-tab active">Purchase Receipt</span>
             <span className="so-page-tab" onClick={() => navigate('/purchasereport')} style={{ cursor: 'pointer' }}>Reports</span>
@@ -4404,18 +4546,18 @@ function PurchaseReceiptList() {
           </div>
         </div>
 
-        <div className="so-layout" style={{ flexDirection: 'column' }}>
+        <div className="so-layout" style={{ flexDirection: 'column', display: isModalOpen ? 'none' : 'flex' }}>
           {/* Top Filters Bar */}
           <div className="so-filter-bar" style={{
             background: 'white',
-            padding: '1.25rem 1.5rem',
+            padding: '1.25rem 2rem',
             borderBottom: '1px solid var(--so-border)',
             display: 'flex',
             flexWrap: 'wrap',
             gap: '1.25rem',
             alignItems: 'flex-end'
           }}>
-            <div className="so-filter-group" style={{ minWidth: '150px', flex: 1 }}>
+            <div style={{ flex: '1 1 180px' }}>
               <label className="so-filter-label">Receipt Number</label>
               <input
                 type="text"
@@ -4426,7 +4568,7 @@ function PurchaseReceiptList() {
               />
             </div>
 
-            <div className="so-filter-group" style={{ minWidth: '150px', flex: 1 }}>
+            <div style={{ flex: '1 1 180px' }}>
               <label className="so-filter-label">Supplier</label>
               <input
                 type="text"
@@ -4437,12 +4579,13 @@ function PurchaseReceiptList() {
               />
             </div>
 
-            <div className="so-filter-group" style={{ minWidth: '150px', flex: 1 }}>
+            <div style={{ flex: '1 1 140px' }}>
               <label className="so-filter-label">Status</label>
               <select
                 value={filterStatus}
                 onChange={e => setFilterStatus(e.target.value)}
-                className="so-filter-select"
+                className="so-filter-input"
+                style={{ padding: '0.45rem' }}
               >
                 <option value="">All Statuses</option>
                 <option value="Draft">Draft</option>
@@ -4453,7 +4596,7 @@ function PurchaseReceiptList() {
               </select>
             </div>
 
-            <div className="so-filter-group" style={{ minWidth: '130px', flex: 1 }}>
+            <div style={{ flex: '1 1 150px' }}>
               <label className="so-filter-label">From Date</label>
               <input
                 type="date"
@@ -4465,7 +4608,7 @@ function PurchaseReceiptList() {
               />
             </div>
 
-            <div className="so-filter-group" style={{ minWidth: '130px', flex: 1 }}>
+            <div style={{ flex: '1 1 150px' }}>
               <label className="so-filter-label">To Date</label>
               <input
                 type="date"
@@ -4477,14 +4620,14 @@ function PurchaseReceiptList() {
               />
             </div>
 
-            <button onClick={clearFilters} className="so-clear-btn" style={{ margin: 0, width: 'auto', padding: '0.625rem 1rem' }}>
-              Clear Filters
+            <button onClick={clearFilters} className="so-clear-btn" style={{ margin: 0, height: '38px' }}>
+              Clear
             </button>
           </div>
 
           {/* Table Area */}
-          <div className="so-content">
-            <p className="so-list-meta">{total} record(s) found</p>
+          <div className="so-content" style={{ padding: '1.5rem 2rem' }}>
+            <p className="so-list-meta" style={{ marginBottom: '1rem', fontWeight: 600 }}>{total} record(s) found</p>
             <div className="so-table-card">
               {loading ? (
                 <div style={{ padding: '4rem', textAlign: 'center' }}>
@@ -4522,16 +4665,19 @@ function PurchaseReceiptList() {
                           </tr>
                         ) : (
                           paginated.map(rec => (
-                            <tr key={rec.name} className="cursor-pointer hover:bg-slate-50 transition-colors" onClick={() => fetchReceiptForEdit(rec.name)}>
+                            <tr key={rec.name} className="cursor-pointer hover:bg-slate-50 transition-colors" onClick={() => setSearchParams({ name: rec.name })}>
                               <td>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                                  <button
-                                    type="button"
-                                    onClick={(e) => { e.stopPropagation(); fetchReceiptForEdit(rec.name); }}
-                                    style={{ color: themeColor, textDecoration: 'none', background: 'none', border: 'none', cursor: 'pointer' }}
+                                  <a
+                                    href={`/#/purchasereceiptlist?name=${rec.name}`}
+                                    target={window.location.protocol === 'file:' ? '_self' : '_blank'}
+                                    rel="noopener noreferrer"
+                                    onClick={(e) => e.stopPropagation()}
+                                    title="Open in new tab"
+                                    style={{ color: themeColor, textDecoration: 'none' }}
                                   >
                                     <ExternalLink size={12} style={{ opacity: 0.6 }} />
-                                  </button>
+                                  </a>
                                   <span style={{ fontWeight: 700, color: themeColor }}>{rec.name}</span>
                                   {rec.is_return === 1 && (
                                     <span style={{
@@ -4549,7 +4695,7 @@ function PurchaseReceiptList() {
                                 </div>
                               </td>
                               <td>
-                                <div style={{ fontWeight: 500 }}>{rec.supplier_name}</div>
+                                <div style={{ fontWeight: 600 }}>{rec.supplier_name || rec.supplier}</div>
                                 <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>{rec.supplier}</div>
                               </td>
                               <td>
@@ -4566,7 +4712,7 @@ function PurchaseReceiptList() {
                                 </span>
                               </td>
                               <td>
-                                <span style={{ color: '#475569' }}>{format(new Date(rec.posting_date), 'dd-MM-yyyy')}</span>
+                                <span style={{ color: '#475569', fontSize: '0.85rem' }}>{rec.posting_date ? format(new Date(rec.posting_date), 'dd-MM-yyyy') : '—'}</span>
                               </td>
                               <td>
                                 <span className="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider" style={{
@@ -4589,8 +4735,13 @@ function PurchaseReceiptList() {
                                 </td>
                               ))}
                               <td onClick={e => e.stopPropagation()}>
-                                <button style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}>
-                                  <MoreVertical size={16} />
+                                <button
+                                  type="button"
+                                  onClick={() => setSearchParams({ name: rec.name })}
+                                  style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}
+                                  title="Edit / View Details"
+                                >
+                                  <Edit3 size={15} className="hover:text-emerald-600 transition-colors" />
                                 </button>
                               </td>
                             </tr>

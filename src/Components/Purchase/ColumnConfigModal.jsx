@@ -111,14 +111,15 @@ const SortableItem = ({ id, column, onToggle, onWidthChange, onAlignChange, onMo
   );
 };
 
-const ColumnConfigModal = ({ isOpen, onClose, config, onUpdate, doctype, themeColor }) => {
+const ColumnConfigModal = ({ isOpen, onClose, config, columns, onUpdate, doctype, themeColor }) => {
   const [localConfig, setLocalConfig] = useState([]);
 
   useEffect(() => {
     if (isOpen) {
-      setLocalConfig([...config]);
+      const activeCols = Array.isArray(config) ? config : (Array.isArray(columns) ? columns : []);
+      setLocalConfig([...activeCols]);
     }
-  }, [isOpen, config]);
+  }, [isOpen, config, columns]);
 
   const sensors = useSensors(
     useSensor(PointerSensor),

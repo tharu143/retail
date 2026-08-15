@@ -4,7 +4,7 @@ import {
   Plus, Search, X, Save, Upload, Package, Camera, ChevronLeft,
   Users, AlertCircle, Trash2, ChevronDown, Palette, Loader2, ChevronRight,
   Edit2, ShoppingCart, Barcode, Tag, Box, Info, ShieldCheck, Scale, MapPin, Activity, FileText, Calendar,
-  LayoutGrid, List, TrendingUp, Warehouse, DollarSign, BarChart2, RefreshCw, Zap
+  LayoutGrid, List, TrendingUp, Warehouse, DollarSign, BarChart2, RefreshCw, Zap, Layers
 } from 'lucide-react';
 import axios from 'axios';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
@@ -495,6 +495,7 @@ const SearchableSelectInline = ({ value, options, onChange, placeholder, style }
 const defaultForm = () => ({
   item_code: '', item_name: '', item_group: '', disabled: false,
   maintain_stock: true, has_variants: false, is_variant: false, variant_of: '',
+  attributes: [],
   opening_stock: 0, valuation_rate: 0, standard_selling_rate: 0, brand: '',
   default_uom: 'Nos', description: '', image: null, imagePreview: null,
   uoms: [], hsn_code: '', country_of_origin: '', custom_loyalty_eligible: 0, custom_allow_discount: 1,
@@ -558,6 +559,15 @@ export default function ItemList() {
   const [uoms, setUoms] = useState([]);
   const [countries, setCountries] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
+  const [availableAttributes, setAvailableAttributes] = useState([]);
+  const [attributeValuesMap, setAttributeValuesMap] = useState({});
+  const [variantForm, setVariantForm] = useState({
+    create_first_variant: true,
+    selected_attributes: {},
+    variant_item_code: '',
+    variant_item_name: '',
+    variant_rate: ''
+  });
   const [loadingPrices, setLoadingPrices] = useState(false);
   const [groupSearch] = useState('');
 
@@ -625,13 +635,13 @@ export default function ItemList() {
     return () => document.removeEventListener('keydown', onKey);
   }, [showForm, isScanning]);
 
-  useEffect(() => { fetchBrands(); fetchUoms(); fetchCountries(); fetchSuppliers(); fetchWarehouses(); }, []);
+  useEffect(() => { fetchBrands(); fetchUoms(); fetchCountries(); fetchSuppliers(); fetchWarehouses(); fetchItemAttributes(); }, []);
 
   const handleAdd = () => {
     resetForm();
     const myWh = localStorage.getItem('warehouse');
     if (myWh) setForm(p => ({ ...p, branch_availability: [{ warehouse: myWh }] }));
-    setShowForm(true); fetchItemGroups(); fetchBrands(); fetchUoms(); fetchCountries();
+    setShowForm(true); fetchItemGroups(); fetchBrands(); fetchUoms(); fetchCountries(); fetchItemAttributes();
   };
 
   useEffect(() => {
@@ -790,6 +800,76 @@ export default function ItemList() {
         return { label, value };
       }));
     } catch { }
+  };
+
+  const DEFAULT_ATTRS = ['Colour', 'Size', 'Pack Size', 'GSM', 'Brand', 'Pages', 'Binding', 'Type'];
+  const HARDCODED_ATTR_VALUES = {
+    'Colour': [
+      { attribute_value: 'Blue', abbr: 'BLU' },
+      { attribute_value: 'Black', abbr: 'BLA' },
+      { attribute_value: 'Red', abbr: 'RED' },
+      { attribute_value: 'Green', abbr: 'GRE' },
+      { attribute_value: 'White', abbr: 'WHI' },
+      { attribute_value: 'Orange', abbr: 'Org' },
+      { attribute_value: 'Yellow', abbr: 'Yellow' },
+      { attribute_value: 'Pink', abbr: 'Pink' },
+      { attribute_value: 'Transparent', abbr: 'Transparent' }
+    ],
+    'Size': [
+      { attribute_value: 'Small', abbr: 'S' },
+      { attribute_value: 'Medium', abbr: 'M' },
+      { attribute_value: 'Large', abbr: 'L' },
+      { attribute_value: 'Extra Large', abbr: 'XL' },
+      { attribute_value: 'Extra Small', abbr: 'XS' },
+      { attribute_value: 'A4', abbr: 'A4' },
+      { attribute_value: 'A3', abbr: 'A3' },
+      { attribute_value: 'A5', abbr: 'A5' },
+      { attribute_value: 'B5', abbr: 'B5' }
+    ],
+    'Pack Size': [
+      { attribute_value: 'Single', abbr: '1' },
+      { attribute_value: 'Pack of 10', abbr: '10' },
+      { attribute_value: 'Pack of 50', abbr: '50' }
+    ],
+    'GSM': [
+      { attribute_value: '70 GSM', abbr: '70' },
+      { attribute_value: '80 GSM', abbr: '80' },
+      { attribute_value: '100 GSM', abbr: '100' }
+    ]
+  };
+
+  const fetchItemAttributes = async () => {
+    try {
+      const [attrRes, valRes] = await Promise.all([
+        axios.get('/api/resource/Item Attribute', { params: { fields: JSON.stringify(['name']), limit_page_length: 100 } })
+          .catch(() => axios.get('/api/method/kyle_retail.retail_api.api.get_generic_list', { params: { doctype: 'Item Attribute', fields: JSON.stringify(['name']), limit: 100 }, withCredentials: true })),
+        axios.get('/api/resource/Item Attribute Value', { params: { fields: JSON.stringify(['parent', 'attribute_value', 'abbr']), limit_page_length: 500 } })
+          .catch(() => axios.get('/api/method/kyle_retail.retail_api.api.get_generic_list', { params: { doctype: 'Item Attribute Value', fields: JSON.stringify(['parent', 'attribute_value', 'abbr']), limit: 500 }, withCredentials: true }))
+      ]);
+      const list = attrRes.data?.data || attrRes.data?.message?.data || attrRes.data?.message || [];
+      let attrList = (Array.isArray(list) ? list : []).map(a => ({ label: a.name || a.attribute_name, value: a.name || a.attribute_name }));
+      if (attrList.length === 0) {
+        attrList = DEFAULT_ATTRS.map(a => ({ label: a, value: a }));
+      }
+      setAvailableAttributes(attrList);
+      
+      const values = valRes.data?.data || valRes.data?.message?.data || valRes.data?.message || [];
+      const map = { ...HARDCODED_ATTR_VALUES };
+      (Array.isArray(values) ? values : []).forEach(v => {
+        const p = v.parent;
+        if (p) {
+          if (!map[p]) map[p] = [];
+          if (!map[p].some(x => x.attribute_value === v.attribute_value)) {
+            map[p].push(v);
+          }
+        }
+      });
+      setAttributeValuesMap(map);
+    } catch (err) {
+      console.error('Error fetching item attributes:', err);
+      setAvailableAttributes(DEFAULT_ATTRS.map(a => ({ label: a, value: a })));
+      setAttributeValuesMap(HARDCODED_ATTR_VALUES);
+    }
   };
 
   const fetchWarehouses = async () => {
@@ -1159,6 +1239,18 @@ export default function ItemList() {
 
   const handleSave = async () => {
     if (!form.item_code.trim() || !form.item_name.trim() || !form.item_group || !form.default_uom.trim()) { alert('Please fill all required fields'); return; }
+    
+    const validAttributes = form.has_variants
+      ? (form.attributes || [])
+          .map(a => (typeof a === 'object' && a !== null ? a.attribute : a))
+          .filter(a => a && typeof a === 'string' && a.trim() !== '')
+          .map(a => ({ attribute: a.trim() }))
+      : [];
+
+    if (form.has_variants && validAttributes.length === 0) {
+      alert('Please select at least one valid Variant Attribute (e.g., Size, Colour) for Template Item.');
+      return;
+    }
     setSaving(true);
     try {
       const data = {
@@ -1170,6 +1262,8 @@ export default function ItemList() {
         disabled: form.disabled ? 1 : 0,
         maintain_stock: form.maintain_stock ? 1 : 0,
         has_variants: form.has_variants ? 1 : 0,
+        variant_based_on: form.has_variants ? 'Item Attribute' : undefined,
+        attributes: validAttributes,
         is_variant: form.variant_of ? 1 : 0,
         variant_of: form.variant_of || '',
         description: form.description || '',
@@ -1190,8 +1284,35 @@ export default function ItemList() {
           .filter(b => b.warehouse && b.warehouse !== 'undefined' && b.warehouse !== 'null')
           .map(b => ({ warehouse: b.warehouse }))
       };
-      await axios.post('/api/method/kyle_retail.retail_api.api.create_generic_doc', { doctype: 'Item', data }, { withCredentials: true });
-      alert(isEditMode ? 'Item updated!' : 'Item created!');
+      const res = await axios.post('/api/method/kyle_retail.retail_api.api.create_generic_doc', { doctype: 'Item', data }, { withCredentials: true });
+      if (res.data?.status === 'error' || res.data?.message?.status === 'error') {
+        throw new Error(res.data?.message?.message || res.data?.message || 'Save failed');
+      }
+      
+      // If template was created with an initial variant, create the variant item now
+      const validVariantAttrs = {};
+      Object.entries(variantForm.selected_attributes || {}).forEach(([k, v]) => {
+        if (k && v && String(v).trim()) validVariantAttrs[k] = v;
+      });
+
+      if (!isEditMode && form.has_variants && variantForm.create_first_variant && Object.keys(validVariantAttrs).length > 0) {
+        try {
+          const varRes = await axios.post('/api/method/custom_retailpos.custom_pos_features.create_custom_item_variant', {
+            template_item_code: form.item_code,
+            attribute_values: JSON.stringify(validVariantAttrs),
+            custom_item_code: variantForm.variant_item_code.trim() || null,
+            item_name: variantForm.variant_item_name.trim() || null,
+            standard_rate: variantForm.variant_rate ? parseFloat(variantForm.variant_rate) : (parseFloat(form.standard_selling_rate) || 0)
+          });
+          if (varRes.data?.message?.status === 'error') {
+            console.warn('Variant creation notice:', varRes.data.message.message);
+          }
+        } catch (vErr) {
+          console.warn('Initial variant creation note:', vErr);
+        }
+      }
+
+      alert(isEditMode ? 'Item updated!' : (form.has_variants && variantForm.create_first_variant && Object.keys(validVariantAttrs).length > 0 ? 'Template & Variant created successfully!' : 'Item created!'));
       setShowForm(false); resetForm(); fetchItems();
     } catch (e) { alert(e.response?.data?.message || e.message || 'Save failed'); }
     finally { setSaving(false); }
@@ -2538,25 +2659,6 @@ export default function ItemList() {
                         <label className="il-form-label">Pieces Per Box</label>
                         <input type="number" className="il-input" value={form.custom_pieces_per_box} onChange={e => setForm({ ...form, custom_pieces_per_box: e.target.value })} placeholder="Conversion factor" />
                       </div>
-
-                      {/* Variant & Template Configuration */}
-                      {!isEditMode && (
-                        <div style={{ gridColumn: 'span 3', padding: '12px 14px', background: T.purpleLight || '#f5f3ff', border: '1.5px solid #ddd6fe', borderRadius: 12, marginTop: 4 }}>
-                          <div style={{ fontSize: 12, fontWeight: 800, color: '#6d28d9', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Template Item Setting</div>
-                          <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', padding: '8px 12px', background: '#fff', borderRadius: 8, border: '1px solid #c4b5fd', width: 'fit-content' }}>
-                            <input
-                              type="checkbox"
-                              className="il-check"
-                              checked={form.has_variants === true || form.has_variants === 1}
-                              onChange={e => setForm({ ...form, has_variants: e.target.checked ? 1 : 0 })}
-                            />
-                            <div>
-                              <div style={{ fontSize: 12, fontWeight: 800, color: '#5b21b6' }}>Is Item Template (Has Variants)</div>
-                              <div style={{ fontSize: 10, color: '#7c3aed' }}>Mark this item master as a Template to enable Variant Creation in Item Details</div>
-                            </div>
-                          </label>
-                        </div>
-                      )}
                     </div>
                   </div>
                 </CardSection>
@@ -2598,7 +2700,26 @@ export default function ItemList() {
                             type="checkbox"
                             className="il-check"
                             checked={form[f.key] === 1}
-                            onChange={e => setForm({ ...form, [f.key]: e.target.checked ? 1 : 0 })}
+                            onChange={e => {
+                              const checked = e.target.checked;
+                              const updatedForm = { ...form, [f.key]: checked ? 1 : 0 };
+                              if (f.key === 'has_variants') {
+                                if (checked && (!form.attributes || form.attributes.length === 0)) {
+                                  const initialAttr = availableAttributes[0]?.value || 'Colour';
+                                  updatedForm.attributes = [{ attribute: initialAttr }];
+                                  const possibleVals = attributeValuesMap[initialAttr] || [];
+                                  const firstVal = possibleVals[0]?.attribute_value || '';
+                                  const initSelected = firstVal ? { [initialAttr]: firstVal } : {};
+                                  setVariantForm(vf => ({
+                                    ...vf,
+                                    selected_attributes: initSelected,
+                                    variant_item_code: firstVal ? `${form.item_code || 'ITEM'}-${firstVal}`.toUpperCase() : '',
+                                    variant_item_name: firstVal ? `${form.item_name || 'Item'} ${firstVal}` : ''
+                                  }));
+                                }
+                              }
+                              setForm(updatedForm);
+                            }}
                             tabIndex={showForm ? 0 : -1}
                           />
                           <div>
@@ -2617,6 +2738,262 @@ export default function ItemList() {
                     </div>
                   </CardSection>
                 </div>
+
+                {/* Template Attributes & Initial Variant Configuration (Like CreateVariantModal) */}
+                {Boolean(form.has_variants) && (
+                  <CardSection 
+                    title="Template Item Attributes & Initial Variant" 
+                    icon={<Layers size={14} />}
+                    style={{ border: '1.5px solid #c4b5fd', background: '#faf5ff' }}
+                    action={<button type="button" className="il-btn il-btn-ghost" style={{ padding: '4px 9px', fontSize: 12, color: '#6d28d9' }} onClick={() => setForm(p => ({ ...p, attributes: [...(p.attributes || []), { attribute: '' }] }))}><Plus size={12} />Add Attribute</button>}
+                  >
+                    <div style={{ padding: '16px' }}>
+                      <div style={{ fontSize: 12, color: '#6d28d9', fontWeight: 700, marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                        1. Select Template Attributes (e.g. Size, Colour)
+                      </div>
+                      
+                      {/* Fast Tag Selector */}
+                      {availableAttributes.length > 0 && (
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 14, padding: '10px', background: '#fff', borderRadius: 8, border: '1px solid #e9d5ff' }}>
+                          <span style={{ fontSize: 11, fontWeight: 700, color: '#7c3aed', alignSelf: 'center', marginRight: 4 }}>Quick Attributes:</span>
+                          {availableAttributes.map(attr => {
+                            const isSelected = (form.attributes || []).some(a => (a.attribute || a) === attr.value);
+                            return (
+                              <button
+                                key={attr.value}
+                                type="button"
+                                onClick={() => {
+                                  let nextAttrs = [];
+                                  if (isSelected) {
+                                    nextAttrs = (form.attributes || []).filter(a => (a.attribute || a) !== attr.value);
+                                  } else {
+                                    nextAttrs = [...(form.attributes || []), { attribute: attr.value }];
+                                  }
+                                  setForm(p => ({ ...p, attributes: nextAttrs }));
+                                  
+                                  // Update variantForm pre-fill
+                                  const initialVals = { ...variantForm.selected_attributes };
+                                  if (isSelected) {
+                                    delete initialVals[attr.value];
+                                  } else {
+                                    const possibleVals = attributeValuesMap[attr.value] || [];
+                                    if (possibleVals.length > 0 && !initialVals[attr.value]) {
+                                      initialVals[attr.value] = possibleVals[0].attribute_value;
+                                    }
+                                  }
+                                  const attrStr = Object.values(initialVals).filter(Boolean).join('-');
+                                  setVariantForm(vf => ({
+                                    ...vf,
+                                    selected_attributes: initialVals,
+                                    variant_item_code: attrStr ? `${form.item_code || 'ITEM'}-${attrStr}`.toUpperCase() : '',
+                                    variant_item_name: attrStr ? `${form.item_name || 'Item'} ${attrStr}` : ''
+                                  }));
+                                }}
+                                style={{
+                                  padding: '4px 10px',
+                                  fontSize: 11,
+                                  fontWeight: 700,
+                                  borderRadius: 20,
+                                  border: isSelected ? '1.5px solid #7c3aed' : '1px solid #cbd5e1',
+                                  background: isSelected ? '#7c3aed' : '#fff',
+                                  color: isSelected ? '#fff' : '#475569',
+                                  cursor: 'pointer',
+                                  transition: 'all 0.15s'
+                                }}
+                              >
+                                {isSelected ? `✓ ${attr.value}` : `+ ${attr.value}`}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+
+                      {/* Selected Attributes Dropdowns */}
+                      {(form.attributes || []).length > 0 ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
+                          {(form.attributes || []).map((a, idx) => {
+                            const attrName = a.attribute || a;
+                            return (
+                              <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 10, background: '#fff', padding: '8px 12px', borderRadius: 8, border: '1px solid #e2e8f0' }}>
+                                <span style={{ fontSize: 12, fontWeight: 700, color: '#64748b', width: 24 }}>#{idx + 1}</span>
+                                <div style={{ flex: 1 }}>
+                                  <select
+                                    style={{ width: '100%', height: 38, padding: '0 12px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13, background: '#fff', fontWeight: 600, color: '#1e293b', outline: 'none' }}
+                                    value={attrName}
+                                    onChange={e => {
+                                      const val = e.target.value;
+                                      const updated = [...(form.attributes || [])];
+                                      updated[idx] = { attribute: val };
+                                      setForm({ ...form, attributes: updated });
+                                      
+                                      const possibleVals = attributeValuesMap[val] || [];
+                                      const firstVal = possibleVals[0]?.attribute_value || '';
+                                      const nextSelected = { ...variantForm.selected_attributes };
+                                      delete nextSelected[attrName];
+                                      if (val && firstVal) nextSelected[val] = firstVal;
+                                      const attrStr = Object.values(nextSelected).filter(Boolean).join('-');
+                                      setVariantForm(vf => ({
+                                        ...vf,
+                                        selected_attributes: nextSelected,
+                                        variant_item_code: attrStr ? `${form.item_code || 'ITEM'}-${attrStr}`.toUpperCase() : '',
+                                        variant_item_name: attrStr ? `${form.item_name || 'Item'} ${attrStr}` : ''
+                                      }));
+                                    }}
+                                  >
+                                    <option value="">-- Choose Attribute (e.g. Size, Colour) --</option>
+                                    {availableAttributes.map(opt => (
+                                      <option key={opt.value} value={opt.value}>
+                                        {opt.label}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
+                                <button 
+                                  type="button" 
+                                  onClick={() => {
+                                    const updated = form.attributes.filter((_, i) => i !== idx);
+                                    setForm(p => ({ ...p, attributes: updated }));
+                                    const initialVals = { ...variantForm.selected_attributes };
+                                    delete initialVals[attrName];
+                                    setVariantForm(vf => ({ ...vf, selected_attributes: initialVals }));
+                                  }} 
+                                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.red, padding: 4 }}
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div style={{ padding: '16px', textAlign: 'center', background: '#fff', borderRadius: 8, border: '1px dashed #c084fc', color: '#7c3aed', fontSize: 12, fontWeight: 600, marginBottom: 16 }}>
+                          ⚠️ Please select at least one Attribute above to enable Variant creation.
+                        </div>
+                      )}
+
+                      {/* Initial Variant Creation Section (Matching CreateVariantModal) */}
+                      {(form.attributes || []).length > 0 && !isEditMode && (
+                        <div style={{ background: '#fff', border: '1.5px solid #ddd6fe', borderRadius: 12, padding: '16px', marginTop: 10 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, borderBottom: '1px solid #f3e8ff', paddingBottom: 10 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <Box size={16} color="#7c3aed" />
+                              <span style={{ fontSize: 13, fontWeight: 800, color: '#5b21b6' }}>Create First Variant Immediately</span>
+                            </div>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 12, fontWeight: 700, color: '#6d28d9' }}>
+                              <input 
+                                type="checkbox"
+                                className="il-check"
+                                checked={variantForm.create_first_variant} 
+                                onChange={e => setVariantForm({ ...variantForm, create_first_variant: e.target.checked })} 
+                              />
+                              Enable Variant Creation
+                            </label>
+                          </div>
+
+                          {variantForm.create_first_variant && (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                              {/* Attribute Values Grid */}
+                              <div>
+                                <label style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: 6, display: 'block' }}>Choose Attribute Values</label>
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 10 }}>
+                                  {(form.attributes || []).map(a => (typeof a === 'object' && a !== null ? a.attribute : a)).filter(Boolean).map((attrName) => {
+                                    const possibleVals = attributeValuesMap[attrName] || [];
+                                    return (
+                                      <div key={attrName} style={{ padding: '8px 12px', background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0' }}>
+                                        <div style={{ fontSize: 11, fontWeight: 800, color: '#334155', marginBottom: 4 }}>{String(attrName)} *</div>
+                                        <select
+                                          style={{ width: '100%', padding: '6px 10px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12, background: '#fff', outline: 'none' }}
+                                          value={variantForm.selected_attributes[attrName] || ''}
+                                          onChange={e => {
+                                            const nextSelected = { ...variantForm.selected_attributes, [attrName]: e.target.value };
+                                            const attrStr = Object.values(nextSelected).filter(Boolean).join('-');
+                                            setVariantForm({
+                                              ...variantForm,
+                                              selected_attributes: nextSelected,
+                                              variant_item_code: attrStr ? `${form.item_code || 'ITEM'}-${attrStr}`.toUpperCase() : '',
+                                              variant_item_name: attrStr ? `${form.item_name || 'Item'} ${attrStr}` : ''
+                                            });
+                                          }}
+                                        >
+                                          <option value="">-- Select {String(attrName)} --</option>
+                                          {possibleVals.map(val => (
+                                            <option key={val.attribute_value} value={val.attribute_value}>
+                                              {val.attribute_value} {val.abbr ? `(${val.abbr})` : ''}
+                                            </option>
+                                          ))}
+                                        </select>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+
+                              {/* Custom / Auto Code Mode (Just like CreateVariantModal) */}
+                              <div style={{ padding: '10px 12px', background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 12, fontWeight: 700, color: '#334155' }}>
+                                  <input 
+                                    type="checkbox" 
+                                    className="il-check"
+                                    checked={variantForm.use_custom_code !== false} 
+                                    onChange={e => {
+                                      const useCustom = e.target.checked;
+                                      const attrStr = Object.values(variantForm.selected_attributes || {}).filter(Boolean).join('-');
+                                      setVariantForm(vf => ({
+                                        ...vf,
+                                        use_custom_code: useCustom,
+                                        variant_item_code: !useCustom && attrStr ? `${form.item_code || 'ITEM'}-${attrStr}`.toUpperCase() : vf.variant_item_code
+                                      }));
+                                    }} 
+                                  />
+                                  <span>Manual / Custom Variant Item Code Override</span>
+                                </label>
+                                <span style={{ fontSize: 11, color: '#64748b' }}>{variantForm.use_custom_code !== false ? 'Custom code enabled' : 'Auto code from template & attributes'}</span>
+                              </div>
+
+                              {/* Variant Item Code, Name, Rate (Just like CreateVariantModal) */}
+                              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12, paddingTop: 10, borderTop: '1px dashed #e2e8f0' }}>
+                                <div>
+                                  <label style={{ fontSize: 11, fontWeight: 700, color: '#334155', display: 'block', marginBottom: 4 }}>Variant Item Code *</label>
+                                  <input 
+                                    type="text" 
+                                    className="il-input" 
+                                    value={variantForm.variant_item_code} 
+                                    readOnly={variantForm.use_custom_code === false}
+                                    onChange={e => setVariantForm({ ...variantForm, variant_item_code: e.target.value })} 
+                                    placeholder="e.g. SHIRT-BLUE-L or VAR-001" 
+                                  />
+                                </div>
+                                <div>
+                                  <label style={{ fontSize: 11, fontWeight: 700, color: '#334155', display: 'block', marginBottom: 4 }}>Variant Item Name</label>
+                                  <input 
+                                    type="text" 
+                                    className="il-input" 
+                                    value={variantForm.variant_item_name} 
+                                    onChange={e => setVariantForm({ ...variantForm, variant_item_name: e.target.value })} 
+                                    placeholder="e.g. Cotton Shirt Blue L" 
+                                  />
+                                </div>
+                                <div>
+                                  <label style={{ fontSize: 11, fontWeight: 700, color: '#334155', display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
+                                    Standard Selling Rate (<DirhamIcon size={11} />)
+                                  </label>
+                                  <input 
+                                    type="number" 
+                                    step="0.01" 
+                                    className="il-input" 
+                                    value={variantForm.variant_rate} 
+                                    onChange={e => setVariantForm({ ...variantForm, variant_rate: e.target.value })} 
+                                    placeholder={form.standard_selling_rate || "0.00"} 
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </CardSection>
+                )}
 
                 {/* Barcodes */}
                 <CardSection title="Barcodes" icon={<Barcode size={14} />}

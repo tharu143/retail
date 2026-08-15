@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
   Plus, X, Trash2, Building2, Search, Calendar, Filter, MoreVertical, Package,
-  Warehouse as WarehouseIcon, Percent, DollarSign, Loader2, Barcode, Palette, ChevronLeft, ChevronRight, Zap, CheckCircle2, CheckCircle, AlertTriangle, ExternalLink, Link, Edit2, Settings, Copy, ChevronDown, Printer, Save, Send, FileText, Box
+  Warehouse as WarehouseIcon, Percent, DollarSign, Loader2, Barcode, Palette, ChevronLeft, ChevronRight, Zap, CheckCircle2, CheckCircle, AlertTriangle, ExternalLink, Link, Edit2, Settings, Copy, ChevronDown, Printer, Save, Send, FileText, Box, CalendarDays, Hash, Receipt
 } from 'lucide-react';
 import { useSelector, useDispatch } from 'react-redux';
 import { toggleTheme } from '../../Redux/Slices/userSlice';
@@ -594,7 +594,14 @@ function PurchaseInvoiceList() {
 
       if (success) {
         setLastSavedData(JSON.stringify(payload)); // Update base for dirty check after save
-        Swal.fire('Success', `${action.toUpperCase()} operation completed successfully.`, 'success');
+        Swal.fire({
+          icon: 'success',
+          title: `${action === 'save' ? 'Draft Saved' : action === 'submit' ? 'Invoice Submitted' : action.toUpperCase() + ' Successful'}`,
+          toast: true,
+          position: 'top-end',
+          timer: 2000,
+          showConfirmButton: false
+        });
 
         if (action === 'delete') {
           closeModal();
@@ -625,7 +632,15 @@ function PurchaseInvoiceList() {
         throw new Error(rawMsg.message || "Operation failed");
       }
     } catch (err) {
-      Swal.fire('Matrix Error', err.response?.data?.message || err.message, 'error');
+      Swal.fire({
+        icon: 'error',
+        title: 'Action Failed',
+        text: err.response?.data?.message || err.message,
+        toast: true,
+        position: 'top-end',
+        timer: 4000,
+        showConfirmButton: false
+      });
     } finally {
       setSaving(false);
     }
@@ -1035,6 +1050,9 @@ function PurchaseInvoiceList() {
             default_pieces_per_box: parseFloat(i.custom_pieces_per_box || 1),
             custom_box_price: parseFloat(i.custom_box_price || 0),
             custom_selling_price: parseFloat(i.custom_selling_price || 0),
+            custom_box_selling_price: parseFloat(i.custom_box_selling_price || 0) > 0 
+              ? parseFloat(i.custom_box_selling_price) 
+              : ((parseFloat(i.custom_selling_price || 0) * (parseFloat(i.custom_pieces_per_box) || 1)) || 0),
             custom_supplier_sl_no: i.custom_ref_sl_no || i.custom_supplier_sl_num || '',
             custom_ref_sl_no: i.custom_ref_sl_no || i.custom_supplier_sl_num || '',
             purchase_order: i.purchase_order || '',
@@ -1524,6 +1542,32 @@ function PurchaseInvoiceList() {
         const total_qty = Math.round(box_qty * pcs_per_box);
         items[index].qty = total_qty;
         items[index][field] = value;
+
+        // Auto update Box Selling Price if Pieces per box changes
+        if (field === 'custom_pieces_per_box') {
+          const sellNos = parseFloat(items[index].custom_selling_price) || 0;
+          if (sellNos > 0 && pcs_per_box > 0) {
+            items[index].custom_box_selling_price = parseFloat((sellNos * pcs_per_box).toFixed(2));
+          }
+        }
+      } else if (field === 'custom_selling_price') {
+        items[index].custom_selling_price = value;
+        const sellNos = parseFloat(value) || 0;
+        const pcs = parseFloat(items[index].custom_pieces_per_box) || 1;
+        if (sellNos > 0 && pcs > 0) {
+          items[index].custom_box_selling_price = parseFloat((sellNos * pcs).toFixed(2));
+        } else if (value === '' || sellNos === 0) {
+          items[index].custom_box_selling_price = '';
+        }
+      } else if (field === 'custom_box_selling_price') {
+        items[index].custom_box_selling_price = value;
+        const sellBox = parseFloat(value) || 0;
+        const pcs = parseFloat(items[index].custom_pieces_per_box) || 1;
+        if (sellBox > 0 && pcs > 0) {
+          items[index].custom_selling_price = parseFloat((sellBox / pcs).toFixed(4));
+        } else if (value === '' || sellBox === 0) {
+          items[index].custom_selling_price = '';
+        }
       } else {
         items[index][field] = value;
       }
@@ -1736,10 +1780,16 @@ function PurchaseInvoiceList() {
         // Remove current row so empty duplicate row is not left behind
         items = items.filter((_, idx) => idx !== rowIndex);
       } else {
-        // Normal item selection
+        // Clean items array if replacing empty row or appending
+        let targetIndex = rowIndex;
+        if (targetIndex >= items.length) {
+          items.push({});
+          targetIndex = items.length - 1;
+        }
+
         const isBoxUom = isBoxScan || (item.stock_uom || '').toLowerCase() === 'box';
         const lastPurRate = parseFloat(item.last_purchase_rate || item.last_buying_rate || item.rate || 0);
-        items[rowIndex] = {
+        items[targetIndex] = {
           item_code: item.item_code,
           item_name: item.item_name,
           uom: isBoxUom ? 'Box' : (item.stock_uom || 'Nos'),
@@ -1755,6 +1805,9 @@ function PurchaseInvoiceList() {
           custom_ref_sl_no: item.custom_ref_sl_no || item.custom_supplier_sl_num || '',
           use_box_entry: isBoxUom
         };
+
+        // Filter out any other empty dummy rows that had no item_code
+        items = items.filter(it => it.item_code);
       }
       return { ...prev, items };
     });
@@ -1771,12 +1824,18 @@ function PurchaseInvoiceList() {
       const res = await axios.get(`${API_PATH}.get_item_buying_rate`, {
         params: {
           item_code: item.item_code,
-          warehouse: formData.accepted_warehouse || warehouse || undefined
+          warehouse: formData.accepted_warehouse || warehouse || undefined,
+          uom: isBoxUom ? 'Box' : 'Nos'
         },
         withCredentials: true
       });
-      if (res.data.message?.rate) {
-        updateItem(rowIndex, 'rate', res.data.message.rate);
+      if (res.data.message) {
+        const buyingRate = parseFloat(res.data.message.rate) || 0;
+        const boxBuyingPrice = parseFloat(res.data.message.box_price) || (buyingRate * pcsPerBox);
+        if (buyingRate > 0 || boxBuyingPrice > 0) {
+          updateItem(rowIndex, 'rate', buyingRate);
+          updateItem(rowIndex, 'custom_box_price', boxBuyingPrice);
+        }
       }
     } catch (err) {
       console.log("No buying rate found");
@@ -1865,21 +1924,27 @@ function PurchaseInvoiceList() {
           const totalDiscAmt = parseFloat(i.discount_amount || 0);
           const perUnitDiscAmt = itemQty > 0 ? (totalDiscAmt / itemQty) : 0;
           const netRate = Math.max(0, grossRate - perUnitDiscAmt);
+          const itemStockUom = i.stock_uom || 'Nos';
+          const selectedUom = i.uom || itemStockUom;
+          const pcsPerBox = parseFloat(i.custom_pieces_per_box) || 1;
 
           return {
             name: i.name || undefined,
             doctype: "Purchase Invoice Item",
             item_code: i.item_code,
             qty: itemQty,
-            uom: i.uom || undefined,
+            uom: selectedUom,
+            stock_uom: itemStockUom,
+            conversion_factor: selectedUom.toLowerCase() === 'box' ? pcsPerBox : 1,
             rate: netRate,
             price_list_rate: grossRate,
             discount_percentage: parseFloat(i.discount_percentage || 0),
             discount_amount: perUnitDiscAmt,
             custom_box_qty: isBox ? parseFloat(i.custom_box_qty || 0) : parseFloat(i.qty),
-            custom_pieces_per_box: isBox ? parseFloat(i.custom_pieces_per_box || 1) : 1,
-            custom_box_price: isBox ? parseFloat(i.custom_box_price || 0) : parseFloat(i.rate || 0),
+            custom_pieces_per_box: isBox ? pcsPerBox : 1,
+            custom_box_price: parseFloat(i.custom_box_price || 0),
             custom_selling_price: parseFloat(i.custom_selling_price || 0),
+            custom_box_selling_price: parseFloat(i.custom_box_selling_price || 0),
             custom_supplier_sl_num: i.custom_ref_sl_no || i.custom_supplier_sl_num || '',
             custom_ref_sl_no: i.custom_ref_sl_no || i.custom_supplier_sl_num || '',
             purchase_order: i.purchase_order || undefined,
@@ -1962,9 +2027,13 @@ function PurchaseInvoiceList() {
       setLastSavedData(JSON.stringify(formData));
       fetchInvoices();
     } catch (err) {
-      const msg = err.response?.data?.message || err.response?.data?.exception || 'Save failed';
-      alert("Error: " + msg);
-      console.error(err.response?.data);
+      const errMsg = err.response?.data?.message || err.response?.data?._server_messages || err.message || 'Save failed';
+      Swal.fire({
+        icon: 'error',
+        title: 'Draft Save Error',
+        text: typeof errMsg === 'string' ? errMsg : JSON.stringify(errMsg),
+      });
+      console.error("Save Draft Error:", err);
     } finally {
       setSaving(false);
     }
@@ -1986,19 +2055,18 @@ function PurchaseInvoiceList() {
     setSaving(true);
     const payload = await getPayload();
     try {
-      let name = docName;
-      if (!name) {
-        const GENERIC_API = '/api/method/kyle_retail.retail_api.api.create_generic_doc';
-        // First save as draft using generic doc creator
-        const createRes = await axios.post(GENERIC_API, {
-          doctype: "Purchase Invoice",
-          data: payload
-        }, { withCredentials: true });
-        const apiResp = createRes.data.message || createRes.data;
-        if (!apiResp.name) throw new Error('Create failed');
-        name = apiResp.name;
-        setDocName(name);
-      }
+      const GENERIC_API = '/api/method/kyle_retail.retail_api.api.create_generic_doc';
+      // Always save draft with latest payload first
+      const createRes = await axios.post(GENERIC_API, {
+        doctype: "Purchase Invoice",
+        data: docName ? { ...payload, name: docName } : payload
+      }, { withCredentials: true });
+      const apiResp = createRes.data?.message || createRes.data;
+      const targetName = docName || apiResp?.name;
+      if (!targetName) throw new Error(apiResp?.message || 'Create draft before submit failed');
+      let name = targetName;
+      setDocName(name);
+
       // Submit via custom whitelist API (avoids CSRF issues)
       const SUBMIT_API = '/api/method/kyle_retail.retail_api.api.submit_generic_doc';
       const subRes = await axios.post(SUBMIT_API, {
@@ -2006,20 +2074,30 @@ function PurchaseInvoiceList() {
         name: name
       }, { withCredentials: true });
 
-      const subMsg = subRes.data.message || subRes.data;
-      if (subMsg.status === 'error') {
-        throw new Error(subMsg.message || 'Submit failed');
+      const subMsg = subRes.data?.message || subRes.data;
+      if (subMsg?.status === 'error') {
+        throw new Error(subMsg?.message || 'Submit failed');
       }
 
-      alert(`Purchase Invoice Submitted: ${name}`);
+      Swal.fire({
+        icon: 'success',
+        title: 'Submitted!',
+        text: `Purchase Invoice ${name} submitted successfully`,
+        timer: 2000,
+        showConfirmButton: false
+      });
       setIsModalOpen(false);
       setDocName('');
       setDocStatus(null);
       fetchInvoices();
     } catch (err) {
-      const msg = err.response?.data?.message || err.response?.data?.exception || 'Submit failed';
-      alert("Error: " + msg);
-      console.error(err.response?.data);
+      const errMsg = err.response?.data?.message || err.response?.data?._server_messages || err.message || 'Submit failed';
+      Swal.fire({
+        icon: 'error',
+        title: 'Submit Error',
+        text: typeof errMsg === 'string' ? errMsg : JSON.stringify(errMsg),
+      });
+      console.error("Submit Error:", err);
     } finally {
       setSaving(false);
     }
@@ -2045,11 +2123,12 @@ function PurchaseInvoiceList() {
   };
 
   const filteredInvoices = useMemo(() => invoices.filter(inv => {
-    const matchesName = !filterName || inv.name.toLowerCase().includes(filterName.toLowerCase());
-    const matchesSupplier = !filterSupplier || inv.supplier_name.toLowerCase().includes(filterSupplier.toLowerCase());
+    const matchesName = !filterName || (inv.name || '').toLowerCase().includes(filterName.toLowerCase());
+    const matchesSupplier = !filterSupplier || (inv.supplier_name || inv.supplier || '').toLowerCase().includes(filterSupplier.toLowerCase());
     const matchesStatus = !filterStatus || inv.status === filterStatus;
-    const matchesFrom = !filterDateFrom || new Date(inv.posting_date) >= new Date(filterDateFrom);
-    const matchesTo = !filterDateTo || new Date(inv.posting_date) <= new Date(filterDateTo);
+    const invDateStr = String(inv.posting_date || '').slice(0, 10);
+    const matchesFrom = !filterDateFrom || invDateStr >= String(filterDateFrom).slice(0, 10);
+    const matchesTo = !filterDateTo || invDateStr <= String(filterDateTo).slice(0, 10);
     return matchesName && matchesSupplier && matchesStatus && matchesFrom && matchesTo;
   }), [invoices, filterName, filterSupplier, filterStatus, filterDateFrom, filterDateTo]);
 
@@ -2565,9 +2644,9 @@ function PurchaseInvoiceList() {
   }, [isModalOpen, formData, allowedActions, isViewMode, saving, taxTemplates, isDirty, docName]);
 
   // =========================================================================
-  // CLASSIC POS FULL TERMINAL LAYOUT FOR PURCHASE INVOICE (Create & Edit Mode Only)
+  // CLASSIC POS FULL TERMINAL LAYOUT FOR PURCHASE INVOICE (All Modes: New, Edit, View / Submitted)
   // =========================================================================
-  if (isModalOpen && !isViewMode) {
+  if (isModalOpen) {
     return (
       <div className="classic-root" style={{ position: 'fixed', inset: 0, zIndex: 10000, display: 'flex', flexDirection: 'column', background: '#f8fafc', overflow: 'hidden' }}>
         {/* CLASSIC NAVBAR */}
@@ -2581,27 +2660,168 @@ function PurchaseInvoiceList() {
             </div>
           </div>
 
-          <div className="ml-auto flex items-center gap-3">
-            <div className="flex items-center gap-2 px-3 py-1 bg-emerald-50 border border-emerald-200 rounded-xl shadow-xs select-none">
-              <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
-              <span className="text-[10px] font-black uppercase tracking-widest text-emerald-700">
-                {formData.docstatus === 1 ? 'SUBMITTED' : 'INVOICE TERMINAL'}
-              </span>
-            </div>
+          <div className="ml-auto flex items-center gap-2">
+            {/* DOCSTATUS BADGE */}
+            {formData.docstatus === 1 ? (
+              <div className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 border border-emerald-300 rounded-lg shadow-2xs select-none">
+                <CheckCircle2 size={13} className="text-emerald-600" />
+                <span className="text-[10px] font-black uppercase tracking-wider text-emerald-700">SUBMITTED</span>
+              </div>
+            ) : formData.docstatus === 2 ? (
+              <div className="flex items-center gap-1.5 px-2.5 py-1 bg-rose-50 border border-rose-300 rounded-lg shadow-2xs select-none">
+                <span className="text-[10px] font-black uppercase tracking-wider text-rose-700">CANCELLED</span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1.5 px-2.5 py-1 bg-slate-100 border border-slate-200 rounded-lg shadow-2xs select-none">
+                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+                <span className="text-[10px] font-black uppercase tracking-wider text-slate-700">
+                  {docName ? 'DRAFT' : 'NEW'}
+                </span>
+              </div>
+            )}
 
-            {/* Theme Toggle Button */}
-            <button
+            {/* ACTION: CANCEL (When Submitted & Allowed) */}
+            {formData.docstatus === 1 && (allowedActions.includes('cancel') || allowedActions.length === 0) && (
+              <button
+                type="button"
+                onClick={() => handleDocAction('cancel')}
+                disabled={saving}
+                className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg font-black text-[11px] uppercase tracking-wider transition-all shadow-xs cursor-pointer disabled:opacity-50"
+              >
+                CANCEL
+              </button>
+            )}
+
+            {/* ACTION: AMEND (When Cancelled & Allowed) */}
+            {formData.docstatus === 2 && (allowedActions.includes('amend') || allowedActions.length === 0) && (
+              <button
+                type="button"
+                onClick={() => handleDocAction('amend')}
+                disabled={saving}
+                className="px-3 py-1.5 bg-sky-600 hover:bg-sky-700 text-white rounded-lg font-black text-[11px] uppercase tracking-wider transition-all shadow-xs cursor-pointer disabled:opacity-50"
+              >
+                AMEND
+              </button>
+            )}
+
+            {/* ACTION: CREATE & CONNECTIONS DROPDOWN */}
+            {docName && (
+              <div className="relative" ref={createDropdownRef}>
+                <button
+                  type="button"
+                  onClick={() => setShowCreateDropdown(!showCreateDropdown)}
+                  className="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-lg font-black text-[11px] uppercase tracking-wider flex items-center gap-1 cursor-pointer transition-all shadow-2xs"
+                >
+                  <Plus size={13} className="text-slate-500" />
+                  <span>CREATE</span>
+                  <ChevronDown size={13} className="text-slate-400" />
+                </button>
+                {showCreateDropdown && (
+                  <div className="absolute right-0 mt-2 w-72 bg-white rounded-xl shadow-xl border border-slate-200 z-[12000] p-4 animate-fadeIn text-left">
+                    <div className="flex items-center gap-2 pb-2 mb-3 border-b border-slate-100">
+                      <Zap className="w-4 h-4 text-indigo-500 opacity-80 shrink-0" />
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Create & Connections</span>
+                    </div>
+
+                    {/* Actions Section */}
+                    {formData.docstatus === 1 && (
+                      <div className="flex flex-col gap-2 mb-4">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowCreateDropdown(false);
+                            handleCreatePayment();
+                          }}
+                          disabled={saving}
+                          className="w-full flex items-center justify-center gap-2 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-[11px] font-black shadow-xs transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
+                        >
+                          <Plus className="w-4 h-4" />
+                          <span>Create Payment Entry</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowCreateDropdown(false);
+                            handleCreateReturn();
+                          }}
+                          disabled={saving}
+                          className="w-full flex items-center justify-center gap-2 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-[11px] font-black shadow-xs transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
+                        >
+                          <Link size={14} />
+                          <span>Create Debit Note</span>
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Connected Docs / Links */}
+                    <div className="flex flex-col gap-3 max-h-[260px] overflow-y-auto pr-1">
+                      {Object.keys(linkedDocs).some(dt => (linkedDocs[dt] || []).length > 0) ? (
+                        Object.entries(linkedDocs)
+                          .filter(([dt, links]) => links && links.length > 0)
+                          .map(([dt, links]) => (
+                            <div key={dt} className="flex flex-col gap-1.5 text-left">
+                              <span className="text-[9px] font-black text-slate-400 uppercase tracking-tight">{dt}</span>
+                              <div className="flex flex-wrap gap-1">
+                                {links.map(link => (
+                                  <button
+                                    key={link.name}
+                                    type="button"
+                                    onClick={() => {
+                                      setShowCreateDropdown(false);
+                                      navigateToDoc(dt, link.name);
+                                    }}
+                                    className="px-2 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-md text-[10px] font-bold flex items-center gap-1 transition-all cursor-pointer truncate max-w-full"
+                                  >
+                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+                                    <span className="truncate">{link.name}</span>
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          ))
+                      ) : (
+                        <div className="py-4 text-center">
+                          <p className="text-[11px] font-semibold text-slate-400">No linked documents found</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* PRINT PDF */}
+            {docName && (
+              <button
+                type="button"
+                onClick={() => handlePrintPDF(docName)}
+                className="px-3 py-1.5 bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 rounded-lg font-black text-[11px] uppercase tracking-wider flex items-center gap-1.5 cursor-pointer transition-all shadow-2xs"
+              >
+                <Printer size={13} />
+                <span>PRINT PDF</span>
+              </button>
+            )}
+
+            {/* DUPLICATE */}
+            {docName && (
+              <button
+                type="button"
+                onClick={handleDuplicate}
+                className="px-3 py-1.5 bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 rounded-lg font-black text-[11px] uppercase tracking-wider flex items-center gap-1.5 cursor-pointer transition-all shadow-2xs"
+              >
+                <Copy size={13} />
+                <span>DUPLICATE</span>
+              </button>
+            )}
+
+            {/* CLOSE / BACK TO LIST */}
+            <button 
               type="button"
-              onClick={() => dispatch(toggleTheme())}
-              className="px-3 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-300 rounded-xl font-black text-[10px] uppercase flex items-center gap-1.5 cursor-pointer transition-all shadow-xs"
-              title="Switch Theme"
+              onClick={() => setIsModalOpen(false)} 
+              className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded-lg font-black text-[11px] uppercase tracking-wider flex items-center gap-1.5 cursor-pointer transition-all shadow-2xs ml-1"
             >
-              <Palette size={13} />
-              <span>THEME: CLASSIC</span>
-            </button>
-
-            <button onClick={() => setIsModalOpen(false)} className="p-1 hover:bg-rose-50 text-rose-500 rounded-full cursor-pointer ml-2">
-              <X size={18} />
+              <ChevronLeft size={14} />
+              <span>BACK TO LIST</span>
             </button>
           </div>
         </nav>
@@ -2644,59 +2864,69 @@ function PurchaseInvoiceList() {
           </div>
         </div>
 
-        {/* CLASSIC HEADER FORM */}
-        <div className="classic-header-form bg-slate-50/80 border-b border-slate-200 p-3 flex flex-col gap-2.5 shrink-0">
-          {/* Row 1: Supplier, Branch, PI No */}
-          <div className="flex flex-wrap items-center gap-3 w-full">
-            <div className="flex items-center gap-2 relative flex-1 min-w-[340px]">
-              <label className="uppercase font-extrabold text-[10px] text-slate-500 tracking-wider whitespace-nowrap">SUPPLIER</label>
-              <div className="relative group flex-1" ref={supplierRef}>
+        {/* CLASSIC HEADER FORM: ENTRY HEADER BAR DESIGN */}
+        <header className="rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-xs shrink-0 mx-2 my-1.5">
+          <div className="grid grid-cols-2 items-end gap-x-4 gap-y-3 md:grid-cols-4 xl:grid-cols-[1.6fr_1.6fr_1fr_1fr_1fr_1fr_1fr_auto]">
+            
+            {/* 1. Supplier */}
+            <div className="flex min-w-0 flex-col gap-1.5 col-span-2 md:col-span-2 xl:col-span-1">
+              <span className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+                Supplier
+              </span>
+              <div className="relative group w-full" ref={supplierRef}>
                 <CustomSearchDropdown
-                  placeholder="Search supplier / vendor..."
+                  placeholder="Search supplier..."
                   value={formData.supplier ? { name: formData.supplier, supplier_name: formData.supplier_name } : null}
                   onSelect={(val) => selectSupplier(val)}
                   fetchData={fetchSuppliers}
                   optionsLabel="supplier_name"
                   globalSearch={true}
                   themeColor="#10b981"
-                  className="w-full"
+                  className="h-10 w-full min-w-0 rounded-md border border-slate-200 bg-slate-50/50 px-3 text-sm font-semibold text-slate-800 outline-none transition-colors placeholder:font-normal placeholder:text-slate-400 focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-500/20"
                 />
               </div>
             </div>
 
-            {/* Warehouse / Branch Selector Tag */}
-            <div className="h-9 px-3 flex items-center border border-slate-200 bg-white rounded-xl text-xs font-black uppercase tracking-wider text-slate-700 shadow-2xs shrink-0 gap-1.5">
-              <Package size={14} className="text-emerald-600" />
-              {isAdmin ? (
-                <select
-                  name="set_warehouse"
-                  value={formData.set_warehouse || ''}
-                  onChange={(e) => setFormData(prev => ({ ...prev, set_warehouse: e.target.value, accepted_warehouse: e.target.value }))}
-                  disabled={isViewMode}
-                  className="bg-transparent border-none outline-none font-black text-xs cursor-pointer text-slate-800"
-                >
-                  <option value="">Select Branch...</option>
-                  {warehouses.map(w => (
-                    <option key={w.name} value={w.name}>{w.name}</option>
-                  ))}
-                </select>
-              ) : (
-                <span>{formData.set_warehouse || warehouse || 'Main Warehouse'}</span>
-              )}
+            {/* 2. Branch */}
+            <div className="flex min-w-0 flex-col gap-1.5 col-span-2 md:col-span-2 xl:col-span-1">
+              <span className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+                <Building2 className="size-3 text-slate-400" aria-hidden />
+                Branch
+              </span>
+              <div className="h-10 w-full min-w-0 rounded-md border border-slate-200 bg-slate-50/50 px-3 text-sm font-semibold text-slate-800 outline-none transition-colors flex items-center truncate">
+                {isAdmin ? (
+                  <select
+                    name="set_warehouse"
+                    value={formData.set_warehouse || ''}
+                    onChange={(e) => setFormData(prev => ({ ...prev, set_warehouse: e.target.value, accepted_warehouse: e.target.value }))}
+                    disabled={isViewMode}
+                    className="w-full bg-transparent border-none outline-none font-semibold text-sm text-slate-800 cursor-pointer truncate p-0"
+                  >
+                    <option value="">Select Branch...</option>
+                    {warehouses.map(w => (
+                      <option key={w.name} value={w.name}>{w.name}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <span className="truncate">{formData.set_warehouse || warehouse || 'Main Warehouse'}</span>
+                )}
+              </div>
             </div>
 
-            {/* PI Number Tag */}
-            <div className="flex items-center gap-1.5 ml-auto shrink-0 bg-white px-3 py-1.5 rounded-xl border border-slate-200 shadow-2xs">
-              <label className="uppercase font-black text-[10px] text-slate-400 tracking-wider">PI NO:</label>
-              <span className="text-xs font-mono font-black text-slate-800">{docName || 'NEW-PUR-INV'}</span>
-            </div>
-          </div>
-
-          {/* Row 2: Posting Date, Inv No, Payment Type, Inv Date, Due Date, Bill Amt */}
-          <div className="flex flex-wrap items-center gap-3.5 w-full bg-white p-2 rounded-2xl border border-slate-200/80 shadow-2xs">
-            {/* Posting Date */}
-            <div className="flex items-center gap-1.5">
-              <label className="uppercase font-extrabold text-[10px] text-slate-500 tracking-wider whitespace-nowrap">POSTING DATE</label>
+            {/* 3. Posting Date */}
+            <div 
+              onClick={(e) => {
+                const inp = e.currentTarget.querySelector('input[type="date"]');
+                if (inp && inp.showPicker) {
+                  try { inp.showPicker(); } catch (err) {}
+                }
+              }}
+              className="flex min-w-0 flex-col gap-1.5 cursor-pointer group"
+            >
+              <span className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500 cursor-pointer">
+                <CalendarDays className="size-3 text-slate-400 group-hover:text-emerald-600 transition-colors" aria-hidden />
+                Posting
+              </span>
               <input
                 type="date"
                 value={formData.posting_date || ''}
@@ -2708,56 +2938,58 @@ function PurchaseInvoiceList() {
                     return { ...prev, posting_date: newPostingDate, due_date: calculatedDueDate };
                   });
                 }}
-                className="h-8 px-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-700 outline-none focus:border-emerald-500 focus:bg-white"
+                className="h-10 w-full min-w-0 rounded-md border border-slate-200 bg-slate-50/50 px-3 text-sm font-semibold text-slate-800 outline-none transition-colors focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 cursor-pointer"
+                aria-label="Posting date"
               />
             </div>
 
-            {/* Supplier Invoice No */}
-            <div className="flex items-center gap-1.5">
-              <label className="uppercase font-extrabold text-[10px] text-slate-500 tracking-wider whitespace-nowrap">INV NO</label>
+            {/* 4. Due Date */}
+            <div className="flex min-w-0 flex-col gap-1.5">
+              <span className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+                <CalendarDays className="size-3 text-slate-400" aria-hidden />
+                Due
+              </span>
+              <input
+                type="date"
+                value={formData.due_date || ''}
+                disabled={true}
+                title={formData.is_cash_purchase ? 'CASH Purchase: Due Date equals Posting Date' : 'CREDIT Purchase Due Date'}
+                className="h-10 w-full min-w-0 rounded-md border border-slate-200 bg-slate-100 px-3 text-sm font-semibold text-slate-500 outline-none cursor-not-allowed"
+                aria-label="Due date"
+              />
+            </div>
+
+            {/* 5. Inv # */}
+            <div className="flex min-w-0 flex-col gap-1.5">
+              <span className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+                <Hash className="size-3 text-slate-400" aria-hidden />
+                Inv #
+              </span>
               <input
                 type="text"
-                placeholder="Enter Bill No..."
+                placeholder="5467345"
                 value={formData.bill_no || ''}
                 disabled={isViewMode}
                 onChange={e => setFormData(prev => ({ ...prev, bill_no: e.target.value }))}
-                className="h-8 px-2 w-32 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-700 outline-none focus:border-emerald-500 focus:bg-white placeholder:text-slate-300"
+                className="h-10 w-full min-w-0 rounded-md border border-slate-200 bg-slate-50/50 px-3 text-sm font-semibold text-slate-800 outline-none transition-colors placeholder:font-normal placeholder:text-slate-400 focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-500/20"
+                aria-label="Invoice number"
               />
             </div>
 
-            {/* Payment Type Toggle */}
-            <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-lg border border-slate-200">
-              <button
-                type="button"
-                disabled={isViewMode}
-                onClick={() => {
-                  setFormData(prev => {
-                    const calculatedDueDate = calcDueDate(prev.posting_date, false, prev.credit_days);
-                    return { ...prev, is_cash_purchase: false, due_date: calculatedDueDate };
-                  });
-                }}
-                className={`px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${!formData.is_cash_purchase ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-500 hover:text-slate-800'}`}
-              >
-                CREDIT
-              </button>
-              <button
-                type="button"
-                disabled={isViewMode}
-                onClick={() => {
-                  setFormData(prev => {
-                    const calculatedDueDate = calcDueDate(prev.posting_date, true, prev.credit_days);
-                    return { ...prev, is_cash_purchase: true, due_date: calculatedDueDate };
-                  });
-                }}
-                className={`px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${formData.is_cash_purchase ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-500 hover:text-slate-800'}`}
-              >
-                CASH
-              </button>
-            </div>
-
-            {/* Supplier Invoice Date */}
-            <div className="flex items-center gap-1.5">
-              <label className="uppercase font-extrabold text-[10px] text-slate-500 tracking-wider whitespace-nowrap">INV DATE</label>
+            {/* 6. Inv Date */}
+            <div 
+              onClick={(e) => {
+                const inp = e.currentTarget.querySelector('input[type="date"]');
+                if (inp && inp.showPicker) {
+                  try { inp.showPicker(); } catch (err) {}
+                }
+              }}
+              className="flex min-w-0 flex-col gap-1.5 cursor-pointer group"
+            >
+              <span className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500 cursor-pointer">
+                <CalendarDays className="size-3 text-slate-400 group-hover:text-emerald-600 transition-colors" aria-hidden />
+                Inv Date
+              </span>
               <input
                 type="date"
                 value={formData.bill_date || ''}
@@ -2770,25 +3002,17 @@ function PurchaseInvoiceList() {
                     due_date: newBillDate && prev.due_date && newBillDate > prev.due_date ? newBillDate : prev.due_date
                   }));
                 }}
-                className="h-8 px-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-700 outline-none focus:border-emerald-500 focus:bg-white"
+                className="h-10 w-full min-w-0 rounded-md border border-slate-200 bg-slate-50/50 px-3 text-sm font-semibold text-slate-800 outline-none transition-colors focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 cursor-pointer"
+                aria-label="Invoice date"
               />
             </div>
 
-            {/* Due Date */}
-            <div className="flex items-center gap-1.5">
-              <label className="uppercase font-extrabold text-[10px] text-slate-500 tracking-wider whitespace-nowrap">DUE DATE</label>
-              <input
-                type="date"
-                value={formData.due_date || ''}
-                disabled={true}
-                title={formData.is_cash_purchase ? 'CASH Purchase: Due Date equals Posting Date' : 'CREDIT Purchase Due Date'}
-                className="h-8 px-2 bg-slate-100 border border-slate-200 rounded-lg text-xs font-black text-slate-700 cursor-not-allowed outline-none"
-              />
-            </div>
-
-            {/* Supplier Invoice Amount & Match Status */}
-            <div className="flex items-center gap-2 ml-auto shrink-0">
-              <label className="uppercase font-extrabold text-[10px] text-slate-500 tracking-wider whitespace-nowrap">BILL AMT (AED)</label>
+            {/* 7. Bill Amt */}
+            <div className="flex min-w-0 flex-col gap-1.5">
+              <span className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+                <Receipt className="size-3 text-slate-400" aria-hidden />
+                Bill Amt
+              </span>
               <input
                 type="number"
                 step="0.01"
@@ -2796,30 +3020,44 @@ function PurchaseInvoiceList() {
                 value={formData.custom_supplier_invoice_amount || ''}
                 disabled={isViewMode}
                 onChange={e => setFormData(prev => ({ ...prev, custom_supplier_invoice_amount: e.target.value }))}
-                className="h-8 px-2 w-28 bg-emerald-50/50 border border-emerald-300 rounded-lg text-xs font-black text-emerald-700 outline-none focus:border-emerald-500 focus:bg-white placeholder:text-slate-300"
+                className="h-10 w-full min-w-0 rounded-md border border-slate-200 bg-slate-50/50 px-3 text-sm font-bold text-right tabular-nums text-emerald-600 outline-none transition-colors placeholder:font-normal placeholder:text-slate-400 focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-500/20"
+                inputMode="decimal"
+                aria-label="Bill amount"
               />
-              {(() => {
-                const suppAmt = parseFloat(formData.custom_supplier_invoice_amount) || 0;
-                const diff = grandTotal - suppAmt;
-                const isMatched = Math.abs(diff) < 0.01;
-
-                if (suppAmt <= 0) return null;
-
-                return isMatched ? (
-                  <span className="px-2.5 py-1 rounded-lg bg-emerald-500 text-white text-[10px] font-black tracking-wider flex items-center gap-1 shadow-xs animate-fadeIn">
-                    <CheckCircle size={12} />
-                    <span>✓ MATCHED</span>
-                  </span>
-                ) : (
-                  <span className="px-2.5 py-1 rounded-lg bg-rose-500 text-white text-[10px] font-black tracking-wider flex items-center gap-1 shadow-xs animate-pulse">
-                    <AlertTriangle size={12} />
-                    <span>⚠ UNMATCHED ({diff > 0 ? '+' : ''}{diff.toFixed(2)})</span>
-                  </span>
-                );
-              })()}
             </div>
+
+            {/* 8. Credit / Cash Toggle */}
+            <div className="col-span-2 flex h-10 items-stretch self-end overflow-hidden rounded-md border border-slate-200 md:col-span-4 xl:col-span-1 xl:w-[168px]">
+              <button
+                type="button"
+                disabled={isViewMode}
+                onClick={() => {
+                  setFormData(prev => {
+                    const calculatedDueDate = calcDueDate(prev.posting_date, false, prev.credit_days);
+                    return { ...prev, is_cash_purchase: false, due_date: calculatedDueDate };
+                  });
+                }}
+                className={`flex-1 px-4 text-xs font-bold uppercase tracking-[0.12em] transition-colors cursor-pointer ${!formData.is_cash_purchase ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-800'}`}
+              >
+                Credit
+              </button>
+              <button
+                type="button"
+                disabled={isViewMode}
+                onClick={() => {
+                  setFormData(prev => {
+                    const calculatedDueDate = calcDueDate(prev.posting_date, true, prev.credit_days);
+                    return { ...prev, is_cash_purchase: true, due_date: calculatedDueDate };
+                  });
+                }}
+                className={`flex-1 px-4 text-xs font-bold uppercase tracking-[0.12em] transition-colors cursor-pointer ${formData.is_cash_purchase ? 'bg-emerald-600 text-white shadow-xs' : 'bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-800'}`}
+              >
+                Cash
+              </button>
+            </div>
+
           </div>
-        </div>
+        </header>
 
         {/* CLASSIC MAIN BODY: TABLE AREA */}
         <div className="flex-1 flex flex-col overflow-hidden bg-slate-100">
@@ -2856,9 +3094,11 @@ function PurchaseInvoiceList() {
               <tbody>
                 {formData.items.map((item, idx) => {
                   if (!item || !item.item_code) return null;
+                  const itemIndex = formData.items.indexOf(item);
+                  const displayIndex = formData.items.slice(0, idx + 1).filter(it => it && it.item_code).length;
                   return (
                     <tr key={item.item_code ? `${item.item_code}-${idx}` : idx} data-row-index={idx} className="border-b border-slate-100 hover:bg-emerald-50/30 transition-colors">
-                    <td className="text-center font-bold text-slate-400 text-xs py-2 border-r border-slate-100">{idx + 1}</td>
+                    <td className="text-center font-bold text-slate-400 text-xs py-2 border-r border-slate-100">{displayIndex}</td>
                     {columnConfig.filter(c => c.visible).map(col => {
                       switch (col.id) {
                         case 'item_code':
@@ -3075,11 +3315,22 @@ function PurchaseInvoiceList() {
                 {/* ADVANCED: Smart Inline Search Row */}
                 <tr className="bg-emerald-50/40 border-y-2 border-amber-400 cursor-pointer hover:bg-amber-50/60 transition-all">
                   <td className="text-center font-black text-amber-600 text-xs py-2">{formData.items.filter(it => it.item_code).length + 1}</td>
-                  {columnConfig.filter(c => c.visible).map(col => {
-                    if (col.id === 'item_code' || col.id === 'barcode') {
-                      if (col.id === 'item_code') {
+                  {(() => {
+                    const visibleCols = columnConfig.filter(c => c.visible);
+                    const barcodeIdx = visibleCols.findIndex(c => c.id === 'barcode');
+                    const itemCodeIdx = visibleCols.findIndex(c => c.id === 'item_code');
+                    const hasBoth = barcodeIdx !== -1 && itemCodeIdx !== -1;
+                    const primaryIdx = hasBoth ? Math.min(barcodeIdx, itemCodeIdx) : (barcodeIdx !== -1 ? barcodeIdx : itemCodeIdx);
+                    const secondaryIdx = hasBoth ? Math.max(barcodeIdx, itemCodeIdx) : -1;
+
+                    return visibleCols.map((col, cIdx) => {
+                      if (cIdx === primaryIdx) {
                         return (
-                          <td key={col.id} colSpan={columnConfig.some(c => c.id === 'barcode' && c.visible) ? 2 : 1} className="p-0 relative h-10 align-middle">
+                          <td 
+                            key="search-input-col" 
+                            colSpan={hasBoth && Math.abs(barcodeIdx - itemCodeIdx) === 1 ? 2 : 1} 
+                            className="p-0 relative h-10 align-middle"
+                          >
                             <CustomSearchDropdown
                               placeholder="SCAN BARCODE OR TYPE ITEM NAME HERE TO ADD..."
                               value={null}
@@ -3097,13 +3348,14 @@ function PurchaseInvoiceList() {
                           </td>
                         );
                       }
-                      // Skip rendering barcode cell since colSpan=2 covers item_code + barcode
-                      return null;
-                    }
-                    return (
-                      <td key={`search-empty-${col.id}`} className="text-center bg-black/5 font-bold text-xs border-r border-slate-100">-</td>
-                    );
-                  })}
+                      if (hasBoth && Math.abs(barcodeIdx - itemCodeIdx) === 1 && cIdx === secondaryIdx) {
+                        return null; // Covered by colSpan=2 above
+                      }
+                      return (
+                        <td key={`search-empty-${col.id}`} className="text-center bg-black/5 font-bold text-xs border-r border-slate-100">-</td>
+                      );
+                    });
+                  })()}
                   <td className="text-center">
                     <Search size={14} className="mx-auto text-amber-500" />
                   </td>
@@ -3129,33 +3381,80 @@ function PurchaseInvoiceList() {
               {/* ACTION BUTTON GRID (LEFT SIDE) */}
               <div className="xl:col-span-7 flex">
                 <div className="grid grid-cols-4 grid-rows-2 gap-2 w-full h-full">
-                  {/* SAVE DRAFT */}
-                  <button
-                    type="button"
-                    onClick={handleSaveDraft}
-                    disabled={saving}
-                    className="h-full bg-[#fffbeb] hover:bg-[#fef3c7] text-[#78350f] border-2 border-[#fcd34d] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer"
-                  >
-                    <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#78350f]">
-                      <Save size={15} />
-                      <span>SAVE DRAFT</span>
-                    </div>
-                    <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-[#d97706] text-white">Alt+S</span>
-                  </button>
+                  {/* DYNAMIC ACTION: SAVE / AMEND / CANCEL */}
+                  {formData.docstatus === 1 ? (
+                    (allowedActions.includes('cancel') || allowedActions.length === 0) ? (
+                      <button
+                        type="button"
+                        onClick={() => handleDocAction('cancel')}
+                        disabled={saving}
+                        className="h-full bg-rose-50 hover:bg-rose-100 text-rose-800 border-2 border-rose-300 rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-50"
+                      >
+                        <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-rose-800">
+                          <X size={15} />
+                          <span>CANCEL</span>
+                        </div>
+                        <span className="inline-flex items-center justify-center font-mono text-[10px] font-black px-1.5 py-0.5 rounded bg-rose-600 text-white">Action</span>
+                      </button>
+                    ) : (
+                      <div className="h-full bg-slate-100 border-2 border-slate-200 rounded-xl px-3 py-2 flex items-center justify-center text-slate-400 font-black text-[11px] uppercase tracking-wider select-none">
+                        <span>LOCKED</span>
+                      </div>
+                    )
+                  ) : formData.docstatus === 2 ? (
+                    (allowedActions.includes('amend') || allowedActions.length === 0) ? (
+                      <button
+                        type="button"
+                        onClick={() => handleDocAction('amend')}
+                        disabled={saving}
+                        className="h-full bg-sky-50 hover:bg-sky-100 text-sky-800 border-2 border-sky-300 rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-50"
+                      >
+                        <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-sky-800">
+                          <Plus size={15} />
+                          <span>AMEND</span>
+                        </div>
+                        <span className="inline-flex items-center justify-center font-mono text-[10px] font-black px-1.5 py-0.5 rounded bg-sky-600 text-white">Action</span>
+                      </button>
+                    ) : (
+                      <div className="h-full bg-slate-100 border-2 border-slate-200 rounded-xl px-3 py-2 flex items-center justify-center text-slate-400 font-black text-[11px] uppercase tracking-wider select-none">
+                        <span>CANCELLED</span>
+                      </div>
+                    )
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleSaveDraft}
+                      disabled={saving}
+                      className="h-full bg-[#fffbeb] hover:bg-[#fef3c7] text-[#78350f] border-2 border-[#fcd34d] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-60"
+                    >
+                      <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#78350f]">
+                        {saving ? <Loader2 size={15} className="animate-spin text-[#d97706]" /> : <Save size={15} />}
+                        <span>{saving ? 'SAVING...' : 'SAVE DRAFT'}</span>
+                      </div>
+                      <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-[#d97706] text-white">Alt+S</span>
+                    </button>
+                  )}
 
-                  {/* SUBMIT */}
-                  <button
-                    type="button"
-                    onClick={handleSubmit}
-                    disabled={saving}
-                    className="h-full bg-[#ecfdf5] hover:bg-[#d1fae5] text-[#064e3b] border-2 border-[#6ee7b7] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer"
-                  >
-                    <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#064e3b]">
-                      <Send size={15} />
-                      <span>SUBMIT</span>
+                  {/* SUBMIT (Only in Draft Mode) */}
+                  {formData.docstatus === 0 || formData.docstatus === undefined ? (
+                    <button
+                      type="button"
+                      onClick={handleSubmit}
+                      disabled={saving}
+                      className="h-full bg-[#ecfdf5] hover:bg-[#d1fae5] text-[#064e3b] border-2 border-[#6ee7b7] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-60"
+                    >
+                      <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#064e3b]">
+                        {saving ? <Loader2 size={15} className="animate-spin text-[#047857]" /> : <Send size={15} />}
+                        <span>{saving ? 'SUBMITTING...' : 'SUBMIT'}</span>
+                      </div>
+                      <span className="inline-flex items-center justify-center font-mono text-[10px] font-black px-1.5 py-0.5 rounded bg-[#047857] text-white">Ctrl+↵</span>
+                    </button>
+                  ) : (
+                    <div className="h-full bg-emerald-50/60 border-2 border-emerald-200 rounded-xl px-3 py-2 flex items-center justify-center text-emerald-700 font-black text-[11px] uppercase tracking-wider select-none animate-in fade-in zoom-in duration-200">
+                      <CheckCircle2 size={15} className="mr-1.5 text-emerald-600" />
+                      <span>{formData.docstatus === 1 ? 'SUBMITTED' : 'CANCELLED'}</span>
                     </div>
-                    <span className="inline-flex items-center justify-center font-mono text-[10px] font-black px-1.5 py-0.5 rounded bg-[#047857] text-white">Ctrl+↵</span>
-                  </button>
+                  )}
 
                   {/* PRINT PDF */}
                   <button
@@ -3185,38 +3484,70 @@ function PurchaseInvoiceList() {
                     <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-[#7c3aed] text-white">Alt+D</span>
                   </button>
 
-                  {/* ADD ROW */}
-                  <button
-                    type="button"
-                    onClick={addItemRow}
-                    className="h-full bg-white hover:bg-slate-100 text-[#1e293b] border-2 border-slate-300 rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer"
-                  >
-                    <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#1e293b]">
-                      <Plus size={15} />
-                      <span>ADD ROW</span>
-                    </div>
-                    <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-[#475569] text-white">Alt+A</span>
-                  </button>
+                  {/* ADD ROW / CREATE DEBIT NOTE (If Submitted) */}
+                  {formData.docstatus === 1 ? (
+                    <button
+                      type="button"
+                      onClick={() => handleCreateReturn()}
+                      disabled={saving}
+                      className="h-full bg-rose-50 hover:bg-rose-100 text-rose-900 border-2 border-rose-300 rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer"
+                    >
+                      <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-rose-900">
+                        <Link size={14} />
+                        <span>DEBIT NOTE</span>
+                      </div>
+                      <span className="inline-flex items-center justify-center font-mono text-[10px] font-black px-1.5 py-0.5 rounded bg-rose-600 text-white">+Ret</span>
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={addItemRow}
+                      disabled={formData.docstatus !== 0 && formData.docstatus !== undefined}
+                      className="h-full bg-white hover:bg-slate-100 text-[#1e293b] border-2 border-slate-300 rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-40"
+                    >
+                      <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#1e293b]">
+                        <Plus size={15} />
+                        <span>ADD ROW</span>
+                      </div>
+                      <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-[#475569] text-white">Alt+A</span>
+                    </button>
+                  )}
 
-                  {/* BULK QTY */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (formData.items.length > 0) {
-                        const firstIdx = formData.items.findIndex(it => it.item_code);
-                        if (firstIdx !== -1) {
-                          handleUOMChange(formData.items[firstIdx].use_box_entry ? 'Nos' : 'Box', firstIdx);
+                  {/* BULK QTY / CREATE PAYMENT ENTRY (If Submitted) */}
+                  {formData.docstatus === 1 ? (
+                    <button
+                      type="button"
+                      onClick={() => handleCreatePayment()}
+                      disabled={saving}
+                      className="h-full bg-amber-50 hover:bg-amber-100 text-amber-900 border-2 border-amber-300 rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer"
+                    >
+                      <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-amber-900">
+                        <Plus size={15} />
+                        <span>PAYMENT ENTRY</span>
+                      </div>
+                      <span className="inline-flex items-center justify-center font-mono text-[10px] font-black px-1.5 py-0.5 rounded bg-amber-600 text-white">+Pay</span>
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled={formData.docstatus !== 0 && formData.docstatus !== undefined}
+                      onClick={() => {
+                        if (formData.items.length > 0) {
+                          const firstIdx = formData.items.findIndex(it => it.item_code);
+                          if (firstIdx !== -1) {
+                            handleUOMChange(formData.items[firstIdx].use_box_entry ? 'Nos' : 'Box', firstIdx);
+                          }
                         }
-                      }
-                    }}
-                    className="h-full bg-white hover:bg-slate-100 text-[#1e293b] border-2 border-slate-300 rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer"
-                  >
-                    <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#1e293b]">
-                      <Package size={15} />
-                      <span>BULK QTY</span>
-                    </div>
-                    <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-[#475569] text-white">F6</span>
-                  </button>
+                      }}
+                      className="h-full bg-white hover:bg-slate-100 text-[#1e293b] border-2 border-slate-300 rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-40"
+                    >
+                      <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#1e293b]">
+                        <Package size={15} />
+                        <span>BULK QTY</span>
+                      </div>
+                      <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-[#475569] text-white">F6</span>
+                    </button>
+                  )}
 
                   {/* DELETE / CLOSE */}
                   {formData.docstatus === 0 && docName ? (
@@ -3265,7 +3596,7 @@ function PurchaseInvoiceList() {
 
                   <div className="flex items-center gap-2">
                     <span className="text-[10px] font-black uppercase text-slate-500">TOTAL QTY:</span>
-                    <span className="text-sm font-black text-slate-900">{formData.items.reduce((sum, it) => sum + (parseFloat(it.qty) || 0), 0).toFixed(2)}</span>
+                    <span className="text-sm font-black text-slate-900">{formData.items.filter(it => it && it.item_code).reduce((sum, it) => sum + (parseFloat(it.qty) || 0), 0).toFixed(2)}</span>
                   </div>
                 </div>
 
@@ -3312,6 +3643,15 @@ function PurchaseInvoiceList() {
             </div>
           </div>
         </div>
+
+        {/* COLUMN CONFIGURATION MODAL IN CLASSIC VIEW */}
+        <ColumnConfigModal
+          isOpen={showColConfig}
+          onClose={() => setShowColConfig(false)}
+          columns={columnConfig}
+          onUpdate={handleColConfigUpdate}
+          doctype="Purchase Invoice"
+        />
       </div>
     );
   }
