@@ -372,9 +372,35 @@ const SearchableSelect = ({ label, value, options, onChange, placeholder, onActi
         <ChevronDown size={14} style={{ color: T.textMuted, flexShrink: 0 }} />
       </div>
       {open && (
-        <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: T.surface, border: `1.5px solid ${T.blue}`, borderRadius: T.radius, zIndex: 1100, marginTop: 4, maxHeight: 280, overflow: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: T.shadowMd }}>
-          <div style={{ padding: 8, borderBottom: `1px solid ${T.borderLight}`, background: T.bg }}>
+        <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: T.surface, border: `1.5px solid ${T.blue}`, borderRadius: T.radius, zIndex: 1100, marginTop: 4, maxHeight: 300, overflow: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: T.shadowMd }}>
+          <div style={{ padding: 8, borderBottom: `1px solid ${T.borderLight}`, background: T.bg, display: 'flex', flexDirection: 'column', gap: 6 }}>
             <input className="il-input" style={{ height: 34, fontSize: 13 }} autoFocus placeholder="Type to search..." value={search} onChange={e => setSearch(e.target.value)} onClick={e => e.stopPropagation()} />
+            {onAction && (
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); onAction(); setOpen(false); }}
+                style={{
+                  width: '100%',
+                  padding: '7px 10px',
+                  background: T.blueLight,
+                  color: T.blue,
+                  border: `1.5px dashed ${T.blue}`,
+                  borderRadius: '8px',
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  transition: 'all 0.15s'
+                }}
+                onMouseOver={e => e.currentTarget.style.background = '#e0e7ff'}
+                onMouseOut={e => e.currentTarget.style.background = T.blueLight}
+              >
+                <Plus size={14} /> + Create New {label?.replace(/Select/gi, '') || 'Item'}...
+              </button>
+            )}
           </div>
           <div style={{ flex: 1, overflowY: 'auto' }}>
             {filtered.length === 0 ? <div style={{ padding: 12, textAlign: 'center', fontSize: 13, color: T.textMuted }}>No results</div> : filtered.map(o => (
@@ -383,11 +409,6 @@ const SearchableSelect = ({ label, value, options, onChange, placeholder, onActi
               </div>
             ))}
           </div>
-          {onAction && (
-            <div onClick={(e) => { e.stopPropagation(); onAction(); setOpen(false); }} style={{ padding: 12, borderTop: `1.5px solid ${T.border}`, background: T.bg, color: T.blue, fontSize: 13, fontWeight: 700, cursor: 'pointer', textAlign: 'center' }}>
-              + Create new...
-            </div>
-          )}
         </div>
       )}
     </div>
@@ -514,6 +535,15 @@ export default function ItemList() {
   const [suppliers, setSuppliers] = useState([]);
   const [loadingPrices, setLoadingPrices] = useState(false);
   const [groupSearch] = useState('');
+
+  // ── Item Group Modal ──
+  const [showItemGroupModal, setShowItemGroupModal] = useState(false);
+  const [itemGroupModalForm, setItemGroupModalForm] = useState({
+    item_group_name: '',
+    parent_item_group: 'All Item Groups',
+    is_group: false,
+  });
+  const [savingItemGroup, setSavingItemGroup] = useState(false);
 
   const [activeTab, setActiveTab] = useState('General');
   const [dashboardData, setDashboardData] = useState(null);
@@ -786,6 +816,67 @@ export default function ItemList() {
   const handleCreateUom = async (name) => {
     try { const res = await axios.post('/api/resource/UOM', { uom_name: name }, { withCredentials: true }); if (res.data.data) { await fetchUoms(); setForm(p => ({ ...p, default_uom: name })); } }
     catch (e) { alert('Failed: ' + (e.response?.data?.message || e.message)); }
+  };
+
+  const handleOpenCreateItemGroup = (defaultParent = '') => {
+    setItemGroupModalForm({
+      item_group_name: '',
+      parent_item_group: defaultParent || formMainGroup || 'All Item Groups',
+      is_group: false,
+    });
+    setShowItemGroupModal(true);
+  };
+
+  const handleSaveItemGroup = async (e) => {
+    if (e) e.preventDefault();
+    if (!itemGroupModalForm.item_group_name.trim()) {
+      Swal.fire({ icon: 'error', title: 'Validation Error', text: 'Item Group Name is required.' });
+      return;
+    }
+
+    setSavingItemGroup(true);
+    try {
+      const payload = {
+        item_group_name: itemGroupModalForm.item_group_name.trim(),
+        parent_item_group: itemGroupModalForm.parent_item_group || 'All Item Groups',
+        is_group: itemGroupModalForm.is_group ? 1 : 0
+      };
+
+      const res = await axios.post('/api/resource/Item Group', payload, { withCredentials: true });
+      if (res.data?.data || res.status === 200) {
+        const createdName = res.data?.data?.name || itemGroupModalForm.item_group_name.trim();
+        await fetchItemGroups();
+
+        // If it's a main group (parent is All Item Groups or is_group is true)
+        if (payload.parent_item_group === 'All Item Groups' || payload.is_group === 1) {
+          setFormMainGroup(createdName);
+          setForm(p => ({ ...p, item_group: '' }));
+        } else {
+          // It's a subgroup
+          setForm(p => ({ ...p, item_group: createdName }));
+          if (payload.parent_item_group && payload.parent_item_group !== 'All Item Groups') {
+            setFormMainGroup(payload.parent_item_group);
+          }
+        }
+
+        setShowItemGroupModal(false);
+        Swal.fire({
+          icon: 'success',
+          title: 'Created!',
+          text: `Item Group "${createdName}" created successfully.`,
+          timer: 2000,
+          showConfirmButton: false
+        });
+      }
+    } catch (err) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Error Creating Group',
+        text: err.response?.data?.message || err.response?.data?._server_messages || err.message || 'Failed to create Item Group'
+      });
+    } finally {
+      setSavingItemGroup(false);
+    }
   };
 
   const handleDisableToggle = async (checked) => {
@@ -2316,6 +2407,7 @@ export default function ItemList() {
                           setFormMainGroup(val);
                           setForm({ ...form, item_group: '' });
                         }}
+                        onAction={() => handleOpenCreateItemGroup('All Item Groups')}
                       />
                       <SearchableSelect
                         label="Item Subgroup (Saved to ERPNext)"
@@ -2328,7 +2420,7 @@ export default function ItemList() {
                         required
                         placeholder="Select Subgroup"
                         onChange={val => setForm({ ...form, item_group: val })}
-                        onAction={() => { const n = prompt('New Item Group:'); if (n) fetchItemGroups(); }}
+                        onAction={() => handleOpenCreateItemGroup(formMainGroup || '')}
                       />
 
                       <SearchableSelect
@@ -2619,6 +2711,191 @@ export default function ItemList() {
           setSelectedBarcodeItem(null);
         }}
       />
+
+      {/* Item Group / Subgroup Creation Modal */}
+      {showItemGroupModal && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          zIndex: 15000,
+          background: 'rgba(15, 23, 42, 0.65)',
+          backdropFilter: 'blur(6px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '16px'
+        }}>
+          <div style={{
+            background: '#ffffff',
+            borderRadius: '20px',
+            width: '100%',
+            maxWidth: '480px',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+            overflow: 'hidden',
+            animation: 'slideUp 0.25s ease-out'
+          }}>
+            {/* Modal Header */}
+            <div style={{
+              padding: '18px 24px',
+              borderBottom: `1.5px solid ${T.borderLight}`,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              background: '#ffffff'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{
+                  width: '36px',
+                  height: '36px',
+                  borderRadius: '10px',
+                  background: T.blueLight,
+                  color: T.blue,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontWeight: 700
+                }}>
+                  <Tag size={18} />
+                </div>
+                <div>
+                  <h3 style={{ fontSize: '16px', fontWeight: 800, color: T.text, margin: 0 }}>
+                    Create Item Group / Subgroup
+                  </h3>
+                  <p style={{ fontSize: '12px', color: T.textMuted, margin: 0, marginTop: '2px' }}>
+                    Add a new category or subgroup into ERPNext
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowItemGroupModal(false)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: T.textMuted,
+                  cursor: 'pointer',
+                  padding: '6px',
+                  borderRadius: '8px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'background 0.15s'
+                }}
+                onMouseOver={e => e.currentTarget.style.background = T.bg}
+                onMouseOut={e => e.currentTarget.style.background = 'transparent'}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Modal Form Body */}
+            <form onSubmit={handleSaveItemGroup} style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div className="il-form-field">
+                <label className="il-form-label req" style={{ fontWeight: 700 }}>
+                  Item Group Name
+                </label>
+                <input
+                  type="text"
+                  className="il-input"
+                  placeholder="e.g. Beverages, Hot Drinks, Dairy..."
+                  value={itemGroupModalForm.item_group_name}
+                  onChange={e => setItemGroupModalForm({ ...itemGroupModalForm, item_group_name: e.target.value })}
+                  autoFocus
+                  required
+                  style={{ height: '42px', fontSize: '14px' }}
+                />
+              </div>
+
+              <div className="il-form-field">
+                <label className="il-form-label" style={{ fontWeight: 700 }}>
+                  Parent Item Group
+                </label>
+                <select
+                  className="il-select"
+                  value={itemGroupModalForm.parent_item_group}
+                  onChange={e => setItemGroupModalForm({ ...itemGroupModalForm, parent_item_group: e.target.value })}
+                  style={{ height: '42px', fontSize: '14px' }}
+                >
+                  <option value="All Item Groups">All Item Groups (Top-level / Main Category)</option>
+                  {groupHierarchy.map(h => (
+                    <option key={h.main_group} value={h.main_group}>
+                      {h.main_group}
+                    </option>
+                  ))}
+                  {itemGroups
+                    .filter(g => g.value !== 'All Item Groups' && !groupHierarchy.some(h => h.main_group === g.value))
+                    .map(g => (
+                      <option key={g.value} value={g.value}>
+                        {g.label || g.value}
+                      </option>
+                    ))}
+                </select>
+                <span style={{ fontSize: '11px', color: T.textMuted, marginTop: '2px' }}>
+                  {itemGroupModalForm.parent_item_group === 'All Item Groups'
+                    ? 'This will be created as a Main Category.'
+                    : `This will be created as a Subgroup under "${itemGroupModalForm.parent_item_group}".`}
+                </span>
+              </div>
+
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                padding: '12px 14px',
+                background: T.bg,
+                borderRadius: '10px',
+                border: `1px solid ${T.borderLight}`,
+                marginTop: '4px'
+              }}>
+                <input
+                  type="checkbox"
+                  id="ig-is-group"
+                  className="il-check"
+                  checked={itemGroupModalForm.is_group}
+                  onChange={e => setItemGroupModalForm({ ...itemGroupModalForm, is_group: e.target.checked })}
+                />
+                <label htmlFor="ig-is-group" style={{ fontSize: '13px', fontWeight: 600, color: T.text, cursor: 'pointer' }}>
+                  Group Node (Can contain child subgroups)
+                </label>
+              </div>
+
+              {/* Modal Actions */}
+              <div style={{
+                display: 'flex',
+                justifyContent: 'flex-end',
+                gap: '10px',
+                marginTop: '12px',
+                paddingTop: '16px',
+                borderTop: `1px solid ${T.borderLight}`
+              }}>
+                <button
+                  type="button"
+                  className="il-btn il-btn-secondary"
+                  onClick={() => setShowItemGroupModal(false)}
+                  disabled={savingItemGroup}
+                  style={{ height: '40px', padding: '0 18px' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="il-btn il-btn-primary"
+                  disabled={savingItemGroup || !itemGroupModalForm.item_group_name.trim()}
+                  style={{ height: '40px', padding: '0 22px', minWidth: '120px' }}
+                >
+                  {savingItemGroup ? (
+                    <>
+                      <Loader2 size={15} className="spin" />
+                      Creating...
+                    </>
+                  ) : (
+                    'Save Group'
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </>
   );
 
