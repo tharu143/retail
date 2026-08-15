@@ -915,9 +915,13 @@ export default function ItemList() {
         is_group: itemGroupModalForm.is_group ? 1 : 0
       };
 
-      const res = await axios.post('/api/resource/Item Group', payload, { withCredentials: true });
-      if (res.data?.data || res.status === 200) {
-        const createdName = res.data?.data?.name || itemGroupModalForm.item_group_name.trim();
+      const res = await axios.post('/api/method/kyle_retail.retail_api.api.create_item_group_retail', {
+        data: payload
+      }, { withCredentials: true });
+
+      const resData = res.data?.message || res.data;
+      if (resData?.status === 'success' || resData?.name) {
+        const createdName = resData.name || itemGroupModalForm.item_group_name.trim();
         await fetchItemGroups();
 
         // If it's a main group (parent is All Item Groups or is_group is true)
@@ -940,6 +944,8 @@ export default function ItemList() {
           timer: 2000,
           showConfirmButton: false
         });
+      } else {
+        throw new Error(resData?.message || 'Failed to create Item Group');
       }
     } catch (err) {
       Swal.fire({
