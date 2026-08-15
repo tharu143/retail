@@ -2641,29 +2641,36 @@ function PurchaseReceiptList() {
         {/* CLASSIC MAIN BODY: TABLE AREA */}
         <div className="flex-1 flex flex-col overflow-hidden bg-slate-100">
           <div className="flex-1 min-h-0 overflow-y-auto overflow-x-auto">
-            <table className="classic-table" style={{ width: '100%', borderCollapse: 'collapse', background: '#ffffff' }}>
+            <table className="classic-table" style={{ width: 'max-content', minWidth: '100%', borderCollapse: 'collapse', background: '#ffffff', tableLayout: 'fixed' }}>
               <thead>
                 <tr style={{ background: '#f8fafc', borderBottom: '1.5px solid #cbd5e1' }}>
-                  <th style={{ width: '40px', textAlign: 'center', padding: '8px 4px', fontSize: '11px', fontWeight: 900, color: '#475569', textTransform: 'uppercase', borderRight: '1px solid #e2e8f0' }}>#</th>
-                  {columnConfig.filter(c => c.visible).map(col => (
-                    <th
-                      key={col.id}
-                      style={{
-                        width: col.width ? `${col.width}px` : 'auto',
-                        minWidth: col.width ? `${col.width}px` : '80px',
-                        textAlign: ['rate', 'custom_box_price', 'custom_selling_price', 'custom_box_selling_price', 'amount', 'last_purchase_rate'].includes(col.id) ? 'right' : (['uom', 'custom_box_qty', 'custom_pieces_per_box', 'accepted_qty', 'rejected_qty'].includes(col.id) ? 'center' : 'left'),
-                        padding: '8px 8px',
-                        fontSize: '11px',
-                        fontWeight: 900,
-                        color: '#475569',
-                        textTransform: 'uppercase',
-                        borderRight: '1px solid #e2e8f0'
-                      }}
-                    >
-                      {col.label}
-                    </th>
-                  ))}
-                  <th style={{ width: '40px', textAlign: 'center', padding: '8px 4px' }}>
+                  <th style={{ width: '40px', minWidth: '40px', maxWidth: '40px', textAlign: 'center', padding: '8px 4px', fontSize: '11px', fontWeight: 900, color: '#475569', textTransform: 'uppercase', borderRight: '1px solid #e2e8f0' }}>#</th>
+                  {columnConfig.filter(c => c.visible).map(col => {
+                    const colW = col.width ? (typeof col.width === 'number' || !col.width.includes('px') ? `${parseInt(col.width)}px` : col.width) : '100px';
+                    return (
+                      <th
+                        key={col.id}
+                        style={{
+                          width: colW,
+                          minWidth: colW,
+                          maxWidth: colW,
+                          textAlign: col.align || (['rate', 'custom_box_price', 'custom_selling_price', 'custom_box_selling_price', 'amount', 'last_purchase_rate'].includes(col.id) ? 'right' : (['uom', 'custom_box_qty', 'custom_pieces_per_box', 'accepted_qty', 'rejected_qty'].includes(col.id) ? 'center' : 'left')),
+                          padding: '8px 8px',
+                          fontSize: '11px',
+                          fontWeight: 900,
+                          color: '#475569',
+                          textTransform: 'uppercase',
+                          borderRight: '1px solid #e2e8f0',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap'
+                        }}
+                      >
+                        {col.label}
+                      </th>
+                    );
+                  })}
+                  <th style={{ width: '40px', minWidth: '40px', textAlign: 'center', padding: '8px 4px' }}>
                     <button type="button" onClick={() => setShowColConfig(true)} className="text-slate-400 hover:text-emerald-600 cursor-pointer" title="Configure Columns">
                       <Settings size={14} />
                     </button>
