@@ -378,7 +378,7 @@ const SearchableSelect = ({ label, value, options, onChange, placeholder, onActi
             {onAction && (
               <button
                 type="button"
-                onClick={(e) => { e.stopPropagation(); onAction(); setOpen(false); }}
+                onClick={(e) => { e.stopPropagation(); onAction(search); setOpen(false); }}
                 style={{
                   width: '100%',
                   padding: '7px 10px',
@@ -403,7 +403,32 @@ const SearchableSelect = ({ label, value, options, onChange, placeholder, onActi
             )}
           </div>
           <div style={{ flex: 1, overflowY: 'auto' }}>
-            {filtered.length === 0 ? <div style={{ padding: 12, textAlign: 'center', fontSize: 13, color: T.textMuted }}>No results</div> : filtered.map(o => (
+            {filtered.length === 0 ? (
+              <div style={{ padding: '16px 12px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 13, color: T.textMuted }}>No matching results found for "{search}"</span>
+                {onAction && (
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); onAction(search); setOpen(false); }}
+                    style={{
+                      padding: '8px 14px',
+                      background: T.blue,
+                      color: '#ffffff',
+                      border: 'none',
+                      borderRadius: '8px',
+                      fontSize: '12px',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                    }}
+                  >
+                    <Plus size={14} /> Create "{search}" as {label || 'Option'}
+                  </button>
+                )}
+              </div>
+            ) : filtered.map(o => (
               <div key={o.value} onClick={(e) => { e.stopPropagation(); onChange(o.value); setOpen(false); setSearch(''); }} style={{ padding: '10px 14px', fontSize: 13, cursor: 'pointer', background: String(value) === String(o.value) ? T.blueLight : 'transparent', color: String(value) === String(o.value) ? T.blue : T.text, fontWeight: String(value) === String(o.value) ? 600 : 500, borderBottom: `1px solid ${T.borderLight}` }} onMouseOver={e => e.currentTarget.style.background = T.bg} onMouseOut={e => e.currentTarget.style.background = String(value) === String(o.value) ? T.blueLight : 'transparent'}>
                 {o.label}
               </div>
@@ -808,19 +833,67 @@ export default function ItemList() {
       setSuppliers(Array.isArray(raw) ? raw : []);
     } catch { }
   };
-  const handleCreateBrand = async (name) => {
-    try { const res = await axios.post('/api/resource/Brand', { brand: name }, { withCredentials: true }); if (res.data.data) { await fetchBrands(); setForm(p => ({ ...p, brand: name })); } }
-    catch (e) { alert('Failed: ' + (e.response?.data?.message || e.message)); }
+  const handleCreateBrand = async () => {
+    const { value: name } = await Swal.fire({
+      title: 'Create New Brand',
+      input: 'text',
+      inputLabel: 'Brand Name',
+      inputPlaceholder: 'Enter brand name...',
+      showCancelButton: true,
+      confirmButtonText: 'Create Brand',
+      confirmButtonColor: T.blue,
+      cancelButtonText: 'Cancel',
+      inputValidator: (val) => {
+        if (!val || !val.trim()) return 'Brand name is required!';
+      }
+    });
+
+    if (!name) return;
+
+    try {
+      const res = await axios.post('/api/resource/Brand', { brand: name.trim() }, { withCredentials: true });
+      if (res.data.data || res.status === 200) {
+        await fetchBrands();
+        setForm(p => ({ ...p, brand: name.trim() }));
+        Swal.fire({ icon: 'success', title: 'Created!', text: `Brand "${name.trim()}" created successfully.`, timer: 1800, showConfirmButton: false });
+      }
+    } catch (e) {
+      Swal.fire({ icon: 'error', title: 'Error', text: e.response?.data?.message || e.message || 'Failed to create brand' });
+    }
   };
 
-  const handleCreateUom = async (name) => {
-    try { const res = await axios.post('/api/resource/UOM', { uom_name: name }, { withCredentials: true }); if (res.data.data) { await fetchUoms(); setForm(p => ({ ...p, default_uom: name })); } }
-    catch (e) { alert('Failed: ' + (e.response?.data?.message || e.message)); }
+  const handleCreateUom = async () => {
+    const { value: name } = await Swal.fire({
+      title: 'Create New Base UOM',
+      input: 'text',
+      inputLabel: 'UOM Name',
+      inputPlaceholder: 'e.g. Nos, Box, Pcs, Kg...',
+      showCancelButton: true,
+      confirmButtonText: 'Create UOM',
+      confirmButtonColor: T.blue,
+      cancelButtonText: 'Cancel',
+      inputValidator: (val) => {
+        if (!val || !val.trim()) return 'UOM name is required!';
+      }
+    });
+
+    if (!name) return;
+
+    try {
+      const res = await axios.post('/api/resource/UOM', { uom_name: name.trim() }, { withCredentials: true });
+      if (res.data.data || res.status === 200) {
+        await fetchUoms();
+        setForm(p => ({ ...p, default_uom: name.trim() }));
+        Swal.fire({ icon: 'success', title: 'Created!', text: `UOM "${name.trim()}" created successfully.`, timer: 1800, showConfirmButton: false });
+      }
+    } catch (e) {
+      Swal.fire({ icon: 'error', title: 'Error', text: e.response?.data?.message || e.message || 'Failed to create UOM' });
+    }
   };
 
-  const handleOpenCreateItemGroup = (defaultParent = '') => {
+  const handleOpenCreateItemGroup = (defaultParent = '', initialName = '') => {
     setItemGroupModalForm({
-      item_group_name: '',
+      item_group_name: typeof initialName === 'string' ? initialName : '',
       parent_item_group: defaultParent || formMainGroup || 'All Item Groups',
       is_group: false,
     });
@@ -2407,10 +2480,10 @@ export default function ItemList() {
                           setFormMainGroup(val);
                           setForm({ ...form, item_group: '' });
                         }}
-                        onAction={() => handleOpenCreateItemGroup('All Item Groups')}
+                        onAction={(search) => handleOpenCreateItemGroup('All Item Groups', search)}
                       />
                       <SearchableSelect
-                        label="Item Subgroup (Saved to ERPNext)"
+                        label="Item Subgroup"
                         value={form.item_group}
                         options={
                           formMainGroup && groupHierarchy.find(h => h.main_group === formMainGroup)
@@ -2420,7 +2493,7 @@ export default function ItemList() {
                         required
                         placeholder="Select Subgroup"
                         onChange={val => setForm({ ...form, item_group: val })}
-                        onAction={() => handleOpenCreateItemGroup(formMainGroup || '')}
+                        onAction={(search) => handleOpenCreateItemGroup(formMainGroup || '', search)}
                       />
 
                       <SearchableSelect
@@ -2429,7 +2502,7 @@ export default function ItemList() {
                         options={brands}
                         placeholder="Select Brand"
                         onChange={val => setForm({ ...form, brand: val })}
-                        onAction={() => { const n = prompt('New brand name:'); if (n) handleCreateBrand(n); }}
+                        onAction={handleCreateBrand}
                       />
                       {!isEditMode && (
                         <SearchableSelect
@@ -2439,7 +2512,7 @@ export default function ItemList() {
                           required
                           placeholder="Select UOM"
                           onChange={val => setForm({ ...form, default_uom: val })}
-                          onAction={() => { const n = prompt('New UOM name:'); if (n) handleCreateUom(n); }}
+                          onAction={handleCreateUom}
                         />
                       )}
                       <div className="il-form-field">
