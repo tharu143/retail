@@ -1676,61 +1676,28 @@ function PurchaseInvoiceList() {
   const handleUOMChange = (uomValue, rowIndex) => {
     setFormData(prev => {
       let items = [...prev.items];
+      if (rowIndex < 0 || rowIndex >= items.length) return prev;
       const item = { ...items[rowIndex] };
-      const isBox = uomValue.toLowerCase() === 'box';
-      const targetUom = isBox ? 'Box' : (item.stock_uom || 'Nos');
-      
-      // Check if another row with the same item_code and same target UOM exists
-      const existingIdx = items.findIndex((it, idx) => 
-        idx !== rowIndex && 
-        it.item_code === item.item_code && 
-        ((it.uom || '').toLowerCase() === targetUom.toLowerCase() || (isBox ? it.use_box_entry : !it.use_box_entry))
-      );
+      const safeUom = String(uomValue || 'Nos');
+      const isBox = safeUom.toLowerCase() === 'box';
 
-      if (existingIdx !== -1) {
-        // Merge into the existing row and remove this duplicate row!
-        const existingItem = { ...items[existingIdx] };
-        if (isBox) {
-          const pcsPerBox = parseFloat(existingItem.custom_pieces_per_box) || parseFloat(item.custom_pieces_per_box) || 12;
-          const currentBoxQty = parseFloat(existingItem.custom_box_qty) || 0;
-          const addedBoxQty = parseFloat(item.custom_box_qty) || 1;
-          existingItem.custom_box_qty = Math.round(currentBoxQty + addedBoxQty);
-          existingItem.qty = Math.round(existingItem.custom_box_qty * pcsPerBox);
-        } else {
-          const currentQty = parseFloat(existingItem.qty) || 0;
-          const addedQty = parseFloat(item.qty) || 1;
-          existingItem.qty = Math.round(currentQty + addedQty);
-          const pcsPerBox = parseFloat(existingItem.custom_pieces_per_box) || 1;
-          if (pcsPerBox > 0) {
-            existingItem.custom_box_qty = Math.round(existingItem.qty / pcsPerBox);
-          }
-        }
-        existingItem.amount = (existingItem.qty * (parseFloat(existingItem.rate) || 0)).toFixed(2);
-        items[existingIdx] = existingItem;
-        
-        // Remove current row
-        items = items.filter((_, idx) => idx !== rowIndex);
+      item.uom = isBox ? 'Box' : 'Nos';
+      item.use_box_entry = isBox;
+
+      const pPerBox = parseFloat(item.default_pieces_per_box || item.custom_pieces_per_box) || 12;
+
+      if (isBox) {
+        item.custom_pieces_per_box = pPerBox;
+        item.custom_box_qty = 1;
+        item.qty = pPerBox; // 1 Box = pPerBox Nos
       } else {
-        item.uom = uomValue;
-        item.use_box_entry = isBox;
-
-        if (isBox) {
-          // Box mode
-          const pPerBox = parseFloat(item.default_pieces_per_box || item.custom_pieces_per_box) || 12;
-          item.custom_pieces_per_box = pPerBox;
-          const currentBox = Math.round(parseFloat(item.custom_box_qty) || 1);
-          item.custom_box_qty = currentBox > 0 ? currentBox : 1;
-          item.qty = Math.round(item.custom_box_qty * pPerBox);
-        } else {
-          // Nos mode
-          const currentNos = Math.round(parseFloat(item.qty) || parseFloat(item.custom_box_qty) || 1);
-          item.qty = currentNos > 0 ? currentNos : 1;
-          item.custom_box_qty = item.qty;
-          item.custom_pieces_per_box = 1;
-        }
-        item.amount = (parseFloat(item.qty) * (parseFloat(item.rate) || 0)).toFixed(2);
-        items[rowIndex] = item;
+        item.custom_pieces_per_box = 1;
+        item.qty = 1; // 1 Nos
+        item.custom_box_qty = 1;
       }
+
+      item.amount = (parseFloat(item.qty) * (parseFloat(item.rate) || 0)).toFixed(2);
+      items[rowIndex] = item;
 
       return { ...prev, items };
     });
@@ -2100,19 +2067,7 @@ function PurchaseInvoiceList() {
     setFilterDateFrom(''); setFilterDateTo('');
   };
 
-  useEffect(() => {
-    const hash = window.location.hash;
-    const queryStart = hash.indexOf('?');
-    if (queryStart !== -1) {
-      const params = new URLSearchParams(hash.slice(queryStart));
-      const nameFromUrl = params.get('name');
-      if (nameFromUrl) {
-        setTimeout(() => openEditModal({ name: nameFromUrl }), 500);
-        // Clear URL params so refresh goes to list view
-        window.history.replaceState(null, '', window.location.pathname + '#' + hash.slice(0, queryStart));
-      }
-    }
-  }, []);
+  // Retain URL search parameters across page reloads
 
   useEffect(() => {
     fetchInvoices();
@@ -2178,15 +2133,20 @@ function PurchaseInvoiceList() {
     if (!isModalOpen) return;
     const handleGlobalShortcuts = (e) => {
       const activeEl = document.activeElement;
-      const inItemsTable = activeEl?.closest('table.purchase-table');
+      const inItemsTable = activeEl?.closest('table.purchase-table, table.classic-table');
 
       let activeRowIndex = -1;
       if (inItemsTable) {
         const tr = activeEl.closest('tr');
         if (tr && tr.parentNode) {
-          const index = Array.from(tr.parentNode.children).indexOf(tr);
-          if (index !== -1 && index < formData.items.length) {
-            activeRowIndex = index;
+          const rowIndexAttr = tr.getAttribute('data-row-index');
+          if (rowIndexAttr !== null) {
+            activeRowIndex = parseInt(rowIndexAttr, 10);
+          } else {
+            const index = Array.from(tr.parentNode.children).indexOf(tr);
+            if (index !== -1 && index < formData.items.length) {
+              activeRowIndex = index;
+            }
           }
         }
       }
@@ -2685,40 +2645,35 @@ function PurchaseInvoiceList() {
         </div>
 
         {/* CLASSIC HEADER FORM */}
-        <div className="classic-header-form" style={{ background: '#ffffff', borderBottom: '1px solid #e2e8f0', padding: '0.45rem 1rem', display: 'flex', alignItems: 'center', gap: '1.25rem', flexShrink: 0 }}>
-          <div className="classic-field flex items-center gap-3 relative flex-1">
-            <label className="uppercase font-black text-[11px] text-slate-500 tracking-tight whitespace-nowrap">SUPPLIER</label>
-            <div className="relative group flex-1" ref={supplierRef}>
-              <CustomSearchDropdown
-                placeholder="Search supplier / vendor..."
-                value={formData.supplier ? { name: formData.supplier, supplier_name: formData.supplier_name } : null}
-                onSelect={(val) => {
-                  setFormData(prev => ({ ...prev, supplier: val ? val.name : '', supplier_name: val ? val.supplier_name : '' }));
-                }}
-                fetchData={fetchSuppliers}
-                optionsLabel="supplier_name"
-                globalSearch={true}
-                themeColor="#10b981"
-              />
+        <div className="classic-header-form bg-slate-50/80 border-b border-slate-200 p-3 flex flex-col gap-2.5 shrink-0">
+          {/* Row 1: Supplier, Branch, PI No */}
+          <div className="flex flex-wrap items-center gap-3 w-full">
+            <div className="flex items-center gap-2 relative flex-1 min-w-[340px]">
+              <label className="uppercase font-extrabold text-[10px] text-slate-500 tracking-wider whitespace-nowrap">SUPPLIER</label>
+              <div className="relative group flex-1" ref={supplierRef}>
+                <CustomSearchDropdown
+                  placeholder="Search supplier / vendor..."
+                  value={formData.supplier ? { name: formData.supplier, supplier_name: formData.supplier_name } : null}
+                  onSelect={(val) => selectSupplier(val)}
+                  fetchData={fetchSuppliers}
+                  optionsLabel="supplier_name"
+                  globalSearch={true}
+                  themeColor="#10b981"
+                  className="w-full"
+                />
+              </div>
             </div>
 
-            {formData.supplier && (
-              <div className="h-11 px-3 flex items-center gap-1.5 bg-emerald-50 border-2 border-emerald-200 text-emerald-700 rounded-xl text-xs font-black uppercase tracking-wider shadow-sm shrink-0">
-                <Building2 size={13} className="text-emerald-600" />
-                <span>{formData.supplier_name || formData.supplier}</span>
-              </div>
-            )}
-
-            {/* Warehouse Selector Tag */}
-            <div className="h-11 px-3 flex items-center border-2 border-slate-200 bg-slate-50 rounded-xl text-xs font-black uppercase tracking-wider text-slate-700 shadow-sm shrink-0 gap-1.5">
-              <Package size={13} className="text-slate-500" />
+            {/* Warehouse / Branch Selector Tag */}
+            <div className="h-9 px-3 flex items-center border border-slate-200 bg-white rounded-xl text-xs font-black uppercase tracking-wider text-slate-700 shadow-2xs shrink-0 gap-1.5">
+              <Package size={14} className="text-emerald-600" />
               {isAdmin ? (
                 <select
                   name="set_warehouse"
                   value={formData.set_warehouse || ''}
-                  onChange={(e) => setFormData(prev => ({ ...prev, set_warehouse: e.target.value }))}
+                  onChange={(e) => setFormData(prev => ({ ...prev, set_warehouse: e.target.value, accepted_warehouse: e.target.value }))}
                   disabled={isViewMode}
-                  className="bg-transparent border-none outline-none font-black text-xs cursor-pointer"
+                  className="bg-transparent border-none outline-none font-black text-xs cursor-pointer text-slate-800"
                 >
                   <option value="">Select Branch...</option>
                   {warehouses.map(w => (
@@ -2729,12 +2684,139 @@ function PurchaseInvoiceList() {
                 <span>{formData.set_warehouse || warehouse || 'Main Warehouse'}</span>
               )}
             </div>
+
+            {/* PI Number Tag */}
+            <div className="flex items-center gap-1.5 ml-auto shrink-0 bg-white px-3 py-1.5 rounded-xl border border-slate-200 shadow-2xs">
+              <label className="uppercase font-black text-[10px] text-slate-400 tracking-wider">PI NO:</label>
+              <span className="text-xs font-mono font-black text-slate-800">{docName || 'NEW-PUR-INV'}</span>
+            </div>
           </div>
 
-          <div className="classic-field flex items-center gap-3 ml-auto">
-            <label className="uppercase font-black text-[11px] text-slate-500 tracking-tight whitespace-nowrap">PI NO:</label>
-            <div className="h-11 px-4 flex items-center bg-slate-100 border-2 border-slate-200 rounded-xl text-xs font-mono font-black text-slate-800">
-              {docName || 'NEW-PUR-INV'}
+          {/* Row 2: Posting Date, Inv No, Payment Type, Inv Date, Due Date, Bill Amt */}
+          <div className="flex flex-wrap items-center gap-3.5 w-full bg-white p-2 rounded-2xl border border-slate-200/80 shadow-2xs">
+            {/* Posting Date */}
+            <div className="flex items-center gap-1.5">
+              <label className="uppercase font-extrabold text-[10px] text-slate-500 tracking-wider whitespace-nowrap">POSTING DATE</label>
+              <input
+                type="date"
+                value={formData.posting_date || ''}
+                disabled={isViewMode}
+                onChange={e => {
+                  const newPostingDate = e.target.value;
+                  setFormData(prev => {
+                    const calculatedDueDate = calcDueDate(newPostingDate, prev.is_cash_purchase, prev.credit_days);
+                    return { ...prev, posting_date: newPostingDate, due_date: calculatedDueDate };
+                  });
+                }}
+                className="h-8 px-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-700 outline-none focus:border-emerald-500 focus:bg-white"
+              />
+            </div>
+
+            {/* Supplier Invoice No */}
+            <div className="flex items-center gap-1.5">
+              <label className="uppercase font-extrabold text-[10px] text-slate-500 tracking-wider whitespace-nowrap">INV NO</label>
+              <input
+                type="text"
+                placeholder="Enter Bill No..."
+                value={formData.bill_no || ''}
+                disabled={isViewMode}
+                onChange={e => setFormData(prev => ({ ...prev, bill_no: e.target.value }))}
+                className="h-8 px-2 w-32 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-700 outline-none focus:border-emerald-500 focus:bg-white placeholder:text-slate-300"
+              />
+            </div>
+
+            {/* Payment Type Toggle */}
+            <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-lg border border-slate-200">
+              <button
+                type="button"
+                disabled={isViewMode}
+                onClick={() => {
+                  setFormData(prev => {
+                    const calculatedDueDate = calcDueDate(prev.posting_date, false, prev.credit_days);
+                    return { ...prev, is_cash_purchase: false, due_date: calculatedDueDate };
+                  });
+                }}
+                className={`px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${!formData.is_cash_purchase ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-500 hover:text-slate-800'}`}
+              >
+                CREDIT
+              </button>
+              <button
+                type="button"
+                disabled={isViewMode}
+                onClick={() => {
+                  setFormData(prev => {
+                    const calculatedDueDate = calcDueDate(prev.posting_date, true, prev.credit_days);
+                    return { ...prev, is_cash_purchase: true, due_date: calculatedDueDate };
+                  });
+                }}
+                className={`px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer ${formData.is_cash_purchase ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-500 hover:text-slate-800'}`}
+              >
+                CASH
+              </button>
+            </div>
+
+            {/* Supplier Invoice Date */}
+            <div className="flex items-center gap-1.5">
+              <label className="uppercase font-extrabold text-[10px] text-slate-500 tracking-wider whitespace-nowrap">INV DATE</label>
+              <input
+                type="date"
+                value={formData.bill_date || ''}
+                disabled={isViewMode}
+                onChange={e => {
+                  const newBillDate = e.target.value;
+                  setFormData(prev => ({
+                    ...prev,
+                    bill_date: newBillDate,
+                    due_date: newBillDate && prev.due_date && newBillDate > prev.due_date ? newBillDate : prev.due_date
+                  }));
+                }}
+                className="h-8 px-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-700 outline-none focus:border-emerald-500 focus:bg-white"
+              />
+            </div>
+
+            {/* Due Date */}
+            <div className="flex items-center gap-1.5">
+              <label className="uppercase font-extrabold text-[10px] text-slate-500 tracking-wider whitespace-nowrap">DUE DATE</label>
+              <input
+                type="date"
+                value={formData.due_date || ''}
+                disabled={true}
+                title={formData.is_cash_purchase ? 'CASH Purchase: Due Date equals Posting Date' : 'CREDIT Purchase Due Date'}
+                className="h-8 px-2 bg-slate-100 border border-slate-200 rounded-lg text-xs font-black text-slate-700 cursor-not-allowed outline-none"
+              />
+            </div>
+
+            {/* Supplier Invoice Amount & Match Status */}
+            <div className="flex items-center gap-2 ml-auto shrink-0">
+              <label className="uppercase font-extrabold text-[10px] text-slate-500 tracking-wider whitespace-nowrap">BILL AMT (AED)</label>
+              <input
+                type="number"
+                step="0.01"
+                placeholder="0.00"
+                value={formData.custom_supplier_invoice_amount || ''}
+                disabled={isViewMode}
+                onChange={e => setFormData(prev => ({ ...prev, custom_supplier_invoice_amount: e.target.value }))}
+                className="h-8 px-2 w-28 bg-emerald-50/50 border border-emerald-300 rounded-lg text-xs font-black text-emerald-700 outline-none focus:border-emerald-500 focus:bg-white placeholder:text-slate-300"
+              />
+              {(() => {
+                const suppAmt = parseFloat(formData.custom_supplier_invoice_amount) || 0;
+                const diff = grandTotal - suppAmt;
+                const isMatched = Math.abs(diff) < 0.01;
+
+                if (suppAmt <= 0) return null;
+
+                return isMatched ? (
+                  <span className="px-2.5 py-1 rounded-lg bg-emerald-500 text-white text-[10px] font-black tracking-wider flex items-center gap-1 shadow-xs animate-fadeIn">
+                    <CheckCircle size={12} />
+                    <span>✓ MATCHED</span>
+                  </span>
+                ) : (
+                  <span className="px-2.5 py-1 rounded-lg bg-rose-500 text-white text-[10px] font-black tracking-wider flex items-center gap-1 shadow-xs animate-pulse">
+                    <AlertTriangle size={12} />
+                    <span>⚠ UNMATCHED ({diff > 0 ? '+' : ''}{diff.toFixed(2)})</span>
+                  </span>
+                );
+              })()}
             </div>
           </div>
         </div>
@@ -2772,8 +2854,10 @@ function PurchaseInvoiceList() {
                 </tr>
               </thead>
               <tbody>
-                {formData.items.filter(it => it.item_code).map((item, idx) => (
-                  <tr key={idx} className="border-b border-slate-100 hover:bg-emerald-50/30 transition-colors">
+                {formData.items.map((item, idx) => {
+                  if (!item || !item.item_code) return null;
+                  return (
+                    <tr key={item.item_code ? `${item.item_code}-${idx}` : idx} data-row-index={idx} className="border-b border-slate-100 hover:bg-emerald-50/30 transition-colors">
                     <td className="text-center font-bold text-slate-400 text-xs py-2 border-r border-slate-100">{idx + 1}</td>
                     {columnConfig.filter(c => c.visible).map(col => {
                       switch (col.id) {
@@ -2817,7 +2901,7 @@ function PurchaseInvoiceList() {
                             <td key={col.id} className="px-2 py-1 text-center border-r border-slate-100 align-middle">
                               <select
                                 value={item.uom || 'Nos'}
-                                onChange={(e) => handleUOMChange(idx, e.target.value)}
+                                onChange={(e) => handleUOMChange(e.target.value, idx)}
                                 disabled={isViewMode || formData.docstatus !== 0}
                                 className="w-full h-8 px-1 text-center font-black text-xs text-slate-800 bg-transparent border-none outline-none cursor-pointer focus:bg-emerald-50/40 disabled:bg-slate-100 disabled:text-slate-500"
                               >
@@ -2986,30 +3070,40 @@ function PurchaseInvoiceList() {
                       <button type="button" onClick={() => removeItemRow(idx)} className="text-rose-400 hover:text-rose-600 font-black text-sm cursor-pointer">×</button>
                     </td>
                   </tr>
-                ))}
-                  {/* ADVANCED: Smart Inline Search Row with Amber Border */}
+                  );
+                })}
+                {/* ADVANCED: Smart Inline Search Row */}
                 <tr className="bg-emerald-50/40 border-y-2 border-amber-400 cursor-pointer hover:bg-amber-50/60 transition-all">
                   <td className="text-center font-black text-amber-600 text-xs py-2">{formData.items.filter(it => it.item_code).length + 1}</td>
-                  <td colSpan={columnConfig.filter(c => c.visible).length > 2 ? 2 : 1} className="p-0 relative h-10">
-                    <CustomSearchDropdown
-                      placeholder="SCAN BARCODE OR TYPE ITEM NAME HERE TO ADD..."
-                      value={null}
-                      onSelect={(selectedItem) => {
-                        if (selectedItem) {
-                          selectItem(formData.items.length - 1, selectedItem);
-                        }
-                      }}
-                      fetchData={fetchItems}
-                      optionsLabel="item_name"
-                      globalSearch={true}
-                      themeColor="#10b981"
-                      className="w-full h-full font-black italic text-slate-600"
-                    />
-                  </td>
-                  {Array.from({ length: Math.max(0, columnConfig.filter(c => c.visible).length - (columnConfig.filter(c => c.visible).length > 2 ? 2 : 1) - 1) }).map((_, emptyI) => (
-                    <td key={`search-empty-${emptyI}`} className="text-center bg-black/5 font-bold text-xs">-</td>
-                  ))}
-                  <td className="text-center px-2 font-black text-amber-600 bg-black/5 text-xs">NEXT ITEM</td>
+                  {columnConfig.filter(c => c.visible).map(col => {
+                    if (col.id === 'item_code' || col.id === 'barcode') {
+                      if (col.id === 'item_code') {
+                        return (
+                          <td key={col.id} colSpan={columnConfig.some(c => c.id === 'barcode' && c.visible) ? 2 : 1} className="p-0 relative h-10 align-middle">
+                            <CustomSearchDropdown
+                              placeholder="SCAN BARCODE OR TYPE ITEM NAME HERE TO ADD..."
+                              value={null}
+                              onSelect={(selectedItem) => {
+                                if (selectedItem) {
+                                  selectItem(formData.items.length, selectedItem);
+                                }
+                              }}
+                              fetchData={fetchItemsAPI}
+                              optionsLabel="item_name"
+                              globalSearch={true}
+                              themeColor="#10b981"
+                              className="w-full h-full font-black italic text-slate-600"
+                            />
+                          </td>
+                        );
+                      }
+                      // Skip rendering barcode cell since colSpan=2 covers item_code + barcode
+                      return null;
+                    }
+                    return (
+                      <td key={`search-empty-${col.id}`} className="text-center bg-black/5 font-bold text-xs border-r border-slate-100">-</td>
+                    );
+                  })}
                   <td className="text-center">
                     <Search size={14} className="mx-auto text-amber-500" />
                   </td>
@@ -4931,7 +5025,6 @@ function PurchaseInvoiceList() {
                     {/* Supplier Invoice Reconciliation Section */}
                     {(() => {
                       const suppAmt = parseFloat(formData.custom_supplier_invoice_amount) || 0;
-                      if (suppAmt <= 0) return null;
                       const diff = grandTotal - suppAmt;
                       const isMatched = Math.abs(diff) < 0.01;
 

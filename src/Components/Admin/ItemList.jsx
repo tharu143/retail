@@ -1000,6 +1000,8 @@ export default function ItemList() {
         disabled: form.disabled ? 1 : 0,
         maintain_stock: form.maintain_stock ? 1 : 0,
         has_variants: form.has_variants ? 1 : 0,
+        is_variant: form.variant_of ? 1 : 0,
+        variant_of: form.variant_of || '',
         description: form.description || '',
         image: form.image || form.imagePreview || '',
         hsn_code: form.hsn_code,
@@ -1440,7 +1442,14 @@ export default function ItemList() {
                             </div>
                           </td>
                           <td>
-                            <div style={{ fontWeight: 600, fontSize: 14, color: T.text }}>{item.item_name}</div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <div style={{ fontWeight: 600, fontSize: 14, color: T.text }}>{item.item_name}</div>
+                              {(item.has_variants === 1 || item.has_variants === true) && (
+                                <span style={{ fontSize: 9, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.5px', background: '#F5F3FF', color: '#7C3AED', border: '1px solid #DDD6FE', padding: '1px 6px', borderRadius: 6 }}>
+                                  Template
+                                </span>
+                              )}
+                            </div>
                             <div style={{ fontSize: 11, color: T.textMuted, fontFamily: "'DM Mono', monospace", marginTop: 1 }}>{item.item_code}</div>
                           </td>
                           <td style={{ fontSize: 13, color: T.textSub }}>{item.item_group}</td>
@@ -2358,6 +2367,25 @@ export default function ItemList() {
                         <label className="il-form-label">Pieces Per Box</label>
                         <input type="number" className="il-input" value={form.custom_pieces_per_box} onChange={e => setForm({ ...form, custom_pieces_per_box: e.target.value })} placeholder="Conversion factor" />
                       </div>
+
+                      {/* Variant & Template Configuration */}
+                      {!isEditMode && (
+                        <div style={{ gridColumn: 'span 3', padding: '12px 14px', background: T.purpleLight || '#f5f3ff', border: '1.5px solid #ddd6fe', borderRadius: 12, marginTop: 4 }}>
+                          <div style={{ fontSize: 12, fontWeight: 800, color: '#6d28d9', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Template Item Setting</div>
+                          <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', padding: '8px 12px', background: '#fff', borderRadius: 8, border: '1px solid #c4b5fd', width: 'fit-content' }}>
+                            <input
+                              type="checkbox"
+                              className="il-check"
+                              checked={form.has_variants === true || form.has_variants === 1}
+                              onChange={e => setForm({ ...form, has_variants: e.target.checked ? 1 : 0 })}
+                            />
+                            <div>
+                              <div style={{ fontSize: 12, fontWeight: 800, color: '#5b21b6' }}>Is Item Template (Has Variants)</div>
+                              <div style={{ fontSize: 10, color: '#7c3aed' }}>Mark this item master as a Template to enable Variant Creation in Item Details</div>
+                            </div>
+                          </label>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </CardSection>
@@ -2392,6 +2420,7 @@ export default function ItemList() {
                       {[
                         { key: 'custom_loyalty_eligible', label: 'Loyalty Points', desc: 'Earn points on purchase' },
                         { key: 'custom_allow_discount', label: 'Allow Discount', desc: 'Enable manual overrides' },
+                        { key: 'has_variants', label: 'Has Variants (Template)', desc: 'Mark as Item Template for variant creation' },
                       ].map(f => (
                         <label key={f.key} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', background: form[f.key] === 1 ? T.blueLight : T.bg, borderRadius: 9, cursor: 'pointer', border: `1.5px solid ${form[f.key] === 1 ? T.blueMid : T.border}`, transition: 'all 0.15s' }}>
                           <input

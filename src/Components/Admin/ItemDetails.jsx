@@ -11,6 +11,8 @@ import DirhamIcon from '../../assets/Currency/DirhamIcon';
 import { useLegacyTheme } from '../../hooks/useLegacyTheme';
 import './SupplierDetails.css'; // Reusing premium styles
 
+import CreateVariantModal from './CreateVariantModal';
+
 /* ========== DESIGN TOKENS ========== */
 const T = {
   bg: '#F7F8FA', surface: '#FFFFFF', border: '#E8ECF0', borderLight: '#F1F4F8',
@@ -22,7 +24,7 @@ const T = {
   shadowMd: '0 4px 12px rgba(0,0,0,0.06)', radius: '10px', radiusMd: '14px',
 };
 
-import { ChevronDown, Search } from 'lucide-react';
+import { ChevronDown, Search, Plus } from 'lucide-react';
 import { useMemo } from 'react';
 
 const DashboardDocRow = ({ title, docs, search, fromDate, toDate, themeColor }) => {
@@ -169,6 +171,8 @@ const ItemDetails = () => {
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
 
+  const [showVariantModal, setShowVariantModal] = useState(false);
+
   useEffect(() => {
     fetchData();
   }, [id]);
@@ -252,7 +256,16 @@ const ItemDetails = () => {
               <ArrowRight size={14} style={{ transform: 'rotate(180deg)' }} /> Back
             </button>
           </div>
-          <div className="right-controls-group">
+          <div className="right-controls-group" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {item.has_variants === 1 && (
+              <button
+                onClick={() => setShowVariantModal(true)}
+                className="btn-modern-primary flex items-center gap-1.5 px-3 py-1.5 bg-purple-600 text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-md hover:bg-purple-700 transition-all cursor-pointer"
+              >
+                <Plus size={14} />
+                <span>Create Variant</span>
+              </button>
+            )}
             <button
               onClick={toggleTheme}
               className="btn-modern-secondary"
@@ -549,6 +562,15 @@ const ItemDetails = () => {
           </ScrollReveal>
         )}
       </div>
+
+      <CreateVariantModal
+        isOpen={showVariantModal}
+        onClose={() => setShowVariantModal(false)}
+        onVariantCreated={() => {
+          setShowVariantModal(false);
+          fetchData();
+        }}
+      />
     </div>
   );
 };
