@@ -3027,33 +3027,38 @@ function PurchaseInvoiceList() {
             </div>
 
             {/* 8. Credit / Cash Toggle */}
-            <div className="col-span-2 flex h-10 items-stretch self-end overflow-hidden rounded-md border border-slate-200 md:col-span-4 xl:col-span-1 xl:w-[168px]">
-              <button
-                type="button"
-                disabled={isViewMode}
-                onClick={() => {
-                  setFormData(prev => {
-                    const calculatedDueDate = calcDueDate(prev.posting_date, false, prev.credit_days);
-                    return { ...prev, is_cash_purchase: false, due_date: calculatedDueDate };
-                  });
-                }}
-                className={`flex-1 px-4 text-xs font-bold uppercase tracking-[0.12em] transition-colors cursor-pointer ${!formData.is_cash_purchase ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-800'}`}
-              >
-                Credit
-              </button>
-              <button
-                type="button"
-                disabled={isViewMode}
-                onClick={() => {
-                  setFormData(prev => {
-                    const calculatedDueDate = calcDueDate(prev.posting_date, true, prev.credit_days);
-                    return { ...prev, is_cash_purchase: true, due_date: calculatedDueDate };
-                  });
-                }}
-                className={`flex-1 px-4 text-xs font-bold uppercase tracking-[0.12em] transition-colors cursor-pointer ${formData.is_cash_purchase ? 'bg-emerald-600 text-white shadow-xs' : 'bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-800'}`}
-              >
-                Cash
-              </button>
+            <div className="flex flex-col gap-1.5 col-span-2 md:col-span-4 xl:col-span-1 min-w-[170px]">
+              <span className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+                Payment Type
+              </span>
+              <div className="flex h-10 w-full items-center p-1 bg-slate-100 border border-slate-200 rounded-lg">
+                <button
+                  type="button"
+                  disabled={isViewMode}
+                  onClick={() => {
+                    setFormData(prev => {
+                      const calculatedDueDate = calcDueDate(prev.posting_date, false, prev.credit_days);
+                      return { ...prev, is_cash_purchase: false, due_date: calculatedDueDate };
+                    });
+                  }}
+                  className={`flex-1 h-full flex items-center justify-center rounded-md text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${!formData.is_cash_purchase ? 'bg-slate-900 text-white shadow-xs' : 'text-slate-500 hover:text-slate-900'}`}
+                >
+                  Credit
+                </button>
+                <button
+                  type="button"
+                  disabled={isViewMode}
+                  onClick={() => {
+                    setFormData(prev => {
+                      const calculatedDueDate = calcDueDate(prev.posting_date, true, prev.credit_days);
+                      return { ...prev, is_cash_purchase: true, due_date: calculatedDueDate };
+                    });
+                  }}
+                  className={`flex-1 h-full flex items-center justify-center rounded-md text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${formData.is_cash_purchase ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-500 hover:text-slate-900'}`}
+                >
+                  Cash
+                </button>
+              </div>
             </div>
 
           </div>
@@ -3062,29 +3067,36 @@ function PurchaseInvoiceList() {
         {/* CLASSIC MAIN BODY: TABLE AREA */}
         <div className="flex-1 flex flex-col overflow-hidden bg-slate-100">
           <div className="flex-1 min-h-0 overflow-y-auto overflow-x-auto">
-            <table className="classic-table" style={{ width: '100%', borderCollapse: 'collapse', background: '#ffffff' }}>
+            <table className="classic-table" style={{ width: 'max-content', minWidth: '100%', borderCollapse: 'collapse', background: '#ffffff', tableLayout: 'fixed' }}>
               <thead>
                 <tr style={{ background: '#f8fafc', borderBottom: '1.5px solid #cbd5e1' }}>
-                  <th style={{ width: '40px', textAlign: 'center', padding: '8px 4px', fontSize: '11px', fontWeight: 900, color: '#475569', textTransform: 'uppercase', borderRight: '1px solid #e2e8f0' }}>#</th>
-                  {columnConfig.filter(c => c.visible).map(col => (
-                    <th
-                      key={col.id}
-                      style={{
-                        width: col.width ? `${col.width}px` : 'auto',
-                        minWidth: col.width ? `${col.width}px` : '80px',
-                        textAlign: ['rate', 'custom_box_price', 'custom_selling_price', 'custom_box_selling_price', 'discount_amount', 'discount_percentage', 'amount', 'last_purchase_rate'].includes(col.id) ? 'right' : (['uom', 'custom_box_qty', 'custom_pieces_per_box', 'qty'].includes(col.id) ? 'center' : 'left'),
-                        padding: '8px 8px',
-                        fontSize: '11px',
-                        fontWeight: 900,
-                        color: '#475569',
-                        textTransform: 'uppercase',
-                        borderRight: '1px solid #e2e8f0'
-                      }}
-                    >
-                      {col.label}
-                    </th>
-                  ))}
-                  <th style={{ width: '40px', textAlign: 'center', padding: '8px 4px' }}>
+                  <th style={{ width: '40px', minWidth: '40px', maxWidth: '40px', textAlign: 'center', padding: '8px 4px', fontSize: '11px', fontWeight: 900, color: '#475569', textTransform: 'uppercase', borderRight: '1px solid #e2e8f0' }}>#</th>
+                  {columnConfig.filter(c => c.visible).map(col => {
+                    const colW = col.width ? (typeof col.width === 'number' || !col.width.includes('px') ? `${parseInt(col.width)}px` : col.width) : '100px';
+                    return (
+                      <th
+                        key={col.id}
+                        style={{
+                          width: colW,
+                          minWidth: colW,
+                          maxWidth: colW,
+                          textAlign: col.align || (['rate', 'custom_box_price', 'custom_selling_price', 'custom_box_selling_price', 'discount_amount', 'discount_percentage', 'amount', 'last_purchase_rate'].includes(col.id) ? 'right' : (['uom', 'custom_box_qty', 'custom_pieces_per_box', 'qty'].includes(col.id) ? 'center' : 'left')),
+                          padding: '8px 8px',
+                          fontSize: '11px',
+                          fontWeight: 900,
+                          color: '#475569',
+                          textTransform: 'uppercase',
+                          borderRight: '1px solid #e2e8f0',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap'
+                        }}
+                      >
+                        {col.label}
+                      </th>
+                    );
+                  })}
+                  <th style={{ width: '40px', minWidth: '40px', textAlign: 'center', padding: '8px 4px' }}>
                     <button type="button" onClick={() => setShowColConfig(true)} className="text-slate-400 hover:text-emerald-600 cursor-pointer" title="Configure Columns">
                       <Settings size={14} />
                     </button>

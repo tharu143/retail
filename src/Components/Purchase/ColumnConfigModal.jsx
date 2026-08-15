@@ -40,60 +40,81 @@ const SortableItem = ({ id, column, onToggle, onWidthChange, onAlignChange, onMo
     <div 
       ref={setNodeRef} 
       style={style} 
-      className={`flex items-center gap-3 p-3 bg-white border ${isDragging ? 'border-indigo-500 shadow-lg' : 'border-slate-200'} rounded-xl mb-2 group`}
+      className={`flex items-center gap-2.5 sm:gap-3 p-2.5 sm:p-3.5 bg-white border ${isDragging ? 'border-indigo-500 shadow-md ring-2 ring-indigo-200' : 'border-slate-200 hover:border-slate-300'} rounded-xl shadow-xs group transition-all`}
     >
       {/* Drag Handle */}
-      <div {...attributes} {...listeners} className="cursor-grab text-slate-300 hover:text-slate-500 active:cursor-grabbing">
-        <GripVertical size={18} />
+      <div {...attributes} {...listeners} className="cursor-grab text-slate-300 hover:text-slate-500 active:cursor-grabbing p-1">
+        <GripVertical size={16} />
       </div>
 
       {/* Up / Down buttons */}
-      <div className="flex flex-col gap-0.5">
+      <div className="flex flex-col gap-0.5 shrink-0">
         <button
+          type="button"
           onClick={onMoveUp}
           disabled={isFirst}
-          className="w-6 h-5 flex items-center justify-center rounded text-slate-400 hover:bg-indigo-50 hover:text-indigo-600 disabled:opacity-20 transition-all"
+          className="w-5 h-4 sm:w-6 sm:h-5 flex items-center justify-center rounded text-slate-400 hover:bg-indigo-50 hover:text-indigo-600 disabled:opacity-20 transition-all"
         >
-          <ChevronUp size={13} strokeWidth={3} />
+          <ChevronUp size={12} strokeWidth={2.5} />
         </button>
         <button
+          type="button"
           onClick={onMoveDown}
           disabled={isLast}
-          className="w-6 h-5 flex items-center justify-center rounded text-slate-400 hover:bg-indigo-50 hover:text-indigo-600 disabled:opacity-20 transition-all"
+          className="w-5 h-4 sm:w-6 sm:h-5 flex items-center justify-center rounded text-slate-400 hover:bg-indigo-50 hover:text-indigo-600 disabled:opacity-20 transition-all"
         >
-          <ChevronDown size={13} strokeWidth={3} />
+          <ChevronDown size={12} strokeWidth={2.5} />
         </button>
       </div>
 
       {/* Visibility Toggle */}
       <button 
+        type="button"
         onClick={() => onToggle(id)}
-        className={`p-1.5 rounded-lg transition-colors ${column.visible ? 'text-indigo-600 bg-indigo-50' : 'text-slate-400 bg-slate-100'}`}
+        className={`p-1.5 rounded-lg transition-colors shrink-0 ${column.visible ? 'text-indigo-600 bg-indigo-50 hover:bg-indigo-100' : 'text-slate-400 bg-slate-100 hover:bg-slate-200'}`}
+        title={column.visible ? "Hide Column" : "Show Column"}
       >
-        {column.visible ? <Eye size={16} /> : <EyeOff size={16} />}
+        {column.visible ? <Eye size={15} /> : <EyeOff size={15} />}
       </button>
 
-      <div className="flex-1">
-        <p className={`text-sm font-bold ${column.visible ? 'text-slate-900' : 'text-slate-400'}`}>
+      <div className="flex-1 min-w-0 pr-2">
+        <p className={`text-xs sm:text-sm font-bold truncate ${column.visible ? 'text-slate-800' : 'text-slate-400'}`}>
           {column.label}
         </p>
-        <p className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">{id.replace(/_/g, ' ')}</p>
+        <p className="text-[9px] text-slate-400 uppercase font-semibold tracking-wider truncate">{id.replace(/_/g, ' ')}</p>
       </div>
 
-      <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg mr-2">
-        <button onClick={() => onAlignChange(id, 'left')} className={`p-1 rounded ${column.align === 'left' || !column.align ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}>
-          <AlignLeft size={14} />
+      {/* Alignment Buttons */}
+      <div className="flex items-center gap-0.5 bg-slate-100 p-0.5 rounded-lg shrink-0">
+        <button 
+          type="button"
+          onClick={() => onAlignChange(id, 'left')} 
+          className={`p-1 rounded ${column.align === 'left' || !column.align ? 'bg-white shadow-xs text-indigo-600 font-bold' : 'text-slate-400 hover:text-slate-600'}`}
+          title="Align Left"
+        >
+          <AlignLeft size={13} />
         </button>
-        <button onClick={() => onAlignChange(id, 'center')} className={`p-1 rounded ${column.align === 'center' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}>
-          <AlignCenter size={14} />
+        <button 
+          type="button"
+          onClick={() => onAlignChange(id, 'center')} 
+          className={`p-1 rounded ${column.align === 'center' ? 'bg-white shadow-xs text-indigo-600 font-bold' : 'text-slate-400 hover:text-slate-600'}`}
+          title="Align Center"
+        >
+          <AlignCenter size={13} />
         </button>
-        <button onClick={() => onAlignChange(id, 'right')} className={`p-1 rounded ${column.align === 'right' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}>
-          <AlignRight size={14} />
+        <button 
+          type="button"
+          onClick={() => onAlignChange(id, 'right')} 
+          className={`p-1 rounded ${column.align === 'right' ? 'bg-white shadow-xs text-indigo-600 font-bold' : 'text-slate-400 hover:text-slate-600'}`}
+          title="Align Right"
+        >
+          <AlignRight size={13} />
         </button>
       </div>
 
-      <div className="flex items-center gap-2">
-        <label className="text-[10px] font-bold text-slate-400">WIDTH</label>
+      {/* Width Input */}
+      <div className="flex items-center gap-1.5 shrink-0 pl-1">
+        <label className="text-[9px] font-bold text-slate-400 hidden sm:inline">WIDTH</label>
         <input 
           type="number" 
           value={parseInt(column.width) || ''} 
@@ -101,11 +122,11 @@ const SortableItem = ({ id, column, onToggle, onWidthChange, onAlignChange, onMo
             const val = e.target.value;
             onWidthChange(id, val ? parseInt(val) + "px" : "100px");
           }}
-          className="w-16 h-8 text-center text-xs font-bold border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-500"
+          className="w-14 sm:w-16 h-7 sm:h-8 text-center text-xs font-bold border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-500 bg-white"
           min="20"
           max="800"
         />
-        <span className="text-[10px] font-bold text-slate-400">PX</span>
+        <span className="text-[9px] font-bold text-slate-400">PX</span>
       </div>
     </div>
   );
@@ -176,32 +197,108 @@ const ColumnConfigModal = ({ isOpen, onClose, config, columns, onUpdate, doctype
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[100000] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-slate-50 rounded-3xl overflow-hidden shadow-2xl border border-white/20 flex flex-col" style={{ width: '550px', height: '800px', maxWidth: '95vw', maxHeight: '95vh' }}>
+    <div style={{
+      position: 'fixed',
+      inset: 0,
+      zIndex: 100000,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '1.5rem',
+      backgroundColor: 'rgba(15, 23, 42, 0.65)',
+      backdropFilter: 'blur(6px)'
+    }}>
+      <div style={{
+        backgroundColor: '#f8fafc',
+        borderRadius: '1.25rem',
+        border: '1px solid #cbd5e1',
+        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.35)',
+        width: '100%',
+        maxWidth: '680px',
+        maxHeight: '85vh',
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden'
+      }}>
         {/* Header */}
-        <div className="px-8 py-6 bg-white border-b border-slate-100 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600">
-              <RefreshCcw size={24} />
+        <div style={{
+          padding: '1.25rem 1.75rem',
+          backgroundColor: '#ffffff',
+          borderBottom: '1px solid #e2e8f0',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexShrink: 0
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            <div style={{
+              width: '2.75rem',
+              height: '2.75rem',
+              borderRadius: '0.75rem',
+              backgroundColor: '#e0e7ff',
+              color: '#4f46e5',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0
+            }}>
+              <RefreshCcw size={22} />
             </div>
             <div>
-              <h2 className="text-xl font-black text-slate-900 tracking-tight">Configure Columns</h2>
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">{doctype} Matrix Table</p>
+              <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#0f172a', margin: 0, letterSpacing: '-0.02em' }}>Configure Columns</h2>
+              <p style={{ fontSize: '0.75rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em', margin: '0.2rem 0 0' }}>
+                {doctype || 'Document'} Matrix Table
+              </p>
             </div>
           </div>
           <button 
+            type="button"
             onClick={onClose}
-            className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 hover:bg-slate-100 transition-colors"
+            style={{
+              width: '2.25rem',
+              height: '2.25rem',
+              borderRadius: '9999px',
+              border: 'none',
+              backgroundColor: '#f1f5f9',
+              color: '#64748b',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              transition: 'all 0.15s'
+            }}
           >
-            <X size={20} />
+            <X size={18} />
           </button>
         </div>
 
+        {/* Sub-header instruction banner */}
+        <div style={{
+          padding: '0.6rem 1.75rem',
+          backgroundColor: '#f1f5f9',
+          borderBottom: '1px solid #e2e8f0',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          fontSize: '0.7rem',
+          fontWeight: 700,
+          color: '#64748b',
+          textTransform: 'uppercase',
+          letterSpacing: '0.05em'
+        }}>
+          <span>Drag ≡ or use ↑↓ to reorder · Click eye to show/hide</span>
+          <span style={{ color: '#4f46e5' }}>{localConfig.filter(c => c.visible).length} / {localConfig.length} Visible</span>
+        </div>
+
         {/* Body */}
-        <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">
-            Drag ≡ or use ↑↓ buttons to reorder · Click eye to show/hide
-          </p>
+        <div style={{
+          flex: 1,
+          overflowY: 'auto',
+          padding: '1.25rem 1.75rem',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '0.6rem'
+        }}>
           <DndContext 
             sensors={sensors}
             collisionDetection={closestCenter}
@@ -211,7 +308,7 @@ const ColumnConfigModal = ({ isOpen, onClose, config, columns, onUpdate, doctype
               items={localConfig.map(c => c.id)}
               strategy={verticalListSortingStrategy}
             >
-              <div className="space-y-1">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                 {localConfig.map((col, idx) => (
                   <SortableItem 
                     key={col.id} 
@@ -232,28 +329,72 @@ const ColumnConfigModal = ({ isOpen, onClose, config, columns, onUpdate, doctype
         </div>
 
         {/* Footer */}
-        <div className="px-8 py-6 bg-white border-t border-slate-100 flex items-center justify-between">
+        <div style={{
+          padding: '1rem 1.75rem',
+          backgroundColor: '#ffffff',
+          borderTop: '1px solid #e2e8f0',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexShrink: 0
+        }}>
           <button 
+            type="button"
             onClick={resetToDefault}
-            className="flex items-center gap-2 text-sm font-bold text-red-500 hover:text-red-600 transition-colors"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.4rem',
+              fontSize: '0.85rem',
+              fontWeight: 700,
+              color: '#ef4444',
+              backgroundColor: 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+              padding: '0.5rem 0.75rem',
+              borderRadius: '0.5rem'
+            }}
           >
             <Trash2 size={16} />
             <span>Reset to Default</span>
           </button>
           
-          <div className="flex items-center gap-3">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
             <button 
+              type="button"
               onClick={onClose}
-              className="px-6 py-3 text-sm font-bold text-slate-600 hover:bg-slate-50 rounded-xl transition-colors"
+              style={{
+                padding: '0.6rem 1.25rem',
+                fontSize: '0.85rem',
+                fontWeight: 700,
+                color: '#475569',
+                backgroundColor: '#f1f5f9',
+                border: '1px solid #cbd5e1',
+                borderRadius: '0.6rem',
+                cursor: 'pointer'
+              }}
             >
               Discard
             </button>
             <button 
+              type="button"
               onClick={() => { onUpdate(localConfig); onClose(); }}
-              style={{ background: themeColor || '#4f46e5' }}
-              className="flex items-center gap-2 px-8 py-3 text-sm font-black text-white rounded-xl shadow-lg shadow-indigo-200 hover:opacity-90 transition-all active:scale-95"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                padding: '0.6rem 1.5rem',
+                fontSize: '0.85rem',
+                fontWeight: 800,
+                color: '#ffffff',
+                backgroundColor: themeColor || '#4f46e5',
+                border: 'none',
+                borderRadius: '0.6rem',
+                cursor: 'pointer',
+                boxShadow: '0 4px 6px -1px rgba(79, 70, 229, 0.2)'
+              }}
             >
-              <Save size={18} />
+              <Save size={16} />
               <span>Update Matrix</span>
             </button>
           </div>

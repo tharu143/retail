@@ -1430,7 +1430,7 @@ export default function SalesOrderDetails() {
                 </div>
                 <div className="so-shortcut-badge sky">
                     <span className="so-shortcut-key">{getShortcut('doc_editor', 'itemSearch', 'F3')}</span>
-                    <span className="so-shortcut-label">Item Search</span>
+                    <span className="so-shortcut-label">Search</span>
                 </div>
                 <div className="so-shortcut-badge sky">
                     <span className="so-shortcut-key">{getShortcut('doc_editor', 'barcode', 'F4')}</span>
@@ -1442,11 +1442,7 @@ export default function SalesOrderDetails() {
                 </div>
                 <div className="so-shortcut-badge sky">
                     <span className="so-shortcut-key">{getShortcut('doc_editor', 'uom', 'F8')}</span>
-                    <span className="so-shortcut-label">Toggle UOM</span>
-                </div>
-                <div className="so-shortcut-badge emerald">
-                    <span className="so-shortcut-key">{getShortcut('doc_editor', 'saveDraft', 'F7')}</span>
-                    <span className="so-shortcut-label">Save Draft</span>
+                    <span className="so-shortcut-label">UOM Toggle</span>
                 </div>
                 <div className="so-shortcut-badge sky">
                     <span className="so-shortcut-key">{getShortcut('doc_editor', 'addRow', 'F10')} / {getShortcut("doc_editor", "addRowAlt", "Alt+A")}</span>
@@ -1459,16 +1455,20 @@ export default function SalesOrderDetails() {
                     </div>
                 )}
                 <div className="so-shortcut-badge emerald">
+                    <span className="so-shortcut-key">{getShortcut('doc_editor', 'saveDraft', 'F7')}</span>
+                    <span className="so-shortcut-label">Save Draft</span>
+                </div>
+                <div className="so-shortcut-badge emerald">
                     <span className="so-shortcut-key">{getShortcut("doc_editor", "submitAlt", "Ctrl+Enter")} / {getShortcut('doc_editor', 'submit', 'F12')}</span>
                     <span className="so-shortcut-label">Submit</span>
                 </div>
                 <div className="so-shortcut-badge slate">
-                    <span className="so-shortcut-key">Shift+F3 / Ctrl+↓</span>
+                    <span className="so-shortcut-key">Shift+F3</span>
                     <span className="so-shortcut-label">Focus Table</span>
                 </div>
                 <div className="so-shortcut-badge rose">
                     <span className="so-shortcut-key">Escape</span>
-                    <span className="so-shortcut-label">Close / Clear</span>
+                    <span className="so-shortcut-label">Close</span>
                 </div>
             </div>
 
@@ -1864,7 +1864,7 @@ export default function SalesOrderDetails() {
                                     </button>
                                 </div>
                                 <div className="so-table-wrapper" style={{ maxHeight: 'none' }}>
-                                    <table className="so-table">
+                                    <table className="so-table" style={{ tableLayout: 'fixed', width: 'max-content', minWidth: '100%' }}>
                                         <thead>
                                             <tr>
                                                 {(() => {
@@ -1891,11 +1891,13 @@ export default function SalesOrderDetails() {
                                                             alignClass = "text-right pr-3";
                                                         }
 
+                                                        const colW = col.width ? (typeof col.width === 'number' || !col.width.includes('px') ? `${parseInt(col.width)}px` : col.width) : '100px';
+
                                                         return (
                                                             <th
                                                                 key={col.id}
                                                                 className={alignClass}
-                                                                style={{ width: col.width, minWidth: col.id === 'item_code' ? 120 : undefined }}
+                                                                style={{ width: colW, minWidth: colW, maxWidth: colW }}
                                                             >
                                                                 {finalLabel}
                                                             </th>
@@ -2337,7 +2339,7 @@ export default function SalesOrderDetails() {
                             {/* Summary Bar for Stats */}
                             <div className="so-summary-bar">
                                 <div className="so-summary-item">
-                                    <span className="so-summary-label">Artifact Valuation</span>
+                                    <span className="so-summary-label">Net Valuation</span>
                                     <span className="so-summary-value grand" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                                         <DirhamIcon size={14} />
                                         <span>{form.grand_total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
@@ -2345,13 +2347,13 @@ export default function SalesOrderDetails() {
                                 </div>
                                 <div className="so-summary-divider" />
                                 <div className="so-summary-item">
-                                    <span className="so-summary-label">Quantity Items</span>
+                                    <span className="so-summary-label">Total Quantity</span>
                                     <span className="so-summary-value">{form.total_qty} Units</span>
                                 </div>
                                 <div className="so-summary-divider" />
                                 <div className="so-summary-item">
-                                    <span className="so-summary-label">Lifecycle Status</span>
-                                    <StatusBadge status={form.docstatus === 1 ? 'Authorized' : 'Pending Authorization'} themeColor={themeColor} />
+                                    <span className="so-summary-label">Document Status</span>
+                                    <StatusBadge status={form.docstatus === 1 ? 'Submitted' : 'Draft'} themeColor={themeColor} />
                                 </div>
                                 <div className="so-summary-divider" />
                                 <div className="so-summary-item" style={{ textAlign: 'right' }}>
@@ -2488,7 +2490,7 @@ export default function SalesOrderDetails() {
                                     </button>
                                 </div>
                                 <div className="so-table-wrapper" style={{ maxHeight: 'none' }}>
-                                    <table className="so-table">
+                                    <table className="so-table" style={{ tableLayout: 'fixed', width: 'max-content', minWidth: '100%' }}>
                                         <thead>
                                             <tr>
                                                 {(() => {
@@ -2515,11 +2517,13 @@ export default function SalesOrderDetails() {
                                                             alignClass = "text-right pr-3";
                                                         }
 
+                                                        const colW = col.width ? (typeof col.width === 'number' || !col.width.includes('px') ? `${parseInt(col.width)}px` : col.width) : '100px';
+
                                                         return (
                                                             <th
                                                                 key={col.id}
                                                                 className={alignClass}
-                                                                style={{ width: col.width }}
+                                                                style={{ width: colW, minWidth: colW, maxWidth: colW }}
                                                             >
                                                                 {finalLabel}
                                                             </th>

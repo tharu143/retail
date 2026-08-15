@@ -1289,7 +1289,58 @@ const DeliveryNoteDetails = () => {
 
     return (
         <div className="so-page">
-            {/* 1. Page Header */}
+            {/* 1. Premium Keyboard Shortcuts Guide Banner — Matching POS Classic Theme */}
+            <div className="so-shortcut-guide-banner">
+                <div className="so-shortcut-banner-title">
+                    <span className="relative flex h-2 w-2">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
+                    </span>
+                    <span>Quick Actions</span>
+                </div>
+                <div className="so-shortcut-badge sky">
+                    <span className="so-shortcut-key">{getShortcut('doc_editor', 'customerSupplier', 'F2')}</span>
+                    <span className="so-shortcut-label">Customer</span>
+                </div>
+                <div className="so-shortcut-badge sky">
+                    <span className="so-shortcut-key">{getShortcut('doc_editor', 'itemSearch', 'F3')}</span>
+                    <span className="so-shortcut-label">Search</span>
+                </div>
+                <div className="so-shortcut-badge sky">
+                    <span className="so-shortcut-key">{getShortcut('doc_editor', 'barcode', 'F4')}</span>
+                    <span className="so-shortcut-label">Barcode</span>
+                </div>
+                <div className="so-shortcut-badge sky">
+                    <span className="so-shortcut-key">{getShortcut('doc_editor', 'bulkQty', 'F6')}</span>
+                    <span className="so-shortcut-label">Bulk Qty</span>
+                </div>
+                <div className="so-shortcut-badge sky">
+                    <span className="so-shortcut-key">{getShortcut('doc_editor', 'uom', 'F8')}</span>
+                    <span className="so-shortcut-label">UOM Toggle</span>
+                </div>
+                <div className="so-shortcut-badge sky">
+                    <span className="so-shortcut-key">{getShortcut('doc_editor', 'addRow', 'F10')} / {getShortcut("doc_editor", "addRowAlt", "Alt+A")}</span>
+                    <span className="so-shortcut-label">Add Row</span>
+                </div>
+                <div className="so-shortcut-badge emerald">
+                    <span className="so-shortcut-key">{getShortcut('doc_editor', 'saveDraft', 'F7')}</span>
+                    <span className="so-shortcut-label">Save Draft</span>
+                </div>
+                <div className="so-shortcut-badge emerald">
+                    <span className="so-shortcut-key">{getShortcut("doc_editor", "submitAlt", "Ctrl+Enter")} / {getShortcut('doc_editor', 'submit', 'F12')}</span>
+                    <span className="so-shortcut-label">Submit</span>
+                </div>
+                <div className="so-shortcut-badge slate">
+                    <span className="so-shortcut-key">Shift+F3</span>
+                    <span className="so-shortcut-label">Focus Table</span>
+                </div>
+                <div className="so-shortcut-badge rose">
+                    <span className="so-shortcut-key">Escape</span>
+                    <span className="so-shortcut-label">Close</span>
+                </div>
+            </div>
+
+            {/* 2. Page Header */}
             <div className="so-page-header">
                 <div>
                     <h1 className="so-page-title">
@@ -1493,57 +1544,57 @@ const DeliveryNoteDetails = () => {
 
             {/* Premium Keyboard Shortcuts Guide Banner */}
             <div className="so-shortcut-guide-banner">
-              <div className="so-shortcut-banner-title">
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
-                </span>
-                <span>Quick Actions</span>
-              </div>
-              <div className="so-shortcut-badge sky">
-                <span className="so-shortcut-key">{getShortcut('doc_editor', 'customerSupplier', 'F2')}</span>
-                <span className="so-shortcut-label">Customer</span>
-              </div>
-              <div className="so-shortcut-badge sky">
-                <span className="so-shortcut-key">{getShortcut('doc_editor', 'itemSearch', 'F3')}</span>
-                <span className="so-shortcut-label">Item Search</span>
-              </div>
-              <div className="so-shortcut-badge sky">
-                <span className="so-shortcut-key">{getShortcut('doc_editor', 'barcode', 'F4')}</span>
-                <span className="so-shortcut-label">Barcode</span>
-              </div>
-              <div className="so-shortcut-badge sky">
-                <span className="so-shortcut-key">{getShortcut('doc_editor', 'bulkQty', 'F6')}</span>
-                <span className="so-shortcut-label">Bulk Qty</span>
-              </div>
-              <div className="so-shortcut-badge sky">
-                <span className="so-shortcut-key">{getShortcut('doc_editor', 'uom', 'F8')}</span>
-                <span className="so-shortcut-label">Toggle UOM</span>
-              </div>
-              <div className="so-shortcut-badge emerald">
-                <span className="so-shortcut-key">{getShortcut('doc_editor', 'saveDraft', 'F7')}</span>
-                <span className="so-shortcut-label">Save Draft</span>
-              </div>
-              <div className="so-shortcut-badge sky">
-                <span className="so-shortcut-key">{getShortcut('doc_editor', 'addRow', 'F10')} / {getShortcut("doc_editor", "addRowAlt", "Alt+A")}</span>
-                <span className="so-shortcut-label">Add Row</span>
-              </div>
-              <div className="so-shortcut-badge violet">
-                <span className="so-shortcut-key">{getShortcut('doc_editor', 'warehouseBranch', 'F9')}</span>
-                <span className="so-shortcut-label">Branch</span>
-              </div>
-              <div className="so-shortcut-badge emerald">
-                <span className="so-shortcut-key">{getShortcut("doc_editor", "submitAlt", "Ctrl+Enter")} / {getShortcut('doc_editor', 'submit', 'F12')}</span>
-                <span className="so-shortcut-label">Submit</span>
-              </div>
-              <div className="so-shortcut-badge slate">
-                <span className="so-shortcut-key">Shift+F3 / Ctrl+↓</span>
-                <span className="so-shortcut-label">Focus Table</span>
-              </div>
-              <div className="so-shortcut-badge rose">
-                <span className="so-shortcut-key">Escape</span>
-                <span className="so-shortcut-label">Close / Clear</span>
-              </div>
+                <div className="so-shortcut-banner-title">
+                    <span className="relative flex h-2 w-2">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
+                    </span>
+                    <span>Quick Actions</span>
+                </div>
+                <div className="so-shortcut-badge sky">
+                    <span className="so-shortcut-key">{getShortcut('doc_editor', 'customerSupplier', 'F2')}</span>
+                    <span className="so-shortcut-label">Customer</span>
+                </div>
+                <div className="so-shortcut-badge sky">
+                    <span className="so-shortcut-key">{getShortcut('doc_editor', 'itemSearch', 'F3')}</span>
+                    <span className="so-shortcut-label">Item Search</span>
+                </div>
+                <div className="so-shortcut-badge sky">
+                    <span className="so-shortcut-key">{getShortcut('doc_editor', 'barcode', 'F4')}</span>
+                    <span className="so-shortcut-label">Barcode</span>
+                </div>
+                <div className="so-shortcut-badge sky">
+                    <span className="so-shortcut-key">{getShortcut('doc_editor', 'bulkQty', 'F6')}</span>
+                    <span className="so-shortcut-label">Bulk Qty</span>
+                </div>
+                <div className="so-shortcut-badge sky">
+                    <span className="so-shortcut-key">{getShortcut('doc_editor', 'uom', 'F8')}</span>
+                    <span className="so-shortcut-label">Toggle UOM</span>
+                </div>
+                <div className="so-shortcut-badge emerald">
+                    <span className="so-shortcut-key">{getShortcut('doc_editor', 'saveDraft', 'F7')}</span>
+                    <span className="so-shortcut-label">Save Draft</span>
+                </div>
+                <div className="so-shortcut-badge sky">
+                    <span className="so-shortcut-key">{getShortcut('doc_editor', 'addRow', 'F10')} / {getShortcut("doc_editor", "addRowAlt", "Alt+A")}</span>
+                    <span className="so-shortcut-label">Add Row</span>
+                </div>
+                <div className="so-shortcut-badge violet">
+                    <span className="so-shortcut-key">{getShortcut('doc_editor', 'warehouseBranch', 'F9')}</span>
+                    <span className="so-shortcut-label">Branch</span>
+                </div>
+                <div className="so-shortcut-badge emerald">
+                    <span className="so-shortcut-key">{getShortcut("doc_editor", "submitAlt", "Ctrl+Enter")} / {getShortcut('doc_editor', 'submit', 'F12')}</span>
+                    <span className="so-shortcut-label">Submit</span>
+                </div>
+                <div className="so-shortcut-badge slate">
+                    <span className="so-shortcut-key">Shift+F3 / Ctrl+↓</span>
+                    <span className="so-shortcut-label">Focus Table</span>
+                </div>
+                <div className="so-shortcut-badge rose">
+                    <span className="so-shortcut-key">Escape</span>
+                    <span className="so-shortcut-label">Close / Clear</span>
+                </div>
             </div>
 
             {/* 2. Main Page Layout */}
@@ -1722,7 +1773,7 @@ const DeliveryNoteDetails = () => {
                                 </div>
 
                                 <div style={{ overflowX: 'auto' }}>
-                                    <table style={{ width: '100%', borderCollapse: 'collapse' }} className="so-table">
+                                    <table style={{ width: 'max-content', minWidth: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }} className="so-table">
                                         <thead>
                                             <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
                                                 {(() => {
@@ -1742,7 +1793,9 @@ const DeliveryNoteDetails = () => {
                                                             if (col.id === 'custom_pieces_per_box') finalLabel = '';
                                                         }
 
-                                                        let alignStyle = { padding: '0.75rem 1rem', fontSize: '0.75rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase' };
+                                                        const colW = col.width ? (typeof col.width === 'number' || !col.width.includes('px') ? `${parseInt(col.width)}px` : col.width) : '100px';
+
+                                                        let alignStyle = { padding: '0.75rem 1rem', fontSize: '0.75rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', width: colW, minWidth: colW, maxWidth: colW };
                                                         if (['item_code', 'uom'].includes(col.id)) {
                                                             alignStyle.textAlign = 'left';
                                                         } else if (['custom_box_qty', 'qty', 'custom_pieces_per_box'].includes(col.id)) {
@@ -1754,14 +1807,14 @@ const DeliveryNoteDetails = () => {
                                                         return (
                                                             <th
                                                                 key={col.id}
-                                                                style={{ ...alignStyle, width: col.width, minWidth: col.id === 'item_code' ? 140 : undefined }}
+                                                                style={alignStyle}
                                                             >
                                                                 {finalLabel}
                                                             </th>
                                                         );
                                                     });
                                                 })()}
-                                                <th style={{ width: '60px', padding: '0.75rem 1rem' }}></th>
+                                                <th style={{ width: '60px', minWidth: '60px', padding: '0.75rem 1rem' }}></th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -2218,7 +2271,7 @@ const DeliveryNoteDetails = () => {
                                     <span style={{ fontSize: "0.65rem", fontWeight: 600, color: "#94a3b8" }}>{form.items.length} ACTIVE ITEMS</span>
                                 </div>
                                 <div style={{ overflowX: "auto" }}>
-                                    <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                                    <table style={{ width: "max-content", minWidth: "100%", borderCollapse: "collapse", tableLayout: "fixed" }}>
                                         <thead>
                                             <tr style={{ background: "#f8fafc", borderBottom: "1px solid #e2e8f0" }}>
                                                 {(() => {
@@ -2238,7 +2291,9 @@ const DeliveryNoteDetails = () => {
                                                             if (col.id === 'custom_pieces_per_box') finalLabel = '';
                                                         }
 
-                                                        let alignStyle = { padding: "1rem 1.5rem", fontSize: "0.75rem", fontWeight: 800, color: "#64748b", textTransform: "uppercase" };
+                                                        const colW = col.width ? (typeof col.width === 'number' || !col.width.includes('px') ? `${parseInt(col.width)}px` : col.width) : '100px';
+
+                                                        let alignStyle = { padding: "1rem 1.5rem", fontSize: "0.75rem", fontWeight: 800, color: "#64748b", textTransform: "uppercase", width: colW, minWidth: colW, maxWidth: colW };
                                                         if (['item_code', 'uom'].includes(col.id)) {
                                                             alignStyle.textAlign = "left";
                                                         } else if (['custom_box_qty', 'qty', 'custom_pieces_per_box'].includes(col.id)) {
