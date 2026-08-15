@@ -22,6 +22,7 @@ import { useCustomShortcuts } from '../../hooks/useCustomShortcuts';
 
 const DEFAULT_PO_COLUMNS = [
   { id: 'item_code', label: 'Item Code', visible: true, width: 120 },
+  { id: 'item_name', label: 'Item Name', visible: true, width: 150 },
   { id: 'custom_ref_sl_no', label: 'Ref / Supplier SL #', visible: true, width: 120 },
   { id: 'custom_box_qty', label: 'QTY', visible: true, width: 90 },
   { id: 'uom', label: 'UOM', visible: true, width: 90 },
@@ -2319,52 +2320,48 @@ function PurchaseOrder() {
   // =========================================================================
   if (theme === 'legacy') {
     return (
-      <div className="classic-root" style={{ position: 'relative', height: '100vh', display: 'flex', flexDirection: 'column', background: '#e6f4f1', overflow: 'hidden' }}>
+      <div className="classic-root" style={{ position: 'relative', height: '100vh', display: 'flex', flexDirection: 'column', background: '#f8fafc', overflow: 'hidden' }}>
 
         {/* CLASSIC SHORTCUTS GUIDE BAR */}
-        <div className="so-shortcut-guide-banner" style={{ background: '#e6f4f1', borderBottom: '1px solid #bce3da', padding: '6px 14px', display: 'flex', alignItems: 'center', gap: '8px', overflowX: 'auto', flexShrink: 0 }}>
-          <div className="so-shortcut-banner-title" style={{ color: '#047857', fontSize: '9px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.08em', display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}>
-            <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block animate-ping mr-1"></span>
+        <div className="so-shortcut-guide-banner" style={{ background: '#0f172a', borderBottom: '1px solid #1e293b', padding: '6px 14px', display: 'flex', alignItems: 'center', gap: '8px', overflowX: 'auto', flexShrink: 0 }}>
+          <div className="so-shortcut-banner-title" style={{ color: '#94a3b8', fontSize: '9px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.08em', display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}>
+            <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block animate-ping mr-1"></span>
             SHORTCUTS
           </div>
-          <div className="so-shortcut-badges-wrapper" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'nowrap' }}>
-            <div className="so-shortcut-badge" style={{ background: '#f4fbf9', border: '1.5px solid #bce3da', borderRadius: '9999px', padding: '3.5px 12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span className="so-shortcut-key font-mono font-black" style={{ background: '#ffffff', color: '#047857', border: '1px solid #a7f3d0', fontSize: '9px', fontWeight: 900, padding: '1px 6px', borderRadius: '9999px' }}>F2</span>
-              <span className="so-shortcut-label font-extrabold text-[11px] text-slate-800">SUPPLIER</span>
+          <div className="so-shortcut-badges-wrapper" style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'nowrap' }}>
+            <div className="so-shortcut-badge" style={{ background: '#ffffff', border: '1.5px solid #cbd5e1', borderRadius: '6px', padding: '3px 7px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+              <span className="so-shortcut-key" style={{ background: '#3b82f6', color: '#fff', fontSize: '9px', fontWeight: 900, padding: '1px 5px', borderRadius: '4px' }}>F2</span>
+              <span className="so-shortcut-label" style={{ fontSize: '11px', fontWeight: 900, color: '#0f172a' }}>SUPPLIER</span>
             </div>
-            <div className="so-shortcut-badge" style={{ background: '#f4fbf9', border: '1.5px solid #bce3da', borderRadius: '9999px', padding: '3.5px 12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span className="so-shortcut-key font-mono font-black" style={{ background: '#ffffff', color: '#047857', border: '1px solid #a7f3d0', fontSize: '9px', fontWeight: 900, padding: '1px 6px', borderRadius: '9999px' }}>F3</span>
-              <span className="so-shortcut-label font-extrabold text-[11px] text-slate-800">ITEM SEARCH</span>
+            <div className="so-shortcut-badge" style={{ background: '#ffffff', border: '1.5px solid #cbd5e1', borderRadius: '6px', padding: '3px 7px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+              <span className="so-shortcut-key" style={{ background: '#6366f1', color: '#fff', fontSize: '9px', fontWeight: 900, padding: '1px 5px', borderRadius: '4px' }}>F3</span>
+              <span className="so-shortcut-label" style={{ fontSize: '11px', fontWeight: 900, color: '#0f172a' }}>ITEM SEARCH</span>
             </div>
-            <div className="so-shortcut-badge" style={{ background: '#f4fbf9', border: '1.5px solid #bce3da', borderRadius: '9999px', padding: '3.5px 12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span className="so-shortcut-key font-mono font-black" style={{ background: '#ffffff', color: '#047857', border: '1px solid #a7f3d0', fontSize: '9px', fontWeight: 900, padding: '1px 6px', borderRadius: '9999px' }}>F4</span>
-              <span className="so-shortcut-label font-extrabold text-[11px] text-slate-800">BARCODE</span>
+            <div className="so-shortcut-badge" style={{ background: '#ffffff', border: '1.5px solid #cbd5e1', borderRadius: '6px', padding: '3px 7px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+              <span className="so-shortcut-key" style={{ background: '#06b6d4', color: '#fff', fontSize: '9px', fontWeight: 900, padding: '1px 5px', borderRadius: '4px' }}>F4</span>
+              <span className="so-shortcut-label" style={{ fontSize: '11px', fontWeight: 900, color: '#0f172a' }}>BARCODE</span>
             </div>
-            <div className="so-shortcut-badge" style={{ background: '#f4fbf9', border: '1.5px solid #bce3da', borderRadius: '9999px', padding: '3.5px 12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span className="so-shortcut-key font-mono font-black" style={{ background: '#ffffff', color: '#047857', border: '1px solid #a7f3d0', fontSize: '9px', fontWeight: 900, padding: '1px 6px', borderRadius: '9999px' }}>F6</span>
-              <span className="so-shortcut-label font-extrabold text-[11px] text-slate-800">BULK QTY</span>
+            <div className="so-shortcut-badge" style={{ background: '#ffffff', border: '1.5px solid #cbd5e1', borderRadius: '6px', padding: '3px 7px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+              <span className="so-shortcut-key" style={{ background: '#d946ef', color: '#fff', fontSize: '9px', fontWeight: 900, padding: '1px 5px', borderRadius: '4px' }}>F6</span>
+              <span className="so-shortcut-label" style={{ fontSize: '11px', fontWeight: 900, color: '#0f172a' }}>BULK QTY</span>
             </div>
-            <div className="so-shortcut-badge" style={{ background: '#f4fbf9', border: '1.5px solid #bce3da', borderRadius: '9999px', padding: '3.5px 12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span className="so-shortcut-key font-mono font-black" style={{ background: '#ffffff', color: '#047857', border: '1px solid #a7f3d0', fontSize: '9px', fontWeight: 900, padding: '1px 6px', borderRadius: '9999px' }}>F8</span>
-              <span className="so-shortcut-label font-extrabold text-[11px] text-slate-800">TOGGLE UOM</span>
+            <div className="so-shortcut-badge" style={{ background: '#ffffff', border: '1.5px solid #cbd5e1', borderRadius: '6px', padding: '3px 7px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+              <span className="so-shortcut-key" style={{ background: '#f59e0b', color: '#fff', fontSize: '9px', fontWeight: 900, padding: '1px 5px', borderRadius: '4px' }}>ALT+S</span>
+              <span className="so-shortcut-label" style={{ fontSize: '11px', fontWeight: 900, color: '#0f172a' }}>SAVE DRAFT</span>
             </div>
-            <div className="so-shortcut-badge" style={{ background: '#f4fbf9', border: '1.5px solid #bce3da', borderRadius: '9999px', padding: '3.5px 12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span className="so-shortcut-key font-mono font-black" style={{ background: '#ffffff', color: '#047857', border: '1px solid #a7f3d0', fontSize: '9px', fontWeight: 900, padding: '1px 6px', borderRadius: '9999px' }}>ALT+S</span>
-              <span className="so-shortcut-label font-extrabold text-[11px] text-slate-800">SAVE DRAFT</span>
+            <div className="so-shortcut-badge" style={{ background: '#ffffff', border: '1.5px solid #cbd5e1', borderRadius: '6px', padding: '3px 7px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+              <span className="so-shortcut-key" style={{ background: '#0ea5e9', color: '#fff', fontSize: '9px', fontWeight: 900, padding: '1px 5px', borderRadius: '4px' }}>F10</span>
+              <span className="so-shortcut-label" style={{ fontSize: '11px', fontWeight: 900, color: '#0f172a' }}>ADD ROW</span>
             </div>
-            <div className="so-shortcut-badge" style={{ background: '#f4fbf9', border: '1.5px solid #bce3da', borderRadius: '9999px', padding: '3.5px 12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span className="so-shortcut-key font-mono font-black" style={{ background: '#ffffff', color: '#047857', border: '1px solid #a7f3d0', fontSize: '9px', fontWeight: 900, padding: '1px 6px', borderRadius: '9999px' }}>F10</span>
-              <span className="so-shortcut-label font-extrabold text-[11px] text-slate-800">ADD ROW</span>
-            </div>
-            <div className="so-shortcut-badge" style={{ background: '#f4fbf9', border: '1.5px solid #bce3da', borderRadius: '9999px', padding: '3.5px 12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span className="so-shortcut-key font-mono font-black" style={{ background: '#ffffff', color: '#047857', border: '1px solid #a7f3d0', fontSize: '9px', fontWeight: 900, padding: '1px 6px', borderRadius: '9999px' }}>CTRL+↵</span>
-              <span className="so-shortcut-label font-extrabold text-[11px] text-slate-800">SUBMIT</span>
+            <div className="so-shortcut-badge" style={{ background: '#ffffff', border: '1.5px solid #cbd5e1', borderRadius: '6px', padding: '3px 7px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+              <span className="so-shortcut-key" style={{ background: '#10b981', color: '#fff', fontSize: '9px', fontWeight: 900, padding: '1px 5px', borderRadius: '4px' }}>CTRL+↵</span>
+              <span className="so-shortcut-label" style={{ fontSize: '11px', fontWeight: 900, color: '#0f172a' }}>SUBMIT</span>
             </div>
           </div>
         </div>
 
         {/* CLASSIC HEADER FORM */}
-        <div className="classic-header-form" style={{ background: '#ffffff', borderBottom: '1px solid #d1e5e0', padding: '0.5rem 1rem', display: 'flex', alignItems: 'center', gap: '1.25rem', flexShrink: 0 }}>
+        <div className="classic-header-form" style={{ background: '#ffffff', borderBottom: '1px solid #e2e8f0', padding: '0.6rem 1rem', display: 'flex', alignItems: 'center', gap: '1.25rem', flexShrink: 0 }}>
           <div className="classic-field flex items-center gap-3 relative flex-1">
             <label className="uppercase font-black text-[11px] text-slate-500 tracking-tight whitespace-nowrap">SUPPLIER</label>
             <div className="relative group flex-1">
@@ -2382,15 +2379,8 @@ function PurchaseOrder() {
               />
             </div>
 
-            {formData.supplier && (
-              <div className="h-11 px-3 flex items-center gap-1.5 bg-emerald-50 border-2 border-emerald-200 text-emerald-700 rounded-xl text-xs font-black uppercase tracking-wider shadow-sm shrink-0">
-                <Users size={13} className="text-emerald-600" />
-                <span>{formData.supplier?.supplier_name || formData.supplier}</span>
-              </div>
-            )}
-
             {/* Warehouse Tag / Selector */}
-            <div className="h-11 px-3 flex items-center border-2 border-slate-200 bg-slate-50 rounded-xl text-xs font-black uppercase tracking-wider text-slate-700 shadow-sm shrink-0 gap-1.5">
+            <div className="h-10 px-3 flex items-center border border-slate-200 bg-slate-50 rounded-lg text-xs font-black uppercase tracking-wider text-slate-700 shadow-2xs shrink-0 gap-1.5">
               <Package size={13} className="text-slate-500" />
               {isAdmin ? (
                 <select
@@ -2421,14 +2411,14 @@ function PurchaseOrder() {
                 value={formData.transaction_date ? formData.transaction_date.slice(0, 10) : ''}
                 onChange={handleInputChange}
                 disabled={isViewOnly || formData.docstatus !== 0}
-                className="h-10 px-2.5 bg-slate-50 border-2 border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:border-emerald-500 cursor-pointer disabled:bg-slate-100 disabled:text-slate-500"
+                className="h-10 px-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-800 outline-none focus:border-emerald-500 cursor-pointer disabled:bg-slate-100 disabled:text-slate-500"
               />
             </div>
 
-            {/* Currency Field - Fixed to DirhamIcon */}
+            {/* Currency Field */}
             <div className="flex items-center gap-1.5">
               <label className="uppercase font-black text-[10px] text-slate-500 tracking-tight whitespace-nowrap">CURRENCY:</label>
-              <div className="h-10 px-3 bg-slate-50 border-2 border-slate-200 rounded-xl text-xs font-black text-slate-800 flex items-center gap-1.5 shadow-2xs select-none">
+              <div className="h-10 px-3 bg-slate-50 border border-slate-200 rounded-lg text-xs font-black text-slate-800 flex items-center gap-1.5 shadow-2xs select-none">
                 <DirhamIcon size={14} className="text-slate-700" />
                 <span>AED</span>
               </div>
@@ -2437,7 +2427,7 @@ function PurchaseOrder() {
             {/* PO NO Field */}
             <div className="flex items-center gap-1.5">
               <label className="uppercase font-black text-[10px] text-slate-500 tracking-tight whitespace-nowrap">PO NO:</label>
-              <div className="h-10 px-3 flex items-center bg-slate-100 border-2 border-slate-200 rounded-xl text-xs font-mono font-black text-slate-800">
+              <div className="h-10 px-3 flex items-center bg-slate-100 border border-slate-200 rounded-lg text-xs font-mono font-black text-slate-800">
                 {formData.name || formData.naming_series || 'NEW-PUR-ORD'}
               </div>
             </div>
@@ -2445,8 +2435,8 @@ function PurchaseOrder() {
         </div>
 
         {/* CLASSIC MAIN BODY: TABLE AREA */}
-        <div className="flex-1 flex flex-col overflow-hidden bg-[#e6f4f1] p-3">
-          <div className="flex-1 min-h-0 overflow-y-auto overflow-x-auto bg-white border border-slate-200 shadow-sm" style={{ borderRadius: '26px' }}>
+        <div className="flex-1 flex flex-col overflow-hidden bg-slate-100 p-2">
+          <div className="flex-1 min-h-0 overflow-y-auto overflow-x-auto bg-white rounded-xl border border-slate-200 shadow-2xs">
             <table className="classic-table" style={{ width: 'max-content', minWidth: '100%', borderCollapse: 'collapse', background: '#ffffff', tableLayout: 'fixed' }}>
               <thead>
                 <tr style={{ background: '#f8fafc', borderBottom: '1.5px solid #cbd5e1' }}>
@@ -2492,10 +2482,13 @@ function PurchaseOrder() {
                         case 'item_code':
                           return (
                             <td key={col.id} className="px-2 py-1.5 border-r border-slate-100 align-middle">
-                              <div className="flex flex-col">
-                                <span className="font-black text-slate-900 text-xs leading-tight">{item.item_code}</span>
-                                <span className="font-semibold text-slate-500 text-[10px] truncate max-w-[180px] leading-tight mt-0.5">{item.item_name || ''}</span>
-                              </div>
+                              <span className="font-black text-slate-900 text-xs leading-tight">{item.item_code}</span>
+                            </td>
+                          );
+                        case 'item_name':
+                          return (
+                            <td key={col.id} className="px-2 py-1.5 border-r border-slate-100 align-middle">
+                              <span className="font-semibold text-slate-700 text-xs leading-tight block truncate" title={item.item_name || ''}>{item.item_name || '—'}</span>
                             </td>
                           );
                         case 'custom_ref_sl_no':
@@ -2736,21 +2729,20 @@ function PurchaseOrder() {
             <div className="grid grid-cols-1 xl:grid-cols-12 gap-3.5 items-stretch">
               {/* ACTION BUTTON GRID (LEFT SIDE) */}
               <div className="xl:col-span-7 flex">
-                <div className="grid grid-cols-4 grid-rows-2 gap-2.5 w-full h-full p-3 bg-white border border-slate-200 shadow-sm" style={{ borderRadius: '26px' }}>
+                <div className="grid grid-cols-4 grid-rows-2 gap-2.5 w-full h-full p-2.5 bg-white border border-slate-200 rounded-xl shadow-xs">
                   {/* SAVE DRAFT */}
                   {formData.docstatus === 0 && (allowedActions.includes('save') || allowedActions.length === 0) && (
                     <button
                       type="button"
                       onClick={() => handleDocAction('save')}
                       disabled={saving}
-                      className="h-12 bg-[#ea580c] hover:bg-[#c2410c] text-white border-none transition-all active:scale-95 shadow-sm cursor-pointer flex items-center justify-between px-3"
-                      style={{ borderRadius: '18px' }}
+                      className="h-full bg-[#f59e0b] hover:bg-[#d97706] text-white border-2 border-[#f59e0b] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-40"
                     >
-                      <div className="flex items-center gap-1.5 text-[10.5px] font-extrabold uppercase tracking-wider text-white">
-                        <Save size={14} />
+                      <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
+                        <Save size={15} />
                         <span>SAVE DRAFT</span>
                       </div>
-                      <span className="inline-flex items-center justify-center font-mono text-[9px] font-black px-1.5 py-0.5 rounded-full bg-white/20 text-white">ALT+S</span>
+                      <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">Alt+S</span>
                     </button>
                   )}
 
@@ -2760,14 +2752,13 @@ function PurchaseOrder() {
                       type="button"
                       onClick={() => handleDocAction('submit')}
                       disabled={loading || saving}
-                      className="h-12 bg-[#047857] hover:bg-[#065f46] text-white border-none transition-all active:scale-95 shadow-sm cursor-pointer disabled:opacity-40 flex items-center justify-between px-3"
-                      style={{ borderRadius: '18px' }}
+                      className="h-full bg-[#10b981] hover:bg-[#059669] text-white border-2 border-[#10b981] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-40"
                     >
-                      <div className="flex items-center gap-1.5 text-[10.5px] font-extrabold uppercase tracking-wider text-white">
-                        <Send size={14} />
+                      <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
+                        <Send size={15} />
                         <span>SUBMIT</span>
                       </div>
-                      <span className="inline-flex items-center justify-center font-mono text-[9px] font-black px-1.5 py-0.5 rounded-full bg-white/20 text-white">CTRL+↵</span>
+                      <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">Ctrl+↵</span>
                     </button>
                   )}
 
@@ -2776,14 +2767,13 @@ function PurchaseOrder() {
                     <button
                       type="button"
                       onClick={() => navigate(`/purchasereceiptlist?po_name=${encodeURIComponent(formData.name)}`)}
-                      className="h-12 bg-[#0d9488] hover:bg-[#0f766e] text-white border-none transition-all active:scale-95 shadow-sm cursor-pointer flex items-center justify-between px-3"
-                      style={{ borderRadius: '18px' }}
+                      className="h-full bg-[#0d9488] hover:bg-[#0f766e] text-white border-2 border-[#0d9488] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer"
                     >
-                      <div className="flex items-center gap-1.5 text-[10.5px] font-extrabold uppercase tracking-wider text-white">
-                        <Truck size={14} />
+                      <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
+                        <Truck size={15} />
                         <span>CREATE PR</span>
                       </div>
-                      <span className="inline-flex items-center justify-center font-mono text-[9px] font-black px-1.5 py-0.5 rounded-full bg-white/20 text-white">RECEIPT</span>
+                      <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">RECEIPT</span>
                     </button>
                   )}
 
@@ -2793,14 +2783,13 @@ function PurchaseOrder() {
                       type="button"
                       onClick={() => handleDocAction('cancel')}
                       disabled={saving}
-                      className="h-12 bg-[#dc2626] hover:bg-[#b91c1c] text-white border-none transition-all active:scale-95 shadow-sm cursor-pointer disabled:opacity-40 flex items-center justify-between px-3"
-                      style={{ borderRadius: '18px' }}
+                      className="h-full bg-[#dc2626] hover:bg-[#b91c1c] text-white border-2 border-[#dc2626] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-40"
                     >
-                      <div className="flex items-center gap-1.5 text-[10.5px] font-extrabold uppercase tracking-wider text-white">
-                        <X size={14} />
+                      <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
+                        <X size={15} />
                         <span>CANCEL</span>
                       </div>
-                      <span className="inline-flex items-center justify-center font-mono text-[9px] font-black px-1.5 py-0.5 rounded-full bg-white/20 text-white">ALT+X</span>
+                      <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">Alt+X</span>
                     </button>
                   )}
 
@@ -2810,14 +2799,13 @@ function PurchaseOrder() {
                       type="button"
                       onClick={() => handleDocAction('amend')}
                       disabled={saving}
-                      className="h-12 bg-[#1d4ed8] hover:bg-[#1e40af] text-white border-none transition-all active:scale-95 shadow-sm cursor-pointer disabled:opacity-40 flex items-center justify-between px-3"
-                      style={{ borderRadius: '18px' }}
+                      className="h-full bg-[#1d4ed8] hover:bg-[#1e40af] text-white border-2 border-[#1d4ed8] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-40"
                     >
-                      <div className="flex items-center gap-1.5 text-[10.5px] font-extrabold uppercase tracking-wider text-white">
-                        <Edit3 size={14} />
+                      <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
+                        <Edit3 size={15} />
                         <span>AMEND</span>
                       </div>
-                      <span className="inline-flex items-center justify-center font-mono text-[9px] font-black px-1.5 py-0.5 rounded-full bg-white/20 text-white">ALT+M</span>
+                      <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">Alt+M</span>
                     </button>
                   )}
 
@@ -2826,14 +2814,13 @@ function PurchaseOrder() {
                     <button
                       type="button"
                       onClick={handleDuplicate}
-                      className="h-12 bg-[#7e22ce] hover:bg-[#6b21a8] text-white border-none transition-all active:scale-95 shadow-sm cursor-pointer disabled:opacity-40 flex items-center justify-between px-3"
-                      style={{ borderRadius: '18px' }}
+                      className="h-full bg-[#7e22ce] hover:bg-[#6b21a8] text-white border-2 border-[#7e22ce] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-40"
                     >
-                      <div className="flex items-center gap-1.5 text-[10.5px] font-extrabold uppercase tracking-wider text-white">
-                        <Copy size={14} />
+                      <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
+                        <Copy size={15} />
                         <span>DUPLICATE</span>
                       </div>
-                      <span className="inline-flex items-center justify-center font-mono text-[9px] font-black px-1.5 py-0.5 rounded-full bg-white/20 text-white">ALT+D</span>
+                      <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">Alt+D</span>
                     </button>
                   )}
 
@@ -2842,14 +2829,13 @@ function PurchaseOrder() {
                     <button
                       type="button"
                       onClick={() => handlePrintPDF(formData.name)}
-                      className="h-12 bg-[#0284c7] hover:bg-[#0369a1] text-white border-none transition-all active:scale-95 shadow-sm cursor-pointer flex items-center justify-between px-3"
-                      style={{ borderRadius: '18px' }}
+                      className="h-full bg-[#0284c7] hover:bg-[#0369a1] text-white border-2 border-[#0284c7] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer"
                     >
-                      <div className="flex items-center gap-1.5 text-[10.5px] font-extrabold uppercase tracking-wider text-white">
-                        <Printer size={14} />
+                      <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
+                        <Printer size={15} />
                         <span>PRINT PDF</span>
                       </div>
-                      <span className="inline-flex items-center justify-center font-mono text-[9px] font-black px-1.5 py-0.5 rounded-full bg-white/20 text-white">PDF</span>
+                      <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">PDF</span>
                     </button>
                   )}
 
@@ -2858,14 +2844,13 @@ function PurchaseOrder() {
                     <button
                       type="button"
                       onClick={addItemRow}
-                      className="h-12 bg-[#10b981] hover:bg-[#059669] text-white border-none transition-all active:scale-95 shadow-sm cursor-pointer flex items-center justify-between px-3"
-                      style={{ borderRadius: '18px' }}
+                      className="h-full bg-[#10b981] hover:bg-[#059669] text-white border-2 border-[#10b981] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer"
                     >
-                      <div className="flex items-center gap-1.5 text-[10.5px] font-extrabold uppercase tracking-wider text-white">
-                        <Plus size={14} />
+                      <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
+                        <Plus size={15} />
                         <span>ADD ROW</span>
                       </div>
-                      <span className="inline-flex items-center justify-center font-mono text-[9px] font-black px-1.5 py-0.5 rounded-full bg-white/20 text-white">F10</span>
+                      <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">F10</span>
                     </button>
                   )}
 
@@ -2875,14 +2860,13 @@ function PurchaseOrder() {
                       type="button"
                       onClick={() => handleDocAction('delete')}
                       disabled={saving}
-                      className="h-12 bg-[#ef4444] hover:bg-[#dc2626] text-white border-none transition-all active:scale-95 shadow-sm cursor-pointer flex items-center justify-between px-3"
-                      style={{ borderRadius: '18px' }}
+                      className="h-full bg-[#fff5f5] hover:bg-[#fed7d7] text-[#7f1d1d] border-2 border-[#fca5a5] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer"
                     >
-                      <div className="flex items-center gap-1.5 text-[10.5px] font-extrabold uppercase tracking-wider text-white">
-                        <Trash2 size={14} />
+                      <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#7f1d1d]">
+                        <Trash2 size={15} />
                         <span>DELETE</span>
                       </div>
-                      <span className="inline-flex items-center justify-center font-mono text-[9px] font-black px-1.5 py-0.5 rounded-full bg-white/20 text-white">DEL</span>
+                      <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-[#dc2626] text-white">Del</span>
                     </button>
                   )}
 
@@ -2890,14 +2874,13 @@ function PurchaseOrder() {
                   <button
                     type="button"
                     onClick={() => navigate('/purchaseorderlist')}
-                    className="h-12 bg-[#64748b] hover:bg-[#475569] text-white border-none transition-all active:scale-95 shadow-sm cursor-pointer flex items-center justify-between px-3"
-                    style={{ borderRadius: '18px' }}
+                    className="h-full bg-[#f1f5f9] hover:bg-[#e2e8f0] text-[#334155] border-2 border-[#cbd5e1] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer"
                   >
-                    <div className="flex items-center gap-1.5 text-[10.5px] font-extrabold uppercase tracking-wider text-white">
-                      <ChevronLeft size={14} />
+                    <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#334155]">
+                      <ChevronLeft size={15} />
                       <span>LIST</span>
                     </div>
-                    <span className="inline-flex items-center justify-center font-mono text-[9px] font-black px-1.5 py-0.5 rounded-full bg-white/20 text-white">ESC</span>
+                    <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-[#64748b] text-white">Esc</span>
                   </button>
                 </div>
               </div>

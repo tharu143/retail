@@ -3116,10 +3116,13 @@ function PurchaseInvoiceList() {
                         case 'item_code':
                           return (
                             <td key={col.id} className="px-2 py-1 border-r border-slate-100 align-middle">
-                              <div className="flex flex-col">
-                                <span className="font-black text-slate-900 text-xs leading-tight">{item.item_code}</span>
-                                <span className="font-semibold text-slate-500 text-[10px] truncate max-w-[180px] leading-tight mt-0.5">{item.item_name || ''}</span>
-                              </div>
+                              <span className="font-black text-slate-900 text-xs leading-tight">{item.item_code}</span>
+                            </td>
+                          );
+                        case 'item_name':
+                          return (
+                            <td key={col.id} className="px-2 py-1 border-r border-slate-100 align-middle">
+                              <span className="font-semibold text-slate-700 text-xs leading-tight block truncate" title={item.item_name || ''}>{item.item_name || '—'}</span>
                             </td>
                           );
                         case 'barcode':
@@ -3393,58 +3396,58 @@ function PurchaseInvoiceList() {
               {/* ACTION BUTTON GRID (LEFT SIDE) */}
               <div className="xl:col-span-7 flex">
                 <div className="grid grid-cols-4 grid-rows-2 gap-2 w-full h-full">
-                  {/* DYNAMIC ACTION: SAVE / AMEND / CANCEL */}
-                  {formData.docstatus === 1 ? (
+                  {/* DYNAMIC ACTION 1: SAVE DRAFT (Draft) / CANCEL (Submitted) / AMEND (Cancelled) */}
+                  {formData.docstatus === 0 || formData.docstatus === undefined ? (
+                    <button
+                      type="button"
+                      onClick={handleSaveDraft}
+                      disabled={saving}
+                      className="h-full bg-[#f59e0b] hover:bg-[#d97706] text-white border-2 border-[#f59e0b] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-40"
+                    >
+                      <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
+                        {saving ? <Loader2 size={15} className="animate-spin text-white" /> : <Save size={15} />}
+                        <span>{saving ? 'SAVING...' : 'SAVE DRAFT'}</span>
+                      </div>
+                      <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">Alt+S</span>
+                    </button>
+                  ) : formData.docstatus === 1 ? (
                     (allowedActions.includes('cancel') || allowedActions.length === 0) ? (
                       <button
                         type="button"
                         onClick={() => handleDocAction('cancel')}
                         disabled={saving}
-                        className="h-full bg-rose-50 hover:bg-rose-100 text-rose-800 border-2 border-rose-300 rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-50"
+                        className="h-full bg-[#dc2626] hover:bg-[#b91c1c] text-white border-2 border-[#dc2626] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-40"
                       >
-                        <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-rose-800">
+                        <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
                           <X size={15} />
                           <span>CANCEL</span>
                         </div>
-                        <span className="inline-flex items-center justify-center font-mono text-[10px] font-black px-1.5 py-0.5 rounded bg-rose-600 text-white">Action</span>
+                        <span className="inline-flex items-center justify-center font-mono text-[10px] font-black px-1.5 py-0.5 rounded bg-white/20 text-white">Alt+C</span>
                       </button>
                     ) : (
                       <div className="h-full bg-slate-100 border-2 border-slate-200 rounded-xl px-3 py-2 flex items-center justify-center text-slate-400 font-black text-[11px] uppercase tracking-wider select-none">
                         <span>LOCKED</span>
                       </div>
                     )
-                  ) : formData.docstatus === 2 ? (
+                  ) : (
                     (allowedActions.includes('amend') || allowedActions.length === 0) ? (
                       <button
                         type="button"
                         onClick={() => handleDocAction('amend')}
                         disabled={saving}
-                        className="h-full bg-sky-50 hover:bg-sky-100 text-sky-800 border-2 border-sky-300 rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-50"
+                        className="h-full bg-[#1d4ed8] hover:bg-[#1e40af] text-white border-2 border-[#1d4ed8] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-40"
                       >
-                        <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-sky-800">
+                        <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
                           <Plus size={15} />
                           <span>AMEND</span>
                         </div>
-                        <span className="inline-flex items-center justify-center font-mono text-[10px] font-black px-1.5 py-0.5 rounded bg-sky-600 text-white">Action</span>
+                        <span className="inline-flex items-center justify-center font-mono text-[10px] font-black px-1.5 py-0.5 rounded bg-white/20 text-white">Alt+M</span>
                       </button>
                     ) : (
                       <div className="h-full bg-slate-100 border-2 border-slate-200 rounded-xl px-3 py-2 flex items-center justify-center text-slate-400 font-black text-[11px] uppercase tracking-wider select-none">
                         <span>CANCELLED</span>
                       </div>
                     )
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={handleSaveDraft}
-                      disabled={saving}
-                      className="h-full bg-[#fffbeb] hover:bg-[#fef3c7] text-[#78350f] border-2 border-[#fcd34d] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-60"
-                    >
-                      <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#78350f]">
-                        {saving ? <Loader2 size={15} className="animate-spin text-[#d97706]" /> : <Save size={15} />}
-                        <span>{saving ? 'SAVING...' : 'SAVE DRAFT'}</span>
-                      </div>
-                      <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-[#d97706] text-white">Alt+S</span>
-                    </button>
                   )}
 
                   {/* SUBMIT (Only in Draft Mode) */}
@@ -3453,17 +3456,17 @@ function PurchaseInvoiceList() {
                       type="button"
                       onClick={handleSubmit}
                       disabled={saving}
-                      className="h-full bg-[#ecfdf5] hover:bg-[#d1fae5] text-[#064e3b] border-2 border-[#6ee7b7] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-60"
+                      className="h-full bg-[#10b981] hover:bg-[#059669] text-white border-2 border-[#10b981] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-40"
                     >
-                      <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#064e3b]">
-                        {saving ? <Loader2 size={15} className="animate-spin text-[#047857]" /> : <Send size={15} />}
+                      <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
+                        {saving ? <Loader2 size={15} className="animate-spin text-white" /> : <Send size={15} />}
                         <span>{saving ? 'SUBMITTING...' : 'SUBMIT'}</span>
                       </div>
-                      <span className="inline-flex items-center justify-center font-mono text-[10px] font-black px-1.5 py-0.5 rounded bg-[#047857] text-white">Ctrl+↵</span>
+                      <span className="inline-flex items-center justify-center font-mono text-[10px] font-black px-1.5 py-0.5 rounded bg-white/20 text-white">Ctrl+↵</span>
                     </button>
                   ) : (
-                    <div className="h-full bg-emerald-50/60 border-2 border-emerald-200 rounded-xl px-3 py-2 flex items-center justify-center text-emerald-700 font-black text-[11px] uppercase tracking-wider select-none animate-in fade-in zoom-in duration-200">
-                      <CheckCircle2 size={15} className="mr-1.5 text-emerald-600" />
+                    <div className="h-full bg-emerald-600 text-white border-2 border-emerald-600 rounded-xl px-3 py-2 flex items-center justify-center font-black text-[11px] uppercase tracking-wider select-none shadow-xs">
+                      <CheckCircle2 size={15} className="mr-1.5 text-white" />
                       <span>{formData.docstatus === 1 ? 'SUBMITTED' : 'CANCELLED'}</span>
                     </div>
                   )}
@@ -3473,13 +3476,13 @@ function PurchaseInvoiceList() {
                     type="button"
                     onClick={() => handlePrintPDF(docName)}
                     disabled={!docName}
-                    className="h-full bg-[#f0f9ff] hover:bg-[#e0f2fe] text-[#0c4a6e] border-2 border-[#7dd3fc] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-50"
+                    className="h-full bg-[#0284c7] hover:bg-[#0369a1] text-white border-2 border-[#0284c7] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-40"
                   >
-                    <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#0c4a6e]">
+                    <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
                       <Printer size={15} />
                       <span>PRINT PDF</span>
                     </div>
-                    <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-[#0284c7] text-white">Space</span>
+                    <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">Space</span>
                   </button>
 
                   {/* DUPLICATE */}
@@ -3487,13 +3490,13 @@ function PurchaseInvoiceList() {
                     type="button"
                     onClick={handleDuplicate}
                     disabled={!docName}
-                    className="h-full bg-[#f5f3ff] hover:bg-[#ede9fe] text-[#4c1d95] border-2 border-[#c084fc] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-50"
+                    className="h-full bg-[#7c3aed] hover:bg-[#6d28d9] text-white border-2 border-[#7c3aed] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-40"
                   >
-                    <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#4c1d95]">
+                    <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
                       <Copy size={15} />
                       <span>DUPLICATE</span>
                     </div>
-                    <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-[#7c3aed] text-white">Alt+D</span>
+                    <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">Alt+D</span>
                   </button>
 
                   {/* ADD ROW / CREATE DEBIT NOTE (If Submitted) */}
@@ -3502,26 +3505,26 @@ function PurchaseInvoiceList() {
                       type="button"
                       onClick={() => handleCreateReturn()}
                       disabled={saving}
-                      className="h-full bg-rose-50 hover:bg-rose-100 text-rose-900 border-2 border-rose-300 rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer"
+                      className="h-full bg-[#e11d48] hover:bg-[#be123c] text-white border-2 border-[#e11d48] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer"
                     >
-                      <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-rose-900">
+                      <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
                         <Link size={14} />
                         <span>DEBIT NOTE</span>
                       </div>
-                      <span className="inline-flex items-center justify-center font-mono text-[10px] font-black px-1.5 py-0.5 rounded bg-rose-600 text-white">+Ret</span>
+                      <span className="inline-flex items-center justify-center font-mono text-[10px] font-black px-1.5 py-0.5 rounded bg-white/20 text-white">+Ret</span>
                     </button>
                   ) : (
                     <button
                       type="button"
                       onClick={addItemRow}
                       disabled={formData.docstatus !== 0 && formData.docstatus !== undefined}
-                      className="h-full bg-white hover:bg-slate-100 text-[#1e293b] border-2 border-slate-300 rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-40"
+                      className="h-full bg-[#0284c7] hover:bg-[#0369a1] text-white border-2 border-[#0284c7] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-40"
                     >
-                      <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#1e293b]">
+                      <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
                         <Plus size={15} />
                         <span>ADD ROW</span>
                       </div>
-                      <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-[#475569] text-white">Alt+A</span>
+                      <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">Alt+A</span>
                     </button>
                   )}
 
@@ -3531,13 +3534,13 @@ function PurchaseInvoiceList() {
                       type="button"
                       onClick={() => handleCreatePayment()}
                       disabled={saving}
-                      className="h-full bg-amber-50 hover:bg-amber-100 text-amber-900 border-2 border-amber-300 rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer"
+                      className="h-full bg-[#d97706] hover:bg-[#b45309] text-white border-2 border-[#d97706] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer"
                     >
-                      <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-amber-900">
+                      <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
                         <Plus size={15} />
                         <span>PAYMENT ENTRY</span>
                       </div>
-                      <span className="inline-flex items-center justify-center font-mono text-[10px] font-black px-1.5 py-0.5 rounded bg-amber-600 text-white">+Pay</span>
+                      <span className="inline-flex items-center justify-center font-mono text-[10px] font-black px-1.5 py-0.5 rounded bg-white/20 text-white">+Pay</span>
                     </button>
                   ) : (
                     <button
@@ -3551,13 +3554,13 @@ function PurchaseInvoiceList() {
                           }
                         }
                       }}
-                      className="h-full bg-white hover:bg-slate-100 text-[#1e293b] border-2 border-slate-300 rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-40"
+                      className="h-full bg-[#475569] hover:bg-[#334155] text-white border-2 border-[#475569] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-40"
                     >
-                      <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#1e293b]">
+                      <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
                         <Package size={15} />
                         <span>BULK QTY</span>
                       </div>
-                      <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-[#475569] text-white">F6</span>
+                      <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">F6</span>
                     </button>
                   )}
 
@@ -3567,25 +3570,25 @@ function PurchaseInvoiceList() {
                       type="button"
                       onClick={() => handleDocAction('delete')}
                       disabled={saving}
-                      className="h-full bg-[#fff5f5] hover:bg-[#fed7d7] text-[#7f1d1d] border-2 border-[#fca5a5] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer"
+                      className="h-full bg-[#dc2626] hover:bg-[#b91c1c] text-white border-2 border-[#dc2626] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer"
                     >
-                      <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#7f1d1d]">
+                      <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
                         <Trash2 size={15} />
                         <span>DELETE</span>
                       </div>
-                      <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-[#dc2626] text-white">Del</span>
+                      <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">Del</span>
                     </button>
                   ) : (
                     <button
                       type="button"
                       onClick={() => setIsModalOpen(false)}
-                      className="h-full bg-[#f1f5f9] hover:bg-[#e2e8f0] text-[#334155] border-2 border-[#cbd5e1] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer"
+                      className="h-full bg-[#64748b] hover:bg-[#475569] text-white border-2 border-[#64748b] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer"
                     >
-                      <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#334155]">
+                      <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
                         <X size={15} />
                         <span>CLOSE</span>
                       </div>
-                      <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-[#64748b] text-white">Esc</span>
+                      <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">Esc</span>
                     </button>
                   )}
                 </div>

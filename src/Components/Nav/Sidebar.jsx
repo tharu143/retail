@@ -288,10 +288,17 @@ function Sidebar({ activeItem: propsActiveItem, setActiveItem: propsSetActiveIte
           </button>
         </div>
         {!isCollapsed && (
-          <div className="sidebar-brand-subtitle">
-            {typeof user === 'string' && user
-              ? (user.includes('@') ? user.split('@')[0] : user).replace(/^\w/, c => c.toUpperCase())
-              : (typeof user === 'object' && user ? (user.full_name || user.name) : 'Admin')}! 👋
+          <div className="sidebar-brand-subtitle flex items-center justify-between gap-1">
+            <span className="truncate">
+              {typeof user === 'string' && user
+                ? (user.includes('@') ? user.split('@')[0] : user).replace(/^\w/, c => c.toUpperCase())
+                : (typeof user === 'object' && user ? (user.full_name || user.name) : 'Admin')}! 👋
+            </span>
+            {activeItem && activeItem !== 'home' && (
+              <span className="text-[10px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 shrink-0">
+                {activeItem}
+              </span>
+            )}
           </div>
         )}
       </div>

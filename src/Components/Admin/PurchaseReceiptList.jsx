@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
-  Plus, X, Building2, Search, Calendar, Filter, Download, MoreVertical, Package, Warehouse as WarehouseIcon, Barcode, Edit3,
+  Plus, X, Building2, Search, Calendar, CalendarDays, Hash, Filter, Download, MoreVertical, Package, Warehouse as WarehouseIcon, Barcode, Edit3,
   Trash2, Palette, Loader2, ChevronLeft, ChevronRight, Zap, CheckCircle2, ExternalLink, Link, Settings, FileText, Copy, Printer, Save, Send
 } from 'lucide-react';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
@@ -24,7 +24,8 @@ const RESOURCE_BASE = '/api/resource';
 
 const DEFAULT_PR_COLUMNS = [
   { id: 'barcode', label: 'Scan Barcode', visible: true, width: 130 },
-  { id: 'item_code', label: 'Item Code', visible: true, width: 180 },
+  { id: 'item_code', label: 'Item Code', visible: true, width: 140 },
+  { id: 'item_name', label: 'Item Name', visible: true, width: 150 },
   { id: 'uom', label: 'UOM', visible: true, width: 90 },
   { id: 'custom_box_qty', label: 'QTY', visible: true, width: 90 },
   { id: 'custom_ref_sl_no', label: 'Ref / Supplier SL #', visible: true, width: 120 },
@@ -357,13 +358,14 @@ function PurchaseReceiptList() {
 
         setLastSavedData(JSON.stringify(payload)); // Update base for dirty check after save
         const nextDoc = (rawMsg.data && rawMsg.data.name) || rawMsg.new_name || rawMsg.docname || docName;
-        if (nextDoc !== docName) {
+        if (nextDoc) {
+          setDocName(nextDoc);
+          setSearchParams({ name: nextDoc }, { replace: true });
           fetchReceiptForEdit(nextDoc);
           if (action === 'amend') setIsViewMode(false);
         } else {
-          fetchReceiptForEdit(docName);
+          fetchReceipts();
         }
-        fetchReceipts();
       } else {
         throw new Error(rawMsg.message || "Operation failed");
       }
@@ -1945,10 +1947,32 @@ function PurchaseReceiptList() {
             custom_ref_sl_no: it.custom_ref_sl_no || it.custom_supplier_sl_num || '',
             use_box_entry: (it.uom || '').toLowerCase() === 'box'
           }));
+          const mappedTaxes = (mappedData.taxes || []).map(t => ({
+            add_row: t.add_deduct_tax ? t.add_deduct_tax === "Add" : true,
+            charge_type: t.charge_type || "On Net Total",
+            account_head: t.account_head || '',
+            rate: parseFloat(t.rate) || 0,
+            tax_amount: parseFloat(t.tax_amount) || 0,
+            total: parseFloat(t.total || 0).toFixed(2),
+            row_id: t.name || ''
+          }));
+          const totalNet = mappedItems.reduce((acc, it) => acc + (parseFloat(it.amount) || 0), 0);
+          const totalsObj = recalcTaxesAndTotals(
+            mappedItems,
+            totalNet,
+            mappedTaxes,
+            mappedData.additional_discount_percentage || 0,
+            mappedData.discount_amount || 0,
+            mappedData.rounded_total || 0,
+            mappedData.apply_discount_on || 'Net Total'
+          );
+
           setFormData(prev => ({
             ...initialState,
             ...mappedData,
+            ...totalsObj,
             items: mappedItems.length > 0 ? mappedItems : initialState.items,
+            taxes: totalsObj.taxes || mappedTaxes,
             status: 'Draft',
             docstatus: 0
           }));
@@ -2583,60 +2607,110 @@ function PurchaseReceiptList() {
           </div>
         </div>
 
-        {/* CLASSIC HEADER FORM */}
-        <div className="classic-header-form" style={{ background: '#ffffff', borderBottom: '1px solid #e2e8f0', padding: '0.45rem 1rem', display: 'flex', alignItems: 'center', gap: '1.25rem', flexShrink: 0 }}>
-          <div className="classic-field flex items-center gap-3 relative flex-1">
-            <label className="uppercase font-black text-[11px] text-slate-500 tracking-tight whitespace-nowrap">SUPPLIER</label>
-            <div className="relative group flex-1" ref={supplierRef}>
-              <CustomSearchDropdown
-                placeholder="Search supplier / vendor..."
-                value={formData.supplier ? { name: formData.supplier, supplier_name: formData.supplier_name } : null}
-                onSelect={(val) => {
-                  setFormData(prev => ({ ...prev, supplier: val ? val.name : '', supplier_name: val ? val.supplier_name : '' }));
-                }}
-                fetchData={fetchSuppliers}
-                optionsLabel="supplier_name"
-                globalSearch={true}
-                themeColor="#10b981"
+        {/* CLASSIC HEADER FORM: ENTRY HEADER BAR DESIGN */}
+        <header className="rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-xs shrink-0 mx-2 my-1.5">
+          <div className="grid grid-cols-2 items-end gap-x-4 gap-y-3 md:grid-cols-4 xl:grid-cols-[1.6fr_1.6fr_1fr_1fr_1fr_auto]">
+            
+            {/* 1. Supplier */}
+            <div className="flex min-w-0 flex-col gap-1.5 col-span-2 md:col-span-2 xl:col-span-1">
+              <span className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+                Supplier
+              </span>
+              <div className="relative group w-full" ref={supplierRef}>
+                <CustomSearchDropdown
+                  placeholder="Search supplier..."
+                  value={formData.supplier ? { name: formData.supplier, supplier_name: formData.supplier_name } : null}
+                  onSelect={(val) => {
+                    setFormData(prev => ({ ...prev, supplier: val ? val.name : '', supplier_name: val ? val.supplier_name : '' }));
+                  }}
+                  fetchData={fetchSuppliers}
+                  optionsLabel="supplier_name"
+                  globalSearch={true}
+                  themeColor="#10b981"
+                  className="h-10 w-full min-w-0 rounded-md border border-slate-200 bg-slate-50/50 px-3 text-sm font-semibold text-slate-800 outline-none transition-colors placeholder:font-normal placeholder:text-slate-400 focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-500/20"
+                />
+              </div>
+            </div>
+
+            {/* 2. Branch */}
+            <div className="flex min-w-0 flex-col gap-1.5 col-span-2 md:col-span-2 xl:col-span-1">
+              <span className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+                <Building2 className="size-3 text-slate-400" aria-hidden />
+                Branch
+              </span>
+              <div className="h-10 w-full min-w-0 rounded-md border border-slate-200 bg-slate-50/50 px-3 text-sm font-semibold text-slate-800 outline-none transition-colors flex items-center truncate">
+                {isAdmin ? (
+                  <select
+                    name="set_warehouse"
+                    value={formData.set_warehouse || ''}
+                    onChange={(e) => setFormData(prev => ({ ...prev, set_warehouse: e.target.value, accepted_warehouse: e.target.value }))}
+                    disabled={isViewMode}
+                    className="w-full bg-transparent border-none outline-none font-semibold text-sm text-slate-800 cursor-pointer truncate p-0"
+                  >
+                    <option value="">Select Branch...</option>
+                    {warehouses.map(w => (
+                      <option key={w.name} value={w.name}>{w.name}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <span className="truncate">{formData.set_warehouse || warehouse || 'Main Warehouse'}</span>
+                )}
+              </div>
+            </div>
+
+            {/* 3. Posting Date */}
+            <div 
+              onClick={(e) => {
+                const inp = e.currentTarget.querySelector('input[type="date"]');
+                if (inp && inp.showPicker) {
+                  try { inp.showPicker(); } catch (err) {}
+                }
+              }}
+              className="flex min-w-0 flex-col gap-1.5 cursor-pointer group"
+            >
+              <span className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500 cursor-pointer">
+                <CalendarDays className="size-3 text-slate-400 group-hover:text-emerald-600 transition-colors" aria-hidden />
+                Posting Date
+              </span>
+              <input
+                type="date"
+                value={formData.posting_date || ''}
+                disabled={isViewMode}
+                onChange={e => setFormData(prev => ({ ...prev, posting_date: e.target.value }))}
+                className="h-10 w-full min-w-0 rounded-md border border-slate-200 bg-slate-50/50 px-3 text-sm font-semibold text-slate-800 outline-none transition-colors focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 cursor-pointer"
+                aria-label="Posting date"
               />
             </div>
 
-            {formData.supplier && (
-              <div className="h-11 px-3 flex items-center gap-1.5 bg-emerald-50 border-2 border-emerald-200 text-emerald-700 rounded-xl text-xs font-black uppercase tracking-wider shadow-sm shrink-0">
-                <Building2 size={13} className="text-emerald-600" />
-                <span>{formData.supplier_name || formData.supplier}</span>
+            {/* 4. Supplier Delivery Note / Order # */}
+            <div className="flex min-w-0 flex-col gap-1.5">
+              <span className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+                <Hash className="size-3 text-slate-400" aria-hidden />
+                Delivery Order #
+              </span>
+              <input
+                type="text"
+                placeholder="DO / Delivery Note #"
+                value={formData.supplier_delivery_note || ''}
+                disabled={isViewMode}
+                onChange={e => setFormData(prev => ({ ...prev, supplier_delivery_note: e.target.value }))}
+                className="h-10 w-full min-w-0 rounded-md border border-slate-200 bg-slate-50/50 px-3 text-sm font-semibold text-slate-800 outline-none transition-colors placeholder:font-normal placeholder:text-slate-400 focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-500/20"
+                aria-label="Delivery Order number"
+              />
+            </div>
+
+            {/* 5. PR NO */}
+            <div className="flex min-w-0 flex-col gap-1.5">
+              <span className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+                PR NO
+              </span>
+              <div className="h-10 w-full min-w-0 rounded-md border border-slate-200 bg-slate-100 px-3 text-sm font-mono font-bold text-slate-700 flex items-center">
+                {docName || 'NEW-PUR-REC'}
               </div>
-            )}
-
-            {/* Warehouse Selector Tag */}
-            <div className="h-11 px-3 flex items-center border-2 border-slate-200 bg-slate-50 rounded-xl text-xs font-black uppercase tracking-wider text-slate-700 shadow-sm shrink-0 gap-1.5">
-              <Package size={13} className="text-slate-500" />
-              {isAdmin ? (
-                <select
-                  name="set_warehouse"
-                  value={formData.set_warehouse || ''}
-                  onChange={(e) => setFormData(prev => ({ ...prev, set_warehouse: e.target.value }))}
-                  disabled={isViewMode}
-                  className="bg-transparent border-none outline-none font-black text-xs cursor-pointer"
-                >
-                  <option value="">Select Branch...</option>
-                  {warehouses.map(w => (
-                    <option key={w.name} value={w.name}>{w.name}</option>
-                  ))}
-                </select>
-              ) : (
-                <span>{formData.set_warehouse || warehouse || 'Main Warehouse'}</span>
-              )}
             </div>
-          </div>
 
-          <div className="classic-field flex items-center gap-3 ml-auto">
-            <label className="uppercase font-black text-[11px] text-slate-500 tracking-tight whitespace-nowrap">PR NO:</label>
-            <div className="h-11 px-4 flex items-center bg-slate-100 border-2 border-slate-200 rounded-xl text-xs font-mono font-black text-slate-800">
-              {docName || 'NEW-PUR-REC'}
-            </div>
           </div>
-        </div>
+        </header>
 
         {/* CLASSIC MAIN BODY: TABLE AREA */}
         <div className="flex-1 flex flex-col overflow-hidden bg-slate-100">
@@ -2703,10 +2777,13 @@ function PurchaseReceiptList() {
                         case 'item_code':
                           return (
                             <td key={col.id} className="px-2 py-1 border-r border-slate-100 align-middle">
-                              <div className="flex flex-col">
-                                <span className="font-black text-slate-900 text-xs leading-tight">{item.item_code}</span>
-                                <span className="font-semibold text-slate-500 text-[10px] truncate max-w-[180px] leading-tight mt-0.5">{item.item_name || ''}</span>
-                              </div>
+                              <span className="font-black text-slate-900 text-xs leading-tight">{item.item_code}</span>
+                            </td>
+                          );
+                        case 'item_name':
+                          return (
+                            <td key={col.id} className="px-2 py-1 border-r border-slate-100 align-middle">
+                              <span className="font-semibold text-slate-700 text-xs leading-tight block truncate" title={item.item_name || ''}>{item.item_name || '—'}</span>
                             </td>
                           );
                         case 'custom_ref_sl_no':
@@ -2742,7 +2819,7 @@ function PurchaseReceiptList() {
                               <div className="flex flex-col items-center justify-center">
                                 <input
                                   type="number"
-                                  value={item.use_box_entry ? (item.custom_box_qty || '') : (item.accepted_qty || '')}
+                                  value={item.use_box_entry ? (item.custom_box_qty || '') : (item.accepted_qty || item.qty || '')}
                                   onChange={(e) => updateItem(idx, item.use_box_entry ? "custom_box_qty" : "accepted_qty", e.target.value)}
                                   disabled={isViewMode || formData.docstatus !== 0}
                                   className="w-full h-8 text-center font-black text-xs text-slate-800 bg-transparent border-none outline-none focus:bg-emerald-50/40 disabled:bg-slate-100 disabled:text-slate-500"
@@ -2849,7 +2926,7 @@ function PurchaseReceiptList() {
                         case 'accepted_qty':
                           return (
                             <td key={col.id} className="px-2 py-1 text-center font-black text-xs text-slate-800 border-r border-slate-100 align-middle">
-                              {item.accepted_qty || 0}
+                              {item.accepted_qty || item.qty || 0}
                             </td>
                           );
                         case 'rejected_qty':
@@ -2962,26 +3039,26 @@ function PurchaseReceiptList() {
                       type="button"
                       onClick={() => handleDocAction('save')}
                       disabled={saving}
-                      className="h-full bg-[#fffbeb] hover:bg-[#fef3c7] text-[#78350f] border-2 border-[#fcd34d] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-60"
+                      className="h-full bg-[#f59e0b] hover:bg-[#d97706] text-white border-2 border-[#f59e0b] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-40"
                     >
-                      <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#78350f]">
-                        {saving ? <Loader2 size={15} className="animate-spin text-[#d97706]" /> : <Save size={15} />}
+                      <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
+                        {saving ? <Loader2 size={15} className="animate-spin text-white" /> : <Save size={15} />}
                         <span>{saving ? 'SAVING...' : 'SAVE DRAFT'}</span>
                       </div>
-                      <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-[#d97706] text-white">Alt+S</span>
+                      <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">Alt+S</span>
                     </button>
                   ) : (
                     <button
                       type="button"
                       onClick={() => handleDocAction('cancel')}
                       disabled={saving || formData.docstatus === 2}
-                      className="h-full bg-rose-50 hover:bg-rose-100 text-rose-800 border-2 border-rose-300 rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-50"
+                      className="h-full bg-[#dc2626] hover:bg-[#b91c1c] text-white border-2 border-[#dc2626] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-40"
                     >
-                      <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-rose-800">
-                        {saving ? <Loader2 size={15} className="animate-spin text-rose-600" /> : <X size={15} />}
+                      <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
+                        {saving ? <Loader2 size={15} className="animate-spin text-white" /> : <X size={15} />}
                         <span>CANCEL</span>
                       </div>
-                      <span className="inline-flex items-center justify-center font-mono text-[10px] font-black px-1.5 py-0.5 rounded bg-rose-600 text-white">Alt+C</span>
+                      <span className="inline-flex items-center justify-center font-mono text-[10px] font-black px-1.5 py-0.5 rounded bg-white/20 text-white">Alt+C</span>
                     </button>
                   )}
 
@@ -2991,17 +3068,17 @@ function PurchaseReceiptList() {
                       type="button"
                       onClick={() => handleDocAction('submit')}
                       disabled={saving}
-                      className="h-full bg-[#ecfdf5] hover:bg-[#d1fae5] text-[#064e3b] border-2 border-[#6ee7b7] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-60"
+                      className="h-full bg-[#10b981] hover:bg-[#059669] text-white border-2 border-[#10b981] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-40"
                     >
-                      <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#064e3b]">
-                        {saving ? <Loader2 size={15} className="animate-spin text-[#047857]" /> : <CheckCircle2 size={15} />}
+                      <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
+                        {saving ? <Loader2 size={15} className="animate-spin text-white" /> : <CheckCircle2 size={15} />}
                         <span>{saving ? 'SUBMITTING...' : 'SUBMIT'}</span>
                       </div>
-                      <span className="inline-flex items-center justify-center font-mono text-[10px] font-black px-1.5 py-0.5 rounded bg-[#047857] text-white">Ctrl+↵</span>
+                      <span className="inline-flex items-center justify-center font-mono text-[10px] font-black px-1.5 py-0.5 rounded bg-white/20 text-white">Ctrl+↵</span>
                     </button>
                   ) : (
-                    <div className="h-full bg-emerald-50/60 border-2 border-emerald-200 rounded-xl px-3 py-2 flex items-center justify-center text-emerald-700 font-black text-[11px] uppercase tracking-wider select-none animate-in fade-in zoom-in duration-200">
-                      <CheckCircle2 size={15} className="mr-1.5 text-emerald-600" />
+                    <div className="h-full bg-emerald-600 text-white border-2 border-emerald-600 rounded-xl px-3 py-2 flex items-center justify-center font-black text-[11px] uppercase tracking-wider select-none shadow-xs">
+                      <CheckCircle2 size={15} className="mr-1.5 text-white" />
                       <span>{formData.docstatus === 1 ? 'SUBMITTED' : 'CANCELLED'}</span>
                     </div>
                   )}
@@ -3011,13 +3088,13 @@ function PurchaseReceiptList() {
                     type="button"
                     onClick={() => handlePrintPDF(docName)}
                     disabled={!docName}
-                    className="h-full bg-[#f0f9ff] hover:bg-[#e0f2fe] text-[#0c4a6e] border-2 border-[#7dd3fc] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-50"
+                    className="h-full bg-[#0284c7] hover:bg-[#0369a1] text-white border-2 border-[#0284c7] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-40"
                   >
-                    <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#0c4a6e]">
+                    <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
                       <Printer size={15} />
                       <span>PRINT PDF</span>
                     </div>
-                    <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-[#0284c7] text-white">Space</span>
+                    <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">Space</span>
                   </button>
 
                   {/* DUPLICATE */}
@@ -3025,13 +3102,13 @@ function PurchaseReceiptList() {
                     type="button"
                     onClick={handleDuplicate}
                     disabled={!docName}
-                    className="h-full bg-[#f5f3ff] hover:bg-[#ede9fe] text-[#4c1d95] border-2 border-[#c084fc] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-50"
+                    className="h-full bg-[#7c3aed] hover:bg-[#6d28d9] text-white border-2 border-[#7c3aed] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-40"
                   >
-                    <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#4c1d95]">
+                    <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
                       <Copy size={15} />
                       <span>DUPLICATE</span>
                     </div>
-                    <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-[#7c3aed] text-white">Alt+D</span>
+                    <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">Alt+D</span>
                   </button>
 
                   {/* ADD ROW / PURCHASE RETURN (If Submitted) */}
@@ -3040,26 +3117,26 @@ function PurchaseReceiptList() {
                       type="button"
                       onClick={() => handleCreateReturn()}
                       disabled={saving}
-                      className="h-full bg-rose-50 hover:bg-rose-100 text-rose-900 border-2 border-rose-300 rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer"
+                      className="h-full bg-[#e11d48] hover:bg-[#be123c] text-white border-2 border-[#e11d48] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer"
                     >
-                      <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-rose-900">
+                      <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
                         <Link size={14} />
                         <span>PURCHASE RETURN</span>
                       </div>
-                      <span className="inline-flex items-center justify-center font-mono text-[10px] font-black px-1.5 py-0.5 rounded bg-rose-600 text-white">+Ret</span>
+                      <span className="inline-flex items-center justify-center font-mono text-[10px] font-black px-1.5 py-0.5 rounded bg-white/20 text-white">+Ret</span>
                     </button>
                   ) : (
                     <button
                       type="button"
                       onClick={addItemRow}
                       disabled={formData.docstatus !== 0 && formData.docstatus !== undefined}
-                      className="h-full bg-white hover:bg-slate-100 text-[#1e293b] border-2 border-slate-300 rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-40"
+                      className="h-full bg-[#0284c7] hover:bg-[#0369a1] text-white border-2 border-[#0284c7] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-40"
                     >
-                      <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#1e293b]">
+                      <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
                         <Plus size={15} />
                         <span>ADD ROW</span>
                       </div>
-                      <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-[#475569] text-white">Alt+A</span>
+                      <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">Alt+A</span>
                     </button>
                   )}
 
@@ -3069,13 +3146,13 @@ function PurchaseReceiptList() {
                       type="button"
                       onClick={handleCreateInvoice}
                       disabled={saving}
-                      className="h-full bg-amber-50 hover:bg-amber-100 text-amber-900 border-2 border-amber-300 rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer"
+                      className="h-full bg-[#d97706] hover:bg-[#b45309] text-white border-2 border-[#d97706] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer"
                     >
-                      <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-amber-900">
+                      <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
                         <Plus size={15} />
                         <span>CREATE INVOICE</span>
                       </div>
-                      <span className="inline-flex items-center justify-center font-mono text-[10px] font-black px-1.5 py-0.5 rounded bg-amber-600 text-white">+Inv</span>
+                      <span className="inline-flex items-center justify-center font-mono text-[10px] font-black px-1.5 py-0.5 rounded bg-white/20 text-white">+Inv</span>
                     </button>
                   ) : (
                     <button
@@ -3089,13 +3166,13 @@ function PurchaseReceiptList() {
                           }
                         }
                       }}
-                      className="h-full bg-white hover:bg-slate-100 text-[#1e293b] border-2 border-slate-300 rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-40"
+                      className="h-full bg-[#475569] hover:bg-[#334155] text-white border-2 border-[#475569] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-40"
                     >
-                      <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#1e293b]">
+                      <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
                         <Package size={15} />
                         <span>BULK QTY</span>
                       </div>
-                      <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-[#475569] text-white">F6</span>
+                      <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">F6</span>
                     </button>
                   )}
 
@@ -3105,25 +3182,25 @@ function PurchaseReceiptList() {
                       type="button"
                       onClick={() => handleDocAction('delete')}
                       disabled={saving}
-                      className="h-full bg-[#fff5f5] hover:bg-[#fed7d7] text-[#7f1d1d] border-2 border-[#fca5a5] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer"
+                      className="h-full bg-[#dc2626] hover:bg-[#b91c1c] text-white border-2 border-[#dc2626] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer"
                     >
-                      <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#7f1d1d]">
+                      <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
                         <Trash2 size={15} />
                         <span>DELETE</span>
                       </div>
-                      <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-[#dc2626] text-white">Del</span>
+                      <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">Del</span>
                     </button>
                   ) : (
                     <button
                       type="button"
                       onClick={() => setIsModalOpen(false)}
-                      className="h-full bg-[#f1f5f9] hover:bg-[#e2e8f0] text-[#334155] border-2 border-[#cbd5e1] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer"
+                      className="h-full bg-[#64748b] hover:bg-[#475569] text-white border-2 border-[#64748b] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer"
                     >
-                      <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#334155]">
+                      <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
                         <X size={15} />
                         <span>CLOSE</span>
                       </div>
-                      <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-[#64748b] text-white">Esc</span>
+                      <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">Esc</span>
                     </button>
                   )}
                 </div>
