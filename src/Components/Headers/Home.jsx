@@ -453,11 +453,12 @@ function Home() {
       .classic-shortcut-guide.horizontal .classic-shortcut-badge {
         padding: 2.5px 7px !important;
         gap: 5px !important;
-        border-radius: 6px !important;
+        border-radius: 9999px !important;
       }
       .classic-shortcut-guide.horizontal .classic-shortcut-key {
         font-size: 9.5px !important;
         padding: 1px 4.5px !important;
+        border-radius: 9999px !important;
       }
       .classic-shortcut-guide.horizontal .classic-shortcut-label {
         font-size: 12px !important;
@@ -467,12 +468,12 @@ function Home() {
         align-items: center;
         gap: 8px;
         padding: 4px 10px !important;
-        background: ${isGreen ? '#083325' : '#081e33'} !important;
-        border: 2px solid ${isGreen ? '#34d399' : '#38bdf8'} !important;
-        border-radius: 8px;
+        background: #f4fbf9 !important;
+        border: 1.5px solid #bce3da !important;
+        border-radius: 9999px !important;
         cursor: pointer;
         transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
-        box-shadow: 0 3px 6px rgba(0,0,0,0.25);
+        box-shadow: 0 1px 3px rgba(0,0,0,0.04);
       }
       .classic-shortcut-badge:hover {
         background: ${isGreen ? '#1a6b52' : '#1e4f7a'} !important;
@@ -3304,9 +3305,10 @@ function Home() {
 
 
 
-    const toggleUom = (id, newUom) => {
-        setBillItems(prev => prev.map(item => {
-            if (item.id === id) {
+    const toggleUom = (id, newUom, targetIndex = null) => {
+        setBillItems(prev => prev.map((item, index) => {
+            const matches = targetIndex !== null ? index === targetIndex : item.id === id;
+            if (matches) {
                 // --- Stock Verification ---
                 const factor = newUom === 'Box' ? (item.custom_pieces_per_box || 1) : 1;
                 const totalPiecesNeeded = item.qty * factor;
@@ -7777,20 +7779,21 @@ function Home() {
         return classicShortcutsData.filter(s => isShortcutShown(s.key)).map((s, idx) => (
             <div
                 key={idx}
-                className="classic-shortcut-badge group hover:border-sky-400 hover:bg-sky-50 transition-all cursor-pointer shadow-sm active:scale-95"
+                className="classic-shortcut-badge group hover:border-emerald-500 hover:bg-emerald-50 transition-all cursor-pointer shadow-sm active:scale-95"
                 onClick={s.action}
                 style={{
                     flexShrink: 0,
-                    width: isVertical ? '100%' : '160px',
+                    width: isVertical ? '100%' : 'auto',
+                    minWidth: isVertical ? '100%' : '140px',
                     display: 'flex',
                     justifyContent: 'space-between',
                     alignItems: 'center',
-                    gap: '6px',
-                    padding: '3px 8px',
-                    background: '#ffffff',
-                    border: '1.5px solid #cbd5e1',
-                    borderRadius: '6px',
-                    boxShadow: '0 1px 2px rgba(0,0,0,0.08)'
+                    gap: '8px',
+                    padding: '4px 14px',
+                    background: '#f4fbf9',
+                    border: '1.5px solid #bce3da',
+                    borderRadius: '9999px',
+                    boxShadow: '0 1px 2px rgba(0,0,0,0.04)'
                 }}
             >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '5px', flex: 1, minWidth: 0, overflow: 'hidden' }}>
@@ -7811,16 +7814,15 @@ function Home() {
                     <span
                         className="classic-shortcut-key font-mono font-black text-slate-900 text-[9.5px]"
                         style={{
-                            background: 'linear-gradient(180deg, #ffffff 0%, #e2e8f0 100%)',
-                            border: '1px solid #94a3b8',
-                            borderBottom: '2px solid #64748b',
-                            padding: '1px 5px',
-                            borderRadius: '4px',
+                            background: '#ffffff',
+                            border: '1px solid #a7f3d0',
+                            padding: '1px 6px',
+                            borderRadius: '9999px',
                             display: 'inline-flex',
                             alignItems: 'center',
                             justifyContent: 'center',
                             lineHeight: 1,
-                            color: '#0f172a',
+                            color: '#047857',
                             fontWeight: 900
                         }}
                     >
@@ -7838,9 +7840,8 @@ function Home() {
             <div className="classic-shortcut-guide horizontal" style={{
                 display: 'flex', alignItems: 'center', gap: '8px',
                 padding: '6px 16px',
-                background: isGreen ? '#0d4a35' : '#0d3050',
-                borderBottom: shortcutsPosition === 'top' ? `2px solid ${borderColor}` : 'none',
-                borderTop: shortcutsPosition === 'bottom' ? `2px solid ${borderColor}` : 'none',
+                background: '#e6f4f1',
+                borderBottom: '1px solid #c2e2da',
                 flexShrink: 0,
                 overflow: 'hidden'
             }}>
@@ -8850,39 +8851,35 @@ function Home() {
                 {/* CLASSIC NAVBAR */}
                 <nav className="classic-nav">
                     <div className="flex items-center gap-3 pl-2 py-1">
-                        <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center' }}>
+                        <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
                             <img src={kyleLogo} alt="Kyle Retail Logo" className="h-9 w-auto max-w-[140px] md:max-w-[180px] object-contain transition-opacity duration-300 hover:opacity-90" />
+                            <div className="flex flex-col">
+                                <span className="font-extrabold text-[13px] tracking-wider text-slate-800 uppercase leading-none">KYLE RETAIL</span>
+                                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest leading-tight">POINT OF SALE</span>
+                            </div>
                         </div>
                     </div>
 
-                    <div className="ml-auto flex items-center pr-2" style={{ gap: '14px' }}>
-                        {/* Group 3: Utilities */}
-                        <div className="flex items-center gap-4">
+                    <div className="ml-auto flex items-center pr-2" style={{ gap: '12px' }}>
+                        {/* Group 3: Utilities in Uniform Iconic Cards */}
+                        <div className="flex items-center gap-2.5">
                             {/* Connection Status Badge */}
-                            <div className="flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-200 rounded-xl shadow-sm select-none transition-all hover:bg-slate-50">
+                            <div className="flex items-center gap-2 px-3 py-1.5 bg-[#f4fbf9] border border-[#bce3da] shadow-sm select-none transition-all hover:bg-[#e6f4f1] cursor-pointer" style={{ borderRadius: '9999px' }}>
                                 <div className={`w-2.5 h-2.5 rounded-full ${isOffline ? 'bg-rose-500 animate-pulse' : 'bg-emerald-500'}`}></div>
-                                <span className={`text-[10px] font-black uppercase tracking-widest ${isOffline ? 'text-rose-600' : (isGreen ? 'text-emerald-600' : 'text-sky-600')}`}>
+                                <span className={`text-[10px] font-extrabold uppercase tracking-widest ${isOffline ? 'text-rose-600' : 'text-emerald-700'}`}>
                                     {isOffline ? 'OFFLINE' : 'ONLINE'}
                                 </span>
                             </div>
 
-                            {/* Notification Bell Dropdown */}
+                            {/* Notification Bell Dropdown Button */}
                             <div className="nav-notification-container" ref={notificationsContainerRef}>
                                 <button
                                     onClick={() => setShowNotifications(!showNotifications)}
-                                    className={`transition-all p-1.5 hover:bg-slate-100 rounded-full ${isGreen ? 'text-emerald-600 hover:text-emerald-800' : 'text-sky-600 hover:text-sky-800'} ${unreadCount > 0 ? "animate-pulse-subtle" : ""}`}
-                                    style={{
-                                        background: 'transparent',
-                                        border: 'none',
-                                        cursor: 'pointer',
-                                        position: 'relative',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center'
-                                    }}
+                                    className={`w-9 h-9 flex items-center justify-center bg-[#f4fbf9] border border-[#bce3da] text-slate-700 hover:bg-[#e6f4f1] hover:text-emerald-700 transition-all cursor-pointer shadow-sm relative ${unreadCount > 0 ? "animate-pulse-subtle" : ""}`}
+                                    style={{ borderRadius: '9999px' }}
                                     title="Notifications"
                                 >
-                                    <Bell size={18} />
+                                    <Bell size={16} className="text-slate-600" />
                                     {unreadCount > 0 && (
                                         <span
                                             style={{
@@ -8918,10 +8915,11 @@ function Home() {
                                         window.open(window.location.origin + window.location.pathname + '#/homepage', '_blank');
                                     }
                                 }}
-                                className={`transition-all p-1.5 hover:bg-slate-100 rounded-full ${isGreen ? 'text-emerald-600 hover:text-emerald-800' : 'text-sky-600 hover:text-sky-800'}`}
+                                className="w-9 h-9 flex items-center justify-center bg-[#f4fbf9] border border-[#bce3da] text-slate-600 hover:bg-[#e6f4f1] hover:text-emerald-700 transition-all cursor-pointer shadow-sm"
+                                style={{ borderRadius: '9999px' }}
                                 title={window.location.protocol === 'file:' ? "Go to POS Homepage" : "Open POS in New Tab"}
                             >
-                                <ExternalLink size={18} />
+                                <ExternalLink size={16} />
                             </button>
 
                             {/* Dropdown Settings Button */}
@@ -8936,10 +8934,11 @@ function Home() {
                                         }
                                     }}
                                     onMouseDown={(e) => e.stopPropagation()}
-                                    className={`w-9 h-9 flex items-center justify-center bg-slate-50 border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-100 hover:text-slate-800 transition-all ${showSettingsMenu ? 'bg-slate-100 border-slate-300' : ''}`}
+                                    className={`w-9 h-9 flex items-center justify-center bg-[#f4fbf9] border border-[#bce3da] text-slate-600 hover:bg-[#e6f4f1] hover:text-emerald-700 transition-all cursor-pointer shadow-sm ${showSettingsMenu ? 'bg-[#e6f4f1] border-emerald-400' : ''}`}
+                                    style={{ borderRadius: '9999px' }}
                                     title="Settings"
                                 >
-                                    <Settings size={18} className={showSettingsMenu ? 'animate-spin-slow' : ''} />
+                                    <Settings size={16} className={showSettingsMenu ? 'animate-spin-slow' : ''} />
                                 </button>
 
                                 {showSettingsMenu && (
@@ -9312,11 +9311,11 @@ function Home() {
                                                     <td className="p-0">
                                                         <select
                                                             value={item.uom || 'Nos'}
-                                                            onChange={e => toggleUom(item.id, e.target.value)}
+                                                            onChange={e => toggleUom(item.id, e.target.value, idx)}
                                                             disabled={item.is_print_job || item.is_bundle || (item.id && (item.id.includes('BUNDLE') || item.id.includes('COMBO'))) || !item.custom_pieces_per_box || item.custom_pieces_per_box <= 1}
                                                             className="w-full h-full bg-slate-50 font-black text-[12px] text-center text-slate-700 border-none outline-none focus:bg-amber-200 cursor-pointer hover:bg-slate-100 transition-colors disabled:cursor-default"
                                                         >
-                                                            <option value={item.uom || 'Nos'}>{item.uom || 'Nos'}</option>
+                                                            <option value="Nos">Nos</option>
                                                             {item.custom_pieces_per_box > 1 && !(item.is_print_job || item.is_bundle || (item.id && (item.id.includes('BUNDLE') || item.id.includes('COMBO')))) && (
                                                                 <option value="Box">Box ({item.custom_pieces_per_box})</option>
                                                             )}
@@ -9532,190 +9531,214 @@ function Home() {
                         </div>
 
                         {/* BOTTOM SECTION — REDESIGNED TO MATCH IMAGE 2 EXACTLY */}
-                        <div className="p-3 bg-[#f8fafc] border-t border-slate-200">
-                            <div className="grid grid-cols-1 xl:grid-cols-12 gap-3.5 items-stretch">
+                        <div className="p-2.5 bg-[#e6f4f1] border-t border-[#d1e5e0]">
+                            <div className="grid grid-cols-1 xl:grid-cols-12 gap-3 items-stretch">
 
                                 {/* 2. ACTION BUTTON GRID (LEFT SIDE - ~55% width) */}
                                 <div className="xl:col-span-7 flex">
-                                    <div className="grid grid-cols-5 grid-rows-2 gap-2 w-full h-full">
-                                        {/* ROW 1: CASH, BANK, CARD, PRINT, DIRECT */}
-                                        {/* CASH */}
-                                        <button
-                                            onClick={() => { setShowSettingsMenu(false); if (billItems.length > 0) { completePayment('Cash'); } else { Swal.fire('Info', 'No items in bill', 'info'); } }}
-                                            disabled={paymentLoading}
-                                            className="h-full bg-[#ecfdf5] hover:bg-[#d1fae5] disabled:opacity-50 text-[#064e3b] border-2 border-[#6ee7b7] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-sm cursor-pointer"
-                                        >
-                                            <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#064e3b]">
-                                                <Banknote size={15} />
-                                                <span>CASH</span>
-                                            </div>
-                                            <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2.5 py-0.5 rounded bg-[#047857] text-white">Alt+1</span>
-                                        </button>
-
-                                        {/* BANK */}
-                                        <button
-                                            onClick={() => { setShowSettingsMenu(false); if (billItems.length > 0) { completePayment('Bank'); } else { Swal.fire('Info', 'No items in bill', 'info'); } }}
-                                            disabled={paymentLoading}
-                                            className="h-full bg-[#f0f9ff] hover:bg-[#e0f2fe] disabled:opacity-50 text-[#0c4a6e] border-2 border-[#7dd3fc] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-sm cursor-pointer"
-                                        >
-                                            <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#0c4a6e]">
-                                                <Building2 size={15} />
-                                                <span>BANK</span>
-                                            </div>
-                                            <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2.5 py-0.5 rounded bg-[#0284c7] text-white">Ctrl+V</span>
-                                        </button>
-
-                                        {/* CARD */}
-                                        <button
-                                            onClick={() => { setShowSettingsMenu(false); if (billItems.length > 0) { setSelectedPaymentMode('Card'); setShowCardTerminalModal(true); } else { Swal.fire('Info', 'No items in bill', 'info'); } }}
-                                            disabled={paymentLoading}
-                                            className="h-full bg-[#f5f3ff] hover:bg-[#ede9fe] disabled:opacity-50 text-[#4c1d95] border-2 border-[#c084fc] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-sm cursor-pointer"
-                                        >
-                                            <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#4c1d95]">
-                                                <CreditCard size={15} />
-                                                <span>CARD</span>
-                                            </div>
-                                            <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2.5 py-0.5 rounded bg-[#7c3aed] text-white">Alt+2</span>
-                                        </button>
-
-                                        {/* PRINT / LOADING CONTROL IN ROW 1 OR FULL SPAN */}
-                                        {paymentLoading ? (
+                                    <div className="w-full bg-white p-3 border border-slate-200 shadow-sm" style={{ borderRadius: '26px' }}>
+                                        <div className="grid grid-cols-5 grid-rows-2 gap-2.5 w-full h-full">
+                                            {/* ROW 1: CASH, BANK, CARD, PRINT, DIRECT */}
+                                            {/* CASH */}
                                             <button
-                                                className="col-span-2 h-full bg-slate-100 text-slate-500 border border-slate-200 rounded-lg p-2 flex items-center justify-center gap-2 opacity-80 cursor-not-allowed font-black text-[11px] uppercase"
-                                                disabled
+                                                onClick={() => { setShowSettingsMenu(false); if (billItems.length > 0) { completePayment('Cash'); } else { Swal.fire('Info', 'No items in bill', 'info'); } }}
+                                                disabled={paymentLoading}
+                                                className="h-14 bg-[#047857] hover:bg-[#065f46] disabled:opacity-50 text-white px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-sm cursor-pointer border-none"
+                                                style={{ borderRadius: '18px' }}
                                             >
-                                                <div className="w-4 h-4 border-2 border-slate-500 border-t-transparent rounded-full animate-spin"></div>
-                                                <span>Processing...</span>
+                                                <div className="flex items-center gap-1.5 text-[11px] font-extrabold uppercase tracking-wider text-white">
+                                                    <Banknote size={15} />
+                                                    <span>CASH</span>
+                                                </div>
+                                                <span className="inline-flex items-center justify-center font-mono text-[9px] font-extrabold px-2 py-0.5 rounded-full border border-white/30 bg-white/10 text-white">{isMac ? '⌥ + I' : 'ALT+1'}</span>
                                             </button>
-                                        ) : (
-                                            <>
-                                                {/* PRINT */}
+
+                                            {/* BANK */}
+                                            <button
+                                                onClick={() => { setShowSettingsMenu(false); if (billItems.length > 0) { completePayment('Bank'); } else { Swal.fire('Info', 'No items in bill', 'info'); } }}
+                                                disabled={paymentLoading}
+                                                className="h-14 bg-[#1d4ed8] hover:bg-[#1e40af] disabled:opacity-50 text-white px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-sm cursor-pointer border-none"
+                                                style={{ borderRadius: '18px' }}
+                                            >
+                                                <div className="flex items-center gap-1.5 text-[11px] font-extrabold uppercase tracking-wider text-white">
+                                                    <Building2 size={15} />
+                                                    <span>BANK</span>
+                                                </div>
+                                                <span className="inline-flex items-center justify-center font-mono text-[9px] font-extrabold px-2 py-0.5 rounded-full border border-white/30 bg-white/10 text-white">{isMac ? '⌘ + V' : 'CTRL+V'}</span>
+                                            </button>
+
+                                            {/* CARD */}
+                                            <button
+                                                onClick={() => { setShowSettingsMenu(false); if (billItems.length > 0) { setSelectedPaymentMode('Card'); setShowCardTerminalModal(true); } else { Swal.fire('Info', 'No items in bill', 'info'); } }}
+                                                disabled={paymentLoading}
+                                                className="h-14 bg-[#7e22ce] hover:bg-[#6b21a8] disabled:opacity-50 text-white px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-sm cursor-pointer border-none"
+                                                style={{ borderRadius: '18px' }}
+                                            >
+                                                <div className="flex items-center gap-1.5 text-[11px] font-extrabold uppercase tracking-wider text-white">
+                                                    <CreditCard size={15} />
+                                                    <span>CARD</span>
+                                                </div>
+                                                <span className="inline-flex items-center justify-center font-mono text-[9px] font-extrabold px-2 py-0.5 rounded-full border border-white/30 bg-white/10 text-white">{isMac ? '⌥ + K' : 'ALT+2'}</span>
+                                            </button>
+
+                                            {/* PRINT / LOADING CONTROL IN ROW 1 OR FULL SPAN */}
+                                            {paymentLoading ? (
                                                 <button
-                                                    onClick={() => { setShowSettingsMenu(false); handleCheckoutWithMode('print'); }}
-                                                    disabled={paymentLoading}
-                                                    className="h-full bg-[#ecfdf5] hover:bg-[#d1fae5] disabled:opacity-50 text-[#064e3b] border-2 border-[#6ee7b7] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-sm cursor-pointer"
+                                                    className="col-span-2 h-14 bg-slate-100 text-slate-500 border border-slate-200 p-2 flex items-center justify-center gap-2 opacity-80 cursor-not-allowed font-bold text-[11px] uppercase"
+                                                    disabled
+                                                    style={{ borderRadius: '18px' }}
                                                 >
-                                                    <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#064e3b]">
-                                                        <Printer size={15} />
-                                                        <span>PRINT</span>
-                                                    </div>
-                                                    <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2.5 py-0.5 rounded bg-[#047857] text-white">Space</span>
+                                                    <div className="w-4 h-4 border-2 border-slate-500 border-t-transparent rounded-full animate-spin"></div>
+                                                    <span>Processing...</span>
                                                 </button>
+                                            ) : (
+                                                <>
+                                                    {/* PRINT */}
+                                                    <button
+                                                        onClick={() => { setShowSettingsMenu(false); handleCheckoutWithMode('print'); }}
+                                                        disabled={paymentLoading}
+                                                        className="h-14 bg-[#047857] hover:bg-[#065f46] disabled:opacity-50 text-white px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-sm cursor-pointer border-none"
+                                                        style={{ borderRadius: '18px' }}
+                                                    >
+                                                        <div className="flex items-center gap-1.5 text-[11px] font-extrabold uppercase tracking-wider text-white">
+                                                            <Printer size={15} />
+                                                            <span>PRINT</span>
+                                                        </div>
+                                                        <span className="inline-flex items-center justify-center font-mono text-[9px] font-extrabold px-2 py-0.5 rounded-full border border-white/30 bg-white/10 text-white">SPACE</span>
+                                                    </button>
 
-                                                {/* DIRECT */}
-                                                <button
-                                                    onClick={() => { setShowSettingsMenu(false); handleCheckoutWithMode('no-print'); }}
-                                                    disabled={paymentLoading}
-                                                    className="h-full bg-[#f0f9ff] hover:bg-[#e0f2fe] disabled:opacity-50 text-[#0c4a6e] border-2 border-[#7dd3fc] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-sm cursor-pointer"
-                                                >
-                                                    <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#0c4a6e]">
-                                                        <Zap size={15} />
-                                                        <span>DIRECT</span>
-                                                    </div>
-                                                    <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2.5 py-0.5 rounded bg-[#0284c7] text-white">Alt+N</span>
-                                                </button>
-                                            </>
-                                        )}
+                                                    {/* DIRECT */}
+                                                    <button
+                                                        onClick={() => { setShowSettingsMenu(false); handleCheckoutWithMode('no-print'); }}
+                                                        disabled={paymentLoading}
+                                                        className="h-14 bg-[#1d4ed8] hover:bg-[#1e40af] disabled:opacity-50 text-white px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-sm cursor-pointer border-none"
+                                                        style={{ borderRadius: '18px' }}
+                                                    >
+                                                        <div className="flex items-center gap-1.5 text-[11px] font-extrabold uppercase tracking-wider text-white">
+                                                            <Zap size={15} />
+                                                            <span>DIRECT</span>
+                                                        </div>
+                                                        <span className="inline-flex items-center justify-center font-mono text-[9px] font-extrabold px-2 py-0.5 rounded-full border border-white/30 bg-white/10 text-white">{isMac ? '⌥ + N' : 'ALT+N'}</span>
+                                                    </button>
+                                                </>
+                                            )}
 
-                                        {/* ROW 2: DISCOUNT, LOYALTY, SAVE DRAFT, A4, CLEAR BILL */}
-                                        {/* DISCOUNT */}
-                                        <button
-                                            onClick={() => { setShowSettingsMenu(false); setShowDiscountModal(true); }}
-                                            className="h-full bg-white hover:bg-slate-100 text-[#1e293b] border-2 border-slate-300 rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-sm cursor-pointer"
-                                        >
-                                            <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#1e293b]">
-                                                <Percent size={15} className="text-slate-700" />
-                                                <span>DISCOUNT</span>
-                                            </div>
-                                            <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2.5 py-0.5 rounded bg-[#475569] text-white">F1</span>
-                                        </button>
+                                            {/* ROW 2: DISCOUNT, LOYALTY, SAVE DRAFT, A4, CLEAR BILL */}
+                                            {/* DISCOUNT */}
+                                            <button
+                                                onClick={() => { setShowSettingsMenu(false); setShowDiscountModal(true); }}
+                                                className="h-14 bg-white hover:bg-slate-50 text-slate-900 border border-slate-200 px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-sm cursor-pointer"
+                                                style={{ borderRadius: '18px' }}
+                                            >
+                                                <div className="flex items-center gap-1.5 text-[11px] font-extrabold uppercase tracking-wider text-slate-800">
+                                                    <Percent size={15} className="text-slate-700" />
+                                                    <span>DISCOUNT</span>
+                                                </div>
+                                                <span className="inline-flex items-center justify-center font-mono text-[9px] font-extrabold px-2 py-0.5 rounded-lg border border-slate-300 bg-white text-slate-600">F1</span>
+                                            </button>
 
-                                        {/* LOYALTY */}
-                                        <button
-                                            onClick={() => { setShowSettingsMenu(false); handleLoyaltyPointsClick(); }}
-                                            className="h-full bg-white hover:bg-slate-100 text-[#1e293b] border-2 border-slate-300 rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-sm cursor-pointer"
-                                        >
-                                            <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#1e293b]">
-                                                <Award size={15} className="text-slate-700" />
-                                                <span>LOYALTY</span>
-                                            </div>
-                                            <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2.5 py-0.5 rounded bg-[#475569] text-white">Alt+L</span>
-                                        </button>
+                                            {/* LOYALTY */}
+                                            <button
+                                                onClick={() => { setShowSettingsMenu(false); handleLoyaltyPointsClick(); }}
+                                                className="h-14 bg-white hover:bg-slate-50 text-slate-900 border border-slate-200 px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-sm cursor-pointer"
+                                                style={{ borderRadius: '18px' }}
+                                            >
+                                                <div className="flex items-center gap-1.5 text-[11px] font-extrabold uppercase tracking-wider text-slate-800">
+                                                    <Gift size={15} className="text-slate-700" />
+                                                    <span>LOYALTY</span>
+                                                </div>
+                                                <span className="inline-flex items-center justify-center font-mono text-[9px] font-extrabold px-2 py-0.5 rounded-lg border border-slate-300 bg-white text-slate-600">{isMac ? '⌥ + L' : 'ALT+L'}</span>
+                                            </button>
 
-                                        {/* SAVE DRAFT */}
-                                        <button
-                                            onClick={() => { setShowSettingsMenu(false); handleSaveDraft(); }}
-                                            className="h-full bg-[#fffbeb] hover:bg-[#fef3c7] disabled:opacity-50 text-[#78350f] border-2 border-[#fcd34d] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-sm cursor-pointer"
-                                        >
-                                            <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#78350f]">
-                                                <Upload size={15} />
-                                                <span>SAVE DRAFT</span>
-                                            </div>
-                                            <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2.5 py-0.5 rounded bg-[#d97706] text-white">Alt+S</span>
-                                        </button>
+                                            {/* SAVE DRAFT */}
+                                            <button
+                                                onClick={() => { setShowSettingsMenu(false); handleSaveDraft(); }}
+                                                className="h-14 bg-[#ea580c] hover:bg-[#c2410c] disabled:opacity-50 text-white px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-sm cursor-pointer border-none"
+                                                style={{ borderRadius: '18px' }}
+                                            >
+                                                <div className="flex items-center gap-1.5 text-[11px] font-extrabold uppercase tracking-wider text-white">
+                                                    <Upload size={15} />
+                                                    <span>SAVE DRAFT</span>
+                                                </div>
+                                                <span className="inline-flex items-center justify-center font-mono text-[9px] font-extrabold px-2 py-0.5 rounded-full border border-white/30 bg-white/10 text-white">{isMac ? '⌥ + S' : 'ALT+S'}</span>
+                                            </button>
 
-                                        {/* A4 */}
-                                        <button
-                                            onClick={() => { setShowSettingsMenu(false); handleCheckoutWithMode('print-a4'); }}
-                                            disabled={paymentLoading}
-                                            className="h-full bg-[#f5f3ff] hover:bg-[#ede9fe] disabled:opacity-50 text-[#4c1d95] border-2 border-[#c084fc] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-sm cursor-pointer"
-                                        >
-                                            <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#4c1d95]">
-                                                <Printer size={15} />
-                                                <span>A4</span>
-                                            </div>
-                                            <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2.5 py-0.5 rounded bg-[#7c3aed] text-white">Alt+A</span>
-                                        </button>
+                                            {/* A4 */}
+                                            <button
+                                                onClick={() => { setShowSettingsMenu(false); handleCheckoutWithMode('print-a4'); }}
+                                                disabled={paymentLoading}
+                                                className="h-14 bg-[#7e22ce] hover:bg-[#6b21a8] disabled:opacity-50 text-white px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-sm cursor-pointer border-none"
+                                                style={{ borderRadius: '18px' }}
+                                            >
+                                                <div className="flex items-center gap-1.5 text-[11px] font-extrabold uppercase tracking-wider text-white">
+                                                    <FileText size={15} />
+                                                    <span>A4</span>
+                                                </div>
+                                                <span className="inline-flex items-center justify-center font-mono text-[9px] font-extrabold px-2 py-0.5 rounded-full border border-white/30 bg-white/10 text-white">{isMac ? '⌥ + A' : 'ALT+A'}</span>
+                                            </button>
 
-                                        {/* CLEAR BILL */}
-                                        <button
-                                            onClick={() => { setShowSettingsMenu(false); clearBillHandler(); }}
-                                            className="h-full bg-[#fff5f5] hover:bg-[#fed7d7] text-[#7f1d1d] border-2 border-[#fca5a5] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-sm cursor-pointer"
-                                        >
-                                            <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#7f1d1d]">
-                                                <Trash2 size={15} />
-                                                <span>CLEAR BILL</span>
-                                            </div>
-                                            <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2.5 py-0.5 rounded bg-[#dc2626] text-white">Alt+C</span>
-                                        </button>
+                                            {/* CLEAR BILL */}
+                                            <button
+                                                onClick={() => { setShowSettingsMenu(false); clearBillHandler(); }}
+                                                className="h-14 bg-[#dc2626] hover:bg-[#b91c1c] text-white px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-sm cursor-pointer border-none"
+                                                style={{ borderRadius: '18px' }}
+                                            >
+                                                <div className="flex items-center gap-1.5 text-[11px] font-extrabold uppercase tracking-wider text-white">
+                                                    <Trash2 size={15} />
+                                                    <span>CLEAR BILL</span>
+                                                </div>
+                                                <span className="inline-flex items-center justify-center font-mono text-[9px] font-extrabold px-2 py-0.5 rounded-full border border-white/30 bg-white/10 text-white">{isMac ? '⌥ + C' : 'ALT+C'}</span>
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
 
                                 {/* 1. TOTALS CARD (RIGHT SIDE - ~45% width) */}
-                                <div className="xl:col-span-5 bg-white rounded-xl border border-slate-200 p-3 shadow-sm flex flex-col justify-between gap-3">
-                                    {/* TOP ROW: 3 BUTTONS */}
-                                    <div className="flex flex-wrap items-center gap-2">
+                                <div className="xl:col-span-5 bg-white border border-slate-200 p-3 shadow-sm flex flex-col justify-between gap-3" style={{ borderRadius: '26px' }}>
+                                    {/* TOP ROW: 3 BUTTONS — EQUAL FULL WIDTH STRETCH WITH SPACING */}
+                                    <div className="grid grid-cols-3 gap-2 w-full">
                                         <button
                                             onClick={() => { setShowSettingsMenu(false); setShowDraftsModal(true); }}
-                                            className="px-3 py-1.5 flex items-center gap-1.5 rounded-lg border transition-all font-bold text-[11px] uppercase tracking-wider select-none bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100"
+                                            className="w-full px-3 py-1.5 flex items-center justify-between gap-1.5 border transition-all font-extrabold text-[10px] uppercase tracking-wider select-none bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100 cursor-pointer"
+                                            style={{ borderRadius: '9999px' }}
                                             title="View Active Saved Orders (Drafts) (Press F9)"
                                         >
-                                            <Package size={14} />
-                                            <span>Active Orders</span>
-                                            <span className="inline-flex items-center justify-center font-mono text-[8px] font-bold bg-emerald-200 text-emerald-800 px-1 py-0.5 rounded">F9</span>
-                                            {pendingSyncCount > 0 && (
-                                                <span className="bg-rose-500 text-white text-[9px] px-1.5 py-0.5 rounded-full font-bold">
-                                                    {pendingSyncCount}
-                                                </span>
-                                            )}
+                                            <div className="flex items-center gap-1 min-w-0 overflow-hidden">
+                                                <Package size={13} className="flex-shrink-0" />
+                                                <span className="truncate">Active Orders</span>
+                                            </div>
+                                            <div className="flex items-center gap-1 flex-shrink-0">
+                                                <span className="inline-flex items-center justify-center font-mono text-[8px] font-bold bg-emerald-200 text-emerald-800 px-1.5 py-0.5" style={{ borderRadius: '9999px' }}>F9</span>
+                                                {pendingSyncCount > 0 && (
+                                                    <span className="bg-rose-500 text-white text-[9px] px-1.5 py-0.5 font-bold" style={{ borderRadius: '9999px' }}>
+                                                        {pendingSyncCount}
+                                                    </span>
+                                                )}
+                                            </div>
                                         </button>
                                         <button
                                             onClick={() => { setShowSettingsMenu(false); handleShowRecentInvoicesPrint(); }}
-                                            className="px-3 py-1.5 flex items-center gap-1.5 rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100 transition-all font-bold text-[11px] uppercase tracking-wider select-none"
+                                            className="w-full px-3 py-1.5 flex items-center justify-between gap-1.5 bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100 transition-all font-extrabold text-[10px] uppercase tracking-wider select-none cursor-pointer"
+                                            style={{ borderRadius: '9999px' }}
                                             title="Print Recent Bill (Press F10)"
                                         >
-                                            <Printer size={14} />
-                                            <span>Print Bill</span>
-                                            <span className="inline-flex items-center justify-center font-mono text-[8px] font-bold bg-indigo-200 text-indigo-800 px-1 py-0.5 rounded">F10</span>
+                                            <div className="flex items-center gap-1 min-w-0 overflow-hidden">
+                                                <Printer size={13} className="flex-shrink-0" />
+                                                <span className="truncate">Print Bill</span>
+                                            </div>
+                                            <span className="inline-flex items-center justify-center font-mono text-[8px] font-bold bg-indigo-200 text-indigo-800 px-1.5 py-0.5 flex-shrink-0" style={{ borderRadius: '9999px' }}>F10</span>
                                         </button>
                                         <button
                                             onClick={() => setShowPrintJobModal(true)}
-                                            className="px-3 py-1.5 flex items-center gap-1.5 rounded-lg bg-sky-50 text-sky-700 border border-sky-200 hover:bg-sky-100 transition-all font-bold text-[11px] uppercase tracking-wider select-none"
+                                            className="w-full px-3 py-1.5 flex items-center justify-between gap-1.5 bg-sky-50 text-sky-700 border border-sky-200 hover:bg-sky-100 transition-all font-extrabold text-[10px] uppercase tracking-wider select-none cursor-pointer"
+                                            style={{ borderRadius: '9999px' }}
                                             title="Print Job Calculator"
                                         >
-                                            <Printer size={14} className="text-sky-600" />
-                                            <span>PRINT JOB</span>
-                                            <span className="inline-flex items-center justify-center font-mono text-[8px] font-bold bg-sky-200 text-sky-800 px-1 py-0.5 rounded">⇧P</span>
+                                            <div className="flex items-center gap-1 min-w-0 overflow-hidden">
+                                                <Printer size={13} className="text-sky-600 flex-shrink-0" />
+                                                <span className="truncate">PRINT JOB</span>
+                                            </div>
+                                            <span className="inline-flex items-center justify-center font-mono text-[8px] font-bold bg-sky-200 text-sky-800 px-1.5 py-0.5 flex-shrink-0" style={{ borderRadius: '9999px' }}>⇧P</span>
                                         </button>
                                     </div>
 

@@ -2605,9 +2605,9 @@ function PurchaseInvoiceList() {
   }, [isModalOpen, formData, allowedActions, isViewMode, saving, taxTemplates, isDirty, docName]);
 
   // =========================================================================
-  // CLASSIC POS FULL TERMINAL LAYOUT FOR PURCHASE INVOICE (theme === 'legacy')
+  // CLASSIC POS FULL TERMINAL LAYOUT FOR PURCHASE INVOICE (Create & Edit Mode Only)
   // =========================================================================
-  if (theme === 'legacy' && isModalOpen) {
+  if (isModalOpen && !isViewMode) {
     return (
       <div className="classic-root" style={{ position: 'fixed', inset: 0, zIndex: 10000, display: 'flex', flexDirection: 'column', background: '#f8fafc', overflow: 'hidden' }}>
         {/* CLASSIC NAVBAR */}
@@ -2745,17 +2745,20 @@ function PurchaseInvoiceList() {
             <table className="classic-table" style={{ width: '100%', borderCollapse: 'collapse', background: '#ffffff' }}>
               <thead>
                 <tr style={{ background: '#f8fafc', borderBottom: '1.5px solid #cbd5e1' }}>
-                  <th style={{ width: '40px', textAlign: 'center', padding: '8px 4px', fontSize: '11px', fontWeight: 900, color: '#475569', textTransform: 'uppercase' }}>#</th>
+                  <th style={{ width: '40px', textAlign: 'center', padding: '8px 4px', fontSize: '11px', fontWeight: 900, color: '#475569', textTransform: 'uppercase', borderRight: '1px solid #e2e8f0' }}>#</th>
                   {columnConfig.filter(c => c.visible).map(col => (
                     <th
                       key={col.id}
                       style={{
+                        width: col.width ? `${col.width}px` : 'auto',
+                        minWidth: col.width ? `${col.width}px` : '80px',
                         textAlign: ['rate', 'custom_box_price', 'custom_selling_price', 'custom_box_selling_price', 'discount_amount', 'discount_percentage', 'amount', 'last_purchase_rate'].includes(col.id) ? 'right' : (['uom', 'custom_box_qty', 'custom_pieces_per_box', 'qty'].includes(col.id) ? 'center' : 'left'),
                         padding: '8px 8px',
                         fontSize: '11px',
                         fontWeight: 900,
                         color: '#475569',
-                        textTransform: 'uppercase'
+                        textTransform: 'uppercase',
+                        borderRight: '1px solid #e2e8f0'
                       }}
                     >
                       {col.label}
@@ -2771,49 +2774,52 @@ function PurchaseInvoiceList() {
               <tbody>
                 {formData.items.filter(it => it.item_code).map((item, idx) => (
                   <tr key={idx} className="border-b border-slate-100 hover:bg-emerald-50/30 transition-colors">
-                    <td className="text-center font-bold text-slate-400 text-xs py-2">{idx + 1}</td>
+                    <td className="text-center font-bold text-slate-400 text-xs py-2 border-r border-slate-100">{idx + 1}</td>
                     {columnConfig.filter(c => c.visible).map(col => {
                       switch (col.id) {
                         case 'item_code':
                           return (
-                            <td key={col.id} className="px-2 py-1">
+                            <td key={col.id} className="px-2 py-1 border-r border-slate-100 align-middle">
                               <div className="flex flex-col">
-                                <span className="font-black text-slate-900 text-xs">{item.item_code}</span>
-                                <span className="font-semibold text-slate-500 text-[10px] truncate max-w-[180px]">{item.item_name || ''}</span>
+                                <span className="font-black text-slate-900 text-xs leading-tight">{item.item_code}</span>
+                                <span className="font-semibold text-slate-500 text-[10px] truncate max-w-[180px] leading-tight mt-0.5">{item.item_name || ''}</span>
                               </div>
                             </td>
                           );
                         case 'barcode':
                           return (
-                            <td key={col.id} className="px-1 py-1">
+                            <td key={col.id} className="px-2 py-1 border-r border-slate-100 align-middle">
                               <input
                                 type="text"
                                 value={item.barcode || ''}
                                 onChange={(e) => updateItem(idx, "barcode", e.target.value)}
+                                disabled={isViewMode || formData.docstatus !== 0}
                                 placeholder="Barcode"
-                                className="w-full h-8 px-2 text-xs font-bold bg-slate-50 border border-slate-200 rounded-lg outline-none focus:bg-white focus:border-emerald-500"
+                                className="w-full h-8 px-2 text-xs font-bold text-slate-800 bg-transparent border-none outline-none focus:bg-emerald-50/40 disabled:bg-slate-100 disabled:text-slate-500"
                               />
                             </td>
                           );
                         case 'custom_ref_sl_no':
                           return (
-                            <td key={col.id} className="px-1 py-1">
+                            <td key={col.id} className="px-2 py-1 border-r border-slate-100 align-middle">
                               <input
                                 type="text"
                                 value={item.custom_ref_sl_no || item.custom_supplier_sl_num || ''}
                                 onChange={(e) => updateItem(idx, "custom_ref_sl_no", e.target.value)}
+                                disabled={isViewMode || formData.docstatus !== 0}
                                 placeholder="Ref / SL #"
-                                className="w-full h-8 px-2 text-xs font-bold bg-slate-50 border border-slate-200 rounded-lg outline-none focus:bg-white focus:border-emerald-500"
+                                className="w-full h-8 px-2 text-xs font-bold text-slate-800 bg-transparent border-none outline-none focus:bg-emerald-50/40 disabled:bg-slate-100 disabled:text-slate-500"
                               />
                             </td>
                           );
                         case 'uom':
                           return (
-                            <td key={col.id} className="px-1 py-1 text-center">
+                            <td key={col.id} className="px-2 py-1 text-center border-r border-slate-100 align-middle">
                               <select
                                 value={item.uom || 'Nos'}
                                 onChange={(e) => handleUOMChange(idx, e.target.value)}
-                                className="h-8 px-1 text-center font-black text-xs bg-slate-50 border border-slate-200 rounded-lg outline-none focus:bg-white focus:border-emerald-500 cursor-pointer"
+                                disabled={isViewMode || formData.docstatus !== 0}
+                                className="w-full h-8 px-1 text-center font-black text-xs text-slate-800 bg-transparent border-none outline-none cursor-pointer focus:bg-emerald-50/40 disabled:bg-slate-100 disabled:text-slate-500"
                               >
                                 <option value="Nos">Nos</option>
                                 <option value="Box">Box</option>
@@ -2822,13 +2828,14 @@ function PurchaseInvoiceList() {
                           );
                         case 'custom_box_qty':
                           return (
-                            <td key={col.id} className="px-1 py-1 text-center">
-                              <div className="flex flex-col items-center">
+                            <td key={col.id} className="px-2 py-1 text-center border-r border-slate-100 align-middle">
+                              <div className="flex flex-col items-center justify-center">
                                 <input
                                   type="number"
                                   value={item.use_box_entry ? (item.custom_box_qty || '') : (item.qty || '')}
                                   onChange={(e) => updateItem(idx, item.use_box_entry ? "custom_box_qty" : "qty", e.target.value)}
-                                  className="w-16 h-8 text-center font-black text-xs border border-slate-200 rounded-lg bg-slate-50 focus:bg-white focus:border-emerald-500 outline-none"
+                                  disabled={isViewMode || formData.docstatus !== 0}
+                                  className="w-full h-8 text-center font-black text-xs text-slate-800 bg-transparent border-none outline-none focus:bg-emerald-50/40 disabled:bg-slate-100 disabled:text-slate-500"
                                 />
                                 <span className="text-[8px] font-extrabold uppercase text-slate-400 mt-0.5">{item.use_box_entry ? 'BOX' : 'NOS'}</span>
                               </div>
@@ -2836,13 +2843,14 @@ function PurchaseInvoiceList() {
                           );
                         case 'custom_pieces_per_box':
                           return (
-                            <td key={col.id} className="px-1 py-1 text-center font-bold text-xs text-slate-700">
+                            <td key={col.id} className="px-2 py-1 text-center font-bold text-xs text-slate-700 border-r border-slate-100 align-middle">
                               {item.use_box_entry ? (
                                 <input
                                   type="number"
                                   value={item.custom_pieces_per_box || ''}
                                   onChange={(e) => updateItem(idx, "custom_pieces_per_box", e.target.value)}
-                                  className="w-14 h-8 text-center font-black text-xs border border-slate-200 rounded-lg bg-slate-50 focus:bg-white focus:border-emerald-500 outline-none"
+                                  disabled={isViewMode || formData.docstatus !== 0}
+                                  className="w-full h-8 text-center font-black text-xs text-slate-800 bg-transparent border-none outline-none focus:bg-emerald-50/40 disabled:bg-slate-100 disabled:text-slate-500"
                                 />
                               ) : (
                                 <span className="text-slate-300">—</span>
@@ -2851,13 +2859,14 @@ function PurchaseInvoiceList() {
                           );
                         case 'custom_box_price':
                           return (
-                            <td key={col.id} className="px-1 py-1 text-right font-bold text-xs text-slate-700">
+                            <td key={col.id} className="px-2 py-1 text-right font-bold text-xs text-slate-700 border-r border-slate-100 align-middle">
                               {item.use_box_entry ? (
                                 <input
                                   type="number"
                                   value={item.custom_box_price || ''}
                                   onChange={(e) => updateItem(idx, "custom_box_price", e.target.value)}
-                                  className="w-20 h-8 text-right font-black text-xs border border-slate-200 rounded-lg bg-slate-50 focus:bg-white focus:border-emerald-500 outline-none px-1"
+                                  disabled={isViewMode || formData.docstatus !== 0}
+                                  className="w-full h-8 px-2 text-right font-black text-xs text-slate-800 bg-transparent border-none outline-none focus:bg-emerald-50/40 disabled:bg-slate-100 disabled:text-slate-500"
                                 />
                               ) : (
                                 <span className="text-slate-300">—</span>
@@ -2866,79 +2875,111 @@ function PurchaseInvoiceList() {
                           );
                         case 'rate':
                           return (
-                            <td key={col.id} className="px-1 py-1 text-right">
+                            <td key={col.id} className="px-2 py-1 text-right border-r border-slate-100 align-middle">
                               <input
                                 type="number"
                                 value={item.rate || ''}
                                 onChange={(e) => updateItem(idx, "rate", e.target.value)}
-                                className="w-20 h-8 text-right font-black text-xs border border-slate-200 rounded-lg bg-slate-50 focus:bg-white focus:border-emerald-500 outline-none px-2"
+                                disabled={isViewMode || formData.docstatus !== 0}
+                                className="w-full h-8 px-2 text-right font-black text-xs text-slate-800 bg-transparent border-none outline-none focus:bg-emerald-50/40 disabled:bg-slate-100 disabled:text-slate-500"
                               />
                             </td>
                           );
                         case 'custom_selling_price':
                           return (
-                            <td key={col.id} className="px-1 py-1 text-right">
+                            <td key={col.id} className="px-2 py-1 text-right border-r border-slate-100 align-middle">
                               <input
                                 type="number"
                                 value={item.custom_selling_price || ''}
                                 onChange={(e) => updateItem(idx, "custom_selling_price", e.target.value)}
-                                className="w-20 h-8 text-right font-black text-xs border border-slate-200 rounded-lg bg-emerald-50/50 text-emerald-700 focus:bg-white focus:border-emerald-500 outline-none px-2"
+                                onBlur={(e) => {
+                                  const sellVal = parseFloat(e.target.value) || 0;
+                                  const rateVal = parseFloat(item.rate) || 0;
+                                  if (sellVal > 0 && rateVal > 0 && sellVal < rateVal) {
+                                    updateItem(idx, "custom_selling_price", '');
+                                    Swal.fire({
+                                      icon: 'error',
+                                      title: 'Price Restriction Warning',
+                                      html: `Row #${idx + 1} (${item.item_name || item.item_code}):<br/>Selling Price (<b>AED ${sellVal.toFixed(2)}</b>) cannot be LESS than Buying Rate (<b>AED ${rateVal.toFixed(2)}</b>)!<br/><br/><i>Entered value has been cleared.</i>`,
+                                      confirmButtonColor: '#ef4444'
+                                    });
+                                  }
+                                }}
+                                disabled={isViewMode || formData.docstatus !== 0}
+                                className="w-full h-8 px-2 text-right font-black text-xs text-emerald-700 bg-transparent border-none outline-none focus:bg-emerald-50/40 disabled:bg-slate-100 disabled:text-slate-500"
                               />
                             </td>
                           );
                         case 'custom_box_selling_price':
                           return (
-                            <td key={col.id} className="px-1 py-1 text-right">
+                            <td key={col.id} className="px-2 py-1 text-right border-r border-slate-100 align-middle">
                               <input
                                 type="number"
                                 value={item.custom_box_selling_price || ''}
                                 onChange={(e) => updateItem(idx, "custom_box_selling_price", e.target.value)}
-                                className="w-20 h-8 text-right font-black text-xs border border-slate-200 rounded-lg bg-emerald-50/50 text-emerald-700 focus:bg-white focus:border-emerald-500 outline-none px-2"
+                                onBlur={(e) => {
+                                  const sellVal = parseFloat(e.target.value) || 0;
+                                  const pPerBox = parseFloat(item.custom_pieces_per_box) || 1;
+                                  const buyPriceBox = parseFloat(item.custom_box_price) || ((parseFloat(item.rate) || 0) * pPerBox);
+                                  if (sellVal > 0 && buyPriceBox > 0 && sellVal < buyPriceBox) {
+                                    updateItem(idx, "custom_box_selling_price", '');
+                                    Swal.fire({
+                                      icon: 'error',
+                                      title: 'Box Price Restriction Warning',
+                                      html: `Row #${idx + 1} (${item.item_name || item.item_code}):<br/>Box Selling Price (<b>AED ${sellVal.toFixed(2)}</b>) cannot be LESS than Box Buying Rate (<b>AED ${buyPriceBox.toFixed(2)}</b>)!<br/><br/><i>Entered value has been cleared.</i>`,
+                                      confirmButtonColor: '#ef4444'
+                                    });
+                                  }
+                                }}
+                                disabled={isViewMode || formData.docstatus !== 0}
+                                className="w-full h-8 px-2 text-right font-black text-xs text-sky-700 bg-transparent border-none outline-none focus:bg-emerald-50/40 disabled:bg-slate-100 disabled:text-slate-500"
                               />
                             </td>
                           );
                         case 'discount_percentage':
                           return (
-                            <td key={col.id} className="px-1 py-1 text-right">
+                            <td key={col.id} className="px-2 py-1 text-right border-r border-slate-100 align-middle">
                               <input
                                 type="number"
                                 value={item.discount_percentage || ''}
                                 onChange={(e) => updateItem(idx, "discount_percentage", e.target.value)}
-                                className="w-14 h-8 text-right font-black text-xs border border-slate-200 rounded-lg bg-slate-50 focus:bg-white focus:border-emerald-500 outline-none px-1"
+                                disabled={isViewMode || formData.docstatus !== 0}
+                                className="w-full h-8 px-2 text-right font-black text-xs text-slate-800 bg-transparent border-none outline-none focus:bg-emerald-50/40 disabled:bg-slate-100 disabled:text-slate-500"
                               />
                             </td>
                           );
                         case 'discount_amount':
                           return (
-                            <td key={col.id} className="px-1 py-1 text-right">
+                            <td key={col.id} className="px-2 py-1 text-right border-r border-slate-100 align-middle">
                               <input
                                 type="number"
                                 value={item.discount_amount || ''}
                                 onChange={(e) => updateItem(idx, "discount_amount", e.target.value)}
-                                className="w-16 h-8 text-right font-black text-xs border border-slate-200 rounded-lg bg-slate-50 focus:bg-white focus:border-emerald-500 outline-none px-1"
+                                disabled={isViewMode || formData.docstatus !== 0}
+                                className="w-full h-8 px-2 text-right font-black text-xs text-slate-800 bg-transparent border-none outline-none focus:bg-emerald-50/40 disabled:bg-slate-100 disabled:text-slate-500"
                               />
                             </td>
                           );
                         case 'qty':
                           return (
-                            <td key={col.id} className="px-2 py-1 text-center font-black text-xs text-slate-800">
+                            <td key={col.id} className="px-2 py-1 text-center font-black text-xs text-slate-800 border-r border-slate-100 align-middle">
                               {item.qty || 0}
                             </td>
                           );
                         case 'amount':
                           return (
-                            <td key={col.id} className="px-2 py-1 text-right font-black text-xs text-slate-900">
+                            <td key={col.id} className="px-2 py-1 text-right font-black text-xs text-slate-900 border-r border-slate-100 align-middle">
                               {formatPrice(item.amount || 0)}
                             </td>
                           );
                         case 'last_purchase_rate':
                           return (
-                            <td key={col.id} className="px-2 py-1 text-right font-bold text-xs text-amber-700 bg-amber-50/40">
+                            <td key={col.id} className="px-2 py-1 text-right font-bold text-xs text-amber-700 bg-amber-50/40 border-r border-slate-100 align-middle">
                               {item.last_purchase_rate || item.last_buying_rate ? formatPrice(item.last_purchase_rate || item.last_buying_rate) : '—'}
                             </td>
                           );
                         default:
-                          return <td key={col.id} className="px-2 py-1 text-xs">{item[col.id] || '—'}</td>;
+                          return <td key={col.id} className="px-2 py-1 text-xs border-r border-slate-100 align-middle">{item[col.id] || '—'}</td>;
                       }
                     })}
                     <td className="text-center px-1">
@@ -3083,18 +3124,33 @@ function PurchaseInvoiceList() {
                     <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-[#475569] text-white">F6</span>
                   </button>
 
-                  {/* CLOSE MODAL */}
-                  <button
-                    type="button"
-                    onClick={() => setIsModalOpen(false)}
-                    className="h-full bg-[#fff5f5] hover:bg-[#fed7d7] text-[#7f1d1d] border-2 border-[#fca5a5] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer"
-                  >
-                    <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#7f1d1d]">
-                      <Trash2 size={15} />
-                      <span>CLOSE</span>
-                    </div>
-                    <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-[#dc2626] text-white">Esc</span>
-                  </button>
+                  {/* DELETE / CLOSE */}
+                  {formData.docstatus === 0 && docName ? (
+                    <button
+                      type="button"
+                      onClick={() => handleDocAction('delete')}
+                      disabled={saving}
+                      className="h-full bg-[#fff5f5] hover:bg-[#fed7d7] text-[#7f1d1d] border-2 border-[#fca5a5] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer"
+                    >
+                      <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#7f1d1d]">
+                        <Trash2 size={15} />
+                        <span>DELETE</span>
+                      </div>
+                      <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-[#dc2626] text-white">Del</span>
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setIsModalOpen(false)}
+                      className="h-full bg-[#f1f5f9] hover:bg-[#e2e8f0] text-[#334155] border-2 border-[#cbd5e1] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer"
+                    >
+                      <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#334155]">
+                        <X size={15} />
+                        <span>CLOSE</span>
+                      </div>
+                      <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-[#64748b] text-white">Esc</span>
+                    </button>
+                  )}
                 </div>
               </div>
 

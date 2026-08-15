@@ -224,11 +224,12 @@ function Login() {
           <form onSubmit={handleSubmit} className="login-form-content">
             <div className="form-group">
               <label className="field-label">Username</label>
-              <div className="input-field-box">
-                <User size={18} className="input-icon" />
+              <div className="input-field-box" style={{ position: 'relative', display: 'flex', alignItems: 'center', width: '100%' }}>
+                <User size={18} className="input-icon" style={{ position: 'absolute', left: '1.1rem', top: '50%', transform: 'translateY(-50%)', color: '#64748b', zIndex: 10, pointerEvents: 'none' }} />
                 <input
                   type="text"
                   className="custom-input"
+                  style={{ paddingLeft: '3.2rem', paddingRight: '1rem', width: '100%' }}
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   placeholder="Manager / Cashier ID"
@@ -239,11 +240,12 @@ function Login() {
 
             <div className="form-group">
               <label className="field-label">Password</label>
-              <div className="input-field-box">
-                <Lock size={18} className="input-icon" />
+              <div className="input-field-box" style={{ position: 'relative', display: 'flex', alignItems: 'center', width: '100%' }}>
+                <Lock size={18} className="input-icon" style={{ position: 'absolute', left: '1.1rem', top: '50%', transform: 'translateY(-50%)', color: '#64748b', zIndex: 10, pointerEvents: 'none' }} />
                 <input
                   type={showPassword ? "text" : "password"}
                   className="custom-input"
+                  style={{ paddingLeft: '3.2rem', paddingRight: '3.2rem', width: '100%' }}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Secure Access Key"
@@ -254,6 +256,7 @@ function Login() {
                   className="password-toggle-btn"
                   onClick={togglePasswordVisibility}
                   title={showPassword ? "Hide Password" : "Show Password"}
+                  style={{ position: 'absolute', right: '0.9rem', top: '50%', transform: 'translateY(-50%)', zIndex: 10 }}
                 >
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>

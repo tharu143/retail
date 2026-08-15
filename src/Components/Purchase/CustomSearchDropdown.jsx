@@ -72,7 +72,7 @@ const CustomSearchDropdown = ({
           }
 
           let leftPos = rect.left;
-          const targetWidth = Math.max(rect.width, 320);
+          const targetWidth = rect.width < 180 ? 280 : rect.width;
           if (leftPos + targetWidth > window.innerWidth - 12) {
             leftPos = Math.max(12, window.innerWidth - targetWidth - 12);
           }
@@ -80,7 +80,7 @@ const CustomSearchDropdown = ({
           setPosition({
             top: topPos,
             left: leftPos,
-            width: rect.width,
+            width: targetWidth,
             maxHeight
           });
         }
@@ -213,7 +213,7 @@ const CustomSearchDropdown = ({
 
   const handleItemClick = (item) => {
     onSelect(item);
-    setQuery(item[optionsLabel]);
+    setQuery(value ? (item[optionsLabel] || '') : '');
     setShow(false);
     setJustCreated(false);
     setSelectedIndex(-1);

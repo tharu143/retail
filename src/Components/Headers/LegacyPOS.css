@@ -11,30 +11,30 @@
    ROOT — full-screen layout, light slate background
    ============================================================ */
 .classic-root {
-  --legacy-primary: #0ea5e9; /* sky-500 */
-  --legacy-primary-hover: #0284c7; /* sky-600 */
-  --legacy-primary-light: #f0f9ff; /* sky-50 */
-  --legacy-primary-border: #bae6fd; /* sky-200 */
-  --legacy-accent: #6366f1; /* indigo-500 */
+  --legacy-primary: #10b981;
+  --legacy-primary-hover: #059669;
+  --legacy-primary-light: #e6f4f1;
+  --legacy-primary-border: #a7f3d0;
+  --legacy-accent: #f59e0b;
   --legacy-surface: #ffffff;
-  --legacy-surface-2: #f8fafc; /* slate-50 */
-  --legacy-border: #e2e8f0; /* slate-200 */
-  --legacy-border-strong: #cbd5e1; /* slate-300 */
-  --legacy-text: #0f172a; /* slate-900 */
-  --legacy-text-muted: #64748b; /* slate-500 */
-  --legacy-text-faint: #94a3b8; /* slate-400 */
-  --legacy-radius: 0.625rem; /* 10px */
-  --legacy-radius-sm: 0.375rem; /* 6px */
-  --legacy-radius-lg: 0.875rem; /* 14px */
+  --legacy-surface-2: #e6f4f1;
+  --legacy-border: #d1e5e0;
+  --legacy-border-strong: #99f6e4;
+  --legacy-text: #0f172a;
+  --legacy-text-muted: #475569;
+  --legacy-text-faint: #64748b;
+  --legacy-radius: 0.75rem;
+  --legacy-radius-sm: 0.375rem;
+  --legacy-radius-lg: 0.875rem;
   --legacy-gap: 0.625rem;
-  --legacy-font: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --legacy-font: 'DM Sans', 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
   --legacy-font-mono: 'JetBrains Mono', 'Share Tech Mono', 'Courier New', monospace;
 
   display: flex !important;
   flex-direction: column !important;
   height: 100vh !important;
   max-height: 100vh !important;
-  background: var(--legacy-surface-2) !important;
+  background: #e6f4f1 !important;
   color: var(--legacy-text) !important;
   font-family: var(--legacy-font) !important;
   overflow: hidden !important;
@@ -72,10 +72,10 @@
    ============================================================ */
 .classic-shortcut-guide,
 .classic-shortcut-guide.horizontal {
-  background: var(--legacy-surface) !important;
-  border-bottom: 1px solid var(--legacy-border) !important;
+  padding: 0.35rem 0.75rem !important;
+  background: #e6f4f1 !important;
+  border-bottom: 1px solid #c2e2da !important;
   border-top: none !important;
-  padding: 0.375rem 1rem !important;
   display: flex !important;
   flex-wrap: wrap !important;
   align-items: center !important;
@@ -90,19 +90,19 @@
   align-items: center !important;
   gap: 0.375rem !important;
   padding: 0.25rem 0.625rem !important;
-  background: #ffffff !important;
-  border: 1.5px solid #cbd5e1 !important;
-  border-radius: 6px !important;
+  background: #f4fbf9 !important;
+  border: 1.5px solid #bce3da !important;
+  border-radius: 8px !important;
   cursor: pointer !important;
   transition: all 0.15s ease !important;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
 }
 
 .classic-shortcut-badge:hover {
-  background: #f0f9ff !important;
-  border-color: #38bdf8 !important;
+  background: #e1f5f0 !important;
+  border-color: #10b981 !important;
   transform: translateY(-1px) !important;
-  box-shadow: 0 3px 8px rgba(14, 165, 233, 0.15) !important;
+  box-shadow: 0 3px 8px rgba(16, 185, 129, 0.15) !important;
 }
 
 .classic-shortcut-badge:active {
@@ -154,13 +154,13 @@
   align-items: center !important;
 }
 
-/* Horizontal shortcut badges — compact */
+/* Horizontal shortcut badges — compact pill shape */
 .classic-shortcut-guide.horizontal .classic-shortcut-badge {
-  padding: 0.22rem 0.55rem !important;
-  gap: 0.35rem !important;
-  border-radius: 6px !important;
-  background: #ffffff !important;
-  border: 1.5px solid #cbd5e1 !important;
+  padding: 0.3rem 0.85rem !important;
+  gap: 0.5rem !important;
+  border-radius: 9999px !important;
+  background: #f4fbf9 !important;
+  border: 1.5px solid #bce3da !important;
 }
 
 .classic-shortcut-guide.horizontal .classic-shortcut-key {

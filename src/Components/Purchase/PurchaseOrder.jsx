@@ -8,7 +8,7 @@ import Swal from 'sweetalert2';
 import {
   AlertCircle, CheckCircle2, Loader2, FileText, Calendar, Package, Users,
   DollarSign, ShoppingCart, Save, Send, Trash2, Plus, Box, Scan, ChevronDown, ChevronUp, History,
-  Search, File, Camera, X, Upload, Image as ImageIcon, Zap, Palette, Edit2, Edit3, Settings, Link, Copy, Printer
+  Search, File, Camera, X, Upload, Image as ImageIcon, Zap, Palette, Edit2, Edit3, Settings, Link, Copy, Printer, Truck
 } from 'lucide-react';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { useNavigate } from 'react-router-dom';
@@ -28,7 +28,9 @@ const DEFAULT_PO_COLUMNS = [
   { id: 'custom_pieces_per_box', label: 'Pcs/Box', visible: true, width: 90 },
   { id: 'custom_box_price', label: 'Box Price', visible: true, width: 90 },
   { id: 'rate', label: 'Rate (Nos)', visible: true, width: 90 },
-  { id: 'custom_selling_price', label: 'Selling Price', visible: true, width: 90 },
+  { id: 'discount_amount', label: 'Disc Amt', visible: true, width: 90 },
+  { id: 'custom_selling_price_box', label: 'Selling Price (Box)', visible: true, width: 100 },
+  { id: 'custom_selling_price', label: 'Selling Price (Nos)', visible: true, width: 100 },
   { id: 'qty', label: 'Total Qty', visible: true, width: 90 },
   { id: 'amount', label: 'Subtotal', visible: true, width: 90 },
   { id: 'last_purchase_rate', label: 'Last Purchase Price', visible: true, width: 110 }
@@ -38,6 +40,7 @@ const POItemModel = {
   item_code: null,
   item_name: '',
   rate: 0,
+  discount_amount: 0,
   amount: 0,
   custom_supplier_sl_num: '', // Legacy/Internal
   custom_ref_sl_no: '',       // NEW: REF / SL #
@@ -48,7 +51,8 @@ const POItemModel = {
   use_box_entry: false,       // true = Box UOM selected, false = Nos/direct qty
   uom_list: [],               // available UOMs from item metadata
   last_buying_rate: 0,
-  custom_selling_price: 0,
+  custom_selling_price: 0,     // Selling Price (Nos)
+  custom_selling_price_box: 0, // Selling Price (Box)
   received_qty: 0,
   rejected_qty: 0,
   rejected_warehouse: ''
@@ -745,7 +749,8 @@ function PurchaseOrder() {
           total_qty: parseFloat(formData.total_qty),
           grand_total: parseFloat(formData.grand_total),
           naming_series: formData.naming_series || 'PO-',
-          name: formData.name || undefined
+          name: formData.name || undefined,
+          payment_schedule: []
         };
       }
 
@@ -2273,101 +2278,56 @@ function PurchaseOrder() {
   }
 
   // =========================================================================
-  // CLASSIC POS FULL TERMINAL LAYOUT FOR PURCHASE ORDER (theme === 'legacy')
+  // CLASSIC POS FULL TERMINAL LAYOUT FOR PURCHASE ORDER (Create & Edit Mode Only)
   // =========================================================================
-  if (theme === 'legacy') {
+  if (theme === 'legacy' && !isViewOnly) {
     return (
-      <div className="classic-root" style={{ position: 'relative', height: '100vh', display: 'flex', flexDirection: 'column', background: '#f8fafc', overflow: 'hidden' }}>
-        {/* CLASSIC NAVBAR */}
-        <nav className="classic-nav" style={{ background: '#ffffff', borderBottom: '1px solid #e2e8f0', padding: '0.4rem 1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '52px', flexShrink: 0 }}>
-          <div className="flex items-center gap-3">
-            <div onClick={() => navigate('/homepage')} className="cursor-pointer flex items-center">
-              <span className="font-black text-sm tracking-tight text-slate-800 flex items-center gap-1.5 uppercase">
-                <Package className="w-5 h-5 text-emerald-600" />
-                <span>KYLE POS • PURCHASE ORDER</span>
-              </span>
-            </div>
-          </div>
-
-          <div className="ml-auto flex items-center gap-3">
-            <div className="flex items-center gap-2 px-3 py-1 bg-emerald-50 border border-emerald-200 rounded-xl shadow-xs select-none">
-              <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
-              <span className="text-[10px] font-black uppercase tracking-widest text-emerald-700">
-                {formData.docstatus === 1 ? 'SUBMITTED' : 'PO TERMINAL'}
-              </span>
-            </div>
-
-            {/* Theme Toggle Button */}
-            <button
-              type="button"
-              onClick={() => dispatch(toggleTheme())}
-              className="px-3 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-300 rounded-xl font-black text-[10px] uppercase flex items-center gap-1.5 cursor-pointer transition-all shadow-xs"
-              title="Switch Theme"
-            >
-              <Palette size={13} />
-              <span>THEME: CLASSIC</span>
-            </button>
-
-            <div className="flex items-center gap-2.5 pl-2 border-l border-slate-200">
-              <div className="flex flex-col items-end text-right">
-                <span className="font-black uppercase text-slate-800 text-[11px] leading-tight">
-                  {warehouse || 'BRANCH'}
-                </span>
-                <span className="text-[9px] font-bold text-slate-400">
-                  {new Date(formData.transaction_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                </span>
-              </div>
-              <div className="w-8 h-8 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600 shadow-xs">
-                <Users size={16} />
-              </div>
-            </div>
-          </div>
-        </nav>
+      <div className="classic-root" style={{ position: 'relative', height: '100vh', display: 'flex', flexDirection: 'column', background: '#e6f4f1', overflow: 'hidden' }}>
 
         {/* CLASSIC SHORTCUTS GUIDE BAR */}
-        <div className="so-shortcut-guide-banner" style={{ background: '#0f172a', borderBottom: '1px solid #1e293b', padding: '6px 14px', display: 'flex', alignItems: 'center', gap: '8px', overflowX: 'auto', flexShrink: 0 }}>
-          <div className="so-shortcut-banner-title" style={{ color: '#94a3b8', fontSize: '9px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.08em', display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}>
-            <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block animate-ping mr-1"></span>
+        <div className="so-shortcut-guide-banner" style={{ background: '#e6f4f1', borderBottom: '1px solid #bce3da', padding: '6px 14px', display: 'flex', alignItems: 'center', gap: '8px', overflowX: 'auto', flexShrink: 0 }}>
+          <div className="so-shortcut-banner-title" style={{ color: '#047857', fontSize: '9px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.08em', display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}>
+            <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block animate-ping mr-1"></span>
             SHORTCUTS
           </div>
-          <div className="so-shortcut-badges-wrapper" style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'nowrap' }}>
-            <div className="so-shortcut-badge" style={{ background: '#ffffff', border: '1.5px solid #cbd5e1', borderRadius: '6px', padding: '3px 7px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-              <span className="so-shortcut-key" style={{ background: '#3b82f6', color: '#fff', fontSize: '9px', fontWeight: 900, padding: '1px 5px', borderRadius: '4px' }}>F2</span>
-              <span className="so-shortcut-label" style={{ fontSize: '11px', fontWeight: 900, color: '#0f172a' }}>SUPPLIER</span>
+          <div className="so-shortcut-badges-wrapper" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'nowrap' }}>
+            <div className="so-shortcut-badge" style={{ background: '#f4fbf9', border: '1.5px solid #bce3da', borderRadius: '9999px', padding: '3.5px 12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span className="so-shortcut-key font-mono font-black" style={{ background: '#ffffff', color: '#047857', border: '1px solid #a7f3d0', fontSize: '9px', fontWeight: 900, padding: '1px 6px', borderRadius: '9999px' }}>F2</span>
+              <span className="so-shortcut-label font-extrabold text-[11px] text-slate-800">SUPPLIER</span>
             </div>
-            <div className="so-shortcut-badge" style={{ background: '#ffffff', border: '1.5px solid #cbd5e1', borderRadius: '6px', padding: '3px 7px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-              <span className="so-shortcut-key" style={{ background: '#6366f1', color: '#fff', fontSize: '9px', fontWeight: 900, padding: '1px 5px', borderRadius: '4px' }}>F3</span>
-              <span className="so-shortcut-label" style={{ fontSize: '11px', fontWeight: 900, color: '#0f172a' }}>ITEM SEARCH</span>
+            <div className="so-shortcut-badge" style={{ background: '#f4fbf9', border: '1.5px solid #bce3da', borderRadius: '9999px', padding: '3.5px 12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span className="so-shortcut-key font-mono font-black" style={{ background: '#ffffff', color: '#047857', border: '1px solid #a7f3d0', fontSize: '9px', fontWeight: 900, padding: '1px 6px', borderRadius: '9999px' }}>F3</span>
+              <span className="so-shortcut-label font-extrabold text-[11px] text-slate-800">ITEM SEARCH</span>
             </div>
-            <div className="so-shortcut-badge" style={{ background: '#ffffff', border: '1.5px solid #cbd5e1', borderRadius: '6px', padding: '3px 7px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-              <span className="so-shortcut-key" style={{ background: '#06b6d4', color: '#fff', fontSize: '9px', fontWeight: 900, padding: '1px 5px', borderRadius: '4px' }}>F4</span>
-              <span className="so-shortcut-label" style={{ fontSize: '11px', fontWeight: 900, color: '#0f172a' }}>BARCODE</span>
+            <div className="so-shortcut-badge" style={{ background: '#f4fbf9', border: '1.5px solid #bce3da', borderRadius: '9999px', padding: '3.5px 12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span className="so-shortcut-key font-mono font-black" style={{ background: '#ffffff', color: '#047857', border: '1px solid #a7f3d0', fontSize: '9px', fontWeight: 900, padding: '1px 6px', borderRadius: '9999px' }}>F4</span>
+              <span className="so-shortcut-label font-extrabold text-[11px] text-slate-800">BARCODE</span>
             </div>
-            <div className="so-shortcut-badge" style={{ background: '#ffffff', border: '1.5px solid #cbd5e1', borderRadius: '6px', padding: '3px 7px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-              <span className="so-shortcut-key" style={{ background: '#d946ef', color: '#fff', fontSize: '9px', fontWeight: 900, padding: '1px 5px', borderRadius: '4px' }}>F6</span>
-              <span className="so-shortcut-label" style={{ fontSize: '11px', fontWeight: 900, color: '#0f172a' }}>BULK QTY</span>
+            <div className="so-shortcut-badge" style={{ background: '#f4fbf9', border: '1.5px solid #bce3da', borderRadius: '9999px', padding: '3.5px 12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span className="so-shortcut-key font-mono font-black" style={{ background: '#ffffff', color: '#047857', border: '1px solid #a7f3d0', fontSize: '9px', fontWeight: 900, padding: '1px 6px', borderRadius: '9999px' }}>F6</span>
+              <span className="so-shortcut-label font-extrabold text-[11px] text-slate-800">BULK QTY</span>
             </div>
-            <div className="so-shortcut-badge" style={{ background: '#ffffff', border: '1.5px solid #cbd5e1', borderRadius: '6px', padding: '3px 7px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-              <span className="so-shortcut-key" style={{ background: '#8b5cf6', color: '#fff', fontSize: '9px', fontWeight: 900, padding: '1px 5px', borderRadius: '4px' }}>F8</span>
-              <span className="so-shortcut-label" style={{ fontSize: '11px', fontWeight: 900, color: '#0f172a' }}>TOGGLE UOM</span>
+            <div className="so-shortcut-badge" style={{ background: '#f4fbf9', border: '1.5px solid #bce3da', borderRadius: '9999px', padding: '3.5px 12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span className="so-shortcut-key font-mono font-black" style={{ background: '#ffffff', color: '#047857', border: '1px solid #a7f3d0', fontSize: '9px', fontWeight: 900, padding: '1px 6px', borderRadius: '9999px' }}>F8</span>
+              <span className="so-shortcut-label font-extrabold text-[11px] text-slate-800">TOGGLE UOM</span>
             </div>
-            <div className="so-shortcut-badge" style={{ background: '#ffffff', border: '1.5px solid #cbd5e1', borderRadius: '6px', padding: '3px 7px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-              <span className="so-shortcut-key" style={{ background: '#f59e0b', color: '#fff', fontSize: '9px', fontWeight: 900, padding: '1px 5px', borderRadius: '4px' }}>F7</span>
-              <span className="so-shortcut-label" style={{ fontSize: '11px', fontWeight: 900, color: '#0f172a' }}>SAVE DRAFT</span>
+            <div className="so-shortcut-badge" style={{ background: '#f4fbf9', border: '1.5px solid #bce3da', borderRadius: '9999px', padding: '3.5px 12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span className="so-shortcut-key font-mono font-black" style={{ background: '#ffffff', color: '#047857', border: '1px solid #a7f3d0', fontSize: '9px', fontWeight: 900, padding: '1px 6px', borderRadius: '9999px' }}>ALT+S</span>
+              <span className="so-shortcut-label font-extrabold text-[11px] text-slate-800">SAVE DRAFT</span>
             </div>
-            <div className="so-shortcut-badge" style={{ background: '#ffffff', border: '1.5px solid #cbd5e1', borderRadius: '6px', padding: '3px 7px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-              <span className="so-shortcut-key" style={{ background: '#0ea5e9', color: '#fff', fontSize: '9px', fontWeight: 900, padding: '1px 5px', borderRadius: '4px' }}>F10</span>
-              <span className="so-shortcut-label" style={{ fontSize: '11px', fontWeight: 900, color: '#0f172a' }}>ADD ROW</span>
+            <div className="so-shortcut-badge" style={{ background: '#f4fbf9', border: '1.5px solid #bce3da', borderRadius: '9999px', padding: '3.5px 12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span className="so-shortcut-key font-mono font-black" style={{ background: '#ffffff', color: '#047857', border: '1px solid #a7f3d0', fontSize: '9px', fontWeight: 900, padding: '1px 6px', borderRadius: '9999px' }}>F10</span>
+              <span className="so-shortcut-label font-extrabold text-[11px] text-slate-800">ADD ROW</span>
             </div>
-            <div className="so-shortcut-badge" style={{ background: '#ffffff', border: '1.5px solid #cbd5e1', borderRadius: '6px', padding: '3px 7px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-              <span className="so-shortcut-key" style={{ background: '#10b981', color: '#fff', fontSize: '9px', fontWeight: 900, padding: '1px 5px', borderRadius: '4px' }}>Ctrl+Enter</span>
-              <span className="so-shortcut-label" style={{ fontSize: '11px', fontWeight: 900, color: '#0f172a' }}>SUBMIT</span>
+            <div className="so-shortcut-badge" style={{ background: '#f4fbf9', border: '1.5px solid #bce3da', borderRadius: '9999px', padding: '3.5px 12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span className="so-shortcut-key font-mono font-black" style={{ background: '#ffffff', color: '#047857', border: '1px solid #a7f3d0', fontSize: '9px', fontWeight: 900, padding: '1px 6px', borderRadius: '9999px' }}>CTRL+↵</span>
+              <span className="so-shortcut-label font-extrabold text-[11px] text-slate-800">SUBMIT</span>
             </div>
           </div>
         </div>
 
         {/* CLASSIC HEADER FORM */}
-        <div className="classic-header-form" style={{ background: '#ffffff', borderBottom: '1px solid #e2e8f0', padding: '0.45rem 1rem', display: 'flex', alignItems: 'center', gap: '1.25rem', flexShrink: 0 }}>
+        <div className="classic-header-form" style={{ background: '#ffffff', borderBottom: '1px solid #d1e5e0', padding: '0.5rem 1rem', display: 'flex', alignItems: 'center', gap: '1.25rem', flexShrink: 0 }}>
           <div className="classic-field flex items-center gap-3 relative flex-1">
             <label className="uppercase font-black text-[11px] text-slate-500 tracking-tight whitespace-nowrap">SUPPLIER</label>
             <div className="relative group flex-1">
@@ -2415,36 +2375,74 @@ function PurchaseOrder() {
           </div>
 
           <div className="classic-field flex items-center gap-3 ml-auto">
-            <label className="uppercase font-black text-[11px] text-slate-500 tracking-tight whitespace-nowrap">PO NO:</label>
-            <div className="h-11 px-4 flex items-center bg-slate-100 border-2 border-slate-200 rounded-xl text-xs font-mono font-black text-slate-800">
-              {formData.name || formData.naming_series || 'NEW-PUR-ORD'}
+            {/* Transaction Date Field */}
+            <div className="flex items-center gap-1.5">
+              <label className="uppercase font-black text-[10px] text-slate-500 tracking-tight whitespace-nowrap">DATE:</label>
+              <input
+                type="date"
+                name="transaction_date"
+                value={formData.transaction_date ? formData.transaction_date.slice(0, 10) : ''}
+                onChange={handleInputChange}
+                disabled={isViewOnly || formData.docstatus !== 0}
+                className="h-10 px-2.5 bg-slate-50 border-2 border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:border-emerald-500 cursor-pointer disabled:bg-slate-100 disabled:text-slate-500"
+              />
+            </div>
+
+            {/* Currency Field */}
+            <div className="flex items-center gap-1.5">
+              <label className="uppercase font-black text-[10px] text-slate-500 tracking-tight whitespace-nowrap">CURRENCY:</label>
+              <select
+                name="currency"
+                value={formData.currency || 'AED'}
+                onChange={handleInputChange}
+                disabled={isViewOnly || formData.docstatus !== 0}
+                className="h-10 px-2 bg-slate-50 border-2 border-slate-200 rounded-xl text-xs font-black text-slate-800 outline-none focus:border-emerald-500 cursor-pointer"
+              >
+                <option value="AED">AED (د.إ)</option>
+                <option value="INR">INR (₹)</option>
+                <option value="USD">USD ($)</option>
+                <option value="EUR">EUR (€)</option>
+                <option value="GBP">GBP (£)</option>
+                <option value="SAR">SAR (﷼)</option>
+              </select>
+            </div>
+
+            {/* PO NO Field */}
+            <div className="flex items-center gap-1.5">
+              <label className="uppercase font-black text-[10px] text-slate-500 tracking-tight whitespace-nowrap">PO NO:</label>
+              <div className="h-10 px-3 flex items-center bg-slate-100 border-2 border-slate-200 rounded-xl text-xs font-mono font-black text-slate-800">
+                {formData.name || formData.naming_series || 'NEW-PUR-ORD'}
+              </div>
             </div>
           </div>
         </div>
 
         {/* CLASSIC MAIN BODY: TABLE AREA */}
-        <div className="flex-1 flex flex-col overflow-hidden bg-slate-100">
-          <div className="flex-1 min-h-0 overflow-y-auto overflow-x-auto">
+        <div className="flex-1 flex flex-col overflow-hidden bg-[#e6f4f1] p-3">
+          <div className="flex-1 min-h-0 overflow-y-auto overflow-x-auto bg-white border border-slate-200 shadow-sm" style={{ borderRadius: '26px' }}>
             <table className="classic-table" style={{ width: '100%', borderCollapse: 'collapse', background: '#ffffff' }}>
               <thead>
                 <tr style={{ background: '#f8fafc', borderBottom: '1.5px solid #cbd5e1' }}>
-                  <th style={{ width: '40px', textAlign: 'center', padding: '8px 4px', fontSize: '11px', fontWeight: 900, color: '#475569', textTransform: 'uppercase' }}>#</th>
+                  <th style={{ width: '40px', textAlign: 'center', padding: '10px 4px', fontSize: '11px', fontWeight: 900, color: '#475569', textTransform: 'uppercase', borderRight: '1px solid #e2e8f0' }}>#</th>
                   {poColumns.filter(c => c.visible).map(col => (
                     <th
                       key={col.id}
                       style={{
-                        textAlign: ['rate', 'custom_box_price', 'custom_selling_price', 'amount', 'last_purchase_rate'].includes(col.id) ? 'right' : (['uom', 'custom_box_qty', 'custom_pieces_per_box', 'qty'].includes(col.id) ? 'center' : 'left'),
-                        padding: '8px 8px',
+                        width: col.width ? `${col.width}px` : 'auto',
+                        minWidth: col.width ? `${col.width}px` : '80px',
+                        textAlign: ['rate', 'custom_box_price', 'custom_selling_price', 'custom_selling_price_box', 'discount_amount', 'amount', 'last_purchase_rate'].includes(col.id) ? 'right' : (['uom', 'custom_box_qty', 'custom_pieces_per_box', 'qty'].includes(col.id) ? 'center' : 'left'),
+                        padding: '10px 8px',
                         fontSize: '11px',
                         fontWeight: 900,
                         color: '#475569',
-                        textTransform: 'uppercase'
+                        textTransform: 'uppercase',
+                        borderRight: '1px solid #e2e8f0'
                       }}
                     >
                       {col.label}
                     </th>
                   ))}
-                  <th style={{ width: '40px', textAlign: 'center', padding: '8px 4px' }}>
+                  <th style={{ width: '40px', textAlign: 'center', padding: '10px 4px' }}>
                     <button type="button" onClick={() => setShowColConfig(true)} className="text-slate-400 hover:text-emerald-600 cursor-pointer" title="Configure Columns">
                       <Settings size={14} />
                     </button>
@@ -2454,54 +2452,57 @@ function PurchaseOrder() {
               <tbody>
                 {formData.items.filter(it => it.item_code).map((item, idx) => (
                   <tr key={idx} className="border-b border-slate-100 hover:bg-emerald-50/30 transition-colors">
-                    <td className="text-center font-bold text-slate-400 text-xs py-2">{idx + 1}</td>
+                    <td className="text-center font-bold text-slate-400 text-xs py-2 border-r border-slate-100">{idx + 1}</td>
                     {poColumns.filter(c => c.visible).map(col => {
                       switch (col.id) {
                         case 'item_code':
                           return (
-                            <td key={col.id} className="px-2 py-1">
+                            <td key={col.id} className="px-2 py-1.5 border-r border-slate-100 align-middle">
                               <div className="flex flex-col">
-                                <span className="font-black text-slate-900 text-xs">{item.item_code}</span>
-                                <span className="font-semibold text-slate-500 text-[10px] truncate max-w-[180px]">{item.item_name || ''}</span>
+                                <span className="font-black text-slate-900 text-xs leading-tight">{item.item_code}</span>
+                                <span className="font-semibold text-slate-500 text-[10px] truncate max-w-[180px] leading-tight mt-0.5">{item.item_name || ''}</span>
                               </div>
                             </td>
                           );
                         case 'custom_ref_sl_no':
                           return (
-                            <td key={col.id} className="px-1 py-1">
+                            <td key={col.id} className="px-2 py-1 border-r border-slate-100 align-middle">
                               <input
                                 type="text"
                                 value={item.custom_ref_sl_no || item.custom_supplier_sl_num || ''}
                                 onChange={(e) => handleInputChange(e, idx)}
+                                disabled={isViewOnly || formData.docstatus !== 0}
                                 name="custom_ref_sl_no"
                                 placeholder="Ref / SL #"
-                                className="w-full h-8 px-2 text-xs font-bold bg-slate-50 border border-slate-200 rounded-lg outline-none focus:bg-white focus:border-emerald-500"
+                                className="w-full h-8 px-2 text-xs font-bold text-slate-800 bg-transparent border-none outline-none focus:bg-emerald-50/40"
                               />
                             </td>
                           );
                         case 'uom':
                           return (
-                            <td key={col.id} className="px-1 py-1 text-center">
+                            <td key={col.id} className="px-2 py-1 text-center border-r border-slate-100 align-middle">
                               <select
                                 value={item.uom || 'Nos'}
                                 onChange={(e) => handleUOMChange(e.target.value, idx)}
-                                className="h-8 px-1 text-center font-black text-xs bg-slate-50 border border-slate-200 rounded-lg outline-none focus:bg-white focus:border-emerald-500 cursor-pointer"
+                                disabled={isViewOnly || formData.docstatus !== 0}
+                                className="w-full h-8 px-1 text-center font-black text-xs text-slate-800 bg-transparent border-none outline-none cursor-pointer focus:bg-emerald-50/40"
                               >
                                 <option value="Nos">Nos</option>
-                                <option value="Box">Box</option>
+                                <option value="Box">Box (pcs)</option>
                               </select>
                             </td>
                           );
                         case 'custom_box_qty':
                           return (
-                            <td key={col.id} className="px-1 py-1 text-center">
-                              <div className="flex flex-col items-center">
+                            <td key={col.id} className="px-2 py-1 text-center border-r border-slate-100 align-middle">
+                              <div className="flex flex-col items-center justify-center">
                                 <input
                                   type="number"
                                   name={item.use_box_entry ? "custom_box_qty" : "qty"}
                                   value={item.use_box_entry ? (item.custom_box_qty || '') : (item.qty || '')}
                                   onChange={(e) => handleInputChange(e, idx)}
-                                  className="w-16 h-8 text-center font-black text-xs border border-slate-200 rounded-lg bg-slate-50 focus:bg-white focus:border-emerald-500 outline-none"
+                                  disabled={isViewOnly || formData.docstatus !== 0}
+                                  className="w-full h-8 text-center font-black text-xs text-slate-800 bg-transparent border-none outline-none focus:bg-emerald-50/40"
                                 />
                                 <span className="text-[8px] font-extrabold uppercase text-slate-400 mt-0.5">{item.use_box_entry ? 'BOX' : 'NOS'}</span>
                               </div>
@@ -2509,75 +2510,135 @@ function PurchaseOrder() {
                           );
                         case 'custom_pieces_per_box':
                           return (
-                            <td key={col.id} className="px-1 py-1 text-center font-bold text-xs text-slate-700">
+                            <td key={col.id} className="px-2 py-1 text-center font-bold text-xs text-slate-700 border-r border-slate-100 align-middle">
                               {item.use_box_entry ? (
                                 <input
                                   type="number"
                                   name="custom_pieces_per_box"
                                   value={item.custom_pieces_per_box || ''}
                                   onChange={(e) => handleInputChange(e, idx)}
-                                  className="w-14 h-8 text-center font-black text-xs border border-slate-200 rounded-lg bg-slate-50 focus:bg-white focus:border-emerald-500 outline-none"
+                                  disabled={isViewOnly || formData.docstatus !== 0}
+                                  className="w-full h-8 text-center font-black text-xs text-slate-800 bg-transparent border-none outline-none focus:bg-emerald-50/40"
                                 />
                               ) : (
-                                <span className="text-slate-300">—</span>
+                                <span>—</span>
                               )}
                             </td>
                           );
                         case 'custom_box_price':
                           return (
-                            <td key={col.id} className="px-1 py-1 text-right font-bold text-xs text-slate-700">
+                            <td key={col.id} className="px-2 py-1 text-right border-r border-slate-100 align-middle">
                               {item.use_box_entry ? (
                                 <input
                                   type="number"
                                   name="custom_box_price"
                                   value={item.custom_box_price || ''}
                                   onChange={(e) => handleInputChange(e, idx)}
-                                  className="w-20 h-8 text-right font-black text-xs border border-slate-200 rounded-lg bg-slate-50 focus:bg-white focus:border-emerald-500 outline-none px-1"
+                                  disabled={isViewOnly || formData.docstatus !== 0}
+                                  className="w-full h-8 px-2 text-right font-black text-xs text-slate-800 bg-transparent border-none outline-none focus:bg-emerald-50/40"
                                 />
                               ) : (
-                                <span className="text-slate-300">—</span>
+                                <span className="text-slate-400 text-xs">—</span>
                               )}
                             </td>
                           );
                         case 'rate':
                           return (
-                            <td key={col.id} className="px-1 py-1 text-right">
+                            <td key={col.id} className="px-2 py-1 text-right border-r border-slate-100 align-middle">
                               <input
                                 type="number"
                                 name="rate"
                                 value={item.rate || ''}
                                 onChange={(e) => handleInputChange(e, idx)}
-                                className="w-20 h-8 text-right font-black text-xs border border-slate-200 rounded-lg bg-slate-50 focus:bg-white focus:border-emerald-500 outline-none px-2"
+                                disabled={isViewOnly || formData.docstatus !== 0}
+                                className="w-full h-8 px-2 text-right font-black text-xs text-slate-800 bg-transparent border-none outline-none focus:bg-emerald-50/40"
+                              />
+                            </td>
+                          );
+                        case 'discount_amount':
+                          return (
+                            <td key={col.id} className="px-2 py-1 text-right border-r border-slate-100 align-middle">
+                              <input
+                                type="number"
+                                name="discount_amount"
+                                value={item.discount_amount || ''}
+                                onChange={(e) => handleInputChange(e, idx)}
+                                disabled={isViewOnly || formData.docstatus !== 0}
+                                className="w-full h-8 px-2 text-right font-black text-xs text-rose-600 bg-transparent border-none outline-none focus:bg-emerald-50/40"
+                                placeholder="0.00"
+                              />
+                            </td>
+                          );
+                        case 'custom_selling_price_box':
+                          return (
+                            <td key={col.id} className="px-2 py-1 text-right border-r border-slate-100 align-middle">
+                              <input
+                                type="number"
+                                name="custom_selling_price_box"
+                                value={item.custom_selling_price_box || ''}
+                                onChange={(e) => handleInputChange(e, idx)}
+                                onBlur={(e) => {
+                                  const sellVal = parseFloat(e.target.value) || 0;
+                                  const pPerBox = parseFloat(item.custom_pieces_per_box) || 1;
+                                  const buyPriceBox = parseFloat(item.custom_box_price) || ((parseFloat(item.rate) || 0) * pPerBox);
+                                  if (sellVal > 0 && buyPriceBox > 0 && sellVal < buyPriceBox) {
+                                    handleInputChange({ target: { name: 'custom_selling_price_box', value: '' } }, idx);
+                                    Swal.fire({
+                                      icon: 'error',
+                                      title: 'Box Price Restriction Warning',
+                                      html: `Row #${idx + 1} (${item.item_name || item.item_code}):<br/>Box Selling Price (<b>AED ${sellVal.toFixed(2)}</b>) cannot be LESS than Box Buying Rate (<b>AED ${buyPriceBox.toFixed(2)}</b>)!<br/><br/><i>Entered value has been cleared.</i>`,
+                                      confirmButtonColor: '#ef4444'
+                                    });
+                                  }
+                                }}
+                                disabled={isViewOnly || formData.docstatus !== 0}
+                                className="w-full h-8 px-2 text-right font-black text-xs text-sky-700 bg-transparent border-none outline-none focus:bg-emerald-50/40"
+                                placeholder="Box SP"
                               />
                             </td>
                           );
                         case 'custom_selling_price':
                           return (
-                            <td key={col.id} className="px-1 py-1 text-right">
+                            <td key={col.id} className="px-2 py-1 text-right border-r border-slate-100 align-middle">
                               <input
                                 type="number"
                                 name="custom_selling_price"
                                 value={item.custom_selling_price || ''}
                                 onChange={(e) => handleInputChange(e, idx)}
-                                className="w-20 h-8 text-right font-black text-xs border border-slate-200 rounded-lg bg-emerald-50/50 text-emerald-700 focus:bg-white focus:border-emerald-500 outline-none px-2"
+                                onBlur={(e) => {
+                                  const sellVal = parseFloat(e.target.value) || 0;
+                                  const rateVal = parseFloat(item.rate) || 0;
+                                  if (sellVal > 0 && rateVal > 0 && sellVal < rateVal) {
+                                    handleInputChange({ target: { name: 'custom_selling_price', value: '' } }, idx);
+                                    Swal.fire({
+                                      icon: 'error',
+                                      title: 'Price Restriction Warning',
+                                      html: `Row #${idx + 1} (${item.item_name || item.item_code}):<br/>Selling Price (<b>AED ${sellVal.toFixed(2)}</b>) cannot be LESS than Buying Rate (<b>AED ${rateVal.toFixed(2)}</b>)!<br/><br/><i>Entered value has been cleared.</i>`,
+                                      confirmButtonColor: '#ef4444'
+                                    });
+                                  }
+                                }}
+                                disabled={isViewOnly || formData.docstatus !== 0}
+                                className="w-full h-8 px-2 text-right font-black text-xs text-emerald-700 bg-transparent border-none outline-none focus:bg-emerald-50/40"
+                                placeholder="Nos SP"
                               />
                             </td>
                           );
                         case 'qty':
                           return (
-                            <td key={col.id} className="px-2 py-1 text-center font-black text-xs text-slate-800">
+                            <td key={col.id} className="px-2 py-1 text-center font-black text-xs text-slate-800 border-r border-slate-100 align-middle">
                               {item.qty || 0}
                             </td>
                           );
                         case 'amount':
                           return (
-                            <td key={col.id} className="px-2 py-1 text-right font-black text-xs text-slate-900">
+                            <td key={col.id} className="px-2 py-1 text-right font-black text-xs text-slate-900 border-r border-slate-100 align-middle">
                               {formatPrice(item.amount || 0)}
                             </td>
                           );
                         case 'last_purchase_rate':
                           return (
-                            <td key={col.id} className="px-2 py-1 text-right font-bold text-xs text-amber-700 bg-amber-50/40">
+                            <td key={col.id} className="px-2 py-1 text-right font-bold text-xs text-amber-700 bg-amber-50/40 border-r border-slate-100 align-middle">
                               {item.last_purchase_rate || item.last_buying_rate ? formatPrice(item.last_purchase_rate || item.last_buying_rate) : '—'}
                             </td>
                           );
@@ -2592,35 +2653,38 @@ function PurchaseOrder() {
                 ))}
 
                 {/* ADVANCED: Smart Inline Search Row with Amber Border */}
-                <tr className="bg-emerald-50/40 border-y-2 border-amber-400 cursor-pointer hover:bg-amber-50/60 transition-all">
-                  <td className="text-center font-black text-amber-600 text-xs py-2">{formData.items.filter(it => it.item_code).length + 1}</td>
-                  <td colSpan={poColumns.filter(c => c.visible).length > 2 ? 2 : 1} className="p-0 relative h-10">
-                    <CustomSearchDropdown
-                      placeholder="SCAN BARCODE OR TYPE ITEM NAME HERE TO ADD..."
-                      value={null}
-                      onSelect={(selectedItem) => {
-                        if (selectedItem) {
-                          handleItemSelect(selectedItem, formData.items.length - 1);
-                        }
-                      }}
-                      fetchData={fetchItems}
-                      optionsLabel="item_name"
-                      globalSearch={true}
-                      themeColor="#10b981"
-                      className="w-full h-full font-black italic text-slate-600"
-                    />
-                  </td>
-                  {Array.from({ length: Math.max(0, poColumns.filter(c => c.visible).length - (poColumns.filter(c => c.visible).length > 2 ? 2 : 1) - 1) }).map((_, emptyI) => (
-                    <td key={`search-empty-${emptyI}`} className="text-center bg-black/5 font-bold text-xs">-</td>
-                  ))}
-                  <td className="text-center px-2 font-black text-amber-600 bg-black/5 text-xs">NEXT ITEM</td>
-                  <td className="text-center">
-                    <Search size={14} className="mx-auto text-amber-500" />
-                  </td>
-                </tr>
+                {formData.docstatus === 0 && !isViewOnly && (
+                  <tr className="bg-emerald-50/40 border-y-2 border-amber-400 cursor-pointer hover:bg-amber-50/60 transition-all">
+                    <td className="text-center font-black text-amber-600 text-xs py-2">{formData.items.filter(it => it.item_code).length + 1}</td>
+                    <td className="p-0 relative h-10">
+                      <CustomSearchDropdown
+                        placeholder="SCAN BARCODE OR TYPE ITEM NAME HERE TO ADD..."
+                        value={null}
+                        onSelect={(selectedItem) => {
+                          if (selectedItem) {
+                            const validItems = formData.items.filter(it => it.item_code);
+                            handleItemSelect(selectedItem, validItems.length);
+                          }
+                        }}
+                        fetchData={fetchItems}
+                        optionsLabel="item_name"
+                        globalSearch={true}
+                        themeColor="#10b981"
+                        className="w-full h-full font-black italic text-slate-600"
+                      />
+                    </td>
+                    {Array.from({ length: Math.max(0, poColumns.filter(c => c.visible).length - 2) }).map((_, emptyI) => (
+                      <td key={`search-empty-${emptyI}`} className="text-center bg-black/5 font-bold text-xs">-</td>
+                    ))}
+                    <td className="text-center px-2 font-black text-amber-600 bg-black/5 text-xs">NEXT ITEM</td>
+                    <td className="text-center">
+                      <Search size={14} className="mx-auto text-amber-500" />
+                    </td>
+                  </tr>
+                )}
 
                 {/* Aesthetic empty placeholder rows */}
-                {Array.from({ length: Math.max(0, 14 - formData.items.filter(it => it.item_code).length) }).map((_, i) => (
+                {Array.from({ length: Math.max(0, 10 - formData.items.filter(it => it.item_code).length) }).map((_, i) => (
                   <tr key={`empty-${i}`} className="bg-white/40 border-b border-slate-100 opacity-40">
                     <td className="text-center text-slate-300 font-bold text-xs py-2">{formData.items.filter(it => it.item_code).length + i + 2}</td>
                     {poColumns.filter(c => c.visible).map(col => (
@@ -2634,51 +2698,85 @@ function PurchaseOrder() {
           </div>
 
           {/* BOTTOM SECTION: ACTIONS GRID + TOTALS CARD */}
-          <div className="p-3 bg-[#f8fafc] border-t border-slate-200 flex-shrink-0">
+          <div className="pt-3 flex-shrink-0">
             <div className="grid grid-cols-1 xl:grid-cols-12 gap-3.5 items-stretch">
               {/* ACTION BUTTON GRID (LEFT SIDE) */}
               <div className="xl:col-span-7 flex">
-                <div className="grid grid-cols-4 grid-rows-2 gap-2 w-full h-full">
+                <div className="grid grid-cols-4 grid-rows-2 gap-2.5 w-full h-full p-3 bg-white border border-slate-200 shadow-sm" style={{ borderRadius: '26px' }}>
                   {/* SAVE DRAFT */}
                   <button
                     type="button"
                     onClick={() => handleDocAction('save')}
                     disabled={saving}
-                    className="h-full bg-[#fffbeb] hover:bg-[#fef3c7] text-[#78350f] border-2 border-[#fcd34d] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer"
+                    className="h-12 bg-[#ea580c] hover:bg-[#c2410c] text-white border-none transition-all active:scale-95 shadow-sm cursor-pointer flex items-center justify-between px-3"
+                    style={{ borderRadius: '18px' }}
                   >
-                    <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#78350f]">
-                      <Save size={15} />
+                    <div className="flex items-center gap-1.5 text-[10.5px] font-extrabold uppercase tracking-wider text-white">
+                      <Save size={14} />
                       <span>SAVE DRAFT</span>
                     </div>
-                    <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-[#d97706] text-white">Alt+S</span>
+                    <span className="inline-flex items-center justify-center font-mono text-[9px] font-black px-1.5 py-0.5 rounded-full bg-white/20 text-white">ALT+S</span>
                   </button>
 
                   {/* SUBMIT */}
                   <button
                     type="button"
                     onClick={() => handleDocAction('submit')}
-                    disabled={loading || saving}
-                    className="h-full bg-[#ecfdf5] hover:bg-[#d1fae5] text-[#064e3b] border-2 border-[#6ee7b7] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer"
+                    disabled={loading || saving || formData.docstatus !== 0}
+                    className="h-12 bg-[#047857] hover:bg-[#065f46] text-white border-none transition-all active:scale-95 shadow-sm cursor-pointer disabled:opacity-40 flex items-center justify-between px-3"
+                    style={{ borderRadius: '18px' }}
                   >
-                    <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#064e3b]">
-                      <Send size={15} />
+                    <div className="flex items-center gap-1.5 text-[10.5px] font-extrabold uppercase tracking-wider text-white">
+                      <Send size={14} />
                       <span>SUBMIT</span>
                     </div>
-                    <span className="inline-flex items-center justify-center font-mono text-[10px] font-black px-1.5 py-0.5 rounded bg-[#047857] text-white">Ctrl+↵</span>
+                    <span className="inline-flex items-center justify-center font-mono text-[9px] font-black px-1.5 py-0.5 rounded-full bg-white/20 text-white">CTRL+↵</span>
                   </button>
 
-                  {/* PRINT PDF */}
+                  {/* CREATE PR (Purchase Receipt) Button - Visible when Submitted */}
+                  {formData.docstatus === 1 && (
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/purchasereceiptlist?po_name=${encodeURIComponent(formData.name)}`)}
+                      className="h-12 bg-[#0d9488] hover:bg-[#0f766e] text-white border-none transition-all active:scale-95 shadow-sm cursor-pointer flex items-center justify-between px-3"
+                      style={{ borderRadius: '18px' }}
+                    >
+                      <div className="flex items-center gap-1.5 text-[10.5px] font-extrabold uppercase tracking-wider text-white">
+                        <Truck size={14} />
+                        <span>CREATE PR</span>
+                      </div>
+                      <span className="inline-flex items-center justify-center font-mono text-[9px] font-black px-1.5 py-0.5 rounded-full bg-white/20 text-white">RECEIPT</span>
+                    </button>
+                  )}
+
+                  {/* CANCEL (ERPNext Doc Action) */}
                   <button
                     type="button"
-                    onClick={() => handlePrintPDF(formData.name)}
-                    disabled={!formData.name}
-                    className="h-full bg-[#f0f9ff] hover:bg-[#e0f2fe] text-[#0c4a6e] border-2 border-[#7dd3fc] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-50"
+                    onClick={() => handleDocAction('cancel')}
+                    disabled={formData.docstatus !== 1}
+                    className="h-12 bg-[#dc2626] hover:bg-[#b91c1c] text-white border-none transition-all active:scale-95 shadow-sm cursor-pointer disabled:opacity-40 flex items-center justify-between px-3"
+                    style={{ borderRadius: '18px' }}
                   >
-                    <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#0c4a6e]">
-                      <Printer size={15} />
-                      <span>PRINT PDF</span>
+                    <div className="flex items-center gap-1.5 text-[10.5px] font-extrabold uppercase tracking-wider text-white">
+                      <X size={14} />
+                      <span>CANCEL</span>
                     </div>
-                    <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-[#0284c7] text-white">Space</span>
+                    <span className="inline-flex items-center justify-center font-mono text-[9px] font-black px-1.5 py-0.5 rounded-full bg-white/20 text-white">ALT+X</span>
+                  </button>
+
+                  {/* AMEND (ERPNext Doc Action for Cancelled Docs) */}
+                  <button
+                    type="button"
+                    onClick={() => handleDocAction('amend')}
+                    disabled={formData.docstatus !== 2}
+                    className="h-12 bg-[#1d4ed8] hover:bg-[#1e40af] text-white border-none transition-all active:scale-95 shadow-sm cursor-pointer disabled:opacity-40 flex items-center justify-between px-3"
+                    style={{ borderRadius: '18px' }}
+                  >
+                    <div className="flex items-center gap-1.5 text-[10.5px] font-extrabold uppercase tracking-wider text-white">
+                      <Edit3 size={14} />
+                      <span>AMEND</span>
+                    </div>
+                    <span className="inline-flex items-center justify-center font-mono text-[9px] font-black px-1.5 py-0.5 rounded-full bg-white/20 text-white">ALT+M</span>
                   </button>
 
                   {/* DUPLICATE */}
@@ -2686,26 +2784,28 @@ function PurchaseOrder() {
                     type="button"
                     onClick={handleDuplicate}
                     disabled={!formData.name}
-                    className="h-full bg-[#f5f3ff] hover:bg-[#ede9fe] text-[#4c1d95] border-2 border-[#c084fc] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-50"
+                    className="h-12 bg-[#7e22ce] hover:bg-[#6b21a8] text-white border-none transition-all active:scale-95 shadow-sm cursor-pointer disabled:opacity-40 flex items-center justify-between px-3"
+                    style={{ borderRadius: '18px' }}
                   >
-                    <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#4c1d95]">
-                      <Copy size={15} />
+                    <div className="flex items-center gap-1.5 text-[10.5px] font-extrabold uppercase tracking-wider text-white">
+                      <Copy size={14} />
                       <span>DUPLICATE</span>
                     </div>
-                    <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-[#7c3aed] text-white">Alt+D</span>
+                    <span className="inline-flex items-center justify-center font-mono text-[9px] font-black px-1.5 py-0.5 rounded-full bg-white/20 text-white">ALT+D</span>
                   </button>
 
                   {/* ADD ROW */}
                   <button
                     type="button"
                     onClick={addItemRow}
-                    className="h-full bg-white hover:bg-slate-100 text-[#1e293b] border-2 border-slate-300 rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer"
+                    className="h-12 bg-[#0284c7] hover:bg-[#0369a1] text-white border-none transition-all active:scale-95 shadow-sm cursor-pointer flex items-center justify-between px-3"
+                    style={{ borderRadius: '18px' }}
                   >
-                    <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#1e293b]">
-                      <Plus size={15} />
+                    <div className="flex items-center gap-1.5 text-[10.5px] font-extrabold uppercase tracking-wider text-white">
+                      <Plus size={14} />
                       <span>ADD ROW</span>
                     </div>
-                    <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-[#475569] text-white">Alt+A</span>
+                    <span className="inline-flex items-center justify-center font-mono text-[9px] font-black px-1.5 py-0.5 rounded-full bg-white/20 text-white">F10</span>
                   </button>
 
                   {/* BULK QTY */}
@@ -2719,39 +2819,28 @@ function PurchaseOrder() {
                         }
                       }
                     }}
-                    className="h-full bg-white hover:bg-slate-100 text-[#1e293b] border-2 border-slate-300 rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer"
+                    className="h-12 bg-[#64748b] hover:bg-[#475569] text-white border-none transition-all active:scale-95 shadow-sm cursor-pointer flex items-center justify-between px-3"
+                    style={{ borderRadius: '18px' }}
                   >
-                    <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#1e293b]">
-                      <Box size={15} />
+                    <div className="flex items-center gap-1.5 text-[10.5px] font-extrabold uppercase tracking-wider text-white">
+                      <Box size={14} />
                       <span>BULK QTY</span>
                     </div>
-                    <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-[#475569] text-white">F6</span>
-                  </button>
-
-                  {/* ACTIVE ORDERS / PO LIST */}
-                  <button
-                    type="button"
-                    onClick={() => setShowDraftsList(true)}
-                    className="h-full bg-[#f0fdf4] hover:bg-[#dcfce7] text-[#15803d] border-2 border-[#86efac] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer"
-                  >
-                    <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#15803d]">
-                      <Package size={15} />
-                      <span>ACTIVE POs</span>
-                    </div>
-                    <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-[#16a34a] text-white">F9</span>
+                    <span className="inline-flex items-center justify-center font-mono text-[9px] font-black px-1.5 py-0.5 rounded-full bg-white/20 text-white">F6</span>
                   </button>
 
                   {/* CLEAR / NEW */}
                   <button
                     type="button"
                     onClick={() => navigate('/purchaseorder')}
-                    className="h-full bg-[#fff5f5] hover:bg-[#fed7d7] text-[#7f1d1d] border-2 border-[#fca5a5] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer"
+                    className="h-12 bg-[#94a3b8] hover:bg-[#64748b] text-white border-none transition-all active:scale-95 shadow-sm cursor-pointer flex items-center justify-between px-3"
+                    style={{ borderRadius: '18px' }}
                   >
-                    <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#7f1d1d]">
-                      <Trash2 size={15} />
+                    <div className="flex items-center gap-1.5 text-[10.5px] font-extrabold uppercase tracking-wider text-white">
+                      <Trash2 size={14} />
                       <span>CLEAR</span>
                     </div>
-                    <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-[#dc2626] text-white">Alt+C</span>
+                    <span className="inline-flex items-center justify-center font-mono text-[9px] font-black px-1.5 py-0.5 rounded-full bg-white/20 text-white">ALT+C</span>
                   </button>
                 </div>
               </div>
