@@ -30,6 +30,7 @@ const DEFAULT_DN_COLUMNS = [
     { id: 'custom_pieces_per_box', label: 'Pcs/Box', visible: true, width: 90 },
     { id: 'custom_box_price', label: 'Box Price', visible: true, width: 90 },
     { id: 'rate', label: 'Rate (Nos)', visible: true, width: 90 },
+    { id: 'is_tax_inclusive', label: 'Tax Inc/Exc', visible: true, width: 95 },
     { id: 'qty', label: 'Total Qty', visible: true, width: 90 },
     { id: 'amount', label: 'Subtotal', visible: true, width: 90 }
 ];
@@ -45,7 +46,8 @@ const DNItemModel = {
     custom_box_price: 0,
     use_box_entry: false,
     uom_list: [],
-    custom_selling_price: 0
+    custom_selling_price: 0,
+    is_tax_inclusive: true
 };
 
 const loadColumnConfig = () => {
@@ -70,33 +72,77 @@ function recalcForm(form) {
     const taxes = form.taxes || [];
 
     const total_qty = items.reduce((s, i) => s + (parseFloat(i.qty) || 0), 0);
-    const base_total = items.reduce((s, i) => s + (parseFloat(i.amount) || 0), 0);
+    const totalTaxRate = taxes.reduce((s, t) => s + (parseFloat(t.rate) || 0), 0);
+
+    let total_taxes = 0;
+    let net_base_total = 0;
+    let gross_base_total = 0;
+
+    items.forEach(item => {
+        const itemAmt = parseFloat(item.amount) || 0;
+        if (itemAmt <= 0) return;
+
+        const isInc = item.is_tax_inclusive !== false;
+        gross_base_total += itemAmt;
+
+        if (isInc && totalTaxRate > 0) {
+            const itemNet = itemAmt / (1 + totalTaxRate / 100);
+            net_base_total += itemNet;
+            total_taxes += (itemAmt - itemNet);
+        } else {
+            net_base_total += itemAmt;
+            if (totalTaxRate > 0) {
+                total_taxes += itemAmt * (totalTaxRate / 100);
+            }
+        }
+    });
+
+    const updatedTaxes = taxes.map(tax => {
+        const rate = parseFloat(tax.rate) || 0;
+        let taxAmount = 0;
+        if (totalTaxRate > 0 && rate > 0) {
+            taxAmount = total_taxes * (rate / totalTaxRate);
+        }
+        return {
+            ...tax,
+            tax_amount: parseFloat(taxAmount.toFixed(2)),
+            total: taxAmount.toFixed(2),
+        };
+    });
+
+    const disc_perc = parseFloat(form.additional_discount_percentage) || 0;
+    const disc_amt = parseFloat(form.discount_amount) || 0;
+
+    const hasInclusiveItem = items.some(i => i.is_tax_inclusive !== false && parseFloat(i.amount) > 0);
+    const displayBaseTotal = (hasInclusiveItem && totalTaxRate > 0)
+        ? net_base_total
+        : gross_base_total;
 
     let discount = 0;
     if (form.apply_discount_on === 'Net Total') {
-        discount = form.additional_discount_percentage
-            ? (base_total * form.additional_discount_percentage / 100)
-            : (form.discount_amount || 0);
+        discount = disc_perc ? (displayBaseTotal * disc_perc / 100) : disc_amt;
     }
-    const baseForTax = base_total - discount;
-    const taxTotal = taxes.reduce((s, t) => s + (baseForTax * (parseFloat(t.rate) || 0) / 100), 0);
 
-    let grand = baseForTax + taxTotal;
+    const net = (hasInclusiveItem && totalTaxRate > 0)
+        ? gross_base_total
+        : (gross_base_total + total_taxes);
+
     if (form.apply_discount_on === 'Grand Total') {
-        grand -= form.additional_discount_percentage
-            ? (grand * form.additional_discount_percentage / 100)
-            : (form.discount_amount || 0);
+        discount = disc_perc ? (net * disc_perc / 100) : disc_amt;
     }
 
-    const rounded = Math.round(grand);
+    const grand_total = net - discount;
+    const rounded_total = Math.round(grand_total * 100) / 100;
 
     return {
         ...form,
+        items,
+        taxes: updatedTaxes,
         total_qty: Math.abs(total_qty),
-        base_total: Math.abs(base_total),
-        total_taxes_and_charges: Math.abs(taxTotal),
-        grand_total: grand,
-        rounded_total: rounded,
+        base_total: parseFloat(displayBaseTotal.toFixed(2)),
+        total_taxes_and_charges: parseFloat(total_taxes.toFixed(2)),
+        grand_total: Math.max(0, grand_total),
+        rounded_total: Math.max(0, rounded_total),
     };
 }
 
@@ -267,6 +313,8 @@ const DeliveryNoteDetails = () => {
     const customerInputRef = useRef(null);
     const itemInputRefs = useRef({});
     const loggedWarehouse = useSelector(state => state.user?.warehouse || '');
+    const user_roles = useSelector(state => state.user?.user_roles || []);
+    const isAdmin = user_roles.includes("Administrator") || user_roles.includes("System Manager");
     const theme = useSelector(state => state.user?.theme || 'modern');
     const { getShortcut, isShortcutPressed } = useCustomShortcuts();
 
@@ -727,7 +775,7 @@ const DeliveryNoteDetails = () => {
             t.name.toUpperCase().includes('VAT 5%') ||
             t.name.toUpperCase().includes('5%') ||
             t.name.toUpperCase().includes('VAT 5')
-        )?.name || '';
+        )?.name || 'UAE VAT 5% - NS';
 
         setForm({
             name: '', title: '',
@@ -867,19 +915,29 @@ const DeliveryNoteDetails = () => {
     const applyTaxTemplate = async (templateName) => {
         if (!templateName) { setForm(prev => recalcForm({ ...prev, taxes_and_charges: '', taxes: [] })); return; }
         try {
-            const res = await axios.get('/api/method/erpnext.controllers.accounts_controller.get_taxes_and_charges', { params: { master_doctype: 'Sales Taxes and Charges Template', master_name: templateName } });
-            const taxRows = (res.data.message || []).map(t => ({
+            const res = await axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_sales_taxes_templates_dn', { params: { template: templateName } });
+            let rows = (res.data.message || []).map(t => ({
                 charge_type: t.charge_type || 'On Net Total',
                 account_head: t.account_head,
                 description: t.description || t.account_head || 'VAT',
-                rate: t.rate || 0,
-                tax_amount: 0,
-                total: 0,
+                rate: parseFloat(t.rate) || 0,
+                tax_amount: parseFloat(t.tax_amount) || 0,
+                total: parseFloat(t.total) || 0,
                 add_deduct_tax: t.add_deduct_tax || 'Add'
             }));
-            setForm(prev => recalcForm({ ...prev, taxes_and_charges: templateName, taxes: taxRows }));
+            if (rows.length === 0 && templateName) {
+                let rate = 0; let account = "";
+                if (templateName.includes("5%")) { rate = 5; account = "VAT 5% - NS"; }
+                else if (templateName.includes("Zero")) { rate = 0; account = "VAT Zero - NS"; }
+                rows = [{ charge_type: "On Net Total", account_head: account || templateName, description: account || templateName, rate: rate, add_deduct_tax: "Add", tax_amount: 0, total: 0 }];
+            }
+            setForm(prev => recalcForm({ ...prev, taxes_and_charges: templateName, taxes: rows }));
         } catch (err) {
             console.error('Failed to load tax template:', err);
+            let rate = 0;
+            if (templateName.includes("5%")) rate = 5;
+            const rows = [{ charge_type: "On Net Total", account_head: templateName, description: templateName, rate: rate, add_deduct_tax: "Add", tax_amount: 0, total: 0 }];
+            setForm(prev => recalcForm({ ...prev, taxes_and_charges: templateName, taxes: rows }));
         }
     };
 
@@ -1369,7 +1427,7 @@ const DeliveryNoteDetails = () => {
                         <div className="classic-field flex items-center gap-3 relative flex-1">
                             <label className="uppercase font-black text-[11px] text-slate-500 tracking-tight whitespace-nowrap font-bold">BRANCH</label>
                             <div className="relative group flex-1">
-                                {!isViewOnly ? (
+                                {!isViewOnly && isAdmin ? (
                                     <select
                                         className="h-10 px-3 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-800 outline-none focus:border-emerald-500 focus:bg-white w-full cursor-pointer"
                                         value={form.set_warehouse || ''}
@@ -1388,7 +1446,7 @@ const DeliveryNoteDetails = () => {
                                         ))}
                                     </select>
                                 ) : (
-                                    <div className="h-10 px-3 flex items-center border border-slate-200 bg-slate-50 rounded-lg text-xs font-black uppercase tracking-wider text-slate-700 shadow-2xs w-full">
+                                    <div className="h-10 px-3 flex items-center border border-slate-200 bg-slate-100/80 rounded-lg text-xs font-black tracking-wider text-slate-700 shadow-2xs w-full">
                                         <span>{(form.set_warehouse || loggedWarehouse || 'Main Warehouse').split(' - ')[0]}</span>
                                     </div>
                                 )}
@@ -1546,6 +1604,7 @@ const DeliveryNoteDetails = () => {
                                                     <th style={{ width: '80px', minWidth: '80px', textAlign: 'center', padding: '10px 4px', fontSize: '11px', fontWeight: 900, color: '#475569', textTransform: 'uppercase', borderRight: '1px solid #e2e8f0' }}>Pcs/Box</th>
                                                     <th style={{ width: '100px', minWidth: '100px', textAlign: 'right', padding: '10px 4px', fontSize: '11px', fontWeight: 900, color: '#475569', textTransform: 'uppercase', borderRight: '1px solid #e2e8f0' }}>Box Price</th>
                                                     <th style={{ width: '100px', minWidth: '100px', textAlign: 'right', padding: '10px 4px', fontSize: '11px', fontWeight: 900, color: '#475569', textTransform: 'uppercase', borderRight: '1px solid #e2e8f0' }}>Rate (Nos)</th>
+                                                    <th style={{ width: '95px', minWidth: '95px', textAlign: 'center', padding: '10px 4px', fontSize: '11px', fontWeight: 900, color: '#475569', textTransform: 'uppercase', borderRight: '1px solid #e2e8f0' }}>Tax Inc/Exc</th>
                                                     <th style={{ width: '90px', minWidth: '90px', textAlign: 'center', padding: '10px 4px', fontSize: '11px', fontWeight: 900, color: '#475569', textTransform: 'uppercase', borderRight: '1px solid #e2e8f0' }}>Total Qty</th>
                                                 </>
                                             ) : (
@@ -1553,6 +1612,7 @@ const DeliveryNoteDetails = () => {
                                                     <th style={{ width: '100px', minWidth: '100px', textAlign: 'center', padding: '10px 4px', fontSize: '11px', fontWeight: 900, color: '#475569', textTransform: 'uppercase', borderRight: '1px solid #e2e8f0' }}>Qty</th>
                                                     <th style={{ width: '90px', minWidth: '90px', textAlign: 'center', padding: '10px 4px', fontSize: '11px', fontWeight: 900, color: '#475569', textTransform: 'uppercase', borderRight: '1px solid #e2e8f0' }}>UOM</th>
                                                     <th style={{ width: '140px', minWidth: '140px', textAlign: 'right', padding: '10px 4px', fontSize: '11px', fontWeight: 900, color: '#475569', textTransform: 'uppercase', borderRight: '1px solid #e2e8f0' }}>Rate</th>
+                                                    <th style={{ width: '95px', minWidth: '95px', textAlign: 'center', padding: '10px 4px', fontSize: '11px', fontWeight: 900, color: '#475569', textTransform: 'uppercase', borderRight: '1px solid #e2e8f0' }}>Tax Inc/Exc</th>
                                                 </>
                                             )}
                                             <th style={{ width: '130px', minWidth: '130px', textAlign: 'right', padding: '10px 8px', fontSize: '11px', fontWeight: 900, color: '#475569', textTransform: 'uppercase', borderRight: '1px solid #e2e8f0' }}>Amount</th>
@@ -1689,6 +1749,25 @@ const DeliveryNoteDetails = () => {
                                                                 className="w-full h-8 px-2 text-right font-black text-xs text-slate-800 bg-transparent border-none outline-none focus:bg-emerald-50/40"
                                                             />
                                                         </td>
+                                                        {/* Tax Inc/Exc */}
+                                                        <td className="px-2 py-1 text-center border-r border-slate-100 align-middle">
+                                                            <select
+                                                                value={item.is_tax_inclusive !== false ? 'Inclusive' : 'Exclusive'}
+                                                                onChange={e => {
+                                                                    const val = e.target.value === 'Inclusive';
+                                                                    setForm(prev => {
+                                                                        const items = [...prev.items];
+                                                                        items[i] = { ...items[i], is_tax_inclusive: val };
+                                                                        return recalcForm({ ...prev, items });
+                                                                    });
+                                                                }}
+                                                                disabled={isViewOnly}
+                                                                className="w-full h-8 px-1 text-center font-black text-xs text-slate-800 bg-transparent border-none outline-none cursor-pointer focus:bg-emerald-50/40"
+                                                            >
+                                                                <option value="Inclusive">Inclusive</option>
+                                                                <option value="Exclusive">Exclusive</option>
+                                                            </select>
+                                                        </td>
                                                         {/* Total Qty (Nos) */}
                                                         <td className="px-2 py-1 text-center border-r border-slate-100 align-middle text-xs font-black text-slate-500">
                                                             {item.qty || 0}
@@ -1707,8 +1786,40 @@ const DeliveryNoteDetails = () => {
                                                             />
                                                         </td>
                                                         {/* UOM */}
-                                                        <td className="px-2 py-1 text-center border-r border-slate-100 align-middle text-xs font-black text-slate-500">
-                                                            {item.uom || 'Nos'}
+                                                        <td className="px-2 py-1 text-center border-r border-slate-100 align-middle">
+                                                            <select
+                                                                value={item.uom || 'Nos'}
+                                                                onChange={(e) => handleUOMChangeDetails(e.target.value, i)}
+                                                                disabled={isViewOnly}
+                                                                className="w-full h-8 px-1 text-center font-black text-xs text-slate-800 bg-transparent border-none outline-none cursor-pointer focus:bg-emerald-50/40"
+                                                            >
+                                                                {(() => {
+                                                                    const uniqueUoms = [];
+                                                                    const seen = new Set();
+                                                                    const candidates = [];
+                                                                    if (item.uom_list && Array.isArray(item.uom_list)) {
+                                                                        item.uom_list.forEach(u => { if (u && u.uom) candidates.push(u.uom); });
+                                                                    }
+                                                                    candidates.push(item.stock_uom || 'Nos');
+                                                                    candidates.push(item.uom || 'Nos');
+                                                                    candidates.push('Nos');
+                                                                    candidates.push('Box');
+
+                                                                    candidates.forEach(u => {
+                                                                        const norm = u.trim().toLowerCase();
+                                                                        let display = u.trim();
+                                                                        if (display === 'box' || display === 'BOX') display = 'Box';
+                                                                        else if (display === 'nos' || display === 'NOS') display = 'Nos';
+                                                                        if (!seen.has(norm)) {
+                                                                            seen.add(norm);
+                                                                            uniqueUoms.push(display);
+                                                                        }
+                                                                    });
+                                                                    return uniqueUoms.map(uomVal => (
+                                                                        <option key={uomVal} value={uomVal}>{uomVal}</option>
+                                                                    ));
+                                                                })()}
+                                                            </select>
                                                         </td>
                                                         {/* Rate */}
                                                         <td className="px-2 py-1 text-right border-r border-slate-100 align-middle">
@@ -1719,6 +1830,25 @@ const DeliveryNoteDetails = () => {
                                                                 disabled={isViewOnly}
                                                                 className="w-full h-8 px-2 text-right font-black text-xs text-slate-800 bg-transparent border-none outline-none focus:bg-emerald-50/40"
                                                             />
+                                                        </td>
+                                                        {/* Tax Inc/Exc */}
+                                                        <td className="px-2 py-1 text-center border-r border-slate-100 align-middle">
+                                                            <select
+                                                                value={item.is_tax_inclusive !== false ? 'Inclusive' : 'Exclusive'}
+                                                                onChange={e => {
+                                                                    const val = e.target.value === 'Inclusive';
+                                                                    setForm(prev => {
+                                                                        const items = [...prev.items];
+                                                                        items[i] = { ...items[i], is_tax_inclusive: val };
+                                                                        return recalcForm({ ...prev, items });
+                                                                    });
+                                                                }}
+                                                                disabled={isViewOnly}
+                                                                className="w-full h-8 px-1 text-center font-black text-xs text-slate-800 bg-transparent border-none outline-none cursor-pointer focus:bg-emerald-50/40"
+                                                            >
+                                                                <option value="Inclusive">Inclusive</option>
+                                                                <option value="Exclusive">Exclusive</option>
+                                                            </select>
                                                         </td>
                                                     </>
                                                 )}
@@ -1753,9 +1883,11 @@ const DeliveryNoteDetails = () => {
                                                         <td className="border-r border-slate-100"></td>
                                                         <td className="border-r border-slate-100"></td>
                                                         <td className="border-r border-slate-100"></td>
+                                                        <td className="border-r border-slate-100"></td>
                                                     </>
                                                 ) : (
                                                     <>
+                                                        <td className="border-r border-slate-100"></td>
                                                         <td className="border-r border-slate-100"></td>
                                                         <td className="border-r border-slate-100"></td>
                                                         <td className="border-r border-slate-100"></td>
@@ -1830,18 +1962,255 @@ const DeliveryNoteDetails = () => {
                         </div>
                     </div>
 
-                    {/* Summary Bar */}
-                    <div className="so-summary-bar" style={{ alignSelf: 'flex-end', minWidth: '350px', background: 'white', border: '1px solid #e2e8f0', borderRadius: '0.75rem', padding: '0.75rem 1.25rem', boxShadow: '0 1px 3px rgba(0,0,0,0.02)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.75rem' }}>
-                        <div className="so-summary-item" style={{ display: 'flex', flexDirection: 'column' }}>
-                            <span className="so-summary-label" style={{ fontSize: '0.7rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase' }}>Base Total</span>
-                            <span className="so-summary-value" style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '1rem', fontWeight: 700, color: '#334155' }}>{getCurrencySymbol()}{form.base_total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                        </div>
-                        <div className="so-summary-divider" style={{ width: '1px', height: '30px', background: '#e2e8f0' }} />
-                        <div className="so-summary-item" style={{ textAlign: 'right', display: 'flex', flexDirection: 'column' }}>
-                            <span className="so-summary-label" style={{ fontSize: '0.7rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase' }}>Net Payable</span>
-                            <span className="so-summary-value grand" style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '1.4rem', fontWeight: 900, color: themeColor }}>{getCurrencySymbol()}{form.grand_total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                    {/* BOTTOM SECTION: ACTIONS GRID + TOTALS CARD (Matching SO Layout) */}
+                    <div className="pt-3 flex-shrink-0">
+                        <div className="grid grid-cols-1 xl:grid-cols-12 gap-3.5 items-stretch">
+
+                            {/* ACTION BUTTON GRID (LEFT SIDE) */}
+                            <div className="xl:col-span-7 flex">
+                                <div className="grid grid-cols-4 grid-rows-2 gap-2.5 w-full h-full p-2.5 bg-white border border-slate-200 rounded-xl shadow-xs">
+
+                                    {/* Row 1 / Col 1: SAVE DRAFT */}
+                                    {isEditing && (
+                                        <button
+                                            type="button"
+                                            onClick={() => handleDocAction('save')}
+                                            disabled={saving}
+                                            className="h-full bg-[#f59e0b] hover:bg-[#d97706] text-white border-2 border-[#f59e0b] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-40"
+                                            style={{ borderRadius: '18px' }}
+                                        >
+                                            <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
+                                                <Save size={15} />
+                                                <span>SAVE DRAFT</span>
+                                            </div>
+                                            <span className="inline-flex items-center justify-center font-mono text-[9px] font-black px-1.5 py-0.5 rounded bg-white/20 text-white">F7</span>
+                                        </button>
+                                    )}
+
+                                    {/* Row 1 / Col 2: SUBMIT DN */}
+                                    {!isNew && form.docstatus === 0 && isEditing && (
+                                        <button
+                                            type="button"
+                                            onClick={() => handleDocAction('submit')}
+                                            disabled={saving}
+                                            className="h-full bg-[#10b981] hover:bg-[#059669] text-white border-2 border-[#10b981] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer"
+                                            style={{ borderRadius: '18px' }}
+                                        >
+                                            <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
+                                                <CheckCircle2 size={15} />
+                                                <span>SUBMIT</span>
+                                            </div>
+                                            <span className="inline-flex items-center justify-center font-mono text-[9px] font-black px-1.5 py-0.5 rounded bg-white/20 text-white">Ctrl+↵</span>
+                                        </button>
+                                    )}
+
+                                    {/* Row 1 / Col 3: CREATE SI (Sales Invoice) — only when submitted */}
+                                    {form.name && form.docstatus === 1 && (form.per_billed || 0) < 99.9 && (
+                                        <button
+                                            type="button"
+                                            onClick={() => handleCreateInvoice()}
+                                            className="h-full bg-[#0ea5e9] hover:bg-[#0284c7] text-white border-2 border-[#0ea5e9] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer"
+                                            style={{ borderRadius: '18px' }}
+                                        >
+                                            <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-white">
+                                                <Plus size={15} />
+                                                <span>CREATE SI</span>
+                                            </div>
+                                        </button>
+                                    )}
+
+                                    {/* Row 1 / Col 4: CANCEL DN — only when submitted */}
+                                    {form.docstatus === 1 && allowedActions.includes('cancel') && (
+                                        <button
+                                            type="button"
+                                            onClick={() => handleDocAction('cancel')}
+                                            disabled={saving}
+                                            className="h-full bg-[#ef4444] hover:bg-[#dc2626] text-white border-2 border-[#ef4444] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer"
+                                            style={{ borderRadius: '18px' }}
+                                        >
+                                            <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
+                                                <X size={15} />
+                                                <span>CANCEL</span>
+                                            </div>
+                                        </button>
+                                    )}
+
+                                    {/* Row 2 / Col 1: DISCARD */}
+                                    {isEditing && (
+                                        <button
+                                            type="button"
+                                            onClick={() => isNew ? navigate('/deliverynote') : setIsViewOnly(true)}
+                                            className="h-full bg-[#f1f5f9] hover:bg-[#e2e8f0] text-[#334155] border-2 border-[#cbd5e1] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer"
+                                            style={{ borderRadius: '18px' }}
+                                        >
+                                            <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#334155]">
+                                                <X size={15} />
+                                                <span>DISCARD</span>
+                                            </div>
+                                            <span className="inline-flex items-center justify-center font-mono text-[9px] font-black px-1.5 py-0.5 rounded bg-slate-200 text-slate-650">Esc</span>
+                                        </button>
+                                    )}
+
+                                    {/* Row 2 / Col 2: MODIFY (read-only mode only) */}
+                                    {!isEditing && form.docstatus === 0 && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setIsViewOnly(false)}
+                                            className="h-full bg-[#3b82f6] hover:bg-[#2563eb] text-white border-2 border-[#3b82f6] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer"
+                                            style={{ borderRadius: '18px' }}
+                                        >
+                                            <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
+                                                <Edit3 size={15} />
+                                                <span>MODIFY</span>
+                                            </div>
+                                        </button>
+                                    )}
+
+                                    {/* Row 2 / Col 3: PRINT PDF */}
+                                    {form.name && (
+                                        <button
+                                            type="button"
+                                            onClick={() => window.open(`/api/method/frappe.utils.print_format.download_pdf?doctype=Delivery Note&name=${form.name}&format=Standard`, '_blank')}
+                                            className="h-full bg-[#0284c7] hover:bg-[#0369a1] text-white border-2 border-[#0284c7] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer"
+                                            style={{ borderRadius: '18px' }}
+                                        >
+                                            <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
+                                                <Printer size={15} />
+                                                <span>PRINT PDF</span>
+                                            </div>
+                                            <span className="inline-flex items-center justify-center font-mono text-[9px] font-black px-1.5 py-0.5 rounded bg-white/20 text-white">PDF</span>
+                                        </button>
+                                    )}
+
+                                    {/* Row 2 / Col 4: BACK TO LIST */}
+                                    <button
+                                        type="button"
+                                        onClick={() => navigate('/deliverynote')}
+                                        className="h-full bg-[#f8fafc] hover:bg-slate-100 text-slate-700 border-2 border-slate-200 rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer"
+                                        style={{ borderRadius: '18px' }}
+                                    >
+                                        <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-slate-700">
+                                            <ChevronLeft size={15} />
+                                            <span>LIST</span>
+                                        </div>
+                                        <span className="inline-flex items-center justify-center font-mono text-[9px] font-black px-1.5 py-0.5 rounded bg-slate-200 text-slate-600">Esc</span>
+                                    </button>
+
+                                    {/* Row 2 / Col: DELETE — only in read mode, draft */}
+                                    {!isEditing && form.docstatus === 0 && allowedActions.includes('delete') && form.name && (
+                                        <button
+                                            type="button"
+                                            onClick={() => handleDocAction('delete')}
+                                            disabled={saving}
+                                            className="h-full bg-[#fef2f2] hover:bg-[#fee2e2] text-[#ef4444] border-2 border-[#fca5a5] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer"
+                                            style={{ borderRadius: '18px' }}
+                                        >
+                                            <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#ef4444]">
+                                                <Trash2 size={15} />
+                                                <span>DELETE</span>
+                                            </div>
+                                        </button>
+                                    )}
+
+                                </div>
+                            </div>
+
+                            {/* TOTALS CARD (RIGHT SIDE, col-span-5) */}
+                            <div className="xl:col-span-5 bg-white rounded-xl border border-slate-200 p-3 shadow-xs flex flex-col justify-between gap-3">
+                                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-2">
+                                    {/* Tax Template Selection */}
+                                    <div className="flex flex-col items-start">
+                                        <span className="text-[9px] font-bold uppercase text-slate-400 tracking-wider">TAX TEMPLATE</span>
+                                        <select
+                                            value={form.taxes_and_charges || ''}
+                                            disabled={isViewOnly}
+                                            onChange={(e) => applyTaxTemplate(e.target.value)}
+                                            className="bg-transparent text-xs font-black text-slate-800 outline-none cursor-pointer p-0 m-0 border-none"
+                                        >
+                                            <option value="">No Tax Schedule...</option>
+                                            {taxTemplates.map((t) => <option key={t.name} value={t.name}>{t.name}</option>)}
+                                        </select>
+                                    </div>
+                                    {/* Total Qty Display */}
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-[10px] font-black uppercase text-slate-500">TOTAL QTY:</span>
+                                        <span className="text-sm font-black text-slate-900">{(form.total_qty || form.items.reduce((s, it) => s + (parseFloat(it.qty) || 0), 0)).toFixed(2)}</span>
+                                    </div>
+                                </div>
+
+                                {/* Subtotal, Tax and Grand Total */}
+                                <div className="flex items-end justify-between gap-3 pt-1">
+                                    <div className="flex flex-col gap-1">
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-[9px] font-bold uppercase text-slate-400">SUBTOTAL</span>
+                                            <span className="text-slate-800 font-bold text-sm">{getCurrencySymbol()} {(form.base_total || 0).toFixed(2)}</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-[9px] font-bold uppercase text-slate-400">TAX</span>
+                                            <span className="text-slate-650 font-bold text-sm">{getCurrencySymbol()} {(form.total_taxes_and_charges || 0).toFixed(2)}</span>
+                                        </div>
+                                        {form.discount_amount > 0 && (
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-[9px] font-bold uppercase text-rose-500">DISCOUNT</span>
+                                                <span className="text-rose-650 font-bold text-sm">-{getCurrencySymbol()} {form.discount_amount.toFixed(2)}</span>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div className="flex flex-col items-end font-sans">
+                                        <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">GRAND TOTAL</span>
+                                        <span className="text-2xl font-black text-emerald-600 leading-none flex items-center gap-0.5 mt-0.5">
+                                            {getCurrencySymbol()} {(form.grand_total || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+
                         </div>
                     </div>
+
+                    {/* STATUS BAR FOOTER */}
+                    <div className="bg-white border-t border-slate-100 px-4 py-1 text-[10px] text-slate-400 flex items-center gap-5 flex-shrink-0 mt-3" style={{ borderBottomLeftRadius: '12px', borderBottomRightRadius: '12px' }}>
+                        <div className="flex items-center gap-1.5">
+                            <span className="font-bold uppercase">Items:</span>
+                            <span className="font-bold text-slate-850">{form.items.filter(it => it.item_code).length}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                            <span className="font-bold uppercase">Customer:</span>
+                            <span className="font-bold text-emerald-600">{form.customer_name || form.customer || 'Not Selected'}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                            <span className="font-bold uppercase">Branch:</span>
+                            <span className="font-bold text-emerald-600">{form.set_warehouse || warehouse || 'No Branch'}</span>
+                        </div>
+
+                        {/* Theme Toggle Button */}
+                        <div className="ml-auto flex items-center gap-3">
+                            <button
+                                type="button"
+                                onClick={() => setDnTheme(prev => prev === 'legacy' ? 'modern' : 'legacy')}
+                                style={{
+                                    display: 'flex', alignItems: 'center', gap: '0.3rem',
+                                    padding: '2px 8px',
+                                    background: '#ecfdf5',
+                                    color: '#059669',
+                                    border: '1px solid #a7f3d0',
+                                    borderRadius: '6px',
+                                    fontSize: '9px', fontWeight: 900,
+                                    cursor: 'pointer', transition: 'all 0.2s',
+                                    textTransform: 'uppercase'
+                                }}
+                                title="Switch UI Theme"
+                            >
+                                <Palette size={10} />
+                                <span>THEME: {(dnTheme || 'legacy').toUpperCase()}</span>
+                            </button>
+
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
+                            <span className="font-bold text-slate-400 opacity-60">READY · SYSTEM OK</span>
+                        </div>
+                    </div>
+
                 </div>
             </div>
         );
@@ -2243,22 +2612,28 @@ const DeliveryNoteDetails = () => {
 
                                         <div className="so-field">
                                             <label className="so-label" style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: '0.5rem' }}>Branch / Warehouse *</label>
-                                            <select
-                                                className="so-select"
-                                                value={form.set_warehouse}
-                                                onChange={e => {
-                                                    const wh = e.target.value;
-                                                    setForm(prev => ({
-                                                        ...prev,
-                                                        set_warehouse: wh,
-                                                        items: prev.items.map(item => ({ ...item, warehouse: wh }))
-                                                    }));
-                                                }}
-                                                style={{ width: '100%', padding: '0.6rem 0.8rem', border: '1px solid #cbd5e1', borderRadius: '0.375rem', outline: 'none' }}
-                                            >
-                                                <option value="">Select Branch</option>
-                                                {warehouses.map(w => <option key={w.name} value={w.name}>{w.warehouse_name || w.name}</option>)}
-                                            </select>
+                                            {isAdmin ? (
+                                                <select
+                                                    className="so-select"
+                                                    value={form.set_warehouse}
+                                                    onChange={e => {
+                                                        const wh = e.target.value;
+                                                        setForm(prev => ({
+                                                            ...prev,
+                                                            set_warehouse: wh,
+                                                            items: prev.items.map(item => ({ ...item, warehouse: wh }))
+                                                        }));
+                                                    }}
+                                                    style={{ width: '100%', padding: '0.6rem 0.8rem', border: '1px solid #cbd5e1', borderRadius: '0.375rem', outline: 'none' }}
+                                                >
+                                                    <option value="">Select Branch</option>
+                                                    {warehouses.map(w => <option key={w.name} value={w.name}>{w.warehouse_name || w.name}</option>)}
+                                                </select>
+                                            ) : (
+                                                <div style={{ width: '100%', padding: '0.6rem 0.8rem', border: '1px solid #cbd5e1', borderRadius: '0.375rem', background: '#f8fafc', fontWeight: 800, fontSize: '0.8rem', color: '#334155' }}>
+                                                    {(form.set_warehouse || loggedWarehouse || 'Main Warehouse').split(' - ')[0]}
+                                                </div>
+                                            )}
                                         </div>
 
                                         <div className="so-field">
@@ -2343,6 +2718,7 @@ const DeliveryNoteDetails = () => {
                                                         if (!hasAnyBox && ['custom_pieces_per_box', 'custom_box_price', 'qty'].includes(c.id)) return false;
                                                         return true;
                                                     });
+                                                    /* align map for is_tax_inclusive */
 
                                                     return activeCols.map(col => {
                                                         let finalLabel = col.label;
@@ -2358,7 +2734,7 @@ const DeliveryNoteDetails = () => {
                                                         let alignStyle = { padding: '0.75rem 1rem', fontSize: '0.75rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', width: colW, minWidth: colW, maxWidth: colW };
                                                         if (['item_code', 'uom'].includes(col.id)) {
                                                             alignStyle.textAlign = 'left';
-                                                        } else if (['custom_box_qty', 'qty', 'custom_pieces_per_box'].includes(col.id)) {
+                                                        } else if (['custom_box_qty', 'qty', 'custom_pieces_per_box', 'is_tax_inclusive'].includes(col.id)) {
                                                             alignStyle.textAlign = 'center';
                                                         } else if (['custom_box_price', 'rate', 'amount'].includes(col.id)) {
                                                             alignStyle.textAlign = 'right';
@@ -2394,6 +2770,7 @@ const DeliveryNoteDetails = () => {
                                                                 if (!hasAnyBox && ['custom_pieces_per_box', 'custom_box_price', 'qty'].includes(c.id)) return false;
                                                                 return true;
                                                             });
+                                                            /* row-level activeCols for modern theme */
 
                                                             return activeCols.map(col => {
                                                                 switch (col.id) {
@@ -2563,6 +2940,28 @@ const DeliveryNoteDetails = () => {
                                                                                     onChange={(e) => handleInputChangeDetails(e, idx)}
                                                                                     onFocus={(e) => e.target.select()}
                                                                                 />
+                                                                            </td>
+                                                                        );
+
+                                                                    case 'is_tax_inclusive':
+                                                                        return (
+                                                                            <td key={col.id} style={{ padding: '0.5rem 0.75rem', textAlign: 'center' }}>
+                                                                                <select
+                                                                                    className="so-td-input"
+                                                                                    value={item.is_tax_inclusive !== false ? 'Inclusive' : 'Exclusive'}
+                                                                                    onChange={e => {
+                                                                                        const val = e.target.value === 'Inclusive';
+                                                                                        setForm(prev => {
+                                                                                            const items = [...prev.items];
+                                                                                            items[idx] = { ...items[idx], is_tax_inclusive: val };
+                                                                                            return recalcForm({ ...prev, items });
+                                                                                        });
+                                                                                    }}
+                                                                                    style={{ padding: '0.4rem 0.6rem', border: '1px solid #cbd5e1', borderRadius: '0.375rem', width: '100%', outline: 'none', fontWeight: 700, fontSize: '0.75rem', cursor: 'pointer' }}
+                                                                                >
+                                                                                    <option value="Inclusive">Inclusive</option>
+                                                                                    <option value="Exclusive">Exclusive</option>
+                                                                                </select>
                                                                             </td>
                                                                         );
 
