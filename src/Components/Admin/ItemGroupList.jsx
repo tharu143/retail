@@ -410,18 +410,19 @@ export default function ItemGroupList() {
 
                         {/* Search Tree Input */}
                         <div className="relative">
-                            <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none z-10" />
                             <input
                                 type="text"
                                 placeholder="Search tree nodes..."
                                 value={treeSearchTerm}
                                 onChange={e => setTreeSearchTerm(e.target.value)}
-                                className="w-full pl-9 pr-8 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-800 outline-none focus:border-emerald-500 focus:bg-white transition-all"
+                                style={{ paddingLeft: '2.5rem', paddingRight: '2rem' }}
+                                className="w-full py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-800 outline-none focus:border-emerald-500 focus:bg-white transition-all"
                             />
                             {treeSearchTerm && (
                                 <button
                                     onClick={() => setTreeSearchTerm('')}
-                                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 z-10"
                                 >
                                     <X size={13} />
                                 </button>
@@ -546,18 +547,19 @@ export default function ItemGroupList() {
 
                                 {/* Filter Items Input */}
                                 <div className="relative w-64">
-                                    <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                                    <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none z-10" />
                                     <input
                                         type="text"
                                         placeholder="Filter products..."
                                         value={itemSearchTerm}
                                         onChange={e => setItemSearchTerm(e.target.value)}
-                                        className="w-full pl-9 pr-7 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-800 outline-none focus:border-emerald-500 focus:bg-white transition-all"
+                                        style={{ paddingLeft: '2.5rem', paddingRight: '2rem' }}
+                                        className="w-full py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-800 outline-none focus:border-emerald-500 focus:bg-white transition-all"
                                     />
                                     {itemSearchTerm && (
                                         <button
                                             onClick={() => setItemSearchTerm('')}
-                                            className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400"
+                                            className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 z-10"
                                         >
                                             <X size={12} />
                                         </button>
@@ -614,86 +616,94 @@ export default function ItemGroupList() {
 
             {/* 3. CREATE / EDIT ITEM GROUP MODAL */}
             {showModal && (
-                <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-2xl border border-slate-200 shadow-xl w-full max-w-lg overflow-hidden animate-fadeIn">
-                        <div className="bg-slate-50 px-6 py-4 border-b border-slate-200 flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                                <FolderOpen className="w-5 h-5 text-emerald-600" />
-                                <h3 className="text-sm font-black text-slate-900 uppercase tracking-wider">
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 overflow-y-auto">
+                    <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-lg overflow-hidden animate-fadeIn my-auto flex flex-col">
+                        {/* Modal Header */}
+                        <div className="bg-slate-50 px-6 py-4 border-b border-slate-200 flex items-center justify-between gap-3 shrink-0">
+                            <div className="flex items-center gap-2.5 min-w-0 flex-1 overflow-hidden">
+                                <FolderOpen className="w-5 h-5 text-emerald-600 shrink-0" />
+                                <h3 className="text-sm font-black text-slate-900 uppercase tracking-wider truncate">
                                     {isEditMode ? `Edit Group: ${selectedNodeName}` : 'New Item Group Node'}
                                 </h3>
                             </div>
                             <button
+                                type="button"
                                 onClick={() => setShowModal(false)}
-                                className="p-1 rounded-lg hover:bg-slate-200 text-slate-400 hover:text-slate-600 transition-colors"
+                                className="p-1.5 rounded-lg hover:bg-slate-200 text-slate-400 hover:text-slate-600 transition-colors shrink-0 cursor-pointer"
+                                title="Close Modal"
                             >
                                 <X size={18} />
                             </button>
                         </div>
 
-                        <form onSubmit={handleSaveGroup} className="p-6 flex flex-col gap-4">
-                            <div className="flex flex-col gap-1 text-left">
-                                <label className="text-[11px] font-black text-slate-600 uppercase tracking-wider">
-                                    Item Group Name <span className="text-rose-500">*</span>
-                                </label>
-                                <input
-                                    type="text"
-                                    required
-                                    value={form.item_group_name}
-                                    onChange={e => setForm({ ...form, item_group_name: e.target.value })}
-                                    placeholder="e.g. Beverages, Electronics..."
-                                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-800 outline-none focus:border-emerald-500 focus:bg-white transition-all"
-                                />
+                        {/* Modal Form */}
+                        <form onSubmit={handleSaveGroup} className="flex flex-col m-0 p-0">
+                            <div className="p-6 flex flex-col gap-4">
+                                <div className="flex flex-col gap-1 text-left">
+                                    <label className="text-[11px] font-black text-slate-600 uppercase tracking-wider">
+                                        Item Group Name <span className="text-rose-500">*</span>
+                                    </label>
+                                    <input
+                                        type="text"
+                                        required
+                                        value={form.item_group_name}
+                                        onChange={e => setForm({ ...form, item_group_name: e.target.value })}
+                                        placeholder="e.g. Beverages, Electronics..."
+                                        style={{ paddingLeft: '0.85rem' }}
+                                        className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-800 outline-none focus:border-emerald-500 focus:bg-white transition-all"
+                                    />
+                                </div>
+
+                                <div className="flex flex-col gap-1 text-left">
+                                    <label className="text-[11px] font-black text-slate-600 uppercase tracking-wider">
+                                        Parent Group Node
+                                    </label>
+                                    <select
+                                        value={form.parent_item_group}
+                                        onChange={e => setForm({ ...form, parent_item_group: e.target.value })}
+                                        className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-800 outline-none focus:border-emerald-500 focus:bg-white transition-all"
+                                    >
+                                        <option value="">No Parent (Root Group)</option>
+                                        {groups.filter(g => g.is_group).map(g => (
+                                            <option key={g.name} value={g.name}>{g.item_group_name || g.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                <div className="flex flex-col gap-1 text-left">
+                                    <label className="text-[11px] font-black text-slate-600 uppercase tracking-wider">
+                                        Node Category Type
+                                    </label>
+                                    <select
+                                        value={form.is_group}
+                                        onChange={e => setForm({ ...form, is_group: parseInt(e.target.value) })}
+                                        className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-800 outline-none focus:border-emerald-500 focus:bg-white transition-all"
+                                    >
+                                        <option value={1}>Folder Node (Contains Subgroups)</option>
+                                        <option value={0}>Leaf Node (Contains Items Directly)</option>
+                                    </select>
+                                </div>
+
+                                <div className="flex flex-col gap-1 text-left">
+                                    <label className="text-[11px] font-black text-slate-600 uppercase tracking-wider">
+                                        Description / Internal Notes
+                                    </label>
+                                    <textarea
+                                        rows={3}
+                                        value={form.description}
+                                        onChange={e => setForm({ ...form, description: e.target.value })}
+                                        placeholder="Optional notes or category details..."
+                                        className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold text-slate-800 outline-none focus:border-emerald-500 focus:bg-white transition-all"
+                                    />
+                                </div>
                             </div>
 
-                            <div className="flex flex-col gap-1 text-left">
-                                <label className="text-[11px] font-black text-slate-600 uppercase tracking-wider">
-                                    Parent Group Node
-                                </label>
-                                <select
-                                    value={form.parent_item_group}
-                                    onChange={e => setForm({ ...form, parent_item_group: e.target.value })}
-                                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-800 outline-none focus:border-emerald-500 focus:bg-white transition-all"
-                                >
-                                    <option value="">No Parent (Root Group)</option>
-                                    {groups.filter(g => g.is_group).map(g => (
-                                        <option key={g.name} value={g.name}>{g.item_group_name || g.name}</option>
-                                    ))}
-                                </select>
-                            </div>
-
-                            <div className="flex flex-col gap-1 text-left">
-                                <label className="text-[11px] font-black text-slate-600 uppercase tracking-wider">
-                                    Node Category Type
-                                </label>
-                                <select
-                                    value={form.is_group}
-                                    onChange={e => setForm({ ...form, is_group: parseInt(e.target.value) })}
-                                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-800 outline-none focus:border-emerald-500 focus:bg-white transition-all"
-                                >
-                                    <option value={1}>Folder Node (Contains Subgroups)</option>
-                                    <option value={0}>Leaf Node (Contains Items Directly)</option>
-                                </select>
-                            </div>
-
-                            <div className="flex flex-col gap-1 text-left">
-                                <label className="text-[11px] font-black text-slate-600 uppercase tracking-wider">
-                                    Description / Internal Notes
-                                </label>
-                                <textarea
-                                    rows={3}
-                                    value={form.description}
-                                    onChange={e => setForm({ ...form, description: e.target.value })}
-                                    placeholder="Optional notes or category details..."
-                                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold text-slate-800 outline-none focus:border-emerald-500 focus:bg-white transition-all"
-                                />
-                            </div>
-
-                            <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+                            {/* Modal Dedicated Footer */}
+                            <div className="bg-slate-50 px-6 py-4 border-t border-slate-200 flex items-center justify-end gap-3 shrink-0 rounded-b-2xl">
                                 <button
                                     type="button"
                                     onClick={() => setShowModal(false)}
-                                    className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-black transition-all cursor-pointer"
+                                    className="px-4 py-2 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 rounded-xl text-xs font-black transition-all cursor-pointer shadow-xs"
                                 >
                                     Cancel
                                 </button>
@@ -701,7 +711,7 @@ export default function ItemGroupList() {
                                 <button
                                     type="submit"
                                     disabled={saving}
-                                    className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black shadow-sm transition-all active:scale-95 cursor-pointer disabled:opacity-50"
+                                    className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black shadow-md transition-all active:scale-95 cursor-pointer disabled:opacity-50"
                                 >
                                     {saving ? <Loader2 size={14} className="animate-spin" /> : (isEditMode ? 'Update Node' : 'Create Node')}
                                 </button>
