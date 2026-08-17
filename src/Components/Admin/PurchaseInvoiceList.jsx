@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
   Plus, X, Trash2, Building2, Search, Calendar, Filter, MoreVertical, Package,
-  Warehouse as WarehouseIcon, Percent, DollarSign, Loader2, Barcode, Palette, ChevronLeft, ChevronRight, Zap, CheckCircle2, CheckCircle, AlertTriangle, ExternalLink, Link, Edit2, Settings, Copy, ChevronDown, Printer, Save, Send, FileText, Box, CalendarDays, Hash, Receipt
+  Warehouse as WarehouseIcon, Percent, DollarSign, Loader2, Barcode, Palette, ChevronLeft, ChevronRight, Zap, CheckCircle2, CheckCircle, AlertTriangle, ExternalLink, Link, Edit2, Settings, Copy, ChevronDown, Printer, Save, Send, FileText, Box, CalendarDays, Hash, Receipt, LayoutGrid
 } from 'lucide-react';
 import { useSelector, useDispatch } from 'react-redux';
 import { toggleTheme } from '../../Redux/Slices/userSlice';
@@ -26,18 +26,17 @@ const RESOURCE_BASE = '/api/resource';
 
 const DEFAULT_PI_COLUMNS = [
   { id: 'barcode', label: 'Scan Barcode', visible: true, width: 130 },
-  { id: 'item_code', label: 'Item Code', visible: true, width: 180 },
+  { id: 'item_code', label: 'Item Code', visible: true, width: 140 },
+  { id: 'item_name', label: 'Item Name', visible: true, width: 150 },
   { id: 'uom', label: 'UOM', visible: true, width: 90 },
   { id: 'custom_box_qty', label: 'QTY', visible: true, width: 90 },
-  { id: 'item_name', label: 'Item Name', visible: false, width: 150 },
-  { id: 'custom_ref_sl_no', label: 'Ref / Supplier SL #', visible: true, width: 130 },
+  { id: 'custom_ref_sl_no', label: 'Ref / Supplier SL #', visible: true, width: 120 },
   { id: 'custom_pieces_per_box', label: 'Pcs/Box', visible: true, width: 90 },
   { id: 'custom_box_price', label: 'Box Price', visible: true, width: 90 },
   { id: 'rate', label: 'Rate (Nos)', visible: true, width: 90 },
-  { id: 'custom_selling_price', label: 'Selling Price (Nos)', visible: true, width: 110 },
-  { id: 'custom_box_selling_price', label: 'Selling Price (Box)', visible: true, width: 110 },
-  { id: 'discount_percentage', label: 'Disc %', visible: true, width: 90 },
-  { id: 'discount_amount', label: 'Disc Amt (AED)', visible: true, width: 110 },
+  { id: 'discount_amount', label: 'Disc Amt', visible: true, width: 90 },
+  { id: 'custom_selling_price', label: 'Selling Price (Nos)', visible: true, width: 100 },
+  { id: 'custom_box_selling_price', label: 'Selling Price (Box)', visible: true, width: 100 },
   { id: 'qty', label: 'Total Qty', visible: true, width: 90 },
   { id: 'amount', label: 'Subtotal', visible: true, width: 90 },
   { id: 'last_purchase_rate', label: 'Last Purchase Price', visible: true, width: 110 }
@@ -212,20 +211,33 @@ function PurchaseInvoiceList() {
     }
   };
 
-  const fetchItemsAPI = async (query) => {
-    try {
-      const res = await axios.get(`${LEGACY_API}.get_items_for_pi`, {
-        params: {
-          query: query || undefined,
-          warehouse: !isAdmin ? warehouse : undefined,
-          supplier: formData.supplier || undefined
-        },
-        withCredentials: true
-      });
-      return Array.isArray(res.data.message) ? res.data.message : [];
-    } catch (err) {
-      return [];
+  const handleBulkQtyOpen = () => {
+    const validItems = formData.items.filter(it => it && it.item_code);
+    if (validItems.length === 0) {
+      Swal.fire({ icon: 'warning', title: 'No Items', text: 'Please add items before updating bulk quantity.' });
+      return;
     }
+    const lastItemIdx = formData.items.findLastIndex(it => it && it.item_code);
+    const item = formData.items[lastItemIdx];
+    Swal.fire({
+      title: 'Bulk Quantity',
+      html: `<div style="font-size: 14px; font-weight: 700; color: #475569; margin-bottom: 12px; padding: 10px; background-color: #f1f5f9; border-radius: 8px; border-left: 4px solid #10b981; text-align: left;">
+        ${item.item_name || item.item_code}
+      </div>`,
+      input: 'number',
+      inputPlaceholder: 'Enter quantity...',
+      inputValue: item.use_box_entry ? (item.custom_box_qty || '') : (item.qty || ''),
+      showCancelButton: true,
+      confirmButtonText: 'Update',
+      confirmButtonColor: '#10b981',
+      cancelButtonColor: '#64748b'
+    }).then(result => {
+      if (result.isConfirmed && result.value !== undefined) {
+        const newQty = result.value || '';
+        const field = item.use_box_entry ? 'custom_box_qty' : 'qty';
+        handleItemChange(lastItemIdx, field, newQty);
+      }
+    });
   };
 
   const onGlobalSupplierSearch = async (query) => {
@@ -377,6 +389,10 @@ function PurchaseInvoiceList() {
         const boxQty = parseFloat(i.custom_box_qty || 0);
         const pcsPerBox = parseFloat(i.custom_pieces_per_box || 1);
         const invoiceQty = parseFloat(i.qty) || 0;
+        const grossRate = parseFloat(i.price_list_rate || i.rate || 0);
+        const perUnitDisc = parseFloat(i.discount_amount || 0);
+        const totalRowDisc = parseFloat((perUnitDisc * (invoiceQty > 0 ? invoiceQty : 1)).toFixed(2));
+        const netAmount = Math.max(0, (invoiceQty * grossRate) - totalRowDisc).toFixed(2);
 
         return {
           name: '',
@@ -384,12 +400,15 @@ function PurchaseInvoiceList() {
           item_name: i.item_name || '',
           qty: invoiceQty,
           uom: i.uom || '',
-          rate: parseFloat(i.rate || 0),
-          amount: parseFloat(i.amount || 0),
+          rate: grossRate,
+          amount: parseFloat(i.amount || netAmount || 0),
           custom_box_qty: boxQty,
           custom_pieces_per_box: pcsPerBox,
-          custom_box_price: parseFloat(i.custom_box_price || 0),
+          custom_box_price: parseFloat(i.custom_box_price || (grossRate * pcsPerBox) || 0),
           custom_selling_price: parseFloat(i.custom_selling_price || 0),
+          custom_box_selling_price: parseFloat(i.custom_box_selling_price || 0),
+          discount_amount: totalRowDisc,
+          discount_percentage: parseFloat(i.discount_percentage || 0),
           custom_supplier_sl_num: i.custom_ref_sl_no || i.custom_supplier_sl_num || '',
           custom_ref_sl_no: i.custom_ref_sl_no || i.custom_supplier_sl_num || '',
           purchase_order: i.purchase_order || undefined,
@@ -402,13 +421,36 @@ function PurchaseInvoiceList() {
         };
       });
 
+      let paymentTerms = pr.payment_terms || pr.payment_terms_template || '';
+      let creditDays = 0;
+      if (pr.supplier) {
+        try {
+          const suppRes = await axios.get(`${LEGACY_API}.get_supplier_details`, {
+            params: { supplier_name: pr.supplier },
+            withCredentials: true
+          });
+          if (suppRes.data.message) {
+            paymentTerms = suppRes.data.message.payment_terms || paymentTerms;
+            creditDays = suppRes.data.message.credit_days || 0;
+          }
+        } catch (e) {}
+      }
+      if (!creditDays && paymentTerms) {
+        creditDays = parseCreditDays(paymentTerms);
+      }
+      const postingDate = pr.posting_date || getLocalISODate();
+      const calculatedDueDate = calcDueDate(postingDate, false, creditDays);
+
       setFormData({
         name: '',
         supplier: pr.supplier || '',
         supplier_name: pr.supplier_name || pr.supplier || '',
-        posting_date: pr.posting_date || getLocalISODate(),
-        due_date: '',
-        bill_no: '',
+        payment_terms_template: paymentTerms,
+        credit_days: creditDays,
+        posting_date: postingDate,
+        due_date: calculatedDueDate,
+        bill_no: pr.supplier_delivery_note || '',
+        bill_date: postingDate,
         update_stock: false,
         accepted_warehouse: pr.set_warehouse || '',
         rejected_warehouse: '',
@@ -848,9 +890,15 @@ function PurchaseInvoiceList() {
         params: { query: query || undefined, warehouse: !isAdmin ? warehouse : undefined },
         withCredentials: true
       });
-      setItemsList(Array.isArray(res.data.message) ? res.data.message : []);
-    } catch (err) { setItemsList([]); }
+      const data = Array.isArray(res.data.message) ? res.data.message : [];
+      setItemsList(data);
+      return data;
+    } catch (err) {
+      setItemsList([]);
+      return [];
+    }
   };
+  const fetchItemsAPI = fetchItems;
 
   const fetchItemRate = async (itemCode, rowIndex) => {
     try {
@@ -1918,12 +1966,10 @@ function PurchaseInvoiceList() {
         .map(i => {
           const isBox = (i.uom || '').toLowerCase() === 'box' || !!i.use_box_entry;
           const itemQty = parseFloat(i.qty) || 1;
-          const grossRate = (i.uom || '').toLowerCase() === 'box' || !!i.use_box_entry
-            ? (parseFloat(i.custom_box_price || 0) / (parseFloat(i.custom_pieces_per_box) || 1))
-            : parseFloat(i.rate || 0);
+          const grossRate = parseFloat(i.rate || 0);
           const totalDiscAmt = parseFloat(i.discount_amount || 0);
           const perUnitDiscAmt = itemQty > 0 ? (totalDiscAmt / itemQty) : 0;
-          const netRate = Math.max(0, grossRate - perUnitDiscAmt);
+          const netRate = parseFloat(i.rate || 0);
           const itemStockUom = i.stock_uom || 'Nos';
           const selectedUom = i.uom || itemStockUom;
           const pcsPerBox = parseFloat(i.custom_pieces_per_box) || 1;
@@ -1936,10 +1982,10 @@ function PurchaseInvoiceList() {
             uom: selectedUom,
             stock_uom: itemStockUom,
             conversion_factor: selectedUom.toLowerCase() === 'box' ? pcsPerBox : 1,
-            rate: netRate,
+            rate: grossRate,
             price_list_rate: grossRate,
             discount_percentage: parseFloat(i.discount_percentage || 0),
-            discount_amount: perUnitDiscAmt,
+            discount_amount: totalDiscAmt,
             custom_box_qty: isBox ? parseFloat(i.custom_box_qty || 0) : parseFloat(i.qty),
             custom_pieces_per_box: isBox ? pcsPerBox : 1,
             custom_box_price: parseFloat(i.custom_box_price || 0),
@@ -2005,7 +2051,14 @@ function PurchaseInvoiceList() {
           data: { ...payload, name: docName }
         }, { withCredentials: true });
         await fetchPurchaseInvoice(docName);
-        alert(`Draft updated: ${docName}`);
+        Swal.fire({
+          icon: 'success',
+          title: `Draft updated: ${docName}`,
+          toast: true,
+          position: 'top-end',
+          timer: 2000,
+          showConfirmButton: false
+        });
       } else {
         // New → CREATE (POST) using create_generic_doc
         response = await axios.post(GENERIC_API, {
@@ -2018,7 +2071,14 @@ function PurchaseInvoiceList() {
           setDocName(targetDocName);
           setSearchParams({ name: targetDocName });
           await fetchPurchaseInvoice(targetDocName);
-          alert(`Draft saved: ${targetDocName}`);
+          Swal.fire({
+            icon: 'success',
+            title: `Draft saved: ${targetDocName}`,
+            toast: true,
+            position: 'top-end',
+            timer: 2000,
+            showConfirmButton: false
+          });
         } else {
           throw new Error('Failed to create draft');
         }
@@ -3510,38 +3570,7 @@ function PurchaseInvoiceList() {
                     <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">Alt+D</span>
                   </button>
 
-                  {/* ADD ROW / CREATE DEBIT NOTE (If Submitted) */}
-                  {formData.docstatus === 1 ? (
-                    <button
-                      type="button"
-                      onClick={() => handleCreateReturn()}
-                      disabled={saving}
-                      className="h-full bg-[#e11d48] hover:bg-[#be123c] text-white border-2 border-[#e11d48] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer"
-                      style={{ borderRadius: '8px' }}
-                    >
-                      <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
-                        <Link size={14} />
-                        <span>DEBIT NOTE</span>
-                      </div>
-                      <span className="inline-flex items-center justify-center font-mono text-[10px] font-black px-1.5 py-0.5 rounded bg-white/20 text-white">+Ret</span>
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={addItemRow}
-                      disabled={formData.docstatus !== 0 && formData.docstatus !== undefined}
-                      className="h-full bg-[#0284c7] hover:bg-[#0369a1] text-white border-2 border-[#0284c7] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-40"
-                      style={{ borderRadius: '8px' }}
-                    >
-                      <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
-                        <Plus size={15} />
-                        <span>ADD ROW</span>
-                      </div>
-                      <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">Alt+A</span>
-                    </button>
-                  )}
-
-                  {/* BULK QTY / CREATE PAYMENT ENTRY (If Submitted) */}
+                  {/* Slot 6: ADD ROW (Draft) / CREATE PAYMENT ENTRY (If Submitted) */}
                   {formData.docstatus === 1 ? (
                     <button
                       type="button"
@@ -3559,55 +3588,53 @@ function PurchaseInvoiceList() {
                   ) : (
                     <button
                       type="button"
+                      onClick={addItemRow}
                       disabled={formData.docstatus !== 0 && formData.docstatus !== undefined}
-                      onClick={() => {
-                        if (formData.items.length > 0) {
-                          const firstIdx = formData.items.findIndex(it => it.item_code);
-                          if (firstIdx !== -1) {
-                            handleUOMChange(formData.items[firstIdx].use_box_entry ? 'Nos' : 'Box', firstIdx);
-                          }
-                        }
-                      }}
-                      className="h-full bg-[#475569] hover:bg-[#334155] text-white border-2 border-[#475569] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-40"
+                      className="h-full bg-[#0284c7] hover:bg-[#0369a1] text-white border-2 border-[#0284c7] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-40"
                       style={{ borderRadius: '8px' }}
                     >
                       <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
-                        <Package size={15} />
-                        <span>BULK QTY</span>
+                        <Plus size={15} />
+                        <span>ADD ROW</span>
                       </div>
-                      <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">F6</span>
+                      <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">Alt+A</span>
                     </button>
                   )}
+                  {/* Slot 7: BULK QTY */}
+                  <button
+                    type="button"
+                    onClick={handleBulkQtyOpen}
+                    disabled={formData.docstatus !== 0 && formData.docstatus !== undefined}
+                    className="h-full bg-[#8b5cf6] hover:bg-[#7c3aed] text-white border-2 border-[#8b5cf6] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-40"
+                    style={{ borderRadius: '8px' }}
+                  >
+                    <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
+                      <LayoutGrid size={15} />
+                      <span>BULK QTY</span>
+                    </div>
+                    <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">F6</span>
+                  </button>
 
-                  {/* DELETE / CLOSE */}
-                  {formData.docstatus === 0 && docName ? (
-                    <button
-                      type="button"
-                      onClick={() => handleDocAction('delete')}
-                      disabled={saving}
-                      className="h-full bg-[#dc2626] hover:bg-[#b91c1c] text-white border-2 border-[#dc2626] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer"
-                      style={{ borderRadius: '8px' }}
-                    >
-                      <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
-                        <Trash2 size={15} />
-                        <span>DELETE</span>
-                      </div>
-                      <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">Del</span>
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => setIsModalOpen(false)}
-                      className="h-full bg-[#64748b] hover:bg-[#475569] text-white border-2 border-[#64748b] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer"
-                      style={{ borderRadius: '8px' }}
-                    >
-                      <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
-                        <X size={15} />
-                        <span>CLOSE</span>
-                      </div>
-                      <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">Esc</span>
-                    </button>
-                  )}
+                  {/* Slot 8: CLOSE / EXIT */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (docName && (isEditMode || isViewMode)) {
+                        setIsModalOpen(false);
+                        setSearchParams({});
+                      } else {
+                        navigate('/homepage');
+                      }
+                    }}
+                    className="h-full bg-slate-700 hover:bg-slate-800 text-white border-2 border-slate-700 rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer"
+                    style={{ borderRadius: '8px' }}
+                  >
+                    <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
+                      <ChevronLeft size={15} />
+                      <span>EXIT</span>
+                    </div>
+                    <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">Esc</span>
+                  </button>
                 </div>
               </div>
 

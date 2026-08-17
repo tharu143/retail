@@ -6,7 +6,6 @@ import {
     ChevronDown, DollarSign, TrendingUp, TrendingDown, ClipboardList, ChevronLeft, ExternalLink, Settings
 } from 'lucide-react';
 import CustomSearchDropdown from '../Purchase/CustomSearchDropdown';
-import { useLegacyTheme } from '../../hooks/useLegacyTheme';
 import DirhamIcon from '../../assets/Currency/DirhamIcon';
 import { authFetchBase } from '../../utils/authFetch';
 import ColumnConfigModal from '../Purchase/ColumnConfigModal';
@@ -27,14 +26,14 @@ const getVoucherUrl = (voucherType, voucherNo) => {
 };
 
 const DEFAULT_GL_COLUMNS = [
-  { id: 'posting_date', label: 'Posting Date', visible: true, width: 120 },
-  { id: 'voucher_type', label: 'Voucher Type', visible: true, width: 130 },
-  { id: 'voucher_no', label: 'Voucher No', visible: true, width: 150 },
-  { id: 'against', label: 'Against Account', visible: true, width: 180 },
-  { id: 'debit', label: 'Debit', visible: true, width: 110 },
-  { id: 'credit', label: 'Credit', visible: true, width: 110 },
-  { id: 'balance', label: 'Balance', visible: true, width: 120 },
-  { id: 'remarks', label: 'Remarks', visible: true, width: 220 }
+  { id: 'posting_date', label: 'Posting Date', visible: true, width: '120px' },
+  { id: 'voucher_type', label: 'Voucher Type', visible: true, width: '140px' },
+  { id: 'voucher_no', label: 'Voucher No', visible: true, width: '160px' },
+  { id: 'against', label: 'Against Account', visible: true, width: '180px' },
+  { id: 'debit', label: 'Debit', visible: true, width: '120px' },
+  { id: 'credit', label: 'Credit', visible: true, width: '120px' },
+  { id: 'balance', label: 'Balance', visible: true, width: '130px' },
+  { id: 'remarks', label: 'Remarks', visible: true, width: '220px' }
 ];
 
 function GeneralLedgerReport() {
@@ -46,9 +45,6 @@ function GeneralLedgerReport() {
   const [success, setSuccess] = useState('');
   const [columnConfig, setColumnConfig] = useState([]);
   const [showConfigModal, setShowConfigModal] = useState(false);
-
-  // Theme Hook
-  const { legacySubTheme, themeColor, toggleTheme } = useLegacyTheme();
 
   // Date helpers
   const getTodayDate = () => new Date().toISOString().split('T')[0];
@@ -92,15 +88,15 @@ function GeneralLedgerReport() {
     }
     fetchReport(initialFilters);
 
-    // Column Config initialization
+    // Column Config initialization - normalizes visible & show fields
     const savedConfigStr = localStorage.getItem('general_ledger_columns');
     const savedConfig = savedConfigStr ? JSON.parse(savedConfigStr) : null;
     
     let defaultCols = DEFAULT_GL_COLUMNS.map(c => ({
       id: c.id,
       label: c.label,
-      show: c.visible,
-      width: c.width + 'px',
+      visible: true,
+      width: c.width,
       align: ['debit', 'credit', 'balance'].includes(c.id) ? 'right' : 'left',
       original: c
     }));
@@ -110,7 +106,13 @@ function GeneralLedgerReport() {
       savedConfig.forEach(sc => configMap[sc.id] = sc);
       defaultCols = defaultCols.map(mc => {
         if (configMap[mc.id]) {
-          return { ...mc, show: configMap[mc.id].show, width: configMap[mc.id].width, align: configMap[mc.id].align };
+          const isVis = configMap[mc.id].visible !== undefined ? configMap[mc.id].visible : (configMap[mc.id].show !== undefined ? configMap[mc.id].show : true);
+          return { 
+            ...mc, 
+            visible: isVis,
+            width: configMap[mc.id].width || mc.width, 
+            align: configMap[mc.id].align || mc.align 
+          };
         }
         return mc;
       });
@@ -185,16 +187,21 @@ function GeneralLedgerReport() {
       const defaultCols = DEFAULT_GL_COLUMNS.map(c => ({
         id: c.id,
         label: c.label,
-        visible: c.visible,
-        width: c.width + 'px',
+        visible: true,
+        width: c.width,
         align: ['debit', 'credit', 'balance'].includes(c.id) ? 'right' : 'left',
         original: c
       }));
       setColumnConfig(defaultCols);
       return;
     }
-    setColumnConfig(newConfig);
-    localStorage.setItem('general_ledger_columns', JSON.stringify(newConfig));
+    // Normalize visible property
+    const normalized = newConfig.map(col => ({
+      ...col,
+      visible: col.visible !== undefined ? col.visible : (col.show !== undefined ? col.show : true)
+    }));
+    setColumnConfig(normalized);
+    localStorage.setItem('general_ledger_columns', JSON.stringify(normalized));
   };
 
   // Search Customers/Suppliers dynamically from backend API
@@ -211,7 +218,6 @@ function GeneralLedgerReport() {
       
       return list.map(item => ({
         name: item.name,
-        // CustomSearchDropdown displays matching optionsLabel
         label: filters.party_type === 'Customer' ? item.customer_name : item.supplier_name,
         customer_name: item.customer_name,
         supplier_name: item.supplier_name
@@ -230,7 +236,7 @@ function GeneralLedgerReport() {
   // CSV Export
   const exportCSV = () => {
     if (data.length === 0) return;
-    const activeCols = columnConfig.filter(c => c.show);
+    const activeCols = columnConfig.filter(c => c.visible !== false);
     const headers = activeCols.map(col => `"${col.label.replace(/"/g, '""')}"`).join(',');
     const rows = data.map(row => {
       return activeCols.map(col => {
@@ -275,322 +281,387 @@ function GeneralLedgerReport() {
       return (
         <span
           onClick={() => navigate(url)}
-          style={{
-            color: themeColor,
-            fontWeight: 700,
-            cursor: 'pointer',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '4px',
-            transition: 'all 0.15s ease'
-          }}
-          onMouseEnter={(e) => { e.currentTarget.style.textDecoration = 'underline'; e.currentTarget.style.opacity = '0.85'; }}
-          onMouseLeave={(e) => { e.currentTarget.style.textDecoration = 'none'; e.currentTarget.style.opacity = '1'; }}
+          className="glr-doc-link"
         >
           {row.voucher_no}
-          <ExternalLink size={11} style={{ opacity: 0.5, flexShrink: 0 }} />
+          <ExternalLink size={12} color="#10b981" />
         </span>
       );
     }
     return row.voucher_no;
   };
 
+  const visibleColumns = columnConfig.filter(c => c.visible !== false);
+
   return (
-    <div className="so-page general-ledger-report-container">
-      <style dangerouslySetInnerHTML={{__html: `
-        .so-filter-bar .so-filter-input {
-          padding-left: 2.5rem !important;
-        }
-      `}} />
+    <div className="glr-container">
       
-      {/* 1. PREMIUM HEADER */}
-      <div className="so-page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
-          <button onClick={handleBackClick} className="px-3.5 py-2 bg-white text-gray-500 rounded-lg hover:bg-gray-100 transition-all border border-gray-200 flex items-center gap-1.5 shadow-sm">
+      {/* 1. Header */}
+      <header className="glr-header no-print">
+        <div className="glr-header-title-box">
+          <button onClick={handleBackClick} className="glr-btn-back">
             <ChevronLeft size={16} />
-            <span className="text-[10px] font-black uppercase tracking-widest">Back</span>
+            <span>Back</span>
           </button>
+          <div className="glr-icon-badge">
+            <FileText size={24} className="stroke-[2.5]" />
+          </div>
           <div>
-            <h1 className="so-page-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0, fontSize: '1.5rem', fontWeight: 800 }}>
-              <FileText size={22} style={{ color: themeColor }} />
-              General Ledger Report
-            </h1>
-            <p className="so-page-subtitle" style={{ margin: '0.25rem 0 0 0', fontSize: '0.8rem', color: '#64748b' }}>
-              Chronological listing of account debit and credit logs
-            </p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <h1 className="glr-title">General Ledger Report</h1>
+              <span className="glr-tag">Audit Ledger</span>
+            </div>
+            <p className="glr-subtitle">Chronological listing of account debit, credit, and running balance logs</p>
           </div>
         </div>
-        
-        <div className="header-actions">
-          <button onClick={toggleTheme} className="theme-toggle-btn" style={{ borderColor: themeColor, color: themeColor }}>
-            {legacySubTheme.toUpperCase()} THEME
+
+        <div className="glr-actions">
+          <button onClick={() => window.print()} className="glr-btn-secondary">
+            <Printer size={15} /> 
+            <span>Print</span>
           </button>
-          <div className="action-divider"></div>
-          <button className="so-btn-secondary" onClick={() => window.print()} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1', background: 'white', fontSize: '0.75rem', fontWeight: 800, cursor: 'pointer' }}>
-             <Printer size={16} /> Print
-          </button>
-          <button className="so-btn-primary" onClick={exportCSV} disabled={data.length === 0} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1.25rem', borderRadius: '0.5rem', border: 'none', background: themeColor, color: 'white', fontSize: '0.75rem', fontWeight: 800, cursor: 'pointer', opacity: data.length === 0 ? 0.6 : 1 }}>
-             <Download size={16} /> Export CSV
+          <button onClick={exportCSV} disabled={data.length === 0} className="glr-btn-primary">
+            <Download size={15} /> 
+            <span>Export CSV</span>
           </button>
           <button 
-            className="so-btn-secondary" 
-            style={{ height: '38px', padding: '0 0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '0.5rem', border: '1px solid #cbd5e1', background: 'white', cursor: 'pointer' }}
+            className="glr-btn-icon" 
             onClick={() => setShowConfigModal(true)}
             title="Configure Columns"
           >
-             <Settings size={16} style={{ color: themeColor }} />
+            <Settings size={18} />
           </button>
+          <button 
+            onClick={() => fetchReport(filters)}
+            disabled={loading}
+            className="glr-btn-icon"
+            title="Refresh Data"
+          >
+            <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
+          </button>
+        </div>
+      </header>
+
+      {/* Print Only Header */}
+      <div className="hidden print:block border-b-2 border-slate-900 pb-4 mb-6 p-8">
+        <div className="flex justify-between items-start">
+          <div>
+            <h1 className="text-2xl font-black text-slate-900 tracking-tight">General Ledger Report</h1>
+            <p className="text-xs text-slate-600 mt-1">Party: {filters.party || 'All'} ({filters.party_type})</p>
+          </div>
+          <div className="text-right text-xs font-bold text-slate-700">
+            <div><b>Period:</b> {filters.from_date} to {filters.to_date}</div>
+            <div><b>Closing Balance:</b> AED {finalBalance.toFixed(2)}</div>
+          </div>
         </div>
       </div>
 
-      <div className="so-layout">
+      <main className="glr-main-body">
         
-        {/* 2. SUMMARY METRIC CARDS */}
-        <div className="metrics-grid">
-          <div className="metric-card opening">
-            <div className="metric-icon-box" style={{ background: '#64748b15', color: '#64748b' }}>
-              <ClipboardList size={22} />
+        {/* 2. KPI Summary Metric Cards */}
+        <div className="glr-kpi-grid">
+          <div className="glr-kpi-card slate">
+            <div className="glr-kpi-header">
+              <span className="glr-kpi-title">Transactions</span>
+              <div className="glr-kpi-icon-pill">
+                <ClipboardList size={16} />
+              </div>
             </div>
-            <div className="metric-info">
-              <h3>Transactions</h3>
-              <p className="metric-value">{data.length}</p>
-              <span className="metric-sub">Ledger Records Count</span>
-            </div>
-          </div>
-
-          <div className="metric-card debit">
-            <div className="metric-icon-box" style={{ background: '#3b82f615', color: '#3b82f6' }}>
-              <TrendingUp size={22} />
-            </div>
-            <div className="metric-info">
-              <h3 className="flex items-center gap-1">Total Debit</h3>
-              <p className="metric-value"><DirhamIcon size={16} /> {totalDebit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-              <span className="metric-sub">Accumulated Period Debits</span>
+            <div>
+              <div className="glr-kpi-value">
+                <span>{data.length}</span>
+              </div>
+              <div className="glr-kpi-subtext">
+                Ledger Records Count
+              </div>
             </div>
           </div>
 
-          <div className="metric-card credit">
-            <div className="metric-icon-box" style={{ background: '#ef444415', color: '#ef4444' }}>
-              <TrendingDown size={22} />
+          <div className="glr-kpi-card blue">
+            <div className="glr-kpi-header">
+              <span className="glr-kpi-title">Total Debit</span>
+              <div className="glr-kpi-icon-pill">
+                <TrendingUp size={16} />
+              </div>
             </div>
-            <div className="metric-info">
-              <h3>Total Credit</h3>
-              <p className="metric-value"><DirhamIcon size={16} /> {totalCredit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-              <span className="metric-sub">Accumulated Period Credits</span>
+            <div>
+              <div className="glr-kpi-value">
+                <DirhamIcon size={18} />
+                <span>{totalDebit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+              </div>
+              <div className="glr-kpi-subtext" style={{ color: '#2563eb' }}>
+                Accumulated Period Debits
+              </div>
             </div>
           </div>
 
-          <div className="metric-card closing">
-            <div className="metric-icon-box" style={{ background: '#10b98115', color: '#10b981' }}>
-              <DollarSign size={22} />
+          <div className="glr-kpi-card red">
+            <div className="glr-kpi-header">
+              <span className="glr-kpi-title">Total Credit</span>
+              <div className="glr-kpi-icon-pill">
+                <TrendingDown size={16} />
+              </div>
             </div>
-            <div className="metric-info">
-              <h3>Net Balance Change</h3>
-              <p className="metric-value"><DirhamIcon size={16} /> {finalBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-              <span className="metric-sub">Period Closing Balance Change</span>
+            <div>
+              <div className="glr-kpi-value">
+                <DirhamIcon size={18} />
+                <span>{totalCredit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+              </div>
+              <div className="glr-kpi-subtext" style={{ color: '#dc2626' }}>
+                Accumulated Period Credits
+              </div>
+            </div>
+          </div>
+
+          <div className="glr-kpi-card emerald">
+            <div className="glr-kpi-header">
+              <span className="glr-kpi-title">Net Balance Change</span>
+              <div className="glr-kpi-icon-pill">
+                <DollarSign size={16} />
+              </div>
+            </div>
+            <div>
+              <div className="glr-kpi-value">
+                <DirhamIcon size={18} />
+                <span>{finalBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+              </div>
+              <div className="glr-kpi-subtext" style={{ color: '#059669' }}>
+                Period Closing Balance Change
+              </div>
             </div>
           </div>
         </div>
 
-        {/* 3. DYNAMIC HORIZONTAL FILTERS */}
-        <div className="so-filter-bar filters-wrapper">
-          <div className="filter-input-field flex-2">
-            <label className="so-filter-label" style={{ fontSize: '0.675rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', marginBottom: '0.25rem' }}>From Date</label>
-            <div className="so-relative" style={{ position: 'relative' }}>
-               <Calendar size={14} className="input-icon" style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: themeColor, zIndex: 10 }} />
-               <input 
-                 type="date" 
-                 className="so-filter-input" 
-                 style={{ width: '100%', paddingLeft: '2.25rem', height: '38px', border: '1px solid #cbd5e1', borderRadius: '0.5rem', outline: 'none', fontSize: '0.75rem', fontWeight: 700 }}
-                 value={filters.from_date}
-                 onChange={(e) => handleFilterUpdate('from_date', e.target.value)}
-                 onFocus={(e) => { try { e.target.showPicker(); } catch(err) {} }}
-                 onClick={(e) => { try { e.target.showPicker(); } catch(err) {} }}
-               />
+        {/* 3. Filters Bar */}
+        <div className="glr-filter-card no-print">
+          <div className="glr-filter-inputs">
+            {/* From Date */}
+            <div className="glr-field-block">
+              <label className="glr-label">
+                <Calendar size={12} color="#059669" />
+                From Date
+              </label>
+              <input 
+                type="date" 
+                className="glr-input" 
+                value={filters.from_date}
+                onChange={(e) => handleFilterUpdate('from_date', e.target.value)}
+                onFocus={(e) => { try { e.target.showPicker(); } catch(err) {} }}
+                onClick={(e) => { try { e.target.showPicker(); } catch(err) {} }}
+              />
             </div>
-          </div>
-          
-          <div className="filter-input-field flex-2">
-            <label className="so-filter-label" style={{ fontSize: '0.675rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', marginBottom: '0.25rem' }}>To Date</label>
-            <div className="so-relative" style={{ position: 'relative' }}>
-               <Calendar size={14} className="input-icon" style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: themeColor, zIndex: 10 }} />
-               <input 
-                 type="date" 
-                 className="so-filter-input" 
-                 style={{ width: '100%', paddingLeft: '2.25rem', height: '38px', border: '1px solid #cbd5e1', borderRadius: '0.5rem', outline: 'none', fontSize: '0.75rem', fontWeight: 700 }}
-                 value={filters.to_date}
-                 onChange={(e) => handleFilterUpdate('to_date', e.target.value)}
-                 onFocus={(e) => { try { e.target.showPicker(); } catch(err) {} }}
-                 onClick={(e) => { try { e.target.showPicker(); } catch(err) {} }}
-               />
+            
+            {/* To Date */}
+            <div className="glr-field-block">
+              <label className="glr-label">
+                <Calendar size={12} color="#059669" />
+                To Date
+              </label>
+              <input 
+                type="date" 
+                className="glr-input" 
+                value={filters.to_date}
+                onChange={(e) => handleFilterUpdate('to_date', e.target.value)}
+                onFocus={(e) => { try { e.target.showPicker(); } catch(err) {} }}
+                onClick={(e) => { try { e.target.showPicker(); } catch(err) {} }}
+              />
             </div>
-          </div>
 
-          <div className="filter-input-field flex-2">
-            <label className="so-filter-label" style={{ fontSize: '0.675rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', marginBottom: '0.25rem' }}>Party Type</label>
-            <div className="so-relative" style={{ position: 'relative' }}>
-              <select
-                className="so-filter-select"
-                style={{ width: '100%', height: '38px', border: '1px solid #cbd5e1', borderRadius: '0.5rem', outline: 'none', fontSize: '0.75rem', fontWeight: 700, paddingLeft: '0.75rem', appearance: 'none', WebkitAppearance: 'none' }}
-                value={filters.party_type}
-                onChange={(e) => handleFilterUpdate('party_type', e.target.value)}
-              >
-                <option value="Customer">Customer</option>
-                <option value="Supplier">Supplier</option>
-              </select>
-              <ChevronDown size={14} className="select-arrow" style={{ position: 'absolute', right: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: '#64748b', pointerEvents: 'none' }} />
+            {/* Party Type */}
+            <div className="glr-field-block" style={{ flex: '0.8 1 150px' }}>
+              <label className="glr-label">Party Type</label>
+              <div style={{ position: 'relative' }}>
+                <select
+                  className="glr-select"
+                  value={filters.party_type}
+                  onChange={(e) => handleFilterUpdate('party_type', e.target.value)}
+                  style={{ paddingRight: '2rem' }}
+                >
+                  <option value="Customer">Customer</option>
+                  <option value="Supplier">Supplier</option>
+                </select>
+                <ChevronDown size={14} style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: '#64748b' }} />
+              </div>
             </div>
-          </div>
 
-          <div className="filter-input-field flex-3 dropdown-search-container">
-            <label className="so-filter-label" style={{ fontSize: '0.675rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', marginBottom: '0.25rem' }}>
-              Target {filters.party_type}
-            </label>
-            <CustomSearchDropdown
-              placeholder={`Select ${filters.party_type}...`}
-              value={selectedPartyObj}
-              onSelect={(item) => {
-                setSelectedPartyObj(item);
-                handleFilterUpdate('party', item ? item.name : '');
-              }}
-              fetchData={fetchPartiesAPI}
-              optionsLabel="label"
-              themeColor={themeColor}
-            />
+            {/* Target Party Dropdown */}
+            <div className="glr-field-block" style={{ flex: '1.5 1 250px' }}>
+              <label className="glr-label">Target {filters.party_type}</label>
+              <CustomSearchDropdown
+                placeholder={`Search & select ${filters.party_type}...`}
+                value={selectedPartyObj}
+                onSelect={(item) => {
+                  setSelectedPartyObj(item);
+                  handleFilterUpdate('party', item ? item.name : '');
+                }}
+                fetchData={fetchPartiesAPI}
+                optionsLabel="label"
+                themeColor="#10b981"
+              />
+            </div>
           </div>
 
           <button 
-             className="so-clear-btn" 
-             style={{ height: '38px', padding: '0 1.5rem', border: '1px solid #cbd5e1', borderRadius: '0.5rem', background: '#f8fafc', color: '#64748b', fontSize: '0.75rem', fontWeight: 800, cursor: 'pointer', transition: 'all 0.2s' }}
-             onClick={() => {
-               const reset = { 
-                 from_date: getDate30DaysAgo(), 
-                 to_date: getTodayDate(), 
-                 party_type: 'Customer',
-                 party: ''
-               };
-               setSelectedPartyObj(null);
-               setFilters(reset);
-               setSearchParams(reset);
-             }}
+            className="glr-btn-reset"
+            onClick={() => {
+              const reset = { 
+                from_date: getDate30DaysAgo(), 
+                to_date: getTodayDate(), 
+                party_type: 'Customer',
+                party: ''
+              };
+              setSelectedPartyObj(null);
+              setFilters(reset);
+              setSearchParams(reset);
+            }}
           >
             Reset
           </button>
         </div>
 
-        {/* 4. CONTENT VIEWPORT */}
-        <main className="so-content stock-table-viewport">
-          {error && (
-            <div className="report-error-banner" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '1rem', background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: '0.75rem', color: '#b91c1c', fontSize: '0.8rem', fontWeight: 600, marginBottom: '1rem' }}>
-               <AlertCircle size={18} /> {error}
-            </div>
-          )}
+        {/* Error Notification */}
+        {error && (
+          <div style={{ padding: '1rem 1.25rem', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '10px', color: '#b91c1c', fontSize: '0.85rem', fontWeight: 'bold' }}>
+            <AlertCircle size={18} color="#ef4444" style={{ flexShrink: 0 }} />
+            <span>{error}</span>
+          </div>
+        )}
 
-          <div className="results-header">
-            <p className="so-list-meta" style={{ margin: 0, fontSize: '0.75rem', fontWeight: 700, color: '#64748b', uppercase: true }}>
-              Found <b>{data.length}</b> entries
-            </p>
-            {loading && (
-              <div className="loading-indicator" style={{ color: themeColor }}>
-                <Loader2 size={16} className="animate-spin" /> COMPILING GENERAL LEDGER...
-              </div>
-            )}
+        {/* 4. Table Card */}
+        <div className="glr-table-card">
+          <div className="glr-table-header">
+            <h3 className="glr-table-heading">
+              <FileText size={18} color="#10b981" />
+              <span>General Ledger Transactions</span>
+            </h3>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', fontSize: '0.8rem', fontWeight: 700, color: '#64748b' }}>
+              <span>Found <b>{data.length}</b> entries</span>
+              {loading && (
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#10b981' }}>
+                  <RefreshCw size={14} className="animate-spin" /> Compiling...
+                </span>
+              )}
+            </div>
           </div>
 
-          <div className="so-table-card table-outer-box">
-            <div className="so-table-wrapper scrollable-table-area" style={{ overflowX: 'auto' }}>
-              <table className="so-table premium-stock-table" style={{ tableLayout: 'fixed', minWidth: '100%', width: 'max-content' }}>
-                <thead>
+          <div className="glr-table-wrapper">
+            <table className="glr-table">
+              <thead>
+                <tr>
+                  {visibleColumns.map(col => (
+                    <th 
+                      key={col.id} 
+                      style={{ 
+                        width: col.width, 
+                        minWidth: col.width,
+                        textAlign: col.align
+                      }}
+                    >
+                      {col.label}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {loading && data.length === 0 ? (
                   <tr>
-                    {columnConfig.filter(c => c.visible).map(col => (
-                      <th 
-                        key={col.id} 
-                        style={{ 
-                          width: col.width, 
-                          minWidth: col.width,
-                          maxWidth: col.width,
-                          textAlign: col.align
-                        }}
-                      >
-                        {col.label}
-                      </th>
-                    ))}
+                    <td colSpan={visibleColumns.length || 1} style={{ padding: '5rem 0', textAlign: 'center' }}>
+                      <Loader2 size={32} color="#10b981" className="animate-spin" style={{ margin: '0 auto' }} />
+                      <p style={{ marginTop: '0.75rem', fontWeight: 800, color: '#94a3b8', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Compiling General Ledger...</p>
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {data.length === 0 ? (
-                    <tr>
-                      <td colSpan={columnConfig.filter(c => c.visible).length} style={{ textAlign: 'center', padding: '3rem', color: '#94a3b8', fontSize: '0.85rem' }}>
-                        {filters.party ? 'No ledger entries found for the selected criteria.' : 'Please select a Customer or Supplier to view their ledger.'}
-                      </td>
-                    </tr>
-                  ) : (
-                    data.map((row, idx) => (
-                      <tr key={row.name || idx} className="hover:bg-slate-50/50 transition-colors">
-                        {columnConfig.filter(c => c.visible).map(col => {
-                          let cellValue = row[col.id];
-                          if (['debit', 'credit', 'balance'].includes(col.id)) {
-                            cellValue = cellValue !== undefined ? parseFloat(cellValue).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-';
-                          }
+                ) : data.length === 0 ? (
+                  <tr>
+                    <td colSpan={visibleColumns.length || 1} style={{ padding: '5rem 0', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem', fontWeight: 600 }}>
+                      {filters.party ? 'No ledger entries found for the selected criteria.' : 'Please select a Customer or Supplier to view their ledger.'}
+                    </td>
+                  </tr>
+                ) : (
+                  data.map((row, idx) => (
+                    <tr key={row.name || idx}>
+                      {visibleColumns.map(col => {
+                        let cellValue = row[col.id];
+                        if (['debit', 'credit', 'balance'].includes(col.id)) {
+                          cellValue = cellValue !== undefined && cellValue !== null ? parseFloat(cellValue).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-';
+                        }
 
-                          // Render voucher_no as clickable link
-                          if (col.id === 'voucher_no') {
-                            return (
-                              <td 
-                                key={col.id}
-                                style={{ 
-                                  textAlign: col.align,
-                                  fontFamily: 'monospace',
-                                  width: col.width, 
-                                  minWidth: col.width,
-                                  maxWidth: col.width
-                                }}
-                              >
-                                {renderVoucherNoCell(row)}
-                              </td>
-                            );
-                          }
-
+                        // Render voucher_no as clickable link
+                        if (col.id === 'voucher_no') {
                           return (
                             <td 
                               key={col.id}
                               style={{ 
                                 textAlign: col.align,
-                                fontFamily: ['debit', 'credit', 'balance', 'posting_date', 'voucher_no'].includes(col.id) ? 'monospace' : 'inherit',
-                                fontWeight: col.id === 'balance' ? 700 : 'inherit',
                                 width: col.width, 
-                                minWidth: col.width,
-                                maxWidth: col.width,
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                                whiteSpace: 'nowrap'
+                                minWidth: col.width
                               }}
-                              title={String(col.id === 'debit' && parseFloat(row.debit) === 0 ? '-' : col.id === 'credit' && parseFloat(row.credit) === 0 ? '-' : cellValue)}
                             >
-                              {col.id === 'debit' && parseFloat(row.debit) === 0 ? '-' :
-                               col.id === 'credit' && parseFloat(row.credit) === 0 ? '-' :
-                               cellValue}
+                              {renderVoucherNoCell(row)}
                             </td>
                           );
-                        })}
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </main>
+                        }
 
-      </div>
-      
+                        return (
+                          <td 
+                            key={col.id}
+                            style={{ 
+                              textAlign: col.align,
+                              fontFamily: ['debit', 'credit', 'balance', 'posting_date', 'voucher_no'].includes(col.id) ? 'ui-monospace, monospace' : 'inherit',
+                              fontWeight: col.id === 'balance' ? 800 : 'inherit',
+                              color: col.id === 'balance' ? '#0f172a' : (col.id === 'debit' ? '#1d4ed8' : (col.id === 'credit' ? '#b91c1c' : '#334155')),
+                              width: col.width, 
+                              minWidth: col.width,
+                              maxWidth: col.width,
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap'
+                            }}
+                            title={String(col.id === 'debit' && parseFloat(row.debit) === 0 ? '-' : col.id === 'credit' && parseFloat(row.credit) === 0 ? '-' : (cellValue ?? ''))}
+                          >
+                            {col.id === 'debit' && parseFloat(row.debit) === 0 ? '-' :
+                             col.id === 'credit' && parseFloat(row.credit) === 0 ? '-' :
+                             (cellValue ?? '-')}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))
+                )}
+              </tbody>
+              {data.length > 0 && (
+                <tfoot>
+                  <tr>
+                    {visibleColumns.map((col, cIdx) => {
+                      if (cIdx === 0) {
+                        return <td key={col.id} style={{ textAlign: col.align }}>TOTAL</td>;
+                      }
+                      if (col.id === 'debit') {
+                        return <td key={col.id} style={{ textAlign: col.align, fontFamily: 'monospace', color: '#1d4ed8' }}>{totalDebit.toFixed(2)}</td>;
+                      }
+                      if (col.id === 'credit') {
+                        return <td key={col.id} style={{ textAlign: col.align, fontFamily: 'monospace', color: '#b91c1c' }}>{totalCredit.toFixed(2)}</td>;
+                      }
+                      if (col.id === 'balance') {
+                        return <td key={col.id} style={{ textAlign: col.align, fontFamily: 'monospace', color: '#059669', fontSize: '0.95rem' }}>AED {finalBalance.toFixed(2)}</td>;
+                      }
+                      return <td key={col.id}></td>;
+                    })}
+                  </tr>
+                </tfoot>
+              )}
+            </table>
+          </div>
+        </div>
+
+      </main>
+
       <ColumnConfigModal
         isOpen={showConfigModal}
         onClose={() => setShowConfigModal(false)}
         config={columnConfig}
         onUpdate={handleColumnUpdate}
         doctype="General Ledger Report"
-        themeColor={themeColor}
+        themeColor="#10b981"
       />
     </div>
   );

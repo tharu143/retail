@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   Plus, X, Building2, Search, Calendar, CalendarDays, Hash, Filter, Download, MoreVertical, Package, Warehouse as WarehouseIcon, Barcode, Edit3,
-  Trash2, Palette, Loader2, ChevronLeft, ChevronRight, Zap, CheckCircle2, ExternalLink, Link, Settings, FileText, Copy, Printer, Save, Send
+  Trash2, Palette, Loader2, ChevronLeft, ChevronRight, Zap, CheckCircle2, ExternalLink, Link, Settings, FileText, Copy, Printer, Save, Send, LayoutGrid
 } from 'lucide-react';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
@@ -32,6 +32,7 @@ const DEFAULT_PR_COLUMNS = [
   { id: 'custom_pieces_per_box', label: 'Pcs/Box', visible: true, width: 90 },
   { id: 'custom_box_price', label: 'Box Price', visible: true, width: 90 },
   { id: 'rate', label: 'Rate (Nos)', visible: true, width: 90 },
+  { id: 'discount_amount', label: 'Disc Amt', visible: true, width: 90 },
   { id: 'custom_selling_price', label: 'Selling Price (Nos)', visible: true, width: 100 },
   { id: 'custom_box_selling_price', label: 'Selling Price (Box)', visible: true, width: 100 },
   { id: 'accepted_qty', label: 'Total Qty', visible: true, width: 90 },
@@ -85,10 +86,17 @@ function PurchaseReceiptList() {
       const saved = localStorage.getItem('pr_column_config_v2');
       if (saved) {
         const parsed = JSON.parse(saved);
-        const defaultIds = DEFAULT_PR_COLUMNS.map(c => c.id);
         const savedIds = parsed.map(c => c.id);
-        const missing = DEFAULT_PR_COLUMNS.filter(c => !savedIds.includes(c.id));
-        return [...parsed, ...missing].map(c => ({...c, label: DEFAULT_PR_COLUMNS.find(d => d.id === c.id)?.label || c.label}));
+        const result = [];
+        DEFAULT_PR_COLUMNS.forEach(defCol => {
+          const found = parsed.find(c => c.id === defCol.id);
+          if (found) {
+            result.push({ ...found, label: defCol.label });
+          } else {
+            result.push(defCol);
+          }
+        });
+        return result;
       }
     } catch (e) { /* ignore */ }
     return DEFAULT_PR_COLUMNS;
@@ -281,6 +289,35 @@ function PurchaseReceiptList() {
         }));
       }
     } catch (err) { console.error("Workflow fetch failed", err); }
+  };
+
+  const handleBulkQtyOpen = () => {
+    const validItems = formData.items.filter(it => it && it.item_code);
+    if (validItems.length === 0) {
+      Swal.fire({ icon: 'warning', title: 'No Items', text: 'Please add items before updating bulk quantity.' });
+      return;
+    }
+    const lastItemIdx = formData.items.findLastIndex(it => it && it.item_code);
+    const item = formData.items[lastItemIdx];
+    Swal.fire({
+      title: 'Bulk Quantity',
+      html: `<div style="font-size: 14px; font-weight: 700; color: #475569; margin-bottom: 12px; padding: 10px; background-color: #f1f5f9; border-radius: 8px; border-left: 4px solid #10b981; text-align: left;">
+        ${item.item_name || item.item_code}
+      </div>`,
+      input: 'number',
+      inputPlaceholder: 'Enter quantity...',
+      inputValue: item.use_box_entry ? (item.custom_box_qty || '') : (item.accepted_qty || item.qty || ''),
+      showCancelButton: true,
+      confirmButtonText: 'Update',
+      confirmButtonColor: '#10b981',
+      cancelButtonColor: '#64748b'
+    }).then(result => {
+      if (result.isConfirmed && result.value !== undefined) {
+        const newQty = result.value || '';
+        const field = item.use_box_entry ? "custom_box_qty" : "accepted_qty";
+        updateItem(lastItemIdx, field, newQty);
+      }
+    });
   };
 
   const handleCreateFlow = (type) => {
@@ -1431,29 +1468,37 @@ function PurchaseReceiptList() {
         additional_discount_percentage: doc.additional_discount_percentage || 0,
         discount_amount: doc.discount_amount || 0,
         rounded_total: doc.rounded_total || 0,
-        items: (doc.items || []).map(i => ({
-          name: i.name || '',
-          item_code: i.item_code || '',
-          item_name: i.item_name || '',
-          accepted_qty: parseFloat(i.qty) || 0,
-          rejected_qty: parseFloat(i.rejected_qty) || 0,
-          received_qty: parseFloat(i.received_qty) || 0,
-          qty: parseFloat(i.qty) || 0,
-          uom: i.uom || '',
-          rate: parseFloat(i.rate) || 0,
-          amount: parseFloat(i.amount || 0).toFixed(2),
-          custom_box_qty: parseFloat(i.custom_box_qty) || 0,
-          custom_pieces_per_box: parseFloat(i.custom_pieces_per_box || 1),
-          default_pieces_per_box: parseFloat(i.custom_pieces_per_box || 1),
-          custom_box_price: parseFloat(i.custom_box_price || 0),
-          custom_selling_price: parseFloat(i.custom_selling_price || 0),
-          custom_supplier_sl_num: i.custom_ref_sl_no || i.custom_supplier_sl_num || '',
-          custom_supplier_sl_no: i.custom_ref_sl_no || i.custom_supplier_sl_num || '',
-          custom_ref_sl_no: i.custom_ref_sl_no || i.custom_supplier_sl_num || '',
-          purchase_order: i.purchase_order || '',
-          purchase_order_item: i.purchase_order_item || '',
-          use_box_entry: (i.uom || '').toLowerCase() === 'box'
-        })),
+        items: (doc.items || []).map(i => {
+          const itemQty = parseFloat(i.qty) || 0;
+          const grossRate = parseFloat(i.price_list_rate || i.rate || 0);
+          const perUnitDisc = parseFloat(i.discount_amount || 0);
+          const totalRowDisc = parseFloat((perUnitDisc * (itemQty > 0 ? itemQty : 1)).toFixed(2));
+          return {
+            name: i.name || '',
+            item_code: i.item_code || '',
+            item_name: i.item_name || '',
+            accepted_qty: itemQty,
+            rejected_qty: parseFloat(i.rejected_qty) || 0,
+            received_qty: parseFloat(i.received_qty) || 0,
+            qty: itemQty,
+            uom: i.uom || '',
+            rate: grossRate,
+            discount_amount: totalRowDisc,
+            discount_percentage: parseFloat(i.discount_percentage || 0),
+            amount: parseFloat(i.amount || 0).toFixed(2),
+            custom_box_qty: parseFloat(i.custom_box_qty) || 0,
+            custom_pieces_per_box: parseFloat(i.custom_pieces_per_box || 1),
+            default_pieces_per_box: parseFloat(i.custom_pieces_per_box || 1),
+            custom_box_price: parseFloat(i.custom_box_price || (grossRate * parseFloat(i.custom_pieces_per_box || 1))),
+            custom_selling_price: parseFloat(i.custom_selling_price || 0),
+            custom_supplier_sl_num: i.custom_ref_sl_no || i.custom_supplier_sl_num || '',
+            custom_supplier_sl_no: i.custom_ref_sl_no || i.custom_supplier_sl_num || '',
+            custom_ref_sl_no: i.custom_ref_sl_no || i.custom_supplier_sl_num || '',
+            purchase_order: i.purchase_order || '',
+            purchase_order_item: i.purchase_order_item || '',
+            use_box_entry: (i.uom || '').toLowerCase() === 'box'
+          };
+        }),
         taxes: (doc.taxes || []).map(t => ({
           add_row: t.add_deduct_tax === "Add",
           charge_type: t.charge_type || '',
@@ -1712,6 +1757,8 @@ function PurchaseReceiptList() {
             custom_box_qty: isBox ? parseFloat(i.custom_box_qty || 0) : parseFloat(i.accepted_qty),
             custom_pieces_per_box: isBox ? parseFloat(i.custom_pieces_per_box || 1) : 1,
             custom_box_price: isBox ? parseFloat(i.custom_box_price || 0) : parseFloat(i.rate || 0),
+            discount_amount: parseFloat(i.discount_amount || 0),
+            discount_percentage: parseFloat(i.discount_percentage || 0),
             custom_selling_price: parseFloat(i.custom_selling_price || 0),
             purchase_order: i.purchase_order || undefined,
             purchase_order_item: i.purchase_order_item || undefined,
@@ -1937,16 +1984,25 @@ function PurchaseReceiptList() {
             return obj;
           };
           const mappedData = sanitizeData(rawData);
-          const mappedItems = (mappedData.items || []).map(it => ({
-            ...it,
-            accepted_qty: it.qty || it.accepted_qty || 0,
-            received_qty: it.qty || it.received_qty || 0,
-            qty: it.qty || 0,
-            rate: it.rate || 0,
-            amount: ((it.qty || 0) * (it.rate || 0)).toFixed(2),
-            custom_ref_sl_no: it.custom_ref_sl_no || it.custom_supplier_sl_num || '',
-            use_box_entry: (it.uom || '').toLowerCase() === 'box'
-          }));
+          const mappedItems = (mappedData.items || []).map(it => {
+            const itemQty = parseFloat(it.qty || it.accepted_qty || 0);
+            const grossRate = parseFloat(it.price_list_rate || it.rate || 0);
+            const perUnitDisc = parseFloat(it.discount_amount || 0);
+            const totalRowDisc = parseFloat((perUnitDisc * (itemQty > 0 ? itemQty : 1)).toFixed(2));
+            const netAmount = Math.max(0, (itemQty * grossRate) - totalRowDisc).toFixed(2);
+            return {
+              ...it,
+              accepted_qty: itemQty,
+              received_qty: itemQty,
+              qty: itemQty,
+              rate: grossRate,
+              discount_amount: totalRowDisc,
+              discount_percentage: parseFloat(it.discount_percentage || 0),
+              amount: netAmount,
+              custom_ref_sl_no: it.custom_ref_sl_no || it.custom_supplier_sl_num || '',
+              use_box_entry: (it.uom || '').toLowerCase() === 'box'
+            };
+          });
           const mappedTaxes = (mappedData.taxes || []).map(t => ({
             add_row: t.add_deduct_tax ? t.add_deduct_tax === "Add" : true,
             charge_type: t.charge_type || "On Net Total",
@@ -2729,7 +2785,7 @@ function PurchaseReceiptList() {
                           width: colW,
                           minWidth: colW,
                           maxWidth: colW,
-                          textAlign: col.align || (['rate', 'custom_box_price', 'custom_selling_price', 'custom_box_selling_price', 'amount', 'last_purchase_rate'].includes(col.id) ? 'right' : (['uom', 'custom_box_qty', 'custom_pieces_per_box', 'accepted_qty', 'rejected_qty'].includes(col.id) ? 'center' : 'left')),
+                          textAlign: col.align || (['rate', 'discount_amount', 'custom_box_price', 'custom_selling_price', 'custom_box_selling_price', 'amount', 'last_purchase_rate'].includes(col.id) ? 'right' : (['uom', 'custom_box_qty', 'custom_pieces_per_box', 'accepted_qty', 'rejected_qty'].includes(col.id) ? 'center' : 'left')),
                           padding: '8px 8px',
                           fontSize: '11px',
                           fontWeight: 900,
@@ -2870,6 +2926,19 @@ function PurchaseReceiptList() {
                                 onChange={(e) => updateItem(idx, "rate", e.target.value)}
                                 disabled={isViewMode || formData.docstatus !== 0}
                                 className="w-full h-8 px-2 text-right font-black text-xs text-slate-800 bg-transparent border-none outline-none focus:bg-emerald-50/40 disabled:bg-slate-100 disabled:text-slate-500"
+                              />
+                            </td>
+                          );
+                        case 'discount_amount':
+                          return (
+                            <td key={col.id} className="px-2 py-1 text-right border-r border-slate-100 align-middle">
+                              <input
+                                type="number"
+                                value={item.discount_amount || ''}
+                                onChange={(e) => updateItem(idx, "discount_amount", e.target.value)}
+                                disabled={isViewMode || formData.docstatus !== 0}
+                                placeholder="0.00"
+                                className="w-full h-8 px-2 text-right font-black text-xs text-rose-600 bg-transparent border-none outline-none focus:bg-emerald-50/40 disabled:bg-slate-100 disabled:text-slate-500"
                               />
                             </td>
                           );
@@ -3038,26 +3107,42 @@ function PurchaseReceiptList() {
               {/* ACTION BUTTON GRID (LEFT SIDE) */}
               <div className="xl:col-span-7 flex">
                 <div className="grid grid-cols-4 grid-rows-2 gap-2 w-full h-full">
-                  {/* SAVE DRAFT */}
+                  {/* Slot 1: SAVE DRAFT (New / Edited Draft) / DRAFT SAVED (Clean Draft) / CANCEL (Submitted) */}
                   {formData.docstatus === 0 || formData.docstatus === undefined ? (
-                    <button
-                      type="button"
-                      onClick={() => handleDocAction('save')}
-                      disabled={saving}
-                      className="h-full bg-[#f59e0b] hover:bg-[#d97706] text-white border-2 border-[#f59e0b] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-40"
-                      style={{ borderRadius: '8px' }}
-                    >
-                      <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
-                        {saving ? <Loader2 size={15} className="animate-spin text-white" /> : <Save size={15} />}
-                        <span>{saving ? 'SAVING...' : 'SAVE DRAFT'}</span>
-                      </div>
-                      <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">Alt+S</span>
-                    </button>
-                  ) : (
+                    isDirty || !docName ? (
+                      <button
+                        type="button"
+                        onClick={() => handleDocAction('save')}
+                        disabled={saving}
+                        className="h-full bg-[#f59e0b] hover:bg-[#d97706] text-white border-2 border-[#f59e0b] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-40 animate-pulse"
+                        style={{ borderRadius: '8px' }}
+                      >
+                        <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
+                          {saving ? <Loader2 size={15} className="animate-spin text-white" /> : <Save size={15} />}
+                          <span>{saving ? 'SAVING...' : 'SAVE DRAFT'}</span>
+                        </div>
+                        <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">Alt+S</span>
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => handleDocAction('save')}
+                        disabled={saving}
+                        className="h-full bg-slate-100 hover:bg-slate-200 text-slate-700 border-2 border-slate-300 rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-40"
+                        style={{ borderRadius: '8px' }}
+                      >
+                        <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-slate-600">
+                          {saving ? <Loader2 size={15} className="animate-spin text-slate-600" /> : <CheckCircle2 size={15} className="text-emerald-600" />}
+                          <span>DRAFT SAVED</span>
+                        </div>
+                        <span className="inline-flex items-center justify-center font-mono text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-200 text-slate-600">Alt+S</span>
+                      </button>
+                    )
+                  ) : formData.docstatus === 1 ? (
                     <button
                       type="button"
                       onClick={() => handleDocAction('cancel')}
-                      disabled={saving || formData.docstatus === 2}
+                      disabled={saving}
                       className="h-full bg-[#dc2626] hover:bg-[#b91c1c] text-white border-2 border-[#dc2626] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-40"
                       style={{ borderRadius: '8px' }}
                     >
@@ -3067,15 +3152,21 @@ function PurchaseReceiptList() {
                       </div>
                       <span className="inline-flex items-center justify-center font-mono text-[10px] font-black px-1.5 py-0.5 rounded bg-white/20 text-white">Alt+C</span>
                     </button>
+                  ) : (
+                    <div className="h-full bg-slate-100 border-2 border-slate-200 rounded-xl px-3 py-2 flex items-center justify-center text-slate-400 font-black text-[11px] uppercase tracking-wider select-none" style={{ borderRadius: '8px' }}>
+                      <span>CANCELLED</span>
+                    </div>
                   )}
 
-                  {/* SUBMIT (Only in Draft Mode) */}
+                  {/* Slot 2: SUBMIT (Draft) / STATUS (Submitted) */}
                   {formData.docstatus === 0 || formData.docstatus === undefined ? (
                     <button
                       type="button"
                       onClick={() => handleDocAction('submit')}
-                      disabled={saving}
-                      className="h-full bg-[#10b981] hover:bg-[#059669] text-white border-2 border-[#10b981] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-40"
+                      disabled={saving || !docName}
+                      className={`h-full text-white border-2 rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-40 ${
+                        !isDirty && docName ? 'bg-[#10b981] hover:bg-[#059669] border-[#10b981] shadow-md ring-2 ring-emerald-300' : 'bg-[#10b981] hover:bg-[#059669] border-[#10b981]'
+                      }`}
                       style={{ borderRadius: '8px' }}
                     >
                       <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
@@ -3091,7 +3182,32 @@ function PurchaseReceiptList() {
                     </div>
                   )}
 
-                  {/* PRINT PDF */}
+                  {/* Slot 3: CREATE INVOICE (If Submitted) / DRAFT STATUS */}
+                  {formData.docstatus === 1 ? (
+                    <button
+                      type="button"
+                      onClick={handleCreateInvoice}
+                      disabled={saving}
+                      className="h-full bg-[#d97706] hover:bg-[#b45309] text-white border-2 border-[#d97706] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer"
+                      style={{ borderRadius: '8px' }}
+                    >
+                      <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
+                        <Plus size={15} />
+                        <span>CREATE INVOICE</span>
+                      </div>
+                      <span className="inline-flex items-center justify-center font-mono text-[10px] font-black px-1.5 py-0.5 rounded bg-white/20 text-white">+PI</span>
+                    </button>
+                  ) : formData.docstatus === 0 || formData.docstatus === undefined ? (
+                    <div className="h-full bg-amber-50 border-2 border-amber-200 rounded-xl px-3 py-2 flex items-center justify-center text-amber-700 font-black text-[11px] uppercase tracking-wider select-none" style={{ borderRadius: '8px' }}>
+                      <span>DRAFT MODE</span>
+                    </div>
+                  ) : (
+                    <div className="h-full bg-rose-50 border-2 border-rose-200 rounded-xl px-3 py-2 flex items-center justify-center text-rose-600 font-black text-[11px] uppercase tracking-wider select-none" style={{ borderRadius: '8px' }}>
+                      <span>CANCELLED</span>
+                    </div>
+                  )}
+
+                  {/* Slot 4: PRINT PDF */}
                   <button
                     type="button"
                     onClick={() => handlePrintPDF(docName)}
@@ -3103,10 +3219,10 @@ function PurchaseReceiptList() {
                       <Printer size={15} />
                       <span>PRINT PDF</span>
                     </div>
-                    <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">Space</span>
+                    <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">PDF</span>
                   </button>
 
-                  {/* DUPLICATE */}
+                  {/* Slot 5: DUPLICATE */}
                   <button
                     type="button"
                     onClick={handleDuplicate}
@@ -3121,7 +3237,7 @@ function PurchaseReceiptList() {
                     <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">Alt+D</span>
                   </button>
 
-                  {/* ADD ROW / PURCHASE RETURN (If Submitted) */}
+                  {/* Slot 6: ADD ROW (Draft) / PURCHASE RETURN (If Submitted) */}
                   {formData.docstatus === 1 ? (
                     <button
                       type="button"
@@ -3141,84 +3257,52 @@ function PurchaseReceiptList() {
                       type="button"
                       onClick={addItemRow}
                       disabled={formData.docstatus !== 0 && formData.docstatus !== undefined}
-                      className="h-full bg-[#0284c7] hover:bg-[#0369a1] text-white border-2 border-[#0284c7] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-40"
+                      className="h-full bg-[#10b981] hover:bg-[#059669] text-white border-2 border-[#10b981] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-40"
                       style={{ borderRadius: '8px' }}
                     >
                       <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
                         <Plus size={15} />
                         <span>ADD ROW</span>
                       </div>
-                      <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">Alt+A</span>
+                      <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">F10</span>
                     </button>
                   )}
 
-                  {/* BULK QTY / CREATE INVOICE (If Submitted) */}
-                  {formData.docstatus === 1 ? (
-                    <button
-                      type="button"
-                      onClick={handleCreateInvoice}
-                      disabled={saving}
-                      className="h-full bg-[#d97706] hover:bg-[#b45309] text-white border-2 border-[#d97706] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer"
-                      style={{ borderRadius: '8px' }}
-                    >
-                      <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
-                        <Plus size={15} />
-                        <span>CREATE INVOICE</span>
-                      </div>
-                      <span className="inline-flex items-center justify-center font-mono text-[10px] font-black px-1.5 py-0.5 rounded bg-white/20 text-white">+Inv</span>
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      disabled={formData.docstatus !== 0 && formData.docstatus !== undefined}
-                      onClick={() => {
-                        if (formData.items.length > 0) {
-                          const firstIdx = formData.items.findIndex(it => it.item_code);
-                          if (firstIdx !== -1) {
-                            handleUOMChange(formData.items[firstIdx].use_box_entry ? 'Nos' : 'Box', firstIdx);
-                          }
-                        }
-                      }}
-                      className="h-full bg-[#475569] hover:bg-[#334155] text-white border-2 border-[#475569] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-40"
-                      style={{ borderRadius: '8px' }}
-                    >
-                      <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
-                        <Package size={15} />
-                        <span>BULK QTY</span>
-                      </div>
-                      <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">F6</span>
-                    </button>
-                  )}
+                  {/* Slot 7: BULK QTY */}
+                  <button
+                    type="button"
+                    onClick={handleBulkQtyOpen}
+                    disabled={formData.docstatus !== 0 && formData.docstatus !== undefined}
+                    className="h-full bg-[#8b5cf6] hover:bg-[#7c3aed] text-white border-2 border-[#8b5cf6] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-40"
+                    style={{ borderRadius: '8px' }}
+                  >
+                    <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
+                      <LayoutGrid size={15} />
+                      <span>BULK QTY</span>
+                    </div>
+                    <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">F6</span>
+                  </button>
 
-                  {/* DELETE / CLOSE */}
-                  {formData.docstatus === 0 && docName ? (
-                    <button
-                      type="button"
-                      onClick={() => handleDocAction('delete')}
-                      disabled={saving}
-                      className="h-full bg-[#dc2626] hover:bg-[#b91c1c] text-white border-2 border-[#dc2626] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer"
-                      style={{ borderRadius: '8px' }}
-                    >
-                      <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
-                        <Trash2 size={15} />
-                        <span>DELETE</span>
-                      </div>
-                      <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">Del</span>
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => setIsModalOpen(false)}
-                      className="h-full bg-[#64748b] hover:bg-[#475569] text-white border-2 border-[#64748b] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer"
-                      style={{ borderRadius: '8px' }}
-                    >
-                      <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
-                        <X size={15} />
-                        <span>CLOSE</span>
-                      </div>
-                      <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">Esc</span>
-                    </button>
-                  )}
+                  {/* Slot 8: CLOSE / EXIT */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (docName && (isEditMode || isViewMode)) {
+                        setIsModalOpen(false);
+                        setSearchParams({});
+                      } else {
+                        navigate('/homepage');
+                      }
+                    }}
+                    className="h-full bg-slate-700 hover:bg-slate-800 text-white border-2 border-slate-700 rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer"
+                    style={{ borderRadius: '8px' }}
+                  >
+                    <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
+                      <ChevronLeft size={15} />
+                      <span>EXIT</span>
+                    </div>
+                    <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">Esc</span>
+                  </button>
                 </div>
               </div>
 
