@@ -2628,6 +2628,7 @@ function PurchaseReceiptList() {
                   globalSearch={true}
                   themeColor="#10b981"
                   className="h-10 w-full min-w-0 rounded-md border border-slate-200 bg-slate-50/50 px-3 text-sm font-semibold text-slate-800 outline-none transition-colors placeholder:font-normal placeholder:text-slate-400 focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-500/20"
+                  disabled={isViewMode || formData.docstatus !== 0}
                 />
               </div>
             </div>
@@ -2958,60 +2959,64 @@ function PurchaseReceiptList() {
                       }
                     })}
                     <td className="text-center px-1">
-                      <button type="button" onClick={() => removeItemRow(idx)} className="text-rose-400 hover:text-rose-600 font-black text-sm cursor-pointer">×</button>
+                      {!(isViewMode || formData.docstatus !== 0) && (
+                        <button type="button" onClick={() => removeItemRow(idx)} className="text-rose-400 hover:text-rose-600 font-black text-sm cursor-pointer">×</button>
+                      )}
                     </td>
                   </tr>
                   );
                 })}
 
                 {/* ADVANCED: Smart Inline Search Row with Amber Border */}
-                <tr className="bg-emerald-50/40 border-y-2 border-amber-400 cursor-pointer hover:bg-amber-50/60 transition-all">
-                  <td className="text-center font-black text-amber-600 text-xs py-2">{formData.items.filter(it => it.item_code).length + 1}</td>
-                  {(() => {
-                    const visibleCols = columnConfig.filter(c => c.visible);
-                    const barcodeIdx = visibleCols.findIndex(c => c.id === 'barcode');
-                    const itemCodeIdx = visibleCols.findIndex(c => c.id === 'item_code');
-                    const hasBoth = barcodeIdx !== -1 && itemCodeIdx !== -1;
-                    const primaryIdx = hasBoth ? Math.min(barcodeIdx, itemCodeIdx) : (barcodeIdx !== -1 ? barcodeIdx : itemCodeIdx);
-                    const secondaryIdx = hasBoth ? Math.max(barcodeIdx, itemCodeIdx) : -1;
+                {formData.docstatus === 0 && !isViewMode && (
+                  <tr className="bg-emerald-50/40 border-y-2 border-amber-400 cursor-pointer hover:bg-amber-50/60 transition-all">
+                    <td className="text-center font-black text-amber-600 text-xs py-2">{formData.items.filter(it => it.item_code).length + 1}</td>
+                    {(() => {
+                      const visibleCols = columnConfig.filter(c => c.visible);
+                      const barcodeIdx = visibleCols.findIndex(c => c.id === 'barcode');
+                      const itemCodeIdx = visibleCols.findIndex(c => c.id === 'item_code');
+                      const hasBoth = barcodeIdx !== -1 && itemCodeIdx !== -1;
+                      const primaryIdx = hasBoth ? Math.min(barcodeIdx, itemCodeIdx) : (barcodeIdx !== -1 ? barcodeIdx : itemCodeIdx);
+                      const secondaryIdx = hasBoth ? Math.max(barcodeIdx, itemCodeIdx) : -1;
 
-                    return visibleCols.map((col, cIdx) => {
-                      if (cIdx === primaryIdx) {
+                      return visibleCols.map((col, cIdx) => {
+                        if (cIdx === primaryIdx) {
+                          return (
+                            <td 
+                              key="search-input-col" 
+                              colSpan={hasBoth && Math.abs(barcodeIdx - itemCodeIdx) === 1 ? 2 : 1} 
+                              className="p-0 relative h-10 align-middle"
+                            >
+                              <CustomSearchDropdown
+                                placeholder="SCAN BARCODE OR TYPE ITEM NAME HERE TO ADD..."
+                                value={null}
+                                onSelect={(selectedItem) => {
+                                  if (selectedItem) {
+                                    selectItem(formData.items.length, selectedItem);
+                                  }
+                                }}
+                                fetchData={fetchItems}
+                                optionsLabel="item_name"
+                                globalSearch={true}
+                                themeColor="#10b981"
+                                className="w-full h-full font-black italic text-slate-600"
+                              />
+                            </td>
+                          );
+                        }
+                        if (hasBoth && Math.abs(barcodeIdx - itemCodeIdx) === 1 && cIdx === secondaryIdx) {
+                          return null; // Covered by colSpan=2 above
+                        }
                         return (
-                          <td 
-                            key="search-input-col" 
-                            colSpan={hasBoth && Math.abs(barcodeIdx - itemCodeIdx) === 1 ? 2 : 1} 
-                            className="p-0 relative h-10 align-middle"
-                          >
-                            <CustomSearchDropdown
-                              placeholder="SCAN BARCODE OR TYPE ITEM NAME HERE TO ADD..."
-                              value={null}
-                              onSelect={(selectedItem) => {
-                                if (selectedItem) {
-                                  selectItem(formData.items.length, selectedItem);
-                                }
-                              }}
-                              fetchData={fetchItems}
-                              optionsLabel="item_name"
-                              globalSearch={true}
-                              themeColor="#10b981"
-                              className="w-full h-full font-black italic text-slate-600"
-                            />
-                          </td>
+                          <td key={`search-empty-${col.id}`} className="text-center bg-black/5 font-bold text-xs border-r border-slate-100">-</td>
                         );
-                      }
-                      if (hasBoth && Math.abs(barcodeIdx - itemCodeIdx) === 1 && cIdx === secondaryIdx) {
-                        return null; // Covered by colSpan=2 above
-                      }
-                      return (
-                        <td key={`search-empty-${col.id}`} className="text-center bg-black/5 font-bold text-xs border-r border-slate-100">-</td>
-                      );
-                    });
-                  })()}
-                  <td className="text-center px-1">
-                    <Search size={14} className="mx-auto text-amber-500" />
-                  </td>
-                </tr>
+                      });
+                    })()}
+                    <td className="text-center px-1">
+                      <Search size={14} className="mx-auto text-amber-500" />
+                    </td>
+                  </tr>
+                )}
 
                 {/* Aesthetic empty placeholder rows */}
                 {Array.from({ length: Math.max(0, 14 - formData.items.filter(it => it.item_code).length) }).map((_, i) => (
@@ -3040,6 +3045,7 @@ function PurchaseReceiptList() {
                       onClick={() => handleDocAction('save')}
                       disabled={saving}
                       className="h-full bg-[#f59e0b] hover:bg-[#d97706] text-white border-2 border-[#f59e0b] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-40"
+                      style={{ borderRadius: '8px' }}
                     >
                       <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
                         {saving ? <Loader2 size={15} className="animate-spin text-white" /> : <Save size={15} />}
@@ -3053,6 +3059,7 @@ function PurchaseReceiptList() {
                       onClick={() => handleDocAction('cancel')}
                       disabled={saving || formData.docstatus === 2}
                       className="h-full bg-[#dc2626] hover:bg-[#b91c1c] text-white border-2 border-[#dc2626] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-40"
+                      style={{ borderRadius: '8px' }}
                     >
                       <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
                         {saving ? <Loader2 size={15} className="animate-spin text-white" /> : <X size={15} />}
@@ -3069,6 +3076,7 @@ function PurchaseReceiptList() {
                       onClick={() => handleDocAction('submit')}
                       disabled={saving}
                       className="h-full bg-[#10b981] hover:bg-[#059669] text-white border-2 border-[#10b981] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-40"
+                      style={{ borderRadius: '8px' }}
                     >
                       <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
                         {saving ? <Loader2 size={15} className="animate-spin text-white" /> : <CheckCircle2 size={15} />}
@@ -3077,7 +3085,7 @@ function PurchaseReceiptList() {
                       <span className="inline-flex items-center justify-center font-mono text-[10px] font-black px-1.5 py-0.5 rounded bg-white/20 text-white">Ctrl+↵</span>
                     </button>
                   ) : (
-                    <div className="h-full bg-emerald-600 text-white border-2 border-emerald-600 rounded-xl px-3 py-2 flex items-center justify-center font-black text-[11px] uppercase tracking-wider select-none shadow-xs">
+                    <div className="h-full bg-emerald-600 text-white border-2 border-emerald-600 rounded-xl px-3 py-2 flex items-center justify-center font-black text-[11px] uppercase tracking-wider select-none shadow-xs" style={{ borderRadius: '8px' }}>
                       <CheckCircle2 size={15} className="mr-1.5 text-white" />
                       <span>{formData.docstatus === 1 ? 'SUBMITTED' : 'CANCELLED'}</span>
                     </div>
@@ -3089,6 +3097,7 @@ function PurchaseReceiptList() {
                     onClick={() => handlePrintPDF(docName)}
                     disabled={!docName}
                     className="h-full bg-[#0284c7] hover:bg-[#0369a1] text-white border-2 border-[#0284c7] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-40"
+                    style={{ borderRadius: '8px' }}
                   >
                     <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
                       <Printer size={15} />
@@ -3103,6 +3112,7 @@ function PurchaseReceiptList() {
                     onClick={handleDuplicate}
                     disabled={!docName}
                     className="h-full bg-[#7c3aed] hover:bg-[#6d28d9] text-white border-2 border-[#7c3aed] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-40"
+                    style={{ borderRadius: '8px' }}
                   >
                     <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
                       <Copy size={15} />
@@ -3118,6 +3128,7 @@ function PurchaseReceiptList() {
                       onClick={() => handleCreateReturn()}
                       disabled={saving}
                       className="h-full bg-[#e11d48] hover:bg-[#be123c] text-white border-2 border-[#e11d48] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer"
+                      style={{ borderRadius: '8px' }}
                     >
                       <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
                         <Link size={14} />
@@ -3131,6 +3142,7 @@ function PurchaseReceiptList() {
                       onClick={addItemRow}
                       disabled={formData.docstatus !== 0 && formData.docstatus !== undefined}
                       className="h-full bg-[#0284c7] hover:bg-[#0369a1] text-white border-2 border-[#0284c7] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-40"
+                      style={{ borderRadius: '8px' }}
                     >
                       <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
                         <Plus size={15} />
@@ -3147,6 +3159,7 @@ function PurchaseReceiptList() {
                       onClick={handleCreateInvoice}
                       disabled={saving}
                       className="h-full bg-[#d97706] hover:bg-[#b45309] text-white border-2 border-[#d97706] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer"
+                      style={{ borderRadius: '8px' }}
                     >
                       <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
                         <Plus size={15} />
@@ -3167,6 +3180,7 @@ function PurchaseReceiptList() {
                         }
                       }}
                       className="h-full bg-[#475569] hover:bg-[#334155] text-white border-2 border-[#475569] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-40"
+                      style={{ borderRadius: '8px' }}
                     >
                       <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
                         <Package size={15} />
@@ -3183,6 +3197,7 @@ function PurchaseReceiptList() {
                       onClick={() => handleDocAction('delete')}
                       disabled={saving}
                       className="h-full bg-[#dc2626] hover:bg-[#b91c1c] text-white border-2 border-[#dc2626] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer"
+                      style={{ borderRadius: '8px' }}
                     >
                       <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
                         <Trash2 size={15} />
@@ -3195,6 +3210,7 @@ function PurchaseReceiptList() {
                       type="button"
                       onClick={() => setIsModalOpen(false)}
                       className="h-full bg-[#64748b] hover:bg-[#475569] text-white border-2 border-[#64748b] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer"
+                      style={{ borderRadius: '8px' }}
                     >
                       <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
                         <X size={15} />
@@ -3911,7 +3927,7 @@ function PurchaseReceiptList() {
 
                       <div className="so-field" style={{ gridColumn: 'span 2' }}>
                         <label className="so-label">Supplier / Vendor</label>
-                        {isViewMode ? (
+                        {isViewMode || formData.docstatus !== 0 ? (
                           <div className="so-view-field">{formData.supplier_name} ({formData.supplier})</div>
                         ) : (
                           <div className="relative" ref={supplierRef}>
