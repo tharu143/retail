@@ -1,475 +1,715 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { Plus, Search, X, Loader2, ChevronLeft, ChevronRight, Palette, Layers, Edit2, Package, Save, CheckCircle2, ChevronDown, ChevronRight as ChevronRightIcon } from 'lucide-react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import {
+    Plus, Search, X, Loader2, ChevronLeft, ChevronRight, Palette, Layers,
+    Edit2, Package, Save, CheckCircle2, ChevronDown, Folder, FolderOpen,
+    Tag, Trash2, RefreshCw, ArrowRight, ExternalLink, Info, Filter, LayoutGrid
+} from 'lucide-react';
 import axios from 'axios';
+import Swal from 'sweetalert2';
 import DirhamIcon from '../../assets/Currency/DirhamIcon';
 
 export default function ItemGroupList() {
-  const [groups, setGroups] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [pageSize, setPageSize] = useState(20);
-  const [currentPage, setCurrentPage] = useState(1);
+    const [groups, setGroups] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [selectedNodeName, setSelectedNodeName] = useState('All Item Groups');
+    const [selectedNodeDetails, setSelectedNodeDetails] = useState(null);
+    const [attachedItems, setAttachedItems] = useState([]);
+    const [loadingItems, setLoadingItems] = useState(false);
+    const [itemSearchTerm, setItemSearchTerm] = useState('');
 
-  // Theme toggle (synced across pages)
-  const [itTheme, setItTheme] = useState(localStorage.getItem('legacySubTheme') || 'green');
-  const isGreen = itTheme === 'green';
-  const themeColor = isGreen ? '#10b981' : '#0ea5e9';
-  const themeColorHover = isGreen ? '#059669' : '#0284c7';
-  const themeLight = isGreen ? '#f0fdf4' : '#f0f9ff';
+    // Theme toggle (synced across pages)
+    const [itTheme, setItTheme] = useState(localStorage.getItem('legacySubTheme') || 'green');
+    const isGreen = itTheme === 'green';
+    const themeColor = isGreen ? '#10b981' : '#0ea5e9';
+    const themeColorHover = isGreen ? '#059669' : '#0284c7';
+    const themeLight = isGreen ? '#f0fdf4' : '#f0f9ff';
 
-  useEffect(() => {
-    localStorage.setItem('legacySubTheme', itTheme);
-    document.documentElement.style.setProperty('--so-primary', themeColor);
-    document.documentElement.style.setProperty('--so-primary-hover', themeColorHover);
-    document.documentElement.style.setProperty('--so-primary-light', themeLight);
-  }, [itTheme, themeColor, themeColorHover, themeLight]);
+    useEffect(() => {
+        localStorage.setItem('legacySubTheme', itTheme);
+        document.documentElement.style.setProperty('--so-primary', themeColor);
+        document.documentElement.style.setProperty('--so-primary-hover', themeColorHover);
+        document.documentElement.style.setProperty('--so-primary-light', themeLight);
+    }, [itTheme, themeColor, themeColorHover, themeLight]);
 
-  // Filters
-  const [filterName, setFilterName] = useState('');
+    // Tree Filter & Expansion
+    const [treeSearchTerm, setTreeSearchTerm] = useState('');
+    const [expandedNodes, setExpandedNodes] = useState({ 'All Item Groups': true });
 
-  // Form states
-  const [showForm, setShowForm] = useState(false);
-  const [isEditMode, setIsEditMode] = useState(false);
-  const [isViewMode, setIsViewMode] = useState(false);
-  const [editingGroupId, setEditingGroupId] = useState(null);
+    // Modal / Form state
+    const [showModal, setShowModal] = useState(false);
+    const [isEditMode, setIsEditMode] = useState(false);
+    const [saving, setSaving] = useState(false);
 
-  const [form, setForm] = useState({
-    item_group_name: '',
-    parent_item_group: 'All Item Groups',
-    is_group: 0,
-    default_price_list: '',
-    description: '',
-    image: ''
-  });
+    const [form, setForm] = useState({
+        item_group_name: '',
+        parent_item_group: 'All Item Groups',
+        is_group: 0,
+        description: ''
+    });
 
-  const [saving, setSaving] = useState(false);
-  const [connectedItems, setConnectedItems] = useState([]);
-  const [loadingItems, setLoadingItems] = useState(false);
+    useEffect(() => {
+        fetchGroups();
+    }, []);
 
-  // Expand/collapse for tree view
-  const [expandedNodes, setExpandedNodes] = useState({ 'All Item Groups': true });
+    const fetchGroups = async () => {
+        try {
+            setLoading(true);
+            const res = await axios.get('/api/resource/Item Group', {
+                params: {
+                    fields: JSON.stringify(["name", "item_group_name", "parent_item_group", "is_group", "lft", "rgt"]),
+                    limit_page_length: 1000,
+                    order_by: 'lft asc'
+                },
+                withCredentials: true
+            });
+            const raw = res.data.data || [];
+            const normalized = raw.map(g => ({
+                ...g,
+                item_group_name: g.item_group_name || g.name
+            }));
+            setGroups(normalized);
 
-  const toggleNode = (name, e) => {
-    e.stopPropagation();
-    setExpandedNodes(prev => ({ ...prev, [name]: !prev[name] }));
-  };
+            // Expand top-level nodes by default
+            const newExpanded = { 'All Item Groups': true };
+            normalized.forEach(g => {
+                if (!g.parent_item_group || g.parent_item_group === 'All Item Groups') {
+                    newExpanded[g.name] = true;
+                }
+            });
+            setExpandedNodes(newExpanded);
 
-  useEffect(() => {
-    fetchGroups();
-  }, []);
+            // Select default node if available
+            if (normalized.length > 0) {
+                const rootNode = normalized.find(g => g.name === 'All Item Groups') || normalized[0];
+                selectNode(rootNode.name, normalized);
+            }
+        } catch (err) {
+            console.error('Failed to load item groups:', err);
+        } finally {
+            setLoading(false);
+        }
+    };
 
-  const fetchGroups = async () => {
-    try {
-      setLoading(true);
-      const res = await axios.get('/api/resource/Item Group', {
-        params: {
-          fields: JSON.stringify(["name", "item_group_name", "parent_item_group", "is_group", "lft", "rgt"]),
-          limit_page_length: 1000,
-          order_by: 'lft asc'
-        },
-        withCredentials: true
-      });
-      const raw = res.data.data || [];
-      // Ensure item_group_name is always populated (API may return only `name`)
-      const normalized = raw.map(g => ({
-        ...g,
-        item_group_name: g.item_group_name || g.name
-      }));
-      setGroups(normalized);
+    const selectNode = useCallback(async (nodeName, groupList = groups) => {
+        setSelectedNodeName(nodeName);
+        const found = groupList.find(g => g.name === nodeName);
+        setSelectedNodeDetails(found || { name: nodeName, item_group_name: nodeName, is_group: 1 });
 
-      // Auto-expand root level
-      const rootLevel = (res.data.data || []).filter(g => !g.parent_item_group || g.parent_item_group === 'All Item Groups');
-      const newExpanded = { 'All Item Groups': true };
-      rootLevel.forEach(g => newExpanded[g.name] = true);
-      setExpandedNodes(newExpanded);
+        // Fetch attached items for this node
+        fetchAttachedItems(nodeName);
+    }, [groups]);
 
-    } catch (err) {
-      console.error(err);
-      alert('Failed to load item groups');
-    } finally {
-      setLoading(false);
-    }
-  };
+    const fetchAttachedItems = async (groupName) => {
+        try {
+            setLoadingItems(true);
+            const res = await axios.get('/api/resource/Item', {
+                params: {
+                    fields: JSON.stringify(["name", "item_code", "item_name", "standard_rate", "stock_uom", "image", "item_group"]),
+                    filters: JSON.stringify([["item_group", "=", groupName]]),
+                    limit_page_length: 200,
+                    order_by: 'item_name asc'
+                },
+                withCredentials: true
+            });
+            setAttachedItems(res.data.data || []);
+        } catch (err) {
+            console.error('Failed to load attached items:', err);
+            setAttachedItems([]);
+        } finally {
+            setLoadingItems(false);
+        }
+    };
 
-  const fetchGroupDetails = async (id) => {
-    try {
-      const res = await axios.get('/api/resource/Item Group', {
-        params: {
-          filters: JSON.stringify([["name", "=", id]]),
-          fields: JSON.stringify(["*"]),
-          limit_page_length: 1
-        },
-        withCredentials: true
-      });
-      const records = res.data.data || [];
-      if (records.length > 0) {
-        const data = records[0];
-        setForm({
-          item_group_name: data.item_group_name || data.name || '',
-          parent_item_group: data.parent_item_group || '',
-          is_group: data.is_group || 0,
-          default_price_list: data.default_price_list || '',
-          description: data.description || '',
-          image: data.image || ''
+    // Build hierarchical tree structure
+    const treeNodes = useMemo(() => {
+        const nodeMap = {};
+        const roots = [];
+
+        groups.forEach(g => {
+            nodeMap[g.name] = { ...g, children: [] };
         });
-      } else {
-        console.warn(`No details found for Item Group: ${id}`);
-      }
-    } catch (err) {
-      console.error('Failed to load details', err);
-    }
-  };
 
-  const fetchConnectedItems = async (groupName) => {
-    try {
-      setLoadingItems(true);
-      const res = await axios.get('/api/resource/Item', {
-        params: {
-          fields: JSON.stringify(["item_code", "item_name", "standard_rate"]),
-          filters: JSON.stringify([["item_group", "=", groupName]]),
-          limit_page_length: 100
-        },
-        withCredentials: true
-      });
-      setConnectedItems(res.data.data || []);
-    } catch (err) {
-      console.error('Failed to load items', err);
-      setConnectedItems([]);
-    } finally {
-      setLoadingItems(false);
-    }
-  };
+        groups.forEach(g => {
+            const node = nodeMap[g.name];
+            if (g.parent_item_group && nodeMap[g.parent_item_group] && g.parent_item_group !== g.name) {
+                nodeMap[g.parent_item_group].children.push(node);
+            } else {
+                roots.push(node);
+            }
+        });
 
-  const handleRowClick = async (group) => {
-    setIsViewMode(true);
-    setIsEditMode(false);
-    setEditingGroupId(group.name);
-    setShowForm(true);
-    await fetchGroupDetails(group.name);
-    fetchConnectedItems(group.name);
-  };
+        return roots;
+    }, [groups]);
 
-  const resetForm = () => {
-    setForm({
-      item_group_name: '',
-      parent_item_group: 'All Item Groups',
-      is_group: 0,
-      default_price_list: '',
-      description: '',
-      image: ''
-    });
-    setIsEditMode(false);
-    setIsViewMode(false);
-    setEditingGroupId(null);
-    setConnectedItems([]);
-  };
+    // Count subgroups & items under each node
+    const groupStats = useMemo(() => {
+        const stats = {};
+        groups.forEach(g => {
+            const childrenCount = groups.filter(child => child.parent_item_group === g.name).length;
+            stats[g.name] = { childrenCount };
+        });
+        return stats;
+    }, [groups]);
 
-  const handleSave = async (e) => {
-    e.preventDefault();
-    if (!form.item_group_name.trim()) return alert('Item Group Name is required.');
-
-    setSaving(true);
-    const payload = {
-      item_group_name: form.item_group_name,
-      parent_item_group: form.parent_item_group || undefined,
-      is_group: form.is_group ? 1 : 0,
-      default_price_list: form.default_price_list,
-      description: form.description
+    const toggleExpand = (nodeName, e) => {
+        if (e) e.stopPropagation();
+        setExpandedNodes(prev => ({ ...prev, [nodeName]: !prev[nodeName] }));
     };
 
-    try {
-      if (isEditMode) {
-        await axios.put(`/api/resource/Item Group/${encodeURIComponent(editingGroupId)}`, payload, { withCredentials: true });
-        alert('Item Group updated!');
-      } else {
-        await axios.post('/api/resource/Item Group', payload, { withCredentials: true });
-        alert('Item Group created!');
-      }
-      setShowForm(false);
-      resetForm();
-      fetchGroups();
-    } catch (err) {
-      alert(err.response?.data?.message || 'Save failed');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  // Build tree structure for rendering
-  const treeData = useMemo(() => {
-    const rootNodes = [];
-    const map = {};
-
-    // First pass: initialize map
-    groups.forEach(g => {
-      map[g.name] = { ...g, children: [], depth: 0 };
-    });
-
-    // Second pass: build tree
-    groups.forEach(g => {
-      const node = map[g.name];
-      if (g.parent_item_group && map[g.parent_item_group]) {
-        map[g.parent_item_group].children.push(node);
-      } else {
-        rootNodes.push(node);
-      }
-    });
-
-    // Compute depth recursively
-    const computeDepth = (nodes, d) => {
-      nodes.forEach(n => {
-        n.depth = d;
-        computeDepth(n.children, d + 1);
-      });
+    const expandAll = () => {
+        const allExp = {};
+        groups.forEach(g => allExp[g.name] = true);
+        setExpandedNodes(allExp);
     };
-    computeDepth(rootNodes, 0);
 
-    // Flatten tree respecting expanded state and filters
-    const flat = [];
-    const traverse = (node) => {
-      let visible = true;
-      if (filterName && !node.item_group_name.toLowerCase().includes(filterName.toLowerCase())) {
-        visible = false;
-        // If child matches, we still want to show parent (but this requires a different filtering logic).
-        // For simplicity, we'll do standard flat filtering if filterName is used.
-      }
+    const collapseAll = () => {
+        setExpandedNodes({ 'All Item Groups': true });
+    };
 
-      if (!filterName) {
-        flat.push(node);
-        if (expandedNodes[node.name]) {
-          node.children.forEach(traverse);
+    const openCreateModal = (parentGroup = selectedNodeName) => {
+        setForm({
+            item_group_name: '',
+            parent_item_group: parentGroup || 'All Item Groups',
+            is_group: 0,
+            description: ''
+        });
+        setIsEditMode(false);
+        setShowModal(true);
+    };
+
+    const openEditModal = (node) => {
+        setForm({
+            item_group_name: node.item_group_name || node.name,
+            parent_item_group: node.parent_item_group || 'All Item Groups',
+            is_group: node.is_group || 0,
+            description: node.description || ''
+        });
+        setIsEditMode(true);
+        setShowModal(true);
+    };
+
+    const handleSaveGroup = async (e) => {
+        e.preventDefault();
+        if (!form.item_group_name.trim()) {
+            return Swal.fire('Error', 'Item Group Name is required.', 'error');
         }
-      } else {
-        // If searching, ignore expanded state and show all matching
-        if (node.item_group_name.toLowerCase().includes(filterName.toLowerCase())) {
-          flat.push(node);
+
+        setSaving(true);
+        const payload = {
+            item_group_name: form.item_group_name.trim(),
+            parent_item_group: form.parent_item_group || undefined,
+            is_group: form.is_group ? 1 : 0,
+            description: form.description || ''
+        };
+
+        try {
+            if (isEditMode) {
+                await axios.put(`/api/resource/Item Group/${encodeURIComponent(selectedNodeName)}`, payload, { withCredentials: true });
+                Swal.fire({ icon: 'success', title: 'Updated!', text: `Item group ${form.item_group_name} updated successfully.`, timer: 1500 });
+            } else {
+                await axios.post('/api/resource/Item Group', payload, { withCredentials: true });
+                Swal.fire({ icon: 'success', title: 'Created!', text: `Item group ${form.item_group_name} created successfully.`, timer: 1500 });
+            }
+            setShowModal(false);
+            fetchGroups();
+        } catch (err) {
+            Swal.fire('Error', err.response?.data?.message || 'Save failed', 'error');
+        } finally {
+            setSaving(false);
         }
-        node.children.forEach(traverse);
-      }
     };
 
-    rootNodes.forEach(traverse);
-    return flat;
-  }, [groups, expandedNodes, filterName]);
+    const handleDeleteGroup = async (nodeName) => {
+        const result = await Swal.fire({
+            title: 'Delete Item Group?',
+            text: `Are you sure you want to delete "${nodeName}"?`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#ef4444',
+            confirmButtonText: 'Yes, Delete'
+        });
 
-  const totalPages = Math.ceil(treeData.length / pageSize);
-  const paginated = treeData.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+        if (result.isConfirmed) {
+            try {
+                await axios.delete(`/api/resource/Item Group/${encodeURIComponent(nodeName)}`, { withCredentials: true });
+                Swal.fire('Deleted!', `Item Group "${nodeName}" removed.`, 'success');
+                fetchGroups();
+            } catch (err) {
+                Swal.fire('Error', err.response?.data?.message || 'Delete failed', 'error');
+            }
+        }
+    };
 
-  return (
-    <>
-      <div className="so-page">
-        <div className="so-page-header">
-          <div className="so-page-left">
-            <h1 className="so-page-title">
-              <Layers size={20} /> Item Groups structure
-            </h1>
-            <p className="so-page-subtitle">{treeData.length} group(s) visible</p>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <button
-              onClick={() => setItTheme(isGreen ? 'blue' : 'green')}
-              style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.45rem 0.9rem', background: '#f8fafc', border: `1.5px solid ${themeColor}`, borderRadius: '0.375rem', fontSize: '0.75rem', fontWeight: 700, color: themeColor, cursor: 'pointer', textTransform: 'uppercase' }}
-            >
-              <Palette size={13} /> {itTheme}
-            </button>
+    // Filter attached items by search term
+    const filteredAttachedItems = useMemo(() => {
+        if (!itemSearchTerm.trim()) return attachedItems;
+        const q = itemSearchTerm.toLowerCase();
+        return attachedItems.filter(i =>
+            (i.item_name || '').toLowerCase().includes(q) ||
+            (i.item_code || '').toLowerCase().includes(q)
+        );
+    }, [attachedItems, itemSearchTerm]);
 
-            <button
-              onClick={() => { resetForm(); setShowForm(true); }}
-              className="so-btn-primary"
-            >
-              <Plus size={16} /> New Item Group
-            </button>
-          </div>
-        </div>
+    // Recursive Tree Node component
+    const renderTreeNode = (node, depth = 0) => {
+        const hasChildren = node.children && node.children.length > 0;
+        const isExpanded = !!expandedNodes[node.name];
+        const isSelected = selectedNodeName === node.name;
+        const isMatchingSearch = treeSearchTerm.trim() &&
+            node.item_group_name.toLowerCase().includes(treeSearchTerm.toLowerCase());
 
-        <div className="so-layout" style={{ flexDirection: 'column' }}>
-          <div className="so-filter-bar" style={{ background: 'white', padding: '1.25rem 2rem', borderBottom: '1px solid var(--so-border)', display: 'flex', gap: '1.25rem', alignItems: 'flex-end' }}>
-            <div style={{ flex: '1 1 250px' }}>
-              <label className="so-filter-label">Search Node</label>
-              <input type="text" placeholder="Group name..." value={filterName} onChange={e => { setFilterName(e.target.value); setCurrentPage(1); }} className="so-filter-input" />
-            </div>
-            <button onClick={() => { setFilterName(''); setCurrentPage(1); }} className="so-clear-btn" style={{ height: '38px', margin: 0, padding: '0 1.5rem', width: 'auto' }}>Clear</button>
-          </div>
+        if (treeSearchTerm.trim() && !isMatchingSearch && !node.children.some(c => c.item_group_name.toLowerCase().includes(treeSearchTerm.toLowerCase()))) {
+            return null;
+        }
 
-          <div className="so-content" style={{ padding: '1.5rem 2rem' }}>
-            <div className="so-table-card">
-              <div className="so-table-wrapper" style={{ overflowX: 'auto' }}>
-                {loading ? (
-                  <div style={{ padding: '4rem', textAlign: 'center' }}>
-                    <Loader2 size={32} className="so-spinner" style={{ margin: '0 auto', color: themeColor }} />
-                    <p style={{ marginTop: '1rem', color: '#64748b', fontWeight: 600 }}>Loading tree...</p>
-                  </div>
-                ) : (
-                  <table className="so-table">
-                    <thead>
-                      <tr>
-                        <th style={{ width: '600px' }}>Item Group Name</th>
-                        <th>Parent Node</th>
-                        <th style={{ textAlign: 'center' }}>Is Node?</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {paginated.map((group) => (
-                        <tr key={group.name} onClick={() => handleRowClick(group)} style={{ cursor: 'pointer' }}>
-                          <td style={{ paddingLeft: `${1 + (!filterName ? group.depth * 2 : 0)}rem` }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                              {!filterName && group.children && group.children.length > 0 ? (
-                                <button onClick={(e) => toggleNode(group.name, e)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: themeColor, display: 'flex', alignItems: 'center', padding: '2px', borderRadius: '4px' }}>
-                                  {expandedNodes[group.name] ? <ChevronDown size={16} /> : <ChevronRightIcon size={16} />}
-                                </button>
-                              ) : (
-                                <span style={{ width: '20px', display: 'inline-block' }}></span>
-                              )}
-                              <span style={{ fontWeight: 800, color: group.is_group ? themeColor : '#334155' }}>
-                                {group.item_group_name}
-                              </span>
-                            </div>
-                          </td>
-                          <td style={{ color: '#64748b', fontSize: '0.8rem', fontWeight: 600 }}>{group.parent_item_group || '-'}</td>
-                          <td style={{ textAlign: 'center' }}>
-                            {group.is_group ? (
-                              <span style={{ background: '#f1f5f9', color: '#475569', padding: '0.2rem 0.6rem', borderRadius: '1rem', fontSize: '0.65rem', fontWeight: 800 }}>FOLDER</span>
+        return (
+            <div key={node.name} className="flex flex-col">
+                <div
+                    onClick={() => selectNode(node.name)}
+                    className={`flex items-center justify-between py-2 px-3 rounded-xl cursor-pointer transition-all duration-150 group ${
+                        isSelected
+                            ? 'bg-emerald-50 text-emerald-900 font-extrabold shadow-xs border border-emerald-200'
+                            : 'hover:bg-slate-100/80 text-slate-700 font-semibold'
+                    }`}
+                    style={{ paddingLeft: `${depth * 1.25 + 0.75}rem` }}
+                >
+                    <div className="flex items-center gap-2 min-w-0 overflow-hidden">
+                        {hasChildren ? (
+                            <button
+                                type="button"
+                                onClick={(e) => toggleExpand(node.name, e)}
+                                className="p-0.5 rounded hover:bg-slate-200/60 text-slate-500 hover:text-slate-800 transition-colors"
+                            >
+                                {isExpanded ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
+                            </button>
+                        ) : (
+                            <span className="w-4 h-4 inline-block shrink-0" />
+                        )}
+
+                        {node.is_group ? (
+                            isExpanded ? (
+                                <FolderOpen size={16} className={isSelected ? 'text-emerald-600' : 'text-amber-500'} />
                             ) : (
-                              <span style={{ background: `${themeColor}15`, color: themeColor, padding: '0.2rem 0.6rem', borderRadius: '1rem', fontSize: '0.65rem', fontWeight: 800 }}>LEAF</span>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                      {paginated.length === 0 && (
-                        <tr><td colSpan="3" style={{ padding: '4rem', textAlign: 'center', color: '#94a3b8', fontWeight: 600 }}>No item groups found.</td></tr>
-                      )}
-                    </tbody>
-                  </table>
+                                <Folder size={16} className={isSelected ? 'text-emerald-600' : 'text-amber-500'} />
+                            )
+                        ) : (
+                            <Tag size={15} className={isSelected ? 'text-emerald-600' : 'text-slate-400'} />
+                        )}
+
+                        <span className="text-xs truncate tracking-tight">
+                            {node.item_group_name}
+                        </span>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 shrink-0">
+                        {groupStats[node.name]?.childrenCount > 0 && (
+                            <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-slate-200/70 text-slate-600">
+                                {groupStats[node.name].childrenCount} subs
+                            </span>
+                        )}
+                        {node.is_group ? (
+                            <span className="text-[8px] font-extrabold px-1.5 py-0.5 rounded uppercase bg-amber-50 text-amber-700 border border-amber-200">
+                                Folder
+                            </span>
+                        ) : (
+                            <span className="text-[8px] font-extrabold px-1.5 py-0.5 rounded uppercase bg-slate-100 text-slate-500 border border-slate-200">
+                                Leaf
+                            </span>
+                        )}
+                    </div>
+                </div>
+
+                {/* Render child nodes if expanded */}
+                {(isExpanded || treeSearchTerm.trim()) && hasChildren && (
+                    <div className="flex flex-col mt-0.5">
+                        {node.children.map(child => renderTreeNode(child, depth + 1))}
+                    </div>
                 )}
-              </div>
-              {!loading && treeData.length > 0 && (
-                <div className="so-pagination" style={{ padding: '1rem 1.25rem', borderTop: '1px solid var(--so-border)', margin: 0, display: 'flex', justifyContent: 'space-between' }}>
-                  <span>Showing {(currentPage - 1) * pageSize + 1} to {Math.min(currentPage * pageSize, treeData.length)} of {treeData.length}</span>
-                  <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                    <div className="so-pagination-btns">
-                      <button className="so-page-btn" disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)}><ChevronLeft size={14} /></button>
-                      <button className="so-page-btn" disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => p + 1)}><ChevronRightIcon size={14} /></button>
-                    </div>
-                  </div>
-                </div>
-              )}
             </div>
-          </div>
-        </div>
+        );
+    };
 
-        {/* Modal for View/Edit/Create */}
-        {showForm && (
-          <div className="so-full-screen-view" style={{ position: 'fixed', inset: 0, background: '#f8fafc', zIndex: 1000, display: 'flex', flexDirection: 'column', animation: 'fadeIn 0.2s ease-out' }}>
-            <div className="so-modal-header" style={{ padding: '1.25rem 2.5rem', background: 'white', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.02)' }}>
-              <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center' }}>
-                <button onClick={() => setShowForm(false)} className="so-modal-close" style={{ background: '#f8fafc', padding: '0.6rem', borderRadius: '0.75rem' }}><ChevronLeft size={22} /></button>
-                <div>
-                  <h2 className="so-modal-title" style={{ fontSize: '1.4rem', fontWeight: 900 }}>
-                    {isViewMode ? form.item_group_name : (isEditMode ? 'Edit Item Group' : 'New Item Group')}
-                  </h2>
-                  {isViewMode && <p style={{ fontSize: '0.75rem', color: themeColor, fontWeight: 800, textTransform: 'uppercase' }}>{editingGroupId}</p>}
+    return (
+        <div className="so-page min-h-screen bg-slate-50/50">
+            {/* 1. Header */}
+            <div className="bg-white border-b border-slate-200 px-6 py-4 flex flex-wrap items-center justify-between gap-4 shadow-xs sticky top-0 z-20">
+                <div className="flex items-center gap-3">
+                    <div className="p-2.5 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-200">
+                        <Layers size={22} />
+                    </div>
+                    <div>
+                        <h1 className="text-lg font-black text-slate-900 tracking-tight flex items-center gap-2">
+                            Item Group Hierarchy & Node Explorer
+                        </h1>
+                        <p className="text-xs font-semibold text-slate-500">
+                            {groups.length} Item Groups configured in hierarchy
+                        </p>
+                    </div>
                 </div>
-              </div>
+
+                <div className="flex items-center gap-3">
+                    <button
+                        type="button"
+                        onClick={() => setItTheme(isGreen ? 'blue' : 'green')}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-600 hover:bg-slate-100 transition-all uppercase"
+                    >
+                        <Palette size={14} style={{ color: themeColor }} />
+                        <span>Theme: {itTheme}</span>
+                    </button>
+
+                    <button
+                        type="button"
+                        onClick={() => fetchGroups()}
+                        className="p-2 bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200 rounded-lg transition-all"
+                        title="Reload Groups"
+                    >
+                        <RefreshCw size={15} className={loading ? 'animate-spin' : ''} />
+                    </button>
+
+                    <button
+                        type="button"
+                        onClick={() => openCreateModal('All Item Groups')}
+                        className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black rounded-lg shadow-sm transition-all active:scale-95 cursor-pointer"
+                    >
+                        <Plus size={16} />
+                        <span>NEW ITEM GROUP</span>
+                    </button>
+                </div>
             </div>
 
-            <div className="so-modal-body" style={{ flex: 1, overflowY: 'auto', padding: '2.5rem', display: 'grid', gridTemplateColumns: isViewMode ? '1fr 380px' : '1fr', gap: '2.5rem', alignItems: 'start' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-                <div className="so-card" style={{ borderRadius: '1.5rem' }}>
-                  <div className="so-card-header" style={{ padding: '1.5rem 2rem' }}>
-                    <p className="so-card-title">Node Configuration</p>
-                  </div>
-                  <div className="so-card-body" style={{ padding: '2rem' }}>
-                    <form onSubmit={handleSave} style={{ display: 'grid', gap: '2rem' }}>
-                      <div className="so-form-grid" style={{ gridTemplateColumns: '1fr 1fr' }}>
-                        <div className="so-field">
-                          <label className="so-label">Group Name *</label>
-                          <input type="text" value={form.item_group_name} onChange={e => setForm({ ...form, item_group_name: e.target.value })} disabled={isViewMode} className="so-input" required />
-                        </div>
-                        <div className="so-field">
-                          <label className="so-label">Parent Group</label>
-                          <select value={form.parent_item_group} onChange={e => setForm({ ...form, parent_item_group: e.target.value })} disabled={isViewMode} className="so-input">
-                            <option value="">No Parent (Root Node)</option>
-                            {groups.filter(g => g.is_group).map(g => (
-                              <option key={g.name} value={g.name}>{g.name}</option>
-                            ))}
-                          </select>
-                        </div>
-                      </div>
+            {/* 2. Main 2-Column Split Explorer */}
+            <div className="p-6">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
 
-                      <div className="so-form-grid" style={{ gridTemplateColumns: '1fr 1fr' }}>
-                        <div className="so-field">
-                          <label className="so-label">Is Folder Node? (Branch)</label>
-                          <select value={form.is_group} onChange={e => setForm({ ...form, is_group: parseInt(e.target.value) })} disabled={isViewMode} className="so-input">
-                            <option value={1}>Yes - It is a category</option>
-                            <option value={0}>No - It contains items directly</option>
-                          </select>
-                        </div>
-                        <div className="so-field">
-                          <label className="so-label">Default Price List</label>
-                          <input type="text" value={form.default_price_list} onChange={e => setForm({ ...form, default_price_list: e.target.value })} disabled={isViewMode} className="so-input" placeholder="e.g. Standard Selling" />
-                        </div>
-                      </div>
-
-                      <div className="so-field">
-                        <label className="so-label">Description / Internal Notes</label>
-                        <textarea value={form.description || ''} onChange={e => setForm({ ...form, description: e.target.value })} disabled={isViewMode} className="so-input" rows={4}></textarea>
-                      </div>
-
-                      {!isViewMode && (
-                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', paddingTop: '1rem', borderTop: '1px solid #e2e8f0' }}>
-                          <button type="button" onClick={() => setShowForm(false)} className="so-btn-secondary">Cancel</button>
-                          <button type="submit" disabled={saving} className="so-btn-primary" style={{ padding: '0 2rem' }}>{saving ? 'Saving...' : 'Commit Node'}</button>
-                        </div>
-                      )}
-                    </form>
-                  </div>
-                </div>
-              </div>
-
-              {isViewMode && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-                  <div className="so-card" style={{ borderRadius: '1.5rem', background: `${themeColor}05`, border: `1px solid ${themeColor}30` }}>
-                    <div className="so-card-body" style={{ padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                      <button onClick={() => { setIsViewMode(false); setIsEditMode(true); }} className="so-btn-primary" style={{ height: '3.5rem', width: '100%', fontSize: '1rem', fontWeight: 800, justifyContent: 'center' }}><Edit2 size={18} /> Modify Configuration</button>
-                    </div>
-                  </div>
-
-                  <div className="so-card" style={{ borderRadius: '1.5rem' }}>
-                    <div className="so-card-header" style={{ padding: '1.5rem 2rem', background: '#f8fafc' }}>
-                      <p className="so-card-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Package size={16} /> Attached Items</p>
-                    </div>
-                    <div className="so-card-body" style={{ padding: 0 }}>
-                      {loadingItems ? (
-                        <div style={{ padding: '3rem', textAlign: 'center' }}><Loader2 size={24} className="so-spinner" style={{ margin: '0 auto', color: themeColor }} /></div>
-                      ) : connectedItems.length === 0 ? (
-                        <div style={{ padding: '3rem', textAlign: 'center' }}>
-                          <Package size={32} style={{ margin: '0 auto 1rem', opacity: 0.1 }} />
-                          <p style={{ fontSize: '0.85rem', fontWeight: 600, color: '#94a3b8' }}>No items mapped directly to this node.</p>
-                        </div>
-                      ) : (
-                        <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
-                          {connectedItems.map((item, idx) => (
-                            <div key={idx} style={{ padding: '1rem 1.5rem', borderBottom: idx < connectedItems.length - 1 ? '1px solid #f1f5f9' : 'none', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                              <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                <span style={{ fontWeight: 800, color: '#1e293b', fontSize: '0.85rem' }}>{item.item_name}</span>
-                                <span style={{ fontSize: '0.7rem', color: '#94a3b8', fontFamily: 'monospace', fontWeight: 700 }}>{item.item_code}</span>
-                              </div>
-                              {item.standard_rate > 0 && (
-                                <span style={{ fontWeight: 800, color: themeColor, fontSize: '0.85rem', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
-                                  <DirhamIcon size={12} /> {item.standard_rate}
+                    {/* LEFT COLUMN: HIERARCHY TREE EXPLORER (4 cols) */}
+                    <div className="lg:col-span-4 bg-white rounded-2xl border border-slate-200 shadow-xs p-4 flex flex-col gap-4">
+                        <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                            <div className="flex items-center gap-2">
+                                <FolderOpen size={17} className="text-emerald-600" />
+                                <span className="text-xs font-black text-slate-800 uppercase tracking-wider">
+                                    Node Tree Hierarchy
                                 </span>
-                              )}
                             </div>
-                          ))}
+                            <div className="flex items-center gap-1">
+                                <button
+                                    type="button"
+                                    onClick={expandAll}
+                                    className="text-[10px] font-bold px-2 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded transition-colors"
+                                >
+                                    Expand All
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={collapseAll}
+                                    className="text-[10px] font-bold px-2 py-0.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded transition-colors"
+                                >
+                                    Collapse
+                                </button>
+                            </div>
                         </div>
-                      )}
+
+                        {/* Search Tree Input */}
+                        <div className="relative">
+                            <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                            <input
+                                type="text"
+                                placeholder="Search tree nodes..."
+                                value={treeSearchTerm}
+                                onChange={e => setTreeSearchTerm(e.target.value)}
+                                className="w-full pl-9 pr-8 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-800 outline-none focus:border-emerald-500 focus:bg-white transition-all"
+                            />
+                            {treeSearchTerm && (
+                                <button
+                                    onClick={() => setTreeSearchTerm('')}
+                                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                                >
+                                    <X size={13} />
+                                </button>
+                            )}
+                        </div>
+
+                        {/* Tree List Container */}
+                        <div className="max-h-[650px] overflow-y-auto pr-1 flex flex-col gap-0.5">
+                            {loading ? (
+                                <div className="py-12 text-center text-slate-400">
+                                    <Loader2 className="w-6 h-6 animate-spin mx-auto text-emerald-500 mb-2" />
+                                    <span className="text-xs font-bold">Building Node Tree...</span>
+                                </div>
+                            ) : treeNodes.length === 0 ? (
+                                <div className="py-12 text-center text-slate-400 font-bold text-xs">
+                                    No Item Groups found.
+                                </div>
+                            ) : (
+                                treeNodes.map(node => renderTreeNode(node, 0))
+                            )}
+                        </div>
                     </div>
-                  </div>
+
+                    {/* RIGHT COLUMN: SELECTED NODE DETAILS & ATTACHED ITEMS (8 cols) */}
+                    <div className="lg:col-span-8 flex flex-col gap-6">
+
+                        {/* NODE OVERVIEW HEADER CARD */}
+                        <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-5 flex flex-col gap-4">
+                            <div className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-100 pb-4">
+                                <div className="flex items-center gap-3">
+                                    <div className="p-3 rounded-xl bg-amber-50 text-amber-600 border border-amber-200">
+                                        {selectedNodeDetails?.is_group ? <FolderOpen size={24} /> : <Tag size={24} />}
+                                    </div>
+                                    <div className="flex flex-col">
+                                        <div className="flex items-center gap-2">
+                                            <h2 className="text-base font-black text-slate-900 tracking-tight">
+                                                {selectedNodeDetails?.item_group_name || selectedNodeName}
+                                            </h2>
+                                            {selectedNodeDetails?.is_group ? (
+                                                <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-800 text-[10px] font-black uppercase">
+                                                    Folder Node (Category)
+                                                </span>
+                                            ) : (
+                                                <span className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[10px] font-black uppercase">
+                                                    Leaf Node (Item Group)
+                                                </span>
+                                            )}
+                                        </div>
+                                        <span className="text-xs font-semibold text-slate-400 mt-0.5">
+                                            Parent Node: <strong className="text-slate-700">{selectedNodeDetails?.parent_item_group || 'None (Root Node)'}</strong>
+                                        </span>
+                                    </div>
+                                </div>
+
+                                {/* Node Action Buttons */}
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => openCreateModal(selectedNodeName)}
+                                        className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-lg text-xs font-black transition-all cursor-pointer"
+                                    >
+                                        <Plus size={14} />
+                                        <span>ADD SUBGROUP</span>
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        onClick={() => openEditModal(selectedNodeDetails)}
+                                        className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 rounded-lg text-xs font-black transition-all cursor-pointer"
+                                    >
+                                        <Edit2 size={14} />
+                                        <span>EDIT NODE</span>
+                                    </button>
+
+                                    {selectedNodeName !== 'All Item Groups' && (
+                                        <button
+                                            type="button"
+                                            onClick={() => handleDeleteGroup(selectedNodeName)}
+                                            className="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 rounded-lg transition-all cursor-pointer"
+                                            title="Delete Group"
+                                        >
+                                            <Trash2 size={15} />
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Stat Counters */}
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                                <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80 flex flex-col">
+                                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Direct Subgroups</span>
+                                    <span className="text-lg font-black text-slate-800 mt-0.5">
+                                        {groups.filter(g => g.parent_item_group === selectedNodeName).length}
+                                    </span>
+                                </div>
+
+                                <div className="p-3 bg-emerald-50/50 rounded-xl border border-emerald-200/60 flex flex-col">
+                                    <span className="text-[10px] font-extrabold text-emerald-600 uppercase tracking-wider">Direct Attached Items</span>
+                                    <span className="text-lg font-black text-emerald-800 mt-0.5">
+                                        {attachedItems.length}
+                                    </span>
+                                </div>
+
+                                <div className="p-3 bg-indigo-50/50 rounded-xl border border-indigo-200/60 flex flex-col col-span-2 sm:col-span-1">
+                                    <span className="text-[10px] font-extrabold text-indigo-600 uppercase tracking-wider">ERPNext DocType</span>
+                                    <span className="text-xs font-black text-indigo-800 mt-1 truncate">
+                                        Item Group
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* ATTACHED ITEMS PANEL */}
+                        <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-5 flex flex-col gap-4">
+                            <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-100">
+                                <div className="flex items-center gap-2">
+                                    <Package size={18} className="text-emerald-600" />
+                                    <h3 className="text-sm font-black text-slate-900 tracking-tight uppercase">
+                                        Products in "{selectedNodeName}"
+                                    </h3>
+                                </div>
+
+                                {/* Filter Items Input */}
+                                <div className="relative w-64">
+                                    <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                                    <input
+                                        type="text"
+                                        placeholder="Filter products..."
+                                        value={itemSearchTerm}
+                                        onChange={e => setItemSearchTerm(e.target.value)}
+                                        className="w-full pl-9 pr-7 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-800 outline-none focus:border-emerald-500 focus:bg-white transition-all"
+                                    />
+                                    {itemSearchTerm && (
+                                        <button
+                                            onClick={() => setItemSearchTerm('')}
+                                            className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400"
+                                        >
+                                            <X size={12} />
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Attached Items Grid/Table */}
+                            {loadingItems ? (
+                                <div className="py-12 text-center text-slate-400">
+                                    <Loader2 className="w-6 h-6 animate-spin mx-auto text-emerald-500 mb-2" />
+                                    <span className="text-xs font-bold">Loading Attached Products...</span>
+                                </div>
+                            ) : filteredAttachedItems.length === 0 ? (
+                                <div className="py-12 text-center text-slate-400 flex flex-col items-center gap-2">
+                                    <Package className="w-8 h-8 opacity-30" />
+                                    <span className="text-xs font-bold">
+                                        {attachedItems.length === 0 ? `No direct items attached to "${selectedNodeName}".` : 'No matching items found.'}
+                                    </span>
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 max-h-[450px] overflow-y-auto pr-1">
+                                    {filteredAttachedItems.map(item => (
+                                        <div
+                                            key={item.name}
+                                            className="p-3 bg-slate-50 hover:bg-slate-100/80 rounded-xl border border-slate-200/80 flex flex-col justify-between gap-2 transition-all"
+                                        >
+                                            <div className="flex flex-col text-left">
+                                                <span className="text-xs font-black text-slate-900 line-clamp-1">
+                                                    {item.item_name || item.item_code}
+                                                </span>
+                                                <span className="text-[10px] font-mono font-bold text-emerald-600 mt-0.5">
+                                                    {item.item_code}
+                                                </span>
+                                            </div>
+
+                                            <div className="flex items-center justify-between pt-2 border-t border-slate-200/60">
+                                                <span className="text-[10px] font-bold text-slate-500 uppercase">
+                                                    {item.stock_uom || 'Nos'}
+                                                </span>
+                                                <span className="text-xs font-black text-slate-800 flex items-center gap-0.5">
+                                                    <DirhamIcon size={12} /> {(parseFloat(item.standard_rate) || 0).toFixed(2)}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                    </div>
                 </div>
-              )}
             </div>
-          </div>
-        )}
-      </div>
-    </>
-  );
+
+            {/* 3. CREATE / EDIT ITEM GROUP MODAL */}
+            {showModal && (
+                <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl border border-slate-200 shadow-xl w-full max-w-lg overflow-hidden animate-fadeIn">
+                        <div className="bg-slate-50 px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <FolderOpen className="w-5 h-5 text-emerald-600" />
+                                <h3 className="text-sm font-black text-slate-900 uppercase tracking-wider">
+                                    {isEditMode ? `Edit Group: ${selectedNodeName}` : 'New Item Group Node'}
+                                </h3>
+                            </div>
+                            <button
+                                onClick={() => setShowModal(false)}
+                                className="p-1 rounded-lg hover:bg-slate-200 text-slate-400 hover:text-slate-600 transition-colors"
+                            >
+                                <X size={18} />
+                            </button>
+                        </div>
+
+                        <form onSubmit={handleSaveGroup} className="p-6 flex flex-col gap-4">
+                            <div className="flex flex-col gap-1 text-left">
+                                <label className="text-[11px] font-black text-slate-600 uppercase tracking-wider">
+                                    Item Group Name <span className="text-rose-500">*</span>
+                                </label>
+                                <input
+                                    type="text"
+                                    required
+                                    value={form.item_group_name}
+                                    onChange={e => setForm({ ...form, item_group_name: e.target.value })}
+                                    placeholder="e.g. Beverages, Electronics..."
+                                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-800 outline-none focus:border-emerald-500 focus:bg-white transition-all"
+                                />
+                            </div>
+
+                            <div className="flex flex-col gap-1 text-left">
+                                <label className="text-[11px] font-black text-slate-600 uppercase tracking-wider">
+                                    Parent Group Node
+                                </label>
+                                <select
+                                    value={form.parent_item_group}
+                                    onChange={e => setForm({ ...form, parent_item_group: e.target.value })}
+                                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-800 outline-none focus:border-emerald-500 focus:bg-white transition-all"
+                                >
+                                    <option value="">No Parent (Root Group)</option>
+                                    {groups.filter(g => g.is_group).map(g => (
+                                        <option key={g.name} value={g.name}>{g.item_group_name || g.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div className="flex flex-col gap-1 text-left">
+                                <label className="text-[11px] font-black text-slate-600 uppercase tracking-wider">
+                                    Node Category Type
+                                </label>
+                                <select
+                                    value={form.is_group}
+                                    onChange={e => setForm({ ...form, is_group: parseInt(e.target.value) })}
+                                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-800 outline-none focus:border-emerald-500 focus:bg-white transition-all"
+                                >
+                                    <option value={1}>Folder Node (Contains Subgroups)</option>
+                                    <option value={0}>Leaf Node (Contains Items Directly)</option>
+                                </select>
+                            </div>
+
+                            <div className="flex flex-col gap-1 text-left">
+                                <label className="text-[11px] font-black text-slate-600 uppercase tracking-wider">
+                                    Description / Internal Notes
+                                </label>
+                                <textarea
+                                    rows={3}
+                                    value={form.description}
+                                    onChange={e => setForm({ ...form, description: e.target.value })}
+                                    placeholder="Optional notes or category details..."
+                                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-semibold text-slate-800 outline-none focus:border-emerald-500 focus:bg-white transition-all"
+                                />
+                            </div>
+
+                            <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowModal(false)}
+                                    className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-black transition-all cursor-pointer"
+                                >
+                                    Cancel
+                                </button>
+
+                                <button
+                                    type="submit"
+                                    disabled={saving}
+                                    className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black shadow-sm transition-all active:scale-95 cursor-pointer disabled:opacity-50"
+                                >
+                                    {saving ? <Loader2 size={14} className="animate-spin" /> : (isEditMode ? 'Update Node' : 'Create Node')}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
 }
