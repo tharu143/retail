@@ -721,7 +721,8 @@ export default function ItemList() {
       const res = await axios.get('/api/method/kyle_retail.retail_api.api.get_retail_item_details', {
         params: {
           warehouse: !isAdmin ? warehouse : undefined,
-          extra_fields: JSON.stringify(customColumns)
+          extra_fields: JSON.stringify(customColumns),
+          include_templates: 1
         },
         withCredentials: true
       });
