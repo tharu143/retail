@@ -405,7 +405,16 @@ function NavBar() {
                   return;
                 }
 
-                if (location.pathname.includes('/item-details')) {
+                if (location.pathname.includes('/itemlist') || location.pathname.includes('/items')) {
+                  window.dispatchEvent(new CustomEvent('close-item-modal'));
+                  // Also step back if history state has modal
+                  if (window.history.state && window.history.state.modal === 'item-details') {
+                    window.history.back();
+                  }
+                  return;
+                }
+
+                if (location.pathname.includes('/item-details') || location.pathname.startsWith('/item/')) {
                   navigate('/itemlist');
                 } else if (location.pathname.includes('/customer-details') || location.pathname.includes('/customer-edit')) {
                   navigate('/customerlist');

@@ -16,6 +16,7 @@ import DirhamIcon from '../../assets/Currency/DirhamIcon';
 import './SalesOrder.css';
 import ListCustomizer from './ListCustomizer';
 import CreateVariantModal from './CreateVariantModal';
+import CreateMultipleVariantsModal from './CreateMultipleVariantsModal';
 import NbiItemGeneratorModal from './NbiItemGeneratorModal';
 import SubgroupFilterNavbar from './SubgroupFilterNavbar';
 import BarcodePrintModal from './BarcodePrintModal';
@@ -533,6 +534,9 @@ export default function ItemList() {
 
   // New POS 5 features states
   const [showVariantModal, setShowVariantModal] = useState(false);
+  const [showMultipleVariantModal, setShowMultipleVariantModal] = useState(false);
+  const [showHeaderCreateDropdown, setShowHeaderCreateDropdown] = useState(false);
+  const headerCreateMenuRef = useRef(null);
   const [showNbiModal, setShowNbiModal] = useState(false);
   const [showBarcodePrintModal, setShowBarcodePrintModal] = useState(false);
   const [selectedBarcodeItem, setSelectedBarcodeItem] = useState(null);
@@ -540,6 +544,16 @@ export default function ItemList() {
   const [subgroupFilterSub, setSubgroupFilterSub] = useState('All');
   const [groupHierarchy, setGroupHierarchy] = useState([]);
   const [formMainGroup, setFormMainGroup] = useState('');
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (headerCreateMenuRef.current && !headerCreateMenuRef.current.contains(e.target)) {
+        setShowHeaderCreateDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
 
   const [showCameraScanner, setShowCameraScanner] = useState(false);
@@ -563,10 +577,16 @@ export default function ItemList() {
   const [attributeValuesMap, setAttributeValuesMap] = useState({});
   const [variantForm, setVariantForm] = useState({
     create_first_variant: true,
-    selected_attributes: {},
-    variant_item_code: '',
-    variant_item_name: '',
-    variant_rate: ''
+    initial_variants: [
+      {
+        id: 'var-1',
+        selected_attributes: {},
+        variant_item_code: '',
+        variant_item_name: '',
+        variant_barcode: '',
+        use_custom_code: true
+      }
+    ]
   });
   const [loadingPrices, setLoadingPrices] = useState(false);
   const [groupSearch] = useState('');
@@ -579,6 +599,16 @@ export default function ItemList() {
     is_group: false,
   });
   const [savingItemGroup, setSavingItemGroup] = useState(false);
+
+  // ── Add Attribute / Value Modal ──
+  const [showAddAttrValueModal, setShowAddAttrValueModal] = useState(false);
+  const [attrModalData, setAttrModalData] = useState({
+    attribute_name: '',
+    attribute_value: '',
+    abbr: '',
+    targetRowIndex: null
+  });
+  const [savingAttrValue, setSavingAttrValue] = useState(false);
 
   const [activeTab, setActiveTab] = useState('General');
   const [dashboardData, setDashboardData] = useState(null);
@@ -595,6 +625,8 @@ export default function ItemList() {
   const [connectionActiveTab, setConnectionActiveTab] = useState(null);
   const [valuationData, setValuationData] = useState(null);
   const [loadingValuation, setLoadingValuation] = useState(false);
+  const [templateVariants, setTemplateVariants] = useState([]);
+  const [loadingTemplateVariants, setLoadingTemplateVariants] = useState(false);
 
   // ── Branch Sync Selection ──
   const [selectedItems, setSelectedItems] = useState([]);
@@ -655,6 +687,14 @@ export default function ItemList() {
   }, [customColumns, location.search]);
 
   useEffect(() => {
+    const handleCloseModalEvent = () => {
+      setShowForm(false);
+    };
+    window.addEventListener('close-item-modal', handleCloseModalEvent);
+    return () => window.removeEventListener('close-item-modal', handleCloseModalEvent);
+  }, []);
+
+  useEffect(() => {
     if (showForm) {
       window.history.pushState({ modal: 'item-details' }, '');
       const handlePopState = () => {
@@ -701,18 +741,79 @@ export default function ItemList() {
         if (item.barcodes) setBarcodes(item.barcodes);
         if (item.branch_availability) setForm(prev => ({ ...prev, branch_availability: item.branch_availability }));
       }
+      // Fetch full Item doc using frappe method to get full attributes and settings
       try {
-        const connRes = await axios.get('/api/method/kyle_retail.retail_api.api.get_linked_documents', {
-          params: {
-            doctype: 'Item',
-            name: code,
-            warehouse: localStorage.getItem('warehouse')
-          },
-          withCredentials: true
-        });
-        if (connRes.data?.message?.categories) setDashboardData(prev => ({ ...prev, connections: connRes.data.message.categories }));
-      } catch { }
-    } catch { setDashboardData({}); } finally { setLoadingDashboard(false); }
+        let itm = null;
+        try {
+          const fullItemRes = await axios.get(`/api/resource/Item/${encodeURIComponent(code)}`, { withCredentials: true });
+          itm = fullItemRes.data?.data;
+        } catch {
+          const clientGetRes = await axios.get('/api/method/frappe.client.get', {
+            params: { doctype: 'Item', name: code },
+            withCredentials: true
+          });
+          itm = clientGetRes.data?.message;
+        }
+
+        if (itm) {
+          const rawAttrs = itm.attributes || [];
+          const formattedAttrs = rawAttrs.map(a => {
+            if (typeof a === 'object' && a !== null) {
+              return {
+                attribute: a.attribute || a.attribute_name || a.name,
+                attribute_value: a.attribute_value || undefined
+              };
+            }
+            return { attribute: a };
+          }).filter(a => a.attribute);
+
+          const isVar = Boolean(itm.variant_of);
+          setForm(prev => ({
+            ...prev,
+            has_variants: itm.has_variants === 1,
+            attributes: formattedAttrs,
+            is_stock_item: isVar ? 1 : itm.is_stock_item,
+            is_sales_item: isVar ? (itm.is_sales_item !== undefined && itm.is_sales_item !== null ? itm.is_sales_item : 1) : itm.is_sales_item,
+            is_purchase_item: isVar ? (itm.is_purchase_item !== undefined && itm.is_purchase_item !== null ? itm.is_purchase_item : 1) : itm.is_purchase_item,
+            maintain_stock: isVar ? 1 : (itm.has_variants ? 0 : 1),
+            variant_of: itm.variant_of || '',
+            variant_based_on: itm.variant_based_on || (itm.variant_of ? 'Item Attribute' : undefined),
+            brand: itm.brand || prev.brand,
+            country_of_origin: itm.country_of_origin || prev.country_of_origin,
+            custom_pieces_per_box: itm.custom_pieces_per_box || prev.custom_pieces_per_box,
+            hsn_code: itm.hsn_code || prev.hsn_code,
+            description: itm.description || prev.description
+          }));
+
+          // If template item, fetch all created variants
+          if (itm.has_variants === 1) {
+            setLoadingTemplateVariants(true);
+            try {
+              const varRes = await axios.get('/api/method/custom_retailpos.custom_pos_features.get_template_variants', {
+                params: { template_item_code: code },
+                withCredentials: true
+              });
+              if (varRes.data?.message?.status === 'success') {
+                const fetchedVariants = varRes.data.message.data || [];
+                setTemplateVariants(fetchedVariants);
+              }
+            } catch (vErr) {
+              console.warn('Error fetching template variants:', vErr);
+            } finally {
+              setLoadingTemplateVariants(false);
+            }
+          } else {
+            setTemplateVariants([]);
+          }
+        }
+      } catch (errDoc) {
+        console.warn('Full item fetch error:', errDoc);
+      }
+    } catch {
+      setDashboardData({});
+    } finally {
+      setLoadingDashboard(false);
+    }
   };
 
   const fetchItemValuation = async (code) => {
@@ -835,26 +936,48 @@ export default function ItemList() {
       { attribute_value: '70 GSM', abbr: '70' },
       { attribute_value: '80 GSM', abbr: '80' },
       { attribute_value: '100 GSM', abbr: '100' }
+    ],
+    'Pages': [
+      { attribute_value: '100 Pages', abbr: '100P' },
+      { attribute_value: '200 Pages', abbr: '200P' },
+      { attribute_value: '300 Pages', abbr: '300P' },
+      { attribute_value: '400 Pages', abbr: '400P' }
+    ],
+    'Binding': [
+      { attribute_value: 'Hard Bound', abbr: 'HB' },
+      { attribute_value: 'Spiral Bound', abbr: 'SB' },
+      { attribute_value: 'Soft Cover', abbr: 'SC' }
+    ],
+    'Type': [
+      { attribute_value: 'Ruled', abbr: 'RUL' },
+      { attribute_value: 'Unruled', abbr: 'UNR' },
+      { attribute_value: 'Grid', abbr: 'GRD' },
+      { attribute_value: 'Dotted', abbr: 'DOT' }
     ]
   };
 
   const fetchItemAttributes = async () => {
     try {
-      const [attrRes, valRes] = await Promise.all([
-        axios.get('/api/resource/Item Attribute', { params: { fields: JSON.stringify(['name']), limit_page_length: 100 } })
-          .catch(() => axios.get('/api/method/kyle_retail.retail_api.api.get_generic_list', { params: { doctype: 'Item Attribute', fields: JSON.stringify(['name']), limit: 100 }, withCredentials: true })),
-        axios.get('/api/resource/Item Attribute Value', { params: { fields: JSON.stringify(['parent', 'attribute_value', 'abbr']), limit_page_length: 500 } })
-          .catch(() => axios.get('/api/method/kyle_retail.retail_api.api.get_generic_list', { params: { doctype: 'Item Attribute Value', fields: JSON.stringify(['parent', 'attribute_value', 'abbr']), limit: 500 }, withCredentials: true }))
-      ]);
-      const list = attrRes.data?.data || attrRes.data?.message?.data || attrRes.data?.message || [];
-      let attrList = (Array.isArray(list) ? list : []).map(a => ({ label: a.name || a.attribute_name, value: a.name || a.attribute_name }));
-      if (attrList.length === 0) {
-        attrList = DEFAULT_ATTRS.map(a => ({ label: a, value: a }));
-      }
-      setAvailableAttributes(attrList);
+      const res = await axios.get('/api/method/custom_retailpos.custom_pos_features.get_all_item_attributes_and_values', { withCredentials: true });
+      const data = res.data?.message || {};
       
-      const values = valRes.data?.data || valRes.data?.message?.data || valRes.data?.message || [];
+      const list = data.attributes || [];
+      let attrList = (Array.isArray(list) ? list : []).map(a => ({
+        label: a.attribute_name || a.name,
+        value: a.attribute_name || a.name
+      }));
+
+      // Combine with default stationery/retail attributes if not in list
+      DEFAULT_ATTRS.forEach(dAttr => {
+        if (!attrList.some(x => x.value === dAttr)) {
+          attrList.push({ label: dAttr, value: dAttr });
+        }
+      });
+
+      setAvailableAttributes(attrList);
+
       const map = { ...HARDCODED_ATTR_VALUES };
+      const values = data.values || [];
       (Array.isArray(values) ? values : []).forEach(v => {
         const p = v.parent;
         if (p) {
@@ -866,9 +989,69 @@ export default function ItemList() {
       });
       setAttributeValuesMap(map);
     } catch (err) {
-      console.error('Error fetching item attributes:', err);
+      console.warn('Using local fallback for item attributes:', err);
       setAvailableAttributes(DEFAULT_ATTRS.map(a => ({ label: a, value: a })));
       setAttributeValuesMap(HARDCODED_ATTR_VALUES);
+    }
+  };
+
+  const handleSaveNewAttributeValue = async () => {
+    const { attribute_name, attribute_value, abbr, targetRowIndex } = attrModalData;
+    if (!attribute_name || !attribute_value) {
+      alert('Attribute name and value are required.');
+      return;
+    }
+    try {
+      setSavingAttrValue(true);
+      const res = await axios.post('/api/method/custom_retailpos.custom_pos_features.add_custom_item_attribute_value', {
+        attribute_name: attribute_name.trim(),
+        attribute_value: attribute_value.trim(),
+        abbr: (abbr || '').trim() || attribute_value.trim()
+      });
+
+      const data = res.data?.message || {};
+      if (data.status === 'success' || data.attribute_value) {
+        const newVal = { attribute_value: data.attribute_value, abbr: data.abbr || '' };
+        
+        // Update local attributeValuesMap
+        setAttributeValuesMap(prev => {
+          const currentList = prev[attribute_name] || [];
+          if (!currentList.some(x => x.attribute_value === newVal.attribute_value)) {
+            return { ...prev, [attribute_name]: [...currentList, newVal] };
+          }
+          return prev;
+        });
+
+        // If this was opened from a specific variant row, select it immediately
+        if (targetRowIndex !== null && targetRowIndex !== undefined) {
+          setVariantForm(vf => {
+            const updatedVariants = [...(vf.initial_variants || [])];
+            if (updatedVariants[targetRowIndex]) {
+              const currentSelected = { ...(updatedVariants[targetRowIndex].selected_attributes || {}) };
+              currentSelected[attribute_name] = newVal.attribute_value;
+              const attrStr = Object.values(currentSelected).filter(Boolean).join('-');
+              updatedVariants[targetRowIndex] = {
+                ...updatedVariants[targetRowIndex],
+                selected_attributes: currentSelected,
+                variant_item_code: attrStr ? `${form.item_code || 'ITEM'}-${attrStr}`.toUpperCase() : '',
+                variant_item_name: attrStr ? `${form.item_name || 'Item'} ${attrStr}` : ''
+              };
+            }
+            return { ...vf, initial_variants: updatedVariants };
+          });
+        }
+
+        // Refresh global attribute list
+        fetchItemAttributes();
+        setShowAddAttrValueModal(false);
+        setAttrModalData({ attribute_name: '', attribute_value: '', abbr: '', targetRowIndex: null });
+      } else {
+        alert(data.message || 'Failed to add attribute value.');
+      }
+    } catch (err) {
+      alert(err.response?.data?.message || err.message || 'Error adding attribute value.');
+    } finally {
+      setSavingAttrValue(false);
     }
   };
 
@@ -1240,14 +1423,22 @@ export default function ItemList() {
   const handleSave = async () => {
     if (!form.item_code.trim() || !form.item_name.trim() || !form.item_group || !form.default_uom.trim()) { alert('Please fill all required fields'); return; }
     
-    const validAttributes = form.has_variants
-      ? (form.attributes || [])
-          .map(a => (typeof a === 'object' && a !== null ? a.attribute : a))
-          .filter(a => a && typeof a === 'string' && a.trim() !== '')
-          .map(a => ({ attribute: a.trim() }))
-      : [];
+    let finalAttributes = [];
+    if (form.has_variants) {
+      finalAttributes = (form.attributes || [])
+        .map(a => (typeof a === 'object' && a !== null ? a.attribute : a))
+        .filter(a => a && typeof a === 'string' && a.trim() !== '')
+        .map(a => ({ attribute: a.trim() }));
+    } else if (form.variant_of) {
+      finalAttributes = (form.attributes || [])
+        .filter(a => typeof a === 'object' && a !== null && a.attribute && a.attribute_value)
+        .map(a => ({
+          attribute: a.attribute.trim(),
+          attribute_value: String(a.attribute_value).trim()
+        }));
+    }
 
-    if (form.has_variants && validAttributes.length === 0) {
+    if (form.has_variants && finalAttributes.length === 0) {
       alert('Please select at least one valid Variant Attribute (e.g., Size, Colour) for Template Item.');
       return;
     }
@@ -1260,10 +1451,10 @@ export default function ItemList() {
         stock_uom: form.default_uom,
         standard_rate: parseFloat(form.standard_selling_rate) || 0,
         disabled: form.disabled ? 1 : 0,
-        maintain_stock: form.maintain_stock ? 1 : 0,
+        maintain_stock: form.has_variants ? 0 : (form.is_stock_item ? 1 : 0),
         has_variants: form.has_variants ? 1 : 0,
-        variant_based_on: form.has_variants ? 'Item Attribute' : undefined,
-        attributes: validAttributes,
+        variant_based_on: (form.has_variants || form.variant_of) ? 'Item Attribute' : undefined,
+        attributes: finalAttributes,
         is_variant: form.variant_of ? 1 : 0,
         variant_of: form.variant_of || '',
         description: form.description || '',
@@ -1273,9 +1464,9 @@ export default function ItemList() {
         country_of_origin: form.country_of_origin,
         custom_loyalty_eligible: form.custom_loyalty_eligible ? 1 : 0,
         custom_allow_discount: form.custom_allow_discount ? 1 : 0,
-        is_stock_item: form.is_stock_item ? 1 : 0,
-        is_sales_item: form.is_sales_item ? 1 : 0,
-        is_purchase_item: form.is_purchase_item ? 1 : 0,
+        is_stock_item: form.has_variants ? 0 : (form.is_stock_item ? 1 : 0),
+        is_sales_item: form.has_variants ? 0 : (form.is_sales_item ? 1 : 0),
+        is_purchase_item: form.has_variants ? 0 : (form.is_purchase_item ? 1 : 0),
         custom_pieces_per_box: parseFloat(form.custom_pieces_per_box) || 0,
         barcodes: barcodes.map(b => ({ barcode: b.barcode, uom: b.uom })),
         uoms: form.uoms.map(u => ({ uom: u.uom, conversion_factor: u.conversion_factor })),
@@ -1289,33 +1480,67 @@ export default function ItemList() {
         throw new Error(res.data?.message?.message || res.data?.message || 'Save failed');
       }
       
-      // If template was created with an initial variant, create the variant item now
-      const validVariantAttrs = {};
-      Object.entries(variantForm.selected_attributes || {}).forEach(([k, v]) => {
-        if (k && v && String(v).trim()) validVariantAttrs[k] = v;
-      });
-
-      if (!isEditMode && form.has_variants && variantForm.create_first_variant && Object.keys(validVariantAttrs).length > 0) {
+      // If template has variants to create (in create or edit mode), create them in bulk now
+      if (form.has_variants && variantForm.create_first_variant && (variantForm.initial_variants || []).length > 0) {
         try {
-          const varRes = await axios.post('/api/method/custom_retailpos.custom_pos_features.create_custom_item_variant', {
-            template_item_code: form.item_code,
-            attribute_values: JSON.stringify(validVariantAttrs),
-            custom_item_code: variantForm.variant_item_code.trim() || null,
-            item_name: variantForm.variant_item_name.trim() || null,
-            standard_rate: variantForm.variant_rate ? parseFloat(variantForm.variant_rate) : (parseFloat(form.standard_selling_rate) || 0)
-          });
-          if (varRes.data?.message?.status === 'error') {
-            console.warn('Variant creation notice:', varRes.data.message.message);
+          const variantsPayload = variantForm.initial_variants
+            .filter(v => Object.keys(v.selected_attributes || {}).length > 0 && (v.variant_item_code || '').trim() !== '')
+            .map(v => ({
+              attribute_values: v.selected_attributes,
+              custom_item_code: (v.variant_item_code || '').trim() || null,
+              item_name: (v.variant_item_name || '').trim() || null,
+              barcode: (v.variant_barcode || '').trim() || null,
+              image: v.image || v.imagePreview || null,
+              standard_rate: 0
+            }));
+
+          if (variantsPayload.length > 0) {
+            Swal.fire({
+              title: 'Creating Template & Variants...',
+              html: `<div style="font-size: 13px; color: #64748b; margin-top: 6px;">Generating <b>${variantsPayload.length}</b> variant item(s) in background...</div>`,
+              allowOutsideClick: false,
+              didOpen: () => Swal.showLoading()
+            });
+
+            const varRes = await axios.post('/api/method/custom_retailpos.custom_pos_features.create_multiple_custom_item_variants', {
+              template_item_code: form.item_code,
+              variants_data: JSON.stringify(variantsPayload),
+              branch_availability: JSON.stringify(data.branch_availability || [])
+            });
+            if (varRes.data?.message?.status === 'error') {
+              console.warn('Variants creation notice:', varRes.data.message.message);
+            }
           }
         } catch (vErr) {
-          console.warn('Initial variant creation note:', vErr);
+          console.warn('Initial variants creation note:', vErr);
         }
       }
 
-      alert(isEditMode ? 'Item updated!' : (form.has_variants && variantForm.create_first_variant && Object.keys(validVariantAttrs).length > 0 ? 'Template & Variant created successfully!' : 'Item created!'));
-      setShowForm(false); resetForm(); fetchItems();
-    } catch (e) { alert(e.response?.data?.message || e.message || 'Save failed'); }
-    finally { setSaving(false); }
+      Swal.fire({
+        icon: 'success',
+        title: isEditMode ? 'Item Updated!' : (form.has_variants && variantForm.create_first_variant ? 'Template & Variants Created!' : 'Item Created!'),
+        text: isEditMode 
+          ? 'The item details have been saved successfully.' 
+          : (form.has_variants && variantForm.create_first_variant 
+              ? `Template item and ${(variantForm.initial_variants || []).length} variant(s) generated successfully.` 
+              : 'New item added successfully.'),
+        timer: 2000,
+        showConfirmButton: false,
+        timerProgressBar: true
+      });
+
+      setShowForm(false); 
+      resetForm(); 
+      fetchItems();
+    } catch (e) { 
+      Swal.fire({
+        icon: 'error',
+        title: 'Save Failed',
+        text: e.response?.data?.message || e.message || 'Could not save item.'
+      });
+    } finally { 
+      setSaving(false); 
+    }
   };
 
   const handleSavePrice = async () => {
@@ -1343,6 +1568,10 @@ export default function ItemList() {
       item_group: item.item_group,
       disabled: item.disabled === 1,
       has_variants: item.has_variants === 1,
+      is_stock_item: item.has_variants === 1 ? 0 : 1,
+      is_sales_item: item.has_variants === 1 ? 0 : 1,
+      is_purchase_item: item.has_variants === 1 ? 0 : 1,
+      maintain_stock: item.has_variants === 1 ? 0 : 1,
       default_uom: item.stock_uom || 'Nos',
       standard_selling_rate: item.standard_rate || 0,
       imagePreview: item.image,
@@ -1357,7 +1586,27 @@ export default function ItemList() {
     fetchItemValuation(item.item_code);
   };
 
-  const resetForm = () => { setForm(defaultForm()); setBarcodes([]); setIsEditMode(false); setIsViewMode(false); setEditingItemCode(null); setValuationData(null); };
+  const resetForm = () => { 
+    setForm(defaultForm()); 
+    setBarcodes([]); 
+    setIsEditMode(false); 
+    setIsViewMode(false); 
+    setEditingItemCode(null); 
+    setValuationData(null); 
+    setVariantForm({
+      create_first_variant: true,
+      initial_variants: [
+        {
+          id: `var-1-${Date.now()}`,
+          selected_attributes: {},
+          variant_item_code: '',
+          variant_item_name: '',
+          variant_barcode: '',
+          use_custom_code: true
+        }
+      ]
+    });
+  };
 
   const handleCloseForm = async () => {
     const dirty = !isViewMode && (form.item_code || form.item_name || form.item_group || barcodes.length > 0 || form.image);
@@ -1514,13 +1763,7 @@ export default function ItemList() {
               >
                 <Warehouse size={14} />Sync Items to Branch
               </button>
-              <button 
-                className="il-btn il-btn-secondary" 
-                onClick={() => setShowVariantModal(true)}
-                style={{ color: '#4f46e5', borderColor: '#c7d2fe', background: '#e0e7ff', gap: 6 }}
-              >
-                <Box size={14} />Create Variant
-              </button>
+              {/* NBI button hidden for now
               <button 
                 className="il-btn il-btn-secondary" 
                 onClick={() => setShowNbiModal(true)}
@@ -1528,6 +1771,7 @@ export default function ItemList() {
               >
                 <Tag size={14} />No Barcode Item (NBI)
               </button>
+              */}
               <button className="il-btn il-btn-primary" onClick={() => {
                 resetForm();
                 const myWh = localStorage.getItem('warehouse');
@@ -2011,7 +2255,17 @@ export default function ItemList() {
       {showForm && (
         <div className="il-modal-panel anim-in">
           <div className="il-modal-header" style={{ height: 'auto', minHeight: 64, padding: '12px 28px', flexWrap: 'wrap', gap: 20 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 'fit-content' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14, minWidth: 'fit-content' }}>
+              <button
+                type="button"
+                onClick={handleCloseForm}
+                className="il-btn il-btn-secondary"
+                style={{ height: 36, padding: '0 12px', borderRadius: 10, background: '#fff', display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', border: `1.5px solid ${T.border}` }}
+                title="Back to Item List"
+              >
+                <ChevronLeft size={16} />
+                <span style={{ fontSize: 12, fontWeight: 800 }}>Back</span>
+              </button>
 
               <div style={{ minWidth: 0 }}>
                 <div style={{ fontSize: 16, fontWeight: 800, color: T.text, lineHeight: 1.2 }}>
@@ -2256,6 +2510,128 @@ export default function ItemList() {
                           </div>
                         </CardSection>
                       </div>
+
+                      {/* Template Item Variants Section */}
+                      {form.has_variants && (
+                        <div style={{ gridColumn: '1 / -1' }}>
+                          <CardSection 
+                            title={`Variants of this Template (${templateVariants.length})`} 
+                            icon={<Layers size={14} style={{ color: '#7c3aed' }} />}
+                            action={
+                              <button
+                                className="il-btn il-btn-secondary"
+                                style={{ padding: '4px 10px', fontSize: 11, background: '#f5f3ff', color: '#7c3aed', borderColor: '#ddd6fe', fontWeight: 700 }}
+                                onClick={() => { setIsViewMode(false); setIsEditMode(true); }}
+                              >
+                                <Plus size={12} /> + Add More Variants
+                              </button>
+                            }
+                          >
+                            <div style={{ padding: 0 }}>
+                              {loadingTemplateVariants ? (
+                                <div style={{ padding: '40px', textAlign: 'center' }}>
+                                  <Loader2 size={24} style={{ color: '#7c3aed', margin: '0 auto' }} className="spin" />
+                                </div>
+                              ) : templateVariants.length > 0 ? (
+                                <div style={{ overflowX: 'auto' }}>
+                                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                                    <thead>
+                                      <tr style={{ background: T.bg, borderBottom: `2px solid ${T.border}`, textAlign: 'left' }}>
+                                        <th style={{ padding: '10px 14px', fontSize: 11, fontWeight: 700, color: T.textMuted, textTransform: 'uppercase' }}>Variant Code</th>
+                                        <th style={{ padding: '10px 14px', fontSize: 11, fontWeight: 700, color: T.textMuted, textTransform: 'uppercase' }}>Variant Name</th>
+                                        <th style={{ padding: '10px 14px', fontSize: 11, fontWeight: 700, color: T.textMuted, textTransform: 'uppercase' }}>Attributes</th>
+                                        <th style={{ padding: '10px 14px', fontSize: 11, fontWeight: 700, color: T.textMuted, textTransform: 'uppercase' }}>Barcode</th>
+                                        <th style={{ padding: '10px 14px', fontSize: 11, fontWeight: 700, color: T.textMuted, textTransform: 'uppercase' }}>UOM</th>
+                                        <th style={{ padding: '10px 14px', textAlign: 'right', fontSize: 11, fontWeight: 700, color: T.textMuted, textTransform: 'uppercase' }}>Rate</th>
+                                        <th style={{ padding: '10px 14px', textAlign: 'center', fontSize: 11, fontWeight: 700, color: T.textMuted, textTransform: 'uppercase' }}>Status</th>
+                                        <th style={{ padding: '10px 14px', textAlign: 'right', fontSize: 11, fontWeight: 700, color: T.textMuted, textTransform: 'uppercase' }}>Action</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {templateVariants.map((v, idx) => (
+                                        <tr key={v.name || idx} style={{ borderBottom: `1px solid ${T.borderLight}`, transition: 'background 0.15s' }}>
+                                          <td style={{ padding: '10px 14px', fontWeight: 700, color: T.blue, fontFamily: "'DM Mono', monospace" }}>
+                                            {v.name}
+                                          </td>
+                                          <td style={{ padding: '10px 14px', fontWeight: 600, color: T.text }}>
+                                            {v.item_name}
+                                          </td>
+                                          <td style={{ padding: '10px 14px' }}>
+                                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                                              {(v.attributes || []).map((at, ai) => (
+                                                <span key={ai} style={{ fontSize: 10, fontWeight: 700, padding: '2px 6px', background: '#f5f3ff', color: '#7c3aed', borderRadius: 4, border: '1px solid #ddd6fe' }}>
+                                                  {at.attribute_value}
+                                                </span>
+                                              ))}
+                                            </div>
+                                          </td>
+                                          <td style={{ padding: '10px 14px', fontFamily: "'DM Mono', monospace", fontSize: 11, color: T.textSub }}>
+                                            {v.barcodes && v.barcodes.length > 0 ? v.barcodes[0].barcode : '—'}
+                                          </td>
+                                          <td style={{ padding: '10px 14px', color: T.textSub }}>
+                                            {v.stock_uom || 'Nos'}
+                                          </td>
+                                          <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 700 }}>
+                                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                                              <DirhamIcon size={11} /> {Number(v.standard_rate || 0).toFixed(2)}
+                                            </span>
+                                          </td>
+                                          <td style={{ padding: '10px 14px', textAlign: 'center' }}>
+                                            <span style={{
+                                              padding: '2px 6px',
+                                              borderRadius: 4,
+                                              fontSize: 10,
+                                              fontWeight: 700,
+                                              background: v.disabled ? '#fee2e2' : '#dcfce7',
+                                              color: v.disabled ? '#b91c1c' : '#15803d'
+                                            }}>
+                                              {v.disabled ? 'Disabled' : 'Active'}
+                                            </span>
+                                          </td>
+                                          <td style={{ padding: '10px 14px', textAlign: 'right' }}>
+                                            <button
+                                              onClick={() => {
+                                                handleRowClick({
+                                                  item_code: v.name,
+                                                  item_name: v.item_name,
+                                                  item_group: form.item_group,
+                                                  stock_uom: v.stock_uom,
+                                                  standard_rate: v.standard_rate,
+                                                  disabled: v.disabled,
+                                                  has_variants: 0,
+                                                  image: v.image
+                                                });
+                                              }}
+                                              style={{
+                                                padding: '4px 8px',
+                                                borderRadius: 6,
+                                                background: T.bg,
+                                                border: `1px solid ${T.border}`,
+                                                fontSize: 11,
+                                                fontWeight: 700,
+                                                color: T.text,
+                                                cursor: 'pointer'
+                                              }}
+                                            >
+                                              View Details →
+                                            </button>
+                                          </td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              ) : (
+                                <div style={{ padding: '30px 20px', textAlign: 'center', color: T.textMuted }}>
+                                  <Layers size={28} style={{ margin: '0 auto 8px', opacity: 0.4 }} />
+                                  <div style={{ fontSize: 12, fontWeight: 700, color: T.textSub, marginBottom: 2 }}>No variants created yet</div>
+                                  <div style={{ fontSize: 11 }}>Click "+ Add More Variants" to generate item variants.</div>
+                                </div>
+                              )}
+                            </div>
+                          </CardSection>
+                        </div>
+                      )}
 
                     </div>
                   </div>
@@ -2693,7 +3069,7 @@ export default function ItemList() {
                       {[
                         { key: 'custom_loyalty_eligible', label: 'Loyalty Points', desc: 'Earn points on purchase' },
                         { key: 'custom_allow_discount', label: 'Allow Discount', desc: 'Enable manual overrides' },
-                        { key: 'has_variants', label: 'Has Variants (Template)', desc: 'Mark as Item Template for variant creation' },
+                        ...(!form.variant_of ? [{ key: 'has_variants', label: 'Has Variants (Template)', desc: 'Mark as Item Template for variant creation' }] : []),
                       ].map(f => (
                         <label key={f.key} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', background: form[f.key] === 1 ? T.blueLight : T.bg, borderRadius: 9, cursor: 'pointer', border: `1.5px solid ${form[f.key] === 1 ? T.blueMid : T.border}`, transition: 'all 0.15s' }}>
                           <input
@@ -2704,6 +3080,11 @@ export default function ItemList() {
                               const checked = e.target.checked;
                               const updatedForm = { ...form, [f.key]: checked ? 1 : 0 };
                               if (f.key === 'has_variants') {
+                                if (checked) {
+                                  updatedForm.is_sales_item = 0;
+                                  updatedForm.is_purchase_item = 0;
+                                  updatedForm.is_stock_item = 0;
+                                }
                                 if (checked && (!form.attributes || form.attributes.length === 0)) {
                                   const initialAttr = availableAttributes[0]?.value || 'Colour';
                                   updatedForm.attributes = [{ attribute: initialAttr }];
@@ -2712,9 +3093,16 @@ export default function ItemList() {
                                   const initSelected = firstVal ? { [initialAttr]: firstVal } : {};
                                   setVariantForm(vf => ({
                                     ...vf,
-                                    selected_attributes: initSelected,
-                                    variant_item_code: firstVal ? `${form.item_code || 'ITEM'}-${firstVal}`.toUpperCase() : '',
-                                    variant_item_name: firstVal ? `${form.item_name || 'Item'} ${firstVal}` : ''
+                                    initial_variants: [
+                                      {
+                                        id: `var-1-${Date.now()}`,
+                                        selected_attributes: initSelected,
+                                        variant_item_code: firstVal ? `${form.item_code || 'ITEM'}-${firstVal}`.toUpperCase() : '',
+                                        variant_item_name: firstVal ? `${form.item_name || 'Item'} ${firstVal}` : '',
+                                        variant_barcode: '',
+                                        use_custom_code: true
+                                      }
+                                    ]
                                   }));
                                 }
                               }
@@ -2771,23 +3159,45 @@ export default function ItemList() {
                                   }
                                   setForm(p => ({ ...p, attributes: nextAttrs }));
                                   
-                                  // Update variantForm pre-fill
-                                  const initialVals = { ...variantForm.selected_attributes };
-                                  if (isSelected) {
-                                    delete initialVals[attr.value];
-                                  } else {
-                                    const possibleVals = attributeValuesMap[attr.value] || [];
-                                    if (possibleVals.length > 0 && !initialVals[attr.value]) {
-                                      initialVals[attr.value] = possibleVals[0].attribute_value;
-                                    }
-                                  }
-                                  const attrStr = Object.values(initialVals).filter(Boolean).join('-');
-                                  setVariantForm(vf => ({
-                                    ...vf,
-                                    selected_attributes: initialVals,
-                                    variant_item_code: attrStr ? `${form.item_code || 'ITEM'}-${attrStr}`.toUpperCase() : '',
-                                    variant_item_name: attrStr ? `${form.item_name || 'Item'} ${attrStr}` : ''
-                                  }));
+                                  // Update all initial variant rows
+                                  setVariantForm(vf => {
+                                    const updatedVariants = (vf.initial_variants || []).map(v => {
+                                      const updatedVals = { ...(v.selected_attributes || {}) };
+                                      if (isSelected) {
+                                        delete updatedVals[attr.value];
+                                      } else {
+                                        const possibleVals = attributeValuesMap[attr.value] || [];
+                                        if (possibleVals.length > 0 && !updatedVals[attr.value]) {
+                                          updatedVals[attr.value] = possibleVals[0].attribute_value;
+                                        }
+                                      }
+
+                                      // Order values by template attributes order
+                                      const orderedCodes = [];
+                                      const orderedNames = [];
+                                      nextAttrs.forEach(a => {
+                                        const aName = typeof a === 'object' && a !== null ? a.attribute : a;
+                                        const val = updatedVals[aName];
+                                        if (val) {
+                                          const pVals = attributeValuesMap[aName] || [];
+                                          const matched = pVals.find(x => x.attribute_value === val);
+                                          orderedCodes.push((matched?.abbr || val).toUpperCase());
+                                          orderedNames.push(val);
+                                        }
+                                      });
+
+                                      const codeSuffix = orderedCodes.join('-');
+                                      const nameSuffix = orderedNames.join(' ');
+
+                                      return {
+                                        ...v,
+                                        selected_attributes: updatedVals,
+                                        variant_item_code: codeSuffix ? `${form.item_code || 'ITEM'}-${codeSuffix}`.toUpperCase() : '',
+                                        variant_item_name: nameSuffix ? `${form.item_name || 'Item'} ${nameSuffix}` : ''
+                                      };
+                                    });
+                                    return { ...vf, initial_variants: updatedVariants };
+                                  });
                                 }}
                                 style={{
                                   padding: '4px 10px',
@@ -2828,16 +3238,22 @@ export default function ItemList() {
                                       
                                       const possibleVals = attributeValuesMap[val] || [];
                                       const firstVal = possibleVals[0]?.attribute_value || '';
-                                      const nextSelected = { ...variantForm.selected_attributes };
-                                      delete nextSelected[attrName];
-                                      if (val && firstVal) nextSelected[val] = firstVal;
-                                      const attrStr = Object.values(nextSelected).filter(Boolean).join('-');
-                                      setVariantForm(vf => ({
-                                        ...vf,
-                                        selected_attributes: nextSelected,
-                                        variant_item_code: attrStr ? `${form.item_code || 'ITEM'}-${attrStr}`.toUpperCase() : '',
-                                        variant_item_name: attrStr ? `${form.item_name || 'Item'} ${attrStr}` : ''
-                                      }));
+                                      // Update all initial variants
+                                      setVariantForm(vf => {
+                                        const updatedVariants = (vf.initial_variants || []).map(v => {
+                                          const nextSelected = { ...(v.selected_attributes || {}) };
+                                          delete nextSelected[attrName];
+                                          if (val && firstVal) nextSelected[val] = firstVal;
+                                          const attrStr = Object.values(nextSelected).filter(Boolean).join('-');
+                                          return {
+                                            ...v,
+                                            selected_attributes: nextSelected,
+                                            variant_item_code: attrStr ? `${form.item_code || 'ITEM'}-${attrStr}`.toUpperCase() : '',
+                                            variant_item_name: attrStr ? `${form.item_name || 'Item'} ${attrStr}` : ''
+                                          };
+                                        });
+                                        return { ...vf, initial_variants: updatedVariants };
+                                      });
                                     }}
                                   >
                                     <option value="">-- Choose Attribute (e.g. Size, Colour) --</option>
@@ -2853,9 +3269,20 @@ export default function ItemList() {
                                   onClick={() => {
                                     const updated = form.attributes.filter((_, i) => i !== idx);
                                     setForm(p => ({ ...p, attributes: updated }));
-                                    const initialVals = { ...variantForm.selected_attributes };
-                                    delete initialVals[attrName];
-                                    setVariantForm(vf => ({ ...vf, selected_attributes: initialVals }));
+                                    setVariantForm(vf => {
+                                      const updatedVariants = (vf.initial_variants || []).map(v => {
+                                        const nextSelected = { ...(v.selected_attributes || {}) };
+                                        delete nextSelected[attrName];
+                                        const attrStr = Object.values(nextSelected).filter(Boolean).join('-');
+                                        return {
+                                          ...v,
+                                          selected_attributes: nextSelected,
+                                          variant_item_code: attrStr ? `${form.item_code || 'ITEM'}-${attrStr}`.toUpperCase() : '',
+                                          variant_item_name: attrStr ? `${form.item_name || 'Item'} ${attrStr}` : ''
+                                        };
+                                      });
+                                      return { ...vf, initial_variants: updatedVariants };
+                                    });
                                   }} 
                                   style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.red, padding: 4 }}
                                 >
@@ -2871,122 +3298,424 @@ export default function ItemList() {
                         </div>
                       )}
 
-                      {/* Initial Variant Creation Section (Matching CreateVariantModal) */}
-                      {(form.attributes || []).length > 0 && !isEditMode && (
+                      {/* Existing Variants of this Template (in Edit Mode) */}
+                      {isEditMode && (
+                        <div style={{ background: '#fff', border: '1.5px solid #e2e8f0', borderRadius: 12, padding: '16px', marginTop: 12, marginBottom: 14 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, borderBottom: '1px solid #f1f5f9', paddingBottom: 8 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <Layers size={16} color="#7c3aed" />
+                              <span style={{ fontSize: 13, fontWeight: 800, color: '#1e293b' }}>
+                                Existing Created Variants ({templateVariants.length})
+                              </span>
+                            </div>
+                            {loadingTemplateVariants && <Loader2 size={16} className="spin" color="#7c3aed" />}
+                          </div>
+
+                          {loadingTemplateVariants ? (
+                            <div style={{ padding: '20px', textAlign: 'center' }}>
+                              <Loader2 size={20} className="spin" color="#7c3aed" style={{ margin: '0 auto' }} />
+                            </div>
+                          ) : templateVariants.length > 0 ? (
+                            <div style={{ overflowX: 'auto' }}>
+                              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                                <thead>
+                                  <tr style={{ background: '#f8fafc', borderBottom: '1.5px solid #e2e8f0', textAlign: 'left', color: '#64748b' }}>
+                                    <th style={{ padding: '8px 10px', fontWeight: 700 }}>Code</th>
+                                    <th style={{ padding: '8px 10px', fontWeight: 700 }}>Name</th>
+                                    <th style={{ padding: '8px 10px', fontWeight: 700 }}>Attributes</th>
+                                    <th style={{ padding: '8px 10px', fontWeight: 700 }}>Barcode</th>
+                                    <th style={{ padding: '8px 10px', fontWeight: 700 }}>Status</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {templateVariants.map((v, idx) => (
+                                    <tr key={v.name || idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                                      <td style={{ padding: '8px 10px', fontWeight: 700, color: T.blue, fontFamily: "'DM Mono', monospace" }}>
+                                        {v.name}
+                                      </td>
+                                      <td style={{ padding: '8px 10px', fontWeight: 600, color: T.text }}>
+                                        {v.item_name}
+                                      </td>
+                                      <td style={{ padding: '8px 10px' }}>
+                                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                                          {(v.attributes || []).map((at, ai) => (
+                                            <span key={ai} style={{ fontSize: 10, fontWeight: 700, padding: '2px 6px', background: '#f5f3ff', color: '#7c3aed', borderRadius: 4, border: '1px solid #ddd6fe' }}>
+                                              {at.attribute_value}
+                                            </span>
+                                          ))}
+                                        </div>
+                                      </td>
+                                      <td style={{ padding: '8px 10px', fontFamily: "'DM Mono', monospace", fontSize: 11, color: T.textSub }}>
+                                        {v.barcodes && v.barcodes.length > 0 ? v.barcodes[0].barcode : '—'}
+                                      </td>
+                                      <td style={{ padding: '8px 10px' }}>
+                                        <span style={{
+                                          padding: '2px 6px',
+                                          borderRadius: 4,
+                                          fontSize: 10,
+                                          fontWeight: 700,
+                                          background: v.disabled ? '#fee2e2' : '#dcfce7',
+                                          color: v.disabled ? '#b91c1c' : '#15803d'
+                                        }}>
+                                          {v.disabled ? 'Disabled' : 'Active'}
+                                        </span>
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          ) : (
+                            <div style={{ padding: '16px', textAlign: 'center', color: T.textMuted, fontSize: 12 }}>
+                              No variants created yet for this template. Use the form below to add variants.
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Initial / Additional Variant Creation Section */}
+                      {(form.attributes || []).length > 0 && (
                         <div style={{ background: '#fff', border: '1.5px solid #ddd6fe', borderRadius: 12, padding: '16px', marginTop: 10 }}>
                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, borderBottom: '1px solid #f3e8ff', paddingBottom: 10 }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                               <Box size={16} color="#7c3aed" />
-                              <span style={{ fontSize: 13, fontWeight: 800, color: '#5b21b6' }}>Create First Variant Immediately</span>
+                              <span style={{ fontSize: 13, fontWeight: 800, color: '#5b21b6' }}>
+                                {isEditMode ? 'Create / Add Variants to Template' : 'Create Initial Variant(s) Immediately'}
+                              </span>
                             </div>
-                            <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 12, fontWeight: 700, color: '#6d28d9' }}>
-                              <input 
-                                type="checkbox"
-                                className="il-check"
-                                checked={variantForm.create_first_variant} 
-                                onChange={e => setVariantForm({ ...variantForm, create_first_variant: e.target.checked })} 
-                              />
-                              Enable Variant Creation
-                            </label>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const newId = `var-${(variantForm.initial_variants || []).length + 1}-${Date.now()}`;
+                                  // Pre-fill initial attribute values from template
+                                  const initialAttrs = {};
+                                  const orderedCodes = [];
+                                  const orderedNames = [];
+
+                                  (form.attributes || []).forEach(a => {
+                                    const attrName = typeof a === 'object' && a !== null ? a.attribute : a;
+                                    const possibleVals = attributeValuesMap[attrName] || [];
+                                    if (possibleVals.length > 0) {
+                                      const firstVal = possibleVals[0].attribute_value;
+                                      initialAttrs[attrName] = firstVal;
+                                      orderedCodes.push((possibleVals[0].abbr || firstVal).toUpperCase());
+                                      orderedNames.push(firstVal);
+                                    }
+                                  });
+
+                                  const codeSuffix = orderedCodes.join('-');
+                                  const nameSuffix = orderedNames.join(' ');
+
+                                  setVariantForm(vf => ({
+                                    ...vf,
+                                    initial_variants: [
+                                      ...(vf.initial_variants || []),
+                                      {
+                                        id: newId,
+                                        selected_attributes: initialAttrs,
+                                        variant_item_code: codeSuffix ? `${form.item_code || 'ITEM'}-${codeSuffix}`.toUpperCase() : '',
+                                        variant_item_name: nameSuffix ? `${form.item_name || 'Item'} ${nameSuffix}` : '',
+                                        variant_barcode: '',
+                                        image: '',
+                                        imagePreview: '',
+                                        use_custom_code: true
+                                      }
+                                    ]
+                                  }));
+                                }}
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: 5,
+                                  padding: '5px 12px',
+                                  background: '#f5f3ff',
+                                  border: '1.5px solid #8b5cf6',
+                                  color: '#6d28d9',
+                                  borderRadius: 8,
+                                  fontSize: 12,
+                                  fontWeight: 800,
+                                  cursor: 'pointer'
+                                }}
+                              >
+                                <Plus size={14} />
+                                <span>+ Add Variant</span>
+                              </button>
+
+                              <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 12, fontWeight: 700, color: '#6d28d9' }}>
+                                <input 
+                                  type="checkbox"
+                                  className="il-check"
+                                  checked={variantForm.create_first_variant} 
+                                  onChange={e => setVariantForm({ ...variantForm, create_first_variant: e.target.checked })} 
+                                />
+                                Enable Variant Creation
+                              </label>
+                            </div>
                           </div>
 
                           {variantForm.create_first_variant && (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                              {/* Attribute Values Grid */}
-                              <div>
-                                <label style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: 6, display: 'block' }}>Choose Attribute Values</label>
-                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 10 }}>
-                                  {(form.attributes || []).map(a => (typeof a === 'object' && a !== null ? a.attribute : a)).filter(Boolean).map((attrName) => {
-                                    const possibleVals = attributeValuesMap[attrName] || [];
+                            <div style={{ overflowX: 'auto', border: '1px solid #e2e8f0', borderRadius: 10, background: '#fff' }}>
+                              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                                <thead>
+                                  <tr style={{ background: '#f8fafc', borderBottom: '1.5px solid #e2e8f0', color: '#475569', textAlign: 'left' }}>
+                                    <th style={{ padding: '10px 12px', width: 40, fontWeight: 700 }}>#</th>
+                                    {(form.attributes || []).map(a => (typeof a === 'object' && a !== null ? a.attribute : a)).filter(Boolean).map(attrName => (
+                                      <th key={attrName} style={{ padding: '10px 12px', minWidth: 150, fontWeight: 700 }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
+                                          <span>{String(attrName)} *</span>
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              setAttrModalData({
+                                                attribute_name: attrName,
+                                                attribute_value: '',
+                                                abbr: '',
+                                                targetRowIndex: null
+                                              });
+                                              setShowAddAttrValueModal(true);
+                                            }}
+                                            style={{
+                                              background: '#f5f3ff',
+                                              border: '1px solid #ddd6fe',
+                                              color: '#7c3aed',
+                                              fontSize: 10,
+                                              fontWeight: 800,
+                                              padding: '2px 5px',
+                                              borderRadius: 4,
+                                              cursor: 'pointer'
+                                            }}
+                                            title={`Add new value to ${attrName}`}
+                                          >
+                                            + New
+                                          </button>
+                                        </div>
+                                      </th>
+                                    ))}
+                                    <th style={{ padding: '10px 12px', minWidth: 170, fontWeight: 700 }}>Variant Item Code *</th>
+                                    <th style={{ padding: '10px 12px', minWidth: 200, fontWeight: 700 }}>Variant Item Name</th>
+                                    <th style={{ padding: '10px 12px', minWidth: 150, fontWeight: 700 }}>Variant Barcode</th>
+                                    <th style={{ padding: '10px 12px', minWidth: 120, fontWeight: 700 }}>Variant Image</th>
+                                    <th style={{ padding: '10px 12px', width: 50, textAlign: 'center', fontWeight: 700 }}></th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {(variantForm.initial_variants || []).map((vRow, vIdx) => {
                                     return (
-                                      <div key={attrName} style={{ padding: '8px 12px', background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0' }}>
-                                        <div style={{ fontSize: 11, fontWeight: 800, color: '#334155', marginBottom: 4 }}>{String(attrName)} *</div>
-                                        <select
-                                          style={{ width: '100%', padding: '6px 10px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12, background: '#fff', outline: 'none' }}
-                                          value={variantForm.selected_attributes[attrName] || ''}
-                                          onChange={e => {
-                                            const nextSelected = { ...variantForm.selected_attributes, [attrName]: e.target.value };
-                                            const attrStr = Object.values(nextSelected).filter(Boolean).join('-');
-                                            setVariantForm({
-                                              ...variantForm,
-                                              selected_attributes: nextSelected,
-                                              variant_item_code: attrStr ? `${form.item_code || 'ITEM'}-${attrStr}`.toUpperCase() : '',
-                                              variant_item_name: attrStr ? `${form.item_name || 'Item'} ${attrStr}` : ''
-                                            });
-                                          }}
-                                        >
-                                          <option value="">-- Select {String(attrName)} --</option>
-                                          {possibleVals.map(val => (
-                                            <option key={val.attribute_value} value={val.attribute_value}>
-                                              {val.attribute_value} {val.abbr ? `(${val.abbr})` : ''}
-                                            </option>
-                                          ))}
-                                        </select>
-                                      </div>
+                                      <tr key={vRow.id || vIdx} style={{ borderBottom: '1px solid #f1f5f9', background: vIdx % 2 === 0 ? '#fff' : '#faf5ff' }}>
+                                        <td style={{ padding: '10px 12px', fontWeight: 700, color: '#64748b' }}>
+                                          {vIdx + 1}
+                                        </td>
+
+                                        {/* Attribute Selectors for each attribute */}
+                                        {(form.attributes || []).map(a => (typeof a === 'object' && a !== null ? a.attribute : a)).filter(Boolean).map(attrName => {
+                                          const possibleVals = attributeValuesMap[attrName] || [];
+                                          return (
+                                            <td key={attrName} style={{ padding: '8px 10px' }}>
+                                              <select
+                                                style={{
+                                                  width: '100%',
+                                                  padding: '6px 8px',
+                                                  borderRadius: 6,
+                                                  border: '1px solid #cbd5e1',
+                                                  fontSize: 12,
+                                                  background: '#fff',
+                                                  fontWeight: 600,
+                                                  color: '#1e293b',
+                                                  outline: 'none'
+                                                }}
+                                                value={vRow.selected_attributes?.[attrName] || ''}
+                                                onChange={e => {
+                                                  const nextSelected = { ...(vRow.selected_attributes || {}), [attrName]: e.target.value };
+                                                  
+                                                  // Order values by template attributes order
+                                                  const orderedCodes = [];
+                                                  const orderedNames = [];
+                                                  (form.attributes || []).forEach(attr => {
+                                                    const aName = typeof attr === 'object' && attr !== null ? attr.attribute : attr;
+                                                    const val = nextSelected[aName];
+                                                    if (val) {
+                                                      const pVals = attributeValuesMap[aName] || [];
+                                                      const matched = pVals.find(x => x.attribute_value === val);
+                                                      orderedCodes.push((matched?.abbr || val).toUpperCase());
+                                                      orderedNames.push(val);
+                                                    }
+                                                  });
+
+                                                  const codeSuffix = orderedCodes.join('-');
+                                                  const nameSuffix = orderedNames.join(' ');
+
+                                                  const updatedVariants = [...variantForm.initial_variants];
+                                                  updatedVariants[vIdx] = {
+                                                    ...vRow,
+                                                    selected_attributes: nextSelected,
+                                                    variant_item_code: codeSuffix ? `${form.item_code || 'ITEM'}-${codeSuffix}`.toUpperCase() : '',
+                                                    variant_item_name: nameSuffix ? `${form.item_name || 'Item'} ${nameSuffix}` : ''
+                                                  };
+                                                  setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
+                                                }}
+                                              >
+                                                <option value="">-- {String(attrName)} --</option>
+                                                {possibleVals.map(val => (
+                                                  <option key={val.attribute_value} value={val.attribute_value}>
+                                                    {val.attribute_value} {val.abbr ? `(${val.abbr})` : ''}
+                                                  </option>
+                                                ))}
+                                              </select>
+                                            </td>
+                                          );
+                                        })}
+
+                                        {/* Item Code */}
+                                        <td style={{ padding: '8px 10px' }}>
+                                          <input
+                                            type="text"
+                                            className="il-input"
+                                            style={{ height: 34, fontSize: 12, fontWeight: 700 }}
+                                            value={vRow.variant_item_code || ''}
+                                            onChange={e => {
+                                              const updatedVariants = [...variantForm.initial_variants];
+                                              updatedVariants[vIdx] = { ...vRow, variant_item_code: e.target.value };
+                                              setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
+                                            }}
+                                            placeholder="Variant Code"
+                                          />
+                                        </td>
+
+                                        {/* Item Name */}
+                                        <td style={{ padding: '8px 10px' }}>
+                                          <input
+                                            type="text"
+                                            className="il-input"
+                                            style={{ height: 34, fontSize: 12 }}
+                                            value={vRow.variant_item_name || ''}
+                                            onChange={e => {
+                                              const updatedVariants = [...variantForm.initial_variants];
+                                              updatedVariants[vIdx] = { ...vRow, variant_item_name: e.target.value };
+                                              setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
+                                            }}
+                                            placeholder="Variant Name"
+                                          />
+                                        </td>
+
+                                        {/* Barcode */}
+                                        <td style={{ padding: '8px 10px' }}>
+                                          <input
+                                            type="text"
+                                            className="il-input"
+                                            style={{ height: 34, fontSize: 12 }}
+                                            value={vRow.variant_barcode || ''}
+                                            onChange={e => {
+                                              const updatedVariants = [...variantForm.initial_variants];
+                                              updatedVariants[vIdx] = { ...vRow, variant_barcode: e.target.value };
+                                              setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
+                                            }}
+                                            placeholder="Barcode"
+                                          />
+                                        </td>
+
+                                        {/* Variant Image */}
+                                        <td style={{ padding: '8px 10px' }}>
+                                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                            {vRow.imagePreview || vRow.image ? (
+                                              <div style={{ position: 'relative', width: 34, height: 34, borderRadius: 6, overflow: 'hidden', border: '1px solid #cbd5e1', flexShrink: 0 }}>
+                                                <img src={vRow.imagePreview || vRow.image} alt="variant" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                                <button
+                                                  type="button"
+                                                  onClick={() => {
+                                                    const updatedVariants = [...variantForm.initial_variants];
+                                                    updatedVariants[vIdx] = { ...vRow, image: '', imagePreview: '' };
+                                                    setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
+                                                  }}
+                                                  style={{
+                                                    position: 'absolute',
+                                                    top: 0,
+                                                    right: 0,
+                                                    background: 'rgba(0,0,0,0.6)',
+                                                    color: '#fff',
+                                                    border: 'none',
+                                                    borderRadius: '0 0 0 4px',
+                                                    cursor: 'pointer',
+                                                    width: 14,
+                                                    height: 14,
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    fontSize: 9
+                                                  }}
+                                                  title="Remove image"
+                                                >
+                                                  ✕
+                                                </button>
+                                              </div>
+                                            ) : null}
+                                            <label
+                                              style={{
+                                                display: 'inline-flex',
+                                                alignItems: 'center',
+                                                gap: 4,
+                                                padding: '4px 8px',
+                                                background: '#f8fafc',
+                                                border: '1px solid #cbd5e1',
+                                                borderRadius: 6,
+                                                fontSize: 11,
+                                                fontWeight: 600,
+                                                color: '#475569',
+                                                cursor: 'pointer',
+                                                whiteSpace: 'nowrap'
+                                              }}
+                                              title="Upload Variant Image"
+                                            >
+                                              <Upload size={12} />
+                                              <span>{vRow.imagePreview || vRow.image ? 'Change' : 'Upload'}</span>
+                                              <input
+                                                type="file"
+                                                hidden
+                                                accept="image/*"
+                                                onChange={e => {
+                                                  const file = e.target.files[0];
+                                                  if (file) {
+                                                    const reader = new FileReader();
+                                                    reader.onloadend = () => {
+                                                      const updatedVariants = [...variantForm.initial_variants];
+                                                      updatedVariants[vIdx] = {
+                                                        ...vRow,
+                                                        image: reader.result,
+                                                        imagePreview: reader.result
+                                                      };
+                                                      setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
+                                                    };
+                                                    reader.readAsDataURL(file);
+                                                  }
+                                                }}
+                                              />
+                                            </label>
+                                          </div>
+                                        </td>
+
+                                        {/* Actions */}
+                                        <td style={{ padding: '8px 10px', textAlign: 'center' }}>
+                                          {(variantForm.initial_variants || []).length > 1 && (
+                                            <button
+                                              type="button"
+                                              onClick={() => {
+                                                setVariantForm(vf => ({
+                                                  ...vf,
+                                                  initial_variants: vf.initial_variants.filter((_, i) => i !== vIdx)
+                                                }));
+                                              }}
+                                              style={{ background: 'none', border: 'none', color: T.red, cursor: 'pointer', padding: 4 }}
+                                              title="Remove row"
+                                            >
+                                              <Trash2 size={15} />
+                                            </button>
+                                          )}
+                                        </td>
+                                      </tr>
                                     );
                                   })}
-                                </div>
-                              </div>
-
-                              {/* Custom / Auto Code Mode (Just like CreateVariantModal) */}
-                              <div style={{ padding: '10px 12px', background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                                <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 12, fontWeight: 700, color: '#334155' }}>
-                                  <input 
-                                    type="checkbox" 
-                                    className="il-check"
-                                    checked={variantForm.use_custom_code !== false} 
-                                    onChange={e => {
-                                      const useCustom = e.target.checked;
-                                      const attrStr = Object.values(variantForm.selected_attributes || {}).filter(Boolean).join('-');
-                                      setVariantForm(vf => ({
-                                        ...vf,
-                                        use_custom_code: useCustom,
-                                        variant_item_code: !useCustom && attrStr ? `${form.item_code || 'ITEM'}-${attrStr}`.toUpperCase() : vf.variant_item_code
-                                      }));
-                                    }} 
-                                  />
-                                  <span>Manual / Custom Variant Item Code Override</span>
-                                </label>
-                                <span style={{ fontSize: 11, color: '#64748b' }}>{variantForm.use_custom_code !== false ? 'Custom code enabled' : 'Auto code from template & attributes'}</span>
-                              </div>
-
-                              {/* Variant Item Code, Name, Rate (Just like CreateVariantModal) */}
-                              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12, paddingTop: 10, borderTop: '1px dashed #e2e8f0' }}>
-                                <div>
-                                  <label style={{ fontSize: 11, fontWeight: 700, color: '#334155', display: 'block', marginBottom: 4 }}>Variant Item Code *</label>
-                                  <input 
-                                    type="text" 
-                                    className="il-input" 
-                                    value={variantForm.variant_item_code} 
-                                    readOnly={variantForm.use_custom_code === false}
-                                    onChange={e => setVariantForm({ ...variantForm, variant_item_code: e.target.value })} 
-                                    placeholder="e.g. SHIRT-BLUE-L or VAR-001" 
-                                  />
-                                </div>
-                                <div>
-                                  <label style={{ fontSize: 11, fontWeight: 700, color: '#334155', display: 'block', marginBottom: 4 }}>Variant Item Name</label>
-                                  <input 
-                                    type="text" 
-                                    className="il-input" 
-                                    value={variantForm.variant_item_name} 
-                                    onChange={e => setVariantForm({ ...variantForm, variant_item_name: e.target.value })} 
-                                    placeholder="e.g. Cotton Shirt Blue L" 
-                                  />
-                                </div>
-                                <div>
-                                  <label style={{ fontSize: 11, fontWeight: 700, color: '#334155', display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
-                                    Standard Selling Rate (<DirhamIcon size={11} />)
-                                  </label>
-                                  <input 
-                                    type="number" 
-                                    step="0.01" 
-                                    className="il-input" 
-                                    value={variantForm.variant_rate} 
-                                    onChange={e => setVariantForm({ ...variantForm, variant_rate: e.target.value })} 
-                                    placeholder={form.standard_selling_rate || "0.00"} 
-                                  />
-                                </div>
-                              </div>
+                                </tbody>
+                              </table>
                             </div>
                           )}
                         </div>
@@ -3154,6 +3883,11 @@ export default function ItemList() {
         onClose={() => setShowVariantModal(false)}
         onVariantCreated={() => fetchItems()}
       />
+      <CreateMultipleVariantsModal 
+        isOpen={showMultipleVariantModal} 
+        onClose={() => setShowMultipleVariantModal(false)}
+        onVariantsCreated={() => fetchItems()}
+      />
       <NbiItemGeneratorModal 
         isOpen={showNbiModal} 
         onClose={() => setShowNbiModal(false)}
@@ -3167,6 +3901,124 @@ export default function ItemList() {
           setSelectedBarcodeItem(null);
         }}
       />
+
+      {/* Add Attribute Value Quick Modal */}
+      {showAddAttrValueModal && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          zIndex: 16000,
+          background: 'rgba(15, 23, 42, 0.65)',
+          backdropFilter: 'blur(6px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '16px'
+        }}>
+          <div style={{
+            background: '#ffffff',
+            borderRadius: '16px',
+            width: '100%',
+            maxWidth: '440px',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+            overflow: 'hidden',
+            animation: 'slideUp 0.2s ease-out'
+          }}>
+            <div style={{
+              padding: '16px 20px',
+              background: '#1e1b4b',
+              color: '#fff',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Layers size={18} color="#c7d2fe" />
+                <span style={{ fontSize: 14, fontWeight: 800 }}>
+                  Add Value to {attrModalData.attribute_name}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAddAttrValueModal(false)}
+                style={{ background: 'none', border: 'none', color: '#cbd5e1', fontSize: 20, cursor: 'pointer' }}
+              >
+                ×
+              </button>
+            </div>
+
+            <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#334155', marginBottom: 6 }}>
+                  Attribute Name
+                </label>
+                <input
+                  type="text"
+                  className="il-input"
+                  value={attrModalData.attribute_name}
+                  readOnly
+                  style={{ background: '#f8fafc', color: '#64748b' }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#334155', marginBottom: 6 }}>
+                  New Value * (e.g. 50 Pages, 120 GSM, Lavender)
+                </label>
+                <input
+                  type="text"
+                  className="il-input"
+                  value={attrModalData.attribute_value}
+                  onChange={e => setAttrModalData({ ...attrModalData, attribute_value: e.target.value })}
+                  placeholder="Enter new attribute value"
+                  autoFocus
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#334155', marginBottom: 6 }}>
+                  Abbreviation / Short Code (Optional)
+                </label>
+                <input
+                  type="text"
+                  className="il-input"
+                  value={attrModalData.abbr}
+                  onChange={e => setAttrModalData({ ...attrModalData, abbr: e.target.value })}
+                  placeholder="e.g. 50P or LAV"
+                />
+              </div>
+            </div>
+
+            <div style={{ padding: '14px 20px', background: '#f8fafc', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+              <button
+                type="button"
+                onClick={() => setShowAddAttrValueModal(false)}
+                style={{ padding: '8px 16px', borderRadius: 8, background: '#fff', border: '1px solid #cbd5e1', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveNewAttributeValue}
+                disabled={savingAttrValue || !attrModalData.attribute_value.trim()}
+                style={{
+                  padding: '8px 20px',
+                  borderRadius: 8,
+                  background: '#6d28d9',
+                  color: '#fff',
+                  border: 'none',
+                  fontSize: 12,
+                  fontWeight: 800,
+                  cursor: savingAttrValue || !attrModalData.attribute_value.trim() ? 'not-allowed' : 'pointer',
+                  opacity: savingAttrValue || !attrModalData.attribute_value.trim() ? 0.6 : 1
+                }}
+              >
+                {savingAttrValue ? 'Adding...' : 'Add & Select Value'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Item Group / Subgroup Creation Modal */}
       {showItemGroupModal && (

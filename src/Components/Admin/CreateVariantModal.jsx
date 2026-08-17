@@ -11,6 +11,7 @@ export default function CreateVariantModal({ isOpen, onClose, onVariantCreated, 
   const [useCustomCode, setUseCustomCode] = useState(true);
   const [customItemCode, setCustomItemCode] = useState('');
   const [variantName, setVariantName] = useState('');
+  const [variantBarcode, setVariantBarcode] = useState('');
   const [standardRate, setStandardRate] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -28,6 +29,7 @@ export default function CreateVariantModal({ isOpen, onClose, onVariantCreated, 
       setSelectedAttributes({});
       setCustomItemCode('');
       setVariantName('');
+      setVariantBarcode('');
       setStandardRate('');
       setError('');
       setSuccessMsg('');
@@ -125,7 +127,8 @@ export default function CreateVariantModal({ isOpen, onClose, onVariantCreated, 
         attribute_values: JSON.stringify(selectedAttributes),
         custom_item_code: useCustomCode ? customItemCode.trim() : null,
         item_name: variantName.trim(),
-        standard_rate: standardRate ? parseFloat(standardRate) : 0
+        standard_rate: standardRate ? parseFloat(standardRate) : 0,
+        barcode: variantBarcode.trim() || null
       });
 
       if (res.data?.message?.status === 'success') {
@@ -232,6 +235,16 @@ export default function CreateVariantModal({ isOpen, onClose, onVariantCreated, 
                 </div>
 
                 <div className="form-group">
+                  <label>Variant Barcode</label>
+                  <input 
+                    type="text" 
+                    value={variantBarcode} 
+                    onChange={(e) => setVariantBarcode(e.target.value)} 
+                    placeholder="Scan or enter barcode"
+                  />
+                </div>
+
+                <div className="form-group">
                   <label style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                     Standard Selling Price (<DirhamIcon size={12} />)
                   </label>
@@ -240,7 +253,7 @@ export default function CreateVariantModal({ isOpen, onClose, onVariantCreated, 
                     step="0.01"
                     value={standardRate} 
                     onChange={(e) => setStandardRate(e.target.value)} 
-                    placeholder="Rate override"
+                    placeholder="Rate override (optional)"
                   />
                 </div>
               </div>

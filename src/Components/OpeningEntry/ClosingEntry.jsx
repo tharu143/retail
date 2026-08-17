@@ -262,11 +262,21 @@ function ClosingEntry() {
           payload = apiResponse.data || {};
         }
 
-        if (payload.invoices && payload.invoices.length > 0) {
-          setInvoicesData(payload);
+        // Allow closing even if 0 invoices exist during the shift
+        if (payload) {
+          const invoicesList = payload.invoices || [];
+          setInvoicesData({
+            ...payload,
+            invoices: invoicesList,
+            pos_transactions: payload.pos_transactions || [],
+            grand_total: payload.grand_total || 0,
+            net_total: payload.net_total || 0,
+            total_quantity: payload.total_quantity || 0,
+            taxes: payload.taxes || []
+          });
 
           const paidAmounts = {};
-          payload.invoices.forEach(inv => {
+          invoicesList.forEach(inv => {
             if (inv.payments && Array.isArray(inv.payments)) {
               inv.payments.forEach(pay => {
                 const mode = pay.mode_of_payment;
@@ -288,17 +298,21 @@ function ClosingEntry() {
             };
           });
           setPaymentReconciliation(fixedReconciliation);
-          setNoInvoicesMessage('');
+          if (invoicesList.length === 0) {
+            setNoInvoicesMessage('No sales invoices created during this shift. You can count cash, enter telephone machine balance, and close the shift.');
+          } else {
+            setNoInvoicesMessage('');
+          }
           // Reset denomination counts
           setDenomCounts(UAE_DENOMINATIONS.reduce((acc, d) => ({ ...acc, [d.value]: 0 }), {}));
           setDiscrepancyReason('');
         } else {
           setInvoicesData(null);
           setPaymentReconciliation([]);
-          setNoInvoicesMessage('No invoices found for the selected opening entry.');
+          setNoInvoicesMessage('No shift data found for the selected opening entry.');
         }
       } catch (err) {
-        setError(`Failed to fetch invoices: ${err.message}`);
+        setError(`Failed to fetch shift details: ${err.message}`);
         setInvoicesData(null);
       } finally {
         setLoading(false);

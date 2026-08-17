@@ -12,6 +12,7 @@ import { useLegacyTheme } from '../../hooks/useLegacyTheme';
 import './SupplierDetails.css'; // Reusing premium styles
 
 import CreateVariantModal from './CreateVariantModal';
+import CreateMultipleVariantsModal from './CreateMultipleVariantsModal';
 
 /* ========== DESIGN TOKENS ========== */
 const T = {
@@ -172,6 +173,20 @@ const ItemDetails = () => {
   const [toDate, setToDate] = useState('');
 
   const [showVariantModal, setShowVariantModal] = useState(false);
+  const [showMultipleVariantModal, setShowMultipleVariantModal] = useState(false);
+  const [showCreateDropdown, setShowCreateDropdown] = useState(false);
+  const [variantsList, setVariantsList] = useState([]);
+  const createMenuRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (createMenuRef.current && !createMenuRef.current.contains(e.target)) {
+        setShowCreateDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   useEffect(() => {
     fetchData();
@@ -224,6 +239,23 @@ const ItemDetails = () => {
         setPriceData({ prices: r?.data || [], metrics: r?.metrics || {}, warehouse_breakdown: r?.warehouse_breakdown || [] });
       }
 
+      // Fetch variants if item is a template
+      if (res.data?.data?.has_variants) {
+        try {
+          const varRes = await axios.get('/api/method/custom_retailpos.custom_pos_features.get_template_variants', {
+            params: { template_item_code: id },
+            withCredentials: true
+          });
+          if (varRes.data?.message?.status === 'success') {
+            setVariantsList(varRes.data.message.data || []);
+          } else if (Array.isArray(varRes.data?.message)) {
+            setVariantsList(varRes.data.message);
+          }
+        } catch (e) {
+          console.warn('Error fetching variants list:', e);
+        }
+      }
+
     } catch (err) {
       console.error('Fetch error:', err);
     } finally {
@@ -258,13 +290,90 @@ const ItemDetails = () => {
           </div>
           <div className="right-controls-group" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             {item.has_variants === 1 && (
-              <button
-                onClick={() => setShowVariantModal(true)}
-                className="btn-modern-primary flex items-center gap-1.5 px-3 py-1.5 bg-purple-600 text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-md hover:bg-purple-700 transition-all cursor-pointer"
-              >
-                <Plus size={14} />
-                <span>Create Variant</span>
-              </button>
+              <div className="relative" ref={createMenuRef} style={{ position: 'relative' }}>
+                <button
+                  onClick={() => setShowCreateDropdown(!showCreateDropdown)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg text-xs font-bold transition-all cursor-pointer border border-gray-300 shadow-sm"
+                  style={{ minWidth: 90, justifyContent: 'center' }}
+                >
+                  <span>Create</span>
+                  <ChevronDown size={14} style={{ transform: showCreateDropdown ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }} />
+                </button>
+
+                {showCreateDropdown && (
+                  <div 
+                    style={{
+                      position: 'absolute',
+                      top: '100%',
+                      right: 0,
+                      marginTop: 4,
+                      background: '#fff',
+                      borderRadius: 10,
+                      boxShadow: '0 10px 25px -5px rgba(0,0,0,0.15), 0 8px 10px -6px rgba(0,0,0,0.1)',
+                      border: '1px solid #e2e8f0',
+                      padding: '4px',
+                      zIndex: 50,
+                      minWidth: 160,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 2
+                    }}
+                  >
+                    <button
+                      onClick={() => {
+                        setShowCreateDropdown(false);
+                        setShowVariantModal(true);
+                      }}
+                      style={{
+                        textAlign: 'left',
+                        padding: '8px 12px',
+                        fontSize: '0.82rem',
+                        fontWeight: 600,
+                        color: '#1e293b',
+                        borderRadius: 6,
+                        background: 'transparent',
+                        border: 'none',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        transition: 'background 0.15s'
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.background = '#f1f5f9'}
+                      onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                    >
+                      <Box size={14} color="#6366f1" />
+                      <span>Single Variant</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowCreateDropdown(false);
+                        setShowMultipleVariantModal(true);
+                      }}
+                      style={{
+                        textAlign: 'left',
+                        padding: '8px 12px',
+                        fontSize: '0.82rem',
+                        fontWeight: 600,
+                        color: '#1e293b',
+                        borderRadius: 6,
+                        background: 'transparent',
+                        border: 'none',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        transition: 'background 0.15s'
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.background = '#f1f5f9'}
+                      onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                    >
+                      <Layers size={14} color="#8b5cf6" />
+                      <span>Multiple Variants</span>
+                    </button>
+                  </div>
+                )}
+              </div>
             )}
             <button
               onClick={toggleTheme}
@@ -401,6 +510,125 @@ const ItemDetails = () => {
                 </div>
               </InfoSection>
             </ScrollReveal>
+
+            {/* Template Item Variants Table Card */}
+            {item.has_variants === 1 && (
+              <div className="lg:col-span-2">
+                <ScrollReveal delay={200}>
+                  <div className="info-panel-card" style={{ margin: 0 }}>
+                    <div className="info-panel-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <Layers size={18} style={{ color: themeColor }} strokeWidth={2.5} />
+                        <h5 className="info-panel-title">Variants of this Template ({variantsList.length})</h5>
+                      </div>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <button
+                          onClick={() => setShowVariantModal(true)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-lg text-xs font-bold transition-all cursor-pointer border border-purple-200"
+                        >
+                          <Plus size={13} />
+                          <span>Add Single Variant</span>
+                        </button>
+                        <button
+                          onClick={() => setShowMultipleVariantModal(true)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg text-xs font-bold transition-all cursor-pointer border border-indigo-200"
+                        >
+                          <Layers size={13} />
+                          <span>Add Multiple Variants</span>
+                        </button>
+                      </div>
+                    </div>
+                    <div className="info-panel-body" style={{ padding: 0 }}>
+                      {variantsList.length > 0 ? (
+                        <div style={{ overflowX: 'auto' }}>
+                          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                            <thead>
+                              <tr style={{ background: T.bg, borderBottom: `2px solid ${T.border}`, textAlign: 'left' }}>
+                                <th style={{ padding: '12px 18px', fontSize: 11, fontWeight: 700, color: T.textMuted, textTransform: 'uppercase' }}>Variant Code</th>
+                                <th style={{ padding: '12px 18px', fontSize: 11, fontWeight: 700, color: T.textMuted, textTransform: 'uppercase' }}>Variant Name</th>
+                                <th style={{ padding: '12px 18px', fontSize: 11, fontWeight: 700, color: T.textMuted, textTransform: 'uppercase' }}>Attributes</th>
+                                <th style={{ padding: '12px 18px', fontSize: 11, fontWeight: 700, color: T.textMuted, textTransform: 'uppercase' }}>Barcode</th>
+                                <th style={{ padding: '12px 18px', fontSize: 11, fontWeight: 700, color: T.textMuted, textTransform: 'uppercase' }}>UOM</th>
+                                <th style={{ padding: '12px 18px', textAlign: 'right', fontSize: 11, fontWeight: 700, color: T.textMuted, textTransform: 'uppercase' }}>Rate</th>
+                                <th style={{ padding: '12px 18px', textAlign: 'center', fontSize: 11, fontWeight: 700, color: T.textMuted, textTransform: 'uppercase' }}>Status</th>
+                                <th style={{ padding: '12px 18px', textAlign: 'right', fontSize: 11, fontWeight: 700, color: T.textMuted, textTransform: 'uppercase' }}>Action</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {variantsList.map((v, idx) => (
+                                <tr key={v.name || idx} style={{ borderBottom: `1px solid ${T.borderLight}`, transition: 'background 0.15s' }}>
+                                  <td style={{ padding: '12px 18px', fontWeight: 700, color: themeColor, fontFamily: "'DM Mono', monospace" }}>
+                                    {v.name}
+                                  </td>
+                                  <td style={{ padding: '12px 18px', fontWeight: 600, color: T.text }}>
+                                    {v.item_name}
+                                  </td>
+                                  <td style={{ padding: '12px 18px' }}>
+                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                                      {(v.attributes || []).map((at, ai) => (
+                                        <span key={ai} style={{ fontSize: 10, fontWeight: 700, padding: '2px 6px', background: '#f5f3ff', color: '#7c3aed', borderRadius: 4, border: '1px solid #ddd6fe' }}>
+                                          {at.attribute_value}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  </td>
+                                  <td style={{ padding: '12px 18px', fontFamily: "'DM Mono', monospace", fontSize: 12, color: T.textSub }}>
+                                    {v.barcodes && v.barcodes.length > 0 ? v.barcodes[0].barcode : '—'}
+                                  </td>
+                                  <td style={{ padding: '12px 18px', color: T.textSub }}>
+                                    {v.stock_uom || 'Nos'}
+                                  </td>
+                                  <td style={{ padding: '12px 18px', textAlign: 'right', fontWeight: 700 }}>
+                                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                                      <DirhamIcon size={12} /> {Number(v.standard_rate || 0).toFixed(2)}
+                                    </span>
+                                  </td>
+                                  <td style={{ padding: '12px 18px', textAlign: 'center' }}>
+                                    <span style={{
+                                      padding: '3px 8px',
+                                      borderRadius: 6,
+                                      fontSize: 11,
+                                      fontWeight: 700,
+                                      background: v.disabled ? '#fee2e2' : '#dcfce7',
+                                      color: v.disabled ? '#b91c1c' : '#15803d'
+                                    }}>
+                                      {v.disabled ? 'Disabled' : 'Active'}
+                                    </span>
+                                  </td>
+                                  <td style={{ padding: '12px 18px', textAlign: 'right' }}>
+                                    <button
+                                      onClick={() => navigate(`/item/${encodeURIComponent(v.name)}`)}
+                                      style={{
+                                        padding: '5px 10px',
+                                        borderRadius: 6,
+                                        background: T.bg,
+                                        border: `1px solid ${T.border}`,
+                                        fontSize: 11,
+                                        fontWeight: 700,
+                                        color: T.text,
+                                        cursor: 'pointer'
+                                      }}
+                                    >
+                                      View Details →
+                                    </button>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      ) : (
+                        <div style={{ padding: '40px 20px', textAlign: 'center', color: T.textMuted }}>
+                          <Layers size={32} style={{ margin: '0 auto 10px', opacity: 0.4 }} />
+                          <div style={{ fontSize: 13, fontWeight: 700, color: T.textSub, marginBottom: 4 }}>No variants created yet</div>
+                          <div style={{ fontSize: 12, marginBottom: 14 }}>Click "Add Single Variant" or "Add Multiple Variants" to generate item variants.</div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </ScrollReveal>
+              </div>
+            )}
           </div>
         )}
 
@@ -569,6 +797,16 @@ const ItemDetails = () => {
         onClose={() => setShowVariantModal(false)}
         onVariantCreated={() => {
           setShowVariantModal(false);
+          fetchData();
+        }}
+      />
+
+      <CreateMultipleVariantsModal
+        isOpen={showMultipleVariantModal}
+        templateItemCode={item?.name || item?.item_code}
+        onClose={() => setShowMultipleVariantModal(false)}
+        onVariantsCreated={() => {
+          setShowMultipleVariantModal(false);
           fetchData();
         }}
       />
