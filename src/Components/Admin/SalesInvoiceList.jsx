@@ -5,7 +5,7 @@ import Swal from 'sweetalert2';
 import {
   Plus, X, Search, Filter, ChevronDown, FileText,
   Loader2, ChevronLeft, ChevronRight, ArrowLeft, Palette, Truck,
-  Zap, Link as LinkIcon
+  Zap, Link as LinkIcon, Edit2, CheckCircle2, Save, Printer, Settings
 } from 'lucide-react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useSelector } from 'react-redux';
@@ -14,12 +14,13 @@ import AttachmentSection from './AttachmentSection';
 import ListCustomizer from './ListCustomizer';
 import { useCustomShortcuts } from '../../hooks/useCustomShortcuts';
 import { frappeCall } from '../../utils/frappe';
+import CustomSearchDropdown from '../Purchase/CustomSearchDropdown';
 
 const SalesInvoiceList = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { getShortcut, isShortcutPressed } = useCustomShortcuts();
-  const { company: loggedCompany, warehouse, user_roles, user } = useSelector(state => state.user || {});
+  const { company: loggedCompany, warehouse, user_roles, user, theme } = useSelector(state => state.user || {});
   const isAdmin = (user_roles || []).includes("Administrator") || (user_roles || []).includes("System Manager");
 
   const [customColumns, setCustomColumns] = useState(() => {
@@ -1957,7 +1958,787 @@ const SalesInvoiceList = () => {
 
       {/* Modal */}
       {showModal && (
-        <div className="so-page font-sans bg-[#f8fafc] min-h-screen flex flex-col" style={{ flex: 1 }}>
+        theme === 'legacy' ? (
+          /* CLASSIC MODAL VIEW */
+          <div className="classic-root" style={{ position: 'relative', height: '100vh', display: 'flex', flexDirection: 'column', background: '#f8fafc', overflow: 'hidden' }}>
+
+            {/* 1. CLASSIC SHORTCUTS GUIDE BAR */}
+            <div className="so-shortcut-guide-banner" style={{ background: '#0f172a', borderBottom: '1px solid #1e293b', padding: '6px 14px', display: 'flex', alignItems: 'center', gap: '8px', overflowX: 'auto', flexShrink: 0 }}>
+              <div className="so-shortcut-banner-title" style={{ color: '#94a3b8', fontSize: '9px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.08em', display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}>
+                <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block animate-ping mr-1"></span>
+                SHORTCUTS
+              </div>
+              <div className="so-shortcut-badges-wrapper" style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'nowrap' }}>
+                <div className="so-shortcut-badge" style={{ background: '#ffffff', border: '1.5px solid #cbd5e1', borderRadius: '6px', padding: '3px 7px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                  <span className="so-shortcut-key" style={{ background: '#3b82f6', color: '#fff', fontSize: '9px', fontWeight: 900, padding: '1px 5px', borderRadius: '4px' }}>F2</span>
+                  <span className="so-shortcut-label" style={{ fontSize: '11px', fontWeight: 900, color: '#0f172a' }}>CUSTOMER</span>
+                </div>
+                <div className="so-shortcut-badge" style={{ background: '#ffffff', border: '1.5px solid #cbd5e1', borderRadius: '6px', padding: '3px 7px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                  <span className="so-shortcut-key" style={{ background: '#0ea5e9', color: '#fff', fontSize: '9px', fontWeight: 900, padding: '1px 5px', borderRadius: '4px' }}>F3</span>
+                  <span className="so-shortcut-label" style={{ fontSize: '11px', fontWeight: 900, color: '#0f172a' }}>SEARCH</span>
+                </div>
+                <div className="so-shortcut-badge" style={{ background: '#ffffff', border: '1.5px solid #cbd5e1', borderRadius: '6px', padding: '3px 7px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                  <span className="so-shortcut-key" style={{ background: '#10b981', color: '#fff', fontSize: '9px', fontWeight: 900, padding: '1px 5px', borderRadius: '4px' }}>F4</span>
+                  <span className="so-shortcut-label" style={{ fontSize: '11px', fontWeight: 900, color: '#0f172a' }}>BARCODE</span>
+                </div>
+                <div className="so-shortcut-badge" style={{ background: '#ffffff', border: '1.5px solid #cbd5e1', borderRadius: '6px', padding: '3px 7px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                  <span className="so-shortcut-key" style={{ background: '#a855f7', color: '#fff', fontSize: '9px', fontWeight: 900, padding: '1px 5px', borderRadius: '4px' }}>F6</span>
+                  <span className="so-shortcut-label" style={{ fontSize: '11px', fontWeight: 900, color: '#0f172a' }}>BULK QTY</span>
+                </div>
+                <div className="so-shortcut-badge" style={{ background: '#ffffff', border: '1.5px solid #cbd5e1', borderRadius: '6px', padding: '3px 7px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                  <span className="so-shortcut-key" style={{ background: '#eab308', color: '#fff', fontSize: '9px', fontWeight: 900, padding: '1px 5px', borderRadius: '4px' }}>F7</span>
+                  <span className="so-shortcut-label" style={{ fontSize: '11px', fontWeight: 900, color: '#0f172a' }}>SAVE DRAFT</span>
+                </div>
+                <div className="so-shortcut-badge" style={{ background: '#ffffff', border: '1.5px solid #cbd5e1', borderRadius: '6px', padding: '3px 7px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                  <span className="so-shortcut-key" style={{ background: '#0ea5e9', color: '#fff', fontSize: '9px', fontWeight: 900, padding: '1px 5px', borderRadius: '4px' }}>F10</span>
+                  <span className="so-shortcut-label" style={{ fontSize: '11px', fontWeight: 900, color: '#0f172a' }}>ADD ROW</span>
+                </div>
+                <div className="so-shortcut-badge" style={{ background: '#ffffff', border: '1.5px solid #cbd5e1', borderRadius: '6px', padding: '3px 7px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                  <span className="so-shortcut-key" style={{ background: '#10b981', color: '#fff', fontSize: '9px', fontWeight: 900, padding: '1px 5px', borderRadius: '4px' }}>CTRL+↵</span>
+                  <span className="so-shortcut-label" style={{ fontSize: '11px', fontWeight: 900, color: '#0f172a' }}>SUBMIT</span>
+                </div>
+              </div>
+            </div>
+
+            {/* 2. CLASSIC HEADER FORM */}
+            <div className="classic-header-form" style={{ background: '#ffffff', borderBottom: '1px solid #e2e8f0', padding: '0.6rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.6rem', flexShrink: 0 }}>
+              {/* Row 1 */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', width: '100%' }}>
+                {/* Customer Selection */}
+                <div className="classic-field flex items-center gap-3 relative flex-1">
+                  <label className="uppercase font-black text-[11px] text-slate-500 tracking-tight whitespace-nowrap">CUSTOMER</label>
+                  <div className="relative group flex-1">
+                    {!isViewOnly ? (
+                      <>
+                        <input
+                          type="text"
+                          value={searchCustomer}
+                          onChange={e => setSearchCustomer(e.target.value)}
+                          onFocus={() => setShowCustomerDropdown(true)}
+                          placeholder="Search customer..."
+                          className="h-10 px-3 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-800 outline-none focus:border-emerald-500 focus:bg-white w-full"
+                        />
+                        {showCustomerDropdown && filteredCustomers.length > 0 && (
+                          <div className="so-dropdown" style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: 'white', zIndex: 50, border: '1px solid #e2e8f0', borderRadius: '0.375rem', marginTop: '4px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
+                            {filteredCustomers.map(c => (
+                              <div
+                                key={c.name}
+                                onClick={() => {
+                                  setForm(prev => ({ ...prev, customer: c.name, customer_name: c.customer_name }));
+                                  setSearchCustomer(c.customer_name);
+                                  setShowCustomerDropdown(false);
+                                }}
+                                className="so-dropdown-item"
+                                style={{ padding: '0.75rem', cursor: 'pointer', borderBottom: '1px solid #f1f5f9' }}
+                              >
+                                <div style={{ fontWeight: 700 }}>{c.customer_name}</div>
+                                <div style={{ fontSize: '0.65rem', opacity: 0.6 }}>{c.name}</div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <div className="h-10 px-3 flex items-center border border-slate-200 bg-slate-50 rounded-lg text-xs font-black uppercase tracking-wider text-slate-700 shadow-2xs w-full">
+                        <span>{form.customer_name || 'Cash Customer'}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Warehouse Selector */}
+                <div className="classic-field flex items-center gap-3 relative flex-1">
+                  <label className="uppercase font-black text-[11px] text-slate-500 tracking-tight whitespace-nowrap">BRANCH</label>
+                  <div className="relative group flex-1">
+                    {!isViewOnly ? (
+                      <select
+                        className="h-10 px-3 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-800 outline-none focus:border-emerald-500 focus:bg-white w-full cursor-pointer"
+                        value={form.set_warehouse || ''}
+                        onChange={e => {
+                          const wh = e.target.value;
+                          setForm(prev => ({
+                            ...prev,
+                            set_warehouse: wh,
+                            items: prev.items.map(item => ({ ...item, warehouse: wh }))
+                          }));
+                        }}
+                      >
+                        <option value="">Select Warehouse...</option>
+                        {warehouses.map(w => (
+                          <option key={w.name} value={w.name}>{w.warehouse_name || w.name}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <div className="h-10 px-3 flex items-center border border-slate-200 bg-slate-50 rounded-lg text-xs font-black uppercase tracking-wider text-slate-700 shadow-2xs w-full">
+                        <span>{(form.set_warehouse || warehouse || 'Main Warehouse').split(' - ')[0]}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Posting Date */}
+                <div className="classic-field flex items-center gap-3">
+                  <label className="uppercase font-black text-[10px] text-slate-500 tracking-tight whitespace-nowrap">DATE</label>
+                  <input
+                    type="date"
+                    value={form.posting_date}
+                    disabled={isViewOnly}
+                    onClick={e => { try { e.target.showPicker(); } catch (err) { } }}
+                    onChange={e => setForm({ ...form, posting_date: e.target.value })}
+                    className="h-10 px-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-800 outline-none focus:border-emerald-500 cursor-pointer disabled:bg-slate-100 disabled:text-slate-500"
+                  />
+                </div>
+
+                {/* Due Date */}
+                <div className="classic-field flex items-center gap-3">
+                  <label className="uppercase font-black text-[10px] text-slate-500 tracking-tight whitespace-nowrap">DUE DATE</label>
+                  <input
+                    type="date"
+                    value={form.due_date || form.posting_date}
+                    disabled={isViewOnly}
+                    onClick={e => { try { e.target.showPicker(); } catch (err) { } }}
+                    onChange={e => setForm({ ...form, due_date: e.target.value })}
+                    className="h-10 px-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-800 outline-none focus:border-emerald-500 cursor-pointer disabled:bg-slate-100 disabled:text-slate-500"
+                  />
+                </div>
+
+                {/* Currency */}
+                <div className="classic-field flex items-center gap-3">
+                  <label className="uppercase font-black text-[10px] text-slate-500 tracking-tight whitespace-nowrap">CURRENCY</label>
+                  <div className="h-10 px-3 bg-slate-50 border border-slate-200 rounded-lg text-xs font-black text-slate-800 flex items-center gap-1.5 shadow-2xs select-none">
+                    <DirhamIcon size={14} className="text-slate-700" />
+                    <span>AED</span>
+                  </div>
+                </div>
+
+                {/* INV NO */}
+                <div className="classic-field flex items-center gap-3">
+                  <label className="uppercase font-black text-[10px] text-slate-500 tracking-tight whitespace-nowrap">INV NO</label>
+                  <div className="h-10 px-3 flex items-center bg-slate-100 border border-slate-200 rounded-lg text-xs font-mono font-black text-slate-800">
+                    {form.name || 'NEW-INV'}
+                  </div>
+                </div>
+              </div>
+
+              {/* Row 2 */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', width: '100%', borderTop: '1px dashed #e2e8f0', paddingTop: '0.5rem' }}>
+                {/* Customer PO */}
+                <div className="classic-field flex items-center gap-3" style={{ flex: 1.5 }}>
+                  <label className="uppercase font-black text-[10px] text-slate-500 tracking-tight whitespace-nowrap font-semibold">CUSTOMER PO</label>
+                  <input
+                    type="text"
+                    className="h-10 px-3 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-800 outline-none focus:border-emerald-500 focus:bg-white w-full disabled:bg-slate-100 disabled:text-slate-500"
+                    value={form.po_no || ''}
+                    disabled={isViewOnly}
+                    onChange={e => setForm({ ...form, po_no: e.target.value })}
+                    placeholder="Enter PO Number"
+                  />
+                </div>
+
+                {/* Customer PO Date */}
+                <div className="classic-field flex items-center gap-3" style={{ flex: 1.5 }}>
+                  <label className="uppercase font-black text-[10px] text-slate-500 tracking-tight whitespace-nowrap font-semibold">CUSTOMER PO DATE</label>
+                  <input
+                    type="date"
+                    className="h-10 px-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-800 outline-none focus:border-emerald-500 cursor-pointer disabled:bg-slate-100 disabled:text-slate-500 w-full"
+                    value={form.po_date || ''}
+                    disabled={isViewOnly || !form.po_no}
+                    onClick={e => { try { e.target.showPicker(); } catch (err) { } }}
+                    onChange={e => setForm({ ...form, po_date: e.target.value })}
+                  />
+                </div>
+
+                {/* Is POS Checkbox */}
+                <div className="classic-field flex items-center gap-3" style={{ flex: 0.8 }}>
+                  <label className="uppercase font-black text-[10px] text-slate-500 tracking-tight whitespace-nowrap font-semibold">IS POS</label>
+                  <div className="flex items-center h-10 px-3 bg-slate-50 border border-slate-200 rounded-lg">
+                    <input
+                      type="checkbox"
+                      checked={form.is_pos}
+                      disabled={isViewOnly}
+                      onChange={e => setForm({ ...form, is_pos: e.target.checked })}
+                      className="w-4 h-4 text-emerald-600 border-slate-300 rounded focus:ring-emerald-500 cursor-pointer"
+                    />
+                  </div>
+                </div>
+
+                {/* Update Stock Checkbox */}
+                <div className="classic-field flex items-center gap-3" style={{ flex: 1 }}>
+                  <label className="uppercase font-black text-[10px] text-slate-500 tracking-tight whitespace-nowrap font-semibold">UPDATE STOCK</label>
+                  <div className="flex items-center h-10 px-3 bg-slate-50 border border-slate-200 rounded-lg">
+                    <input
+                      type="checkbox"
+                      checked={form.update_stock}
+                      disabled={isViewOnly}
+                      onChange={e => setForm({ ...form, update_stock: e.target.checked })}
+                      className="w-4 h-4 text-emerald-600 border-slate-300 rounded focus:ring-emerald-500 cursor-pointer"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* 3. CLASSIC MAIN BODY: TABLE + BOTTOM CONTROLS */}
+            <div className="flex-1 flex flex-col overflow-hidden bg-slate-100 p-2">
+
+              {/* Table container */}
+              <div className="flex-1 min-h-0 overflow-y-auto overflow-x-auto bg-white rounded-xl border border-slate-200 shadow-2xs">
+
+                {/* Barcode / scan / bundles bar */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.5rem 1rem', borderBottom: '1px solid #e2e8f0', background: '#ffffff', flexShrink: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', minWidth: '240px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                        <div style={{ position: 'relative', flex: 1 }}>
+                          <input
+                            id="barcode-scan-input"
+                            className="so-select text-xs font-bold text-slate-800"
+                            style={{ height: '2.2rem', paddingRight: '2.5rem', width: '100%', borderRadius: '0.375rem', border: '1px solid #cbd5e1' }}
+                            placeholder="Scan or type barcode..."
+                            disabled={isViewOnly}
+                            value={barcodeInput}
+                            onChange={(e) => setBarcodeInput(e.target.value)}
+                            onKeyDown={handleBarcodeScan}
+                          />
+                          <Search size={14} style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', opacity: 0.4 }} />
+                        </div>
+                      </div>
+                    </div>
+                    {!isViewOnly && !isReturnMode && (
+                      <button
+                        type="button"
+                        onClick={handleOpenBundleModal}
+                        className="py-1.5 px-3 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-lg text-xs font-black transition-all"
+                      >
+                        + ADD BUNDLE
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Dynamic Items Table */}
+                {(() => {
+                  const hasAnyBox = form.items?.some(it => it.use_box_entry);
+                  return (
+                    <table className="classic-table" style={{ width: 'max-content', minWidth: '100%', borderCollapse: 'collapse', background: '#ffffff', tableLayout: 'fixed' }}>
+                      <thead>
+                        <tr style={{ background: '#f8fafc', borderBottom: '1.5px solid #cbd5e1' }}>
+                          <th style={{ width: '40px', minWidth: '40px', maxWidth: '40px', textAlign: 'center', padding: '10px 4px', fontSize: '11px', fontWeight: 900, color: '#475569', textTransform: 'uppercase', borderRight: '1px solid #e2e8f0' }}>#</th>
+                          <th style={{ width: '220px', minWidth: '220px', textAlign: 'left', padding: '10px 8px', fontSize: '11px', fontWeight: 900, color: '#475569', textTransform: 'uppercase', borderRight: '1px solid #e2e8f0' }}>Item Details</th>
+                          {hasAnyBox ? (
+                            <>
+                              <th style={{ width: '90px', minWidth: '90px', textAlign: 'center', padding: '10px 4px', fontSize: '11px', fontWeight: 900, color: '#475569', textTransform: 'uppercase', borderRight: '1px solid #e2e8f0' }}>Box Qty</th>
+                              <th style={{ width: '90px', minWidth: '90px', textAlign: 'left', padding: '10px 4px', fontSize: '11px', fontWeight: 900, color: '#475569', textTransform: 'uppercase', borderRight: '1px solid #e2e8f0' }}>UOM</th>
+                              <th style={{ width: '80px', minWidth: '80px', textAlign: 'center', padding: '10px 4px', fontSize: '11px', fontWeight: 900, color: '#475569', textTransform: 'uppercase', borderRight: '1px solid #e2e8f0' }}>Pcs/Box</th>
+                              <th style={{ width: '100px', minWidth: '100px', textAlign: 'right', padding: '10px 4px', fontSize: '11px', fontWeight: 900, color: '#475569', textTransform: 'uppercase', borderRight: '1px solid #e2e8f0' }}>Box Price</th>
+                              <th style={{ width: '100px', minWidth: '100px', textAlign: 'right', padding: '10px 4px', fontSize: '11px', fontWeight: 900, color: '#475569', textTransform: 'uppercase', borderRight: '1px solid #e2e8f0' }}>Rate (Nos)</th>
+                              <th style={{ width: '90px', minWidth: '90px', textAlign: 'center', padding: '10px 4px', fontSize: '11px', fontWeight: 900, color: '#475569', textTransform: 'uppercase', borderRight: '1px solid #e2e8f0' }}>Total Qty</th>
+                            </>
+                          ) : (
+                            <>
+                              <th style={{ width: '100px', minWidth: '100px', textAlign: 'center', padding: '10px 4px', fontSize: '11px', fontWeight: 900, color: '#475569', textTransform: 'uppercase', borderRight: '1px solid #e2e8f0' }}>Qty</th>
+                              <th style={{ width: '90px', minWidth: '90px', textAlign: 'center', padding: '10px 4px', fontSize: '11px', fontWeight: 900, color: '#475569', textTransform: 'uppercase', borderRight: '1px solid #e2e8f0' }}>UOM</th>
+                              <th style={{ width: '140px', minWidth: '140px', textAlign: 'right', padding: '10px 4px', fontSize: '11px', fontWeight: 900, color: '#475569', textTransform: 'uppercase', borderRight: '1px solid #e2e8f0' }}>Rate</th>
+                            </>
+                          )}
+                          <th style={{ width: '100px', minWidth: '100px', textAlign: 'center', padding: '10px 4px', fontSize: '11px', fontWeight: 900, color: '#475569', textTransform: 'uppercase', borderRight: '1px solid #e2e8f0' }}>Tax</th>
+                          <th style={{ width: '130px', minWidth: '130px', textAlign: 'right', padding: '10px 8px', fontSize: '11px', fontWeight: 900, color: '#475569', textTransform: 'uppercase', borderRight: '1px solid #e2e8f0' }}>Amount</th>
+                          <th style={{ width: '40px', minWidth: '40px', textAlign: 'center', padding: '10px 4px' }}></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {form.items.map((item, i) => (
+                          <tr key={i} className="border-b border-slate-100 hover:bg-emerald-50/30 transition-colors">
+                            <td className="text-center font-bold text-slate-400 text-xs py-2 border-r border-slate-100">{i + 1}</td>
+                            <td className="px-2 py-1 border-r border-slate-100 align-middle">
+                              {!isViewOnly && !isReturnMode ? (
+                                <div className="relative group">
+                                  <input
+                                    type="text"
+                                    value={itemQueries[i] || ''}
+                                    onChange={(e) => {
+                                      const q = e.target.value;
+                                      setItemQueries(prev => ({ ...prev, [i]: q }));
+                                      if (q.length >= 2) searchItems(q);
+                                    }}
+                                    onFocus={(e) => {
+                                      const input = e.target;
+                                      const rect = input.getBoundingClientRect();
+                                      setDropdownPosition({
+                                        top: rect.bottom + window.scrollY + 8,
+                                        left: rect.left + window.scrollX,
+                                        width: rect.width
+                                      });
+                                      setActiveItemRow(i);
+                                    }}
+                                    placeholder="Search item..."
+                                    className="h-8 px-2 bg-slate-50 border border-slate-200 rounded-md text-xs font-bold text-slate-800 outline-none w-full focus:bg-white focus:border-emerald-500"
+                                  />
+                                  {activeItemRow === i && dropdownPosition && itemQueries[i] && allItems.length > 0 && createPortal(
+                                    <div
+                                      className="so-dropdown"
+                                      style={{
+                                        position: 'fixed',
+                                        top: dropdownPosition.top + 'px',
+                                        left: dropdownPosition.left + 'px',
+                                        width: dropdownPosition.width + 'px',
+                                        zIndex: 9999
+                                      }}
+                                    >
+                                      {allItems
+                                        .filter(it =>
+                                          it.item_name?.toLowerCase().includes((itemQueries[i] || '').toLowerCase()) ||
+                                          it.item_code?.toLowerCase().includes((itemQueries[i] || '').toLowerCase())
+                                        )
+                                        .slice(0, 20)
+                                        .map(it => (
+                                          <div
+                                            key={it.item_code}
+                                            onClick={() => {
+                                              selectItem(i, it);
+                                              setDropdownPosition(null);
+                                            }}
+                                            className="so-dropdown-item"
+                                          >
+                                            <div style={{ fontWeight: 700 }}>{it.item_name}</div>
+                                            <div style={{ fontSize: '0.65rem', opacity: 0.6 }}>{it.item_code}</div>
+                                          </div>
+                                        ))}
+                                    </div>,
+                                    document.body
+                                  )}
+                                </div>
+                              ) : (
+                                <div>
+                                  <span className="font-black text-slate-900 text-xs leading-tight">{item.item_name}</span>
+                                  <span className="block font-bold text-[9px] text-emerald-600 uppercase tracking-widest mt-0.5">{item.item_code}</span>
+                                </div>
+                              )}
+                            </td>
+                            {hasAnyBox ? (
+                              <>
+                                {/* Box Qty Input */}
+                                <td className="px-2 py-1 text-center border-r border-slate-100 align-middle">
+                                  <input
+                                    type="number"
+                                    name={item.use_box_entry ? "custom_box_qty" : "qty"}
+                                    value={item.use_box_entry ? (item.custom_box_qty || '') : (item.qty || '')}
+                                    onChange={(e) => handleInputChangeDetails(e, i)}
+                                    disabled={isViewOnly || isReturnMode}
+                                    className="w-full h-8 px-2 text-center font-black text-xs text-slate-800 bg-transparent border-none outline-none focus:bg-emerald-50/40"
+                                  />
+                                </td>
+                                {/* UOM Select */}
+                                <td className="px-2 py-1 text-center border-r border-slate-100 align-middle">
+                                  <select
+                                    value={item.uom || 'Nos'}
+                                    onChange={(e) => handleUOMChangeDetails(e.target.value, i)}
+                                    disabled={isViewOnly || isReturnMode}
+                                    className="w-full h-8 px-1 text-center font-black text-xs text-slate-800 bg-transparent border-none outline-none cursor-pointer focus:bg-emerald-50/40"
+                                  >
+                                    {(() => {
+                                      const uniqueUoms = [];
+                                      const seen = new Set();
+                                      const candidates = [];
+                                      if (item.uom_list && Array.isArray(item.uom_list)) {
+                                        item.uom_list.forEach(u => { if (u && u.uom) candidates.push(u.uom); });
+                                      }
+                                      candidates.push(item.stock_uom || 'Nos');
+                                      candidates.push(item.uom || 'Nos');
+                                      candidates.push('Nos');
+                                      candidates.push('Box');
+
+                                      candidates.forEach(u => {
+                                        const norm = u.trim().toLowerCase();
+                                        let display = u.trim();
+                                        if (display === 'box' || display === 'BOX') display = 'Box';
+                                        else if (display === 'nos' || display === 'NOS') display = 'Nos';
+                                        if (!seen.has(norm)) {
+                                          seen.add(norm);
+                                          uniqueUoms.push(display);
+                                        }
+                                      });
+                                      return uniqueUoms.map(uomVal => (
+                                        <option key={uomVal} value={uomVal}>{uomVal}</option>
+                                      ));
+                                    })()}
+                                  </select>
+                                </td>
+                                {/* Pcs/Box */}
+                                <td className="px-2 py-1 text-center border-r border-slate-100 align-middle">
+                                  {item.use_box_entry ? (
+                                    <input
+                                      type="number"
+                                      name="custom_pieces_per_box"
+                                      value={item.custom_pieces_per_box || ''}
+                                      onChange={(e) => handleInputChangeDetails(e, i)}
+                                      disabled={isViewOnly || isReturnMode}
+                                      className="w-full h-8 px-2 text-center font-black text-xs text-slate-800 bg-transparent border-none outline-none focus:bg-emerald-50/40"
+                                    />
+                                  ) : (
+                                    <span className="text-slate-300">—</span>
+                                  )}
+                                </td>
+                                {/* Box Price */}
+                                <td className="px-2 py-1 text-right border-r border-slate-100 align-middle">
+                                  {item.use_box_entry ? (
+                                    <input
+                                      type="number"
+                                      name="custom_box_price"
+                                      value={item.custom_box_price || ''}
+                                      onChange={(e) => handleInputChangeDetails(e, i)}
+                                      disabled={isViewOnly || isReturnMode}
+                                      className="w-full h-8 px-2 text-right font-black text-xs text-slate-800 bg-transparent border-none outline-none focus:bg-emerald-50/40"
+                                    />
+                                  ) : (
+                                    <span className="text-slate-300 pr-2">—</span>
+                                  )}
+                                </td>
+                                {/* Rate */}
+                                <td className="px-2 py-1 text-right border-r border-slate-100 align-middle">
+                                  <input
+                                    type="number"
+                                    name="rate"
+                                    value={item.rate || ''}
+                                    onChange={(e) => handleInputChangeDetails(e, i)}
+                                    disabled={isViewOnly || isReturnMode}
+                                    className="w-full h-8 px-2 text-right font-black text-xs text-slate-800 bg-transparent border-none outline-none focus:bg-emerald-50/40"
+                                  />
+                                </td>
+                                {/* Total Qty (Nos) */}
+                                <td className="px-2 py-1 text-center border-r border-slate-100 align-middle text-xs font-black text-slate-500">
+                                  {item.qty || 0}
+                                </td>
+                              </>
+                            ) : (
+                              <>
+                                {/* Qty Input */}
+                                <td className="px-2 py-1 text-center border-r border-slate-100 align-middle">
+                                  <input
+                                    type="number"
+                                    value={item.qty || ''}
+                                    onChange={e => updateItem(i, 'qty', parseFloat(e.target.value) || 0)}
+                                    disabled={isViewOnly || isReturnMode}
+                                    className="w-full h-8 px-2 text-center font-black text-xs text-slate-800 bg-transparent border-none outline-none focus:bg-emerald-50/40"
+                                  />
+                                </td>
+                                {/* UOM */}
+                                <td className="px-2 py-1 text-center border-r border-slate-100 align-middle text-xs font-black text-slate-500">
+                                  {item.uom || 'Nos'}
+                                </td>
+                                {/* Rate */}
+                                <td className="px-2 py-1 text-right border-r border-slate-100 align-middle">
+                                  <input
+                                    type="number"
+                                    value={item.rate || ''}
+                                    onChange={e => updateItem(i, 'rate', parseFloat(e.target.value) || 0)}
+                                    disabled={isViewOnly || isReturnMode}
+                                    className="w-full h-8 px-2 text-right font-black text-xs text-slate-800 bg-transparent border-none outline-none focus:bg-emerald-50/40"
+                                  />
+                                </td>
+                              </>
+                            )}
+                            {/* Tax Select */}
+                            <td className="px-2 py-1 text-center border-r border-slate-100 align-middle">
+                              <select
+                                value={item.is_tax_inclusive !== false ? 'Inclusive' : 'Exclusive'}
+                                onChange={e => {
+                                  const val = e.target.value === 'Inclusive';
+                                  setForm(prev => {
+                                    const items = [...(prev.items || [])];
+                                    items[i] = { ...items[i], is_tax_inclusive: val };
+                                    return { ...prev, items };
+                                  });
+                                  setTimeout(() => calculateTotals(), 50);
+                                }}
+                                disabled={isViewOnly || isReturnMode}
+                                className="w-full h-8 px-1 text-center font-black text-xs text-slate-800 bg-transparent border-none outline-none cursor-pointer focus:bg-emerald-50/40"
+                              >
+                                <option value="Inclusive">Inclusive</option>
+                                <option value="Exclusive">Exclusive</option>
+                              </select>
+                            </td>
+                            {/* Amount */}
+                            <td className="text-right px-2 py-1.5 border-r border-slate-100 align-middle text-xs font-black text-slate-900 pr-3">
+                              {((item.qty || 0) * (item.rate || 0)).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                            </td>
+                            <td className="text-center px-1">
+                              {!isViewOnly && !isReturnMode && (
+                                <button
+                                  type="button"
+                                  onClick={() => setForm(prev => ({ ...prev, items: prev.items.filter((_, idx) => idx !== i) }))}
+                                  className="text-rose-500 hover:text-rose-600 font-black text-sm cursor-pointer border-none bg-transparent"
+                                >
+                                  ×
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+
+                        {/* Aesthetic placeholder rows */}
+                        {Array.from({ length: Math.max(0, 10 - form.items.length) }).map((_, i) => (
+                          <tr key={`empty-${i}`} className="bg-white/40 border-b border-slate-100 opacity-40">
+                            <td className="text-center text-slate-300 font-bold text-xs py-2">{form.items.length + i + 2}</td>
+                            <td className="border-r border-slate-100"></td>
+                            {hasAnyBox ? (
+                              <>
+                                <td className="border-r border-slate-100"></td>
+                                <td className="border-r border-slate-100"></td>
+                                <td className="border-r border-slate-100"></td>
+                                <td className="border-r border-slate-100"></td>
+                                <td className="border-r border-slate-100"></td>
+                                <td className="border-r border-slate-100"></td>
+                              </>
+                            ) : (
+                              <>
+                                <td className="border-r border-slate-100"></td>
+                                <td className="border-r border-slate-100"></td>
+                                <td className="border-r border-slate-100"></td>
+                              </>
+                            )}
+                            <td className="border-r border-slate-100"></td>
+                            <td className="border-r border-slate-100"></td>
+                            <td></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  );
+                })()}
+              </div>
+
+              {/* BOTTOM SECTION: ACTIONS GRID + TOTALS CARD */}
+              <div className="pt-3 flex-shrink-0">
+                <div className="grid grid-cols-1 xl:grid-cols-12 gap-3.5 items-stretch">
+
+                  {/* ACTION BUTTON GRID (LEFT SIDE) */}
+                  <div className="xl:col-span-7 flex">
+                    <div className="grid grid-cols-4 grid-rows-2 gap-2.5 w-full h-full p-2.5 bg-white border border-slate-200 rounded-xl shadow-xs">
+
+                      {/* Row 1 / Col 1: SAVE DRAFT */}
+                      {!isViewOnly && (form.docstatus === 0 || form.status === 'Draft') && (
+                        <button
+                          type="button"
+                          onClick={() => createSalesInvoice(false)}
+                          disabled={saving}
+                          className="h-full bg-[#f59e0b] hover:bg-[#d97706] text-white border-2 border-[#f59e0b] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-40"
+                          style={{ borderRadius: '18px' }}
+                        >
+                          <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
+                            <Save size={15} />
+                            <span>SAVE DRAFT</span>
+                          </div>
+                          <span className="inline-flex items-center justify-center font-mono text-[9px] font-black px-1.5 py-0.5 rounded bg-white/20 text-white">F7</span>
+                        </button>
+                      )}
+
+                      {/* Row 1 / Col 2: SUBMIT ORDER */}
+                      {!isViewOnly && (form.docstatus === 0 || form.status === 'Draft') && (
+                        <button
+                          type="button"
+                          onClick={() => createSalesInvoice(true)}
+                          disabled={saving}
+                          className="h-full bg-[#10b981] hover:bg-[#059669] text-white border-2 border-[#10b981] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer"
+                          style={{ borderRadius: '18px' }}
+                        >
+                          <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
+                            <CheckCircle2 size={15} />
+                            <span>SUBMIT</span>
+                          </div>
+                          <span className="inline-flex items-center justify-center font-mono text-[9px] font-black px-1.5 py-0.5 rounded bg-white/20 text-white font-black">Ctrl+↵</span>
+                        </button>
+                      )}
+
+                      {/* Row 1 / Col 3: CREATE DN Connection (only if viewed & non-stock/non-fully delivered) */}
+                      {(() => {
+                        const isFullyDelivered = form.update_stock || (form.items && form.items.length > 0 && form.items.every(item => (parseFloat(item.delivered_qty) || 0) >= (parseFloat(item.qty) || 0)));
+                        const showCreateDN = form.name && (form.status === 'Submitted' || form.status === 'Paid' || form.status === 'Unpaid') && !form.update_stock && !form.is_return && !isFullyDelivered;
+                        if (showCreateDN) {
+                          return (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setShowModal(false);
+                                resetForm();
+                                navigate(`/deliverynote/create?si=${encodeURIComponent(form.name)}`);
+                              }}
+                              className="h-full bg-[#0d9488] hover:bg-[#0f766e] text-white border-2 border-[#0d9488] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer"
+                              style={{ borderRadius: '18px' }}
+                            >
+                              <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-white">
+                                <Plus size={15} />
+                                <span>CREATE DN</span>
+                              </div>
+                            </button>
+                          );
+                        }
+                        return null;
+                      })()}
+
+                      {/* Row 1 / Col 4: PRINT INVOICE (if viewed) */}
+                      {isViewOnly && form.name && (
+                        <button
+                          type="button"
+                          onClick={() => handlePrint(form)}
+                          className="h-full bg-[#0ea5e9] hover:bg-[#0284c7] text-white border-2 border-[#0ea5e9] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer"
+                          style={{ borderRadius: '18px' }}
+                        >
+                          <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
+                            <Printer size={15} />
+                            <span>PRINT</span>
+                          </div>
+                        </button>
+                      )}
+
+                      {/* Row 2 / Col 1: DISCARD/EDIT INVOICE */}
+                      {isViewOnly && (form.docstatus === 0 || form.status === 'Draft') ? (
+                        <button
+                          type="button"
+                          onClick={() => setIsViewOnly(false)}
+                          className="h-full bg-[#4f46e5] hover:bg-[#4338ca] text-white border-2 border-[#4f46e5] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer"
+                          style={{ borderRadius: '18px' }}
+                        >
+                          <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
+                            <Edit2 size={15} />
+                            <span>EDIT DETAIL</span>
+                          </div>
+                        </button>
+                      ) : (
+                        !isViewOnly && (
+                          <button
+                            type="button"
+                            onClick={() => form.name ? setIsViewOnly(true) : {}}
+                            className="h-full bg-[#f1f5f9] hover:bg-[#e2e8f0] text-[#334155] border-2 border-[#cbd5e1] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer"
+                            style={{ borderRadius: '18px' }}
+                          >
+                            <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#334155]">
+                              <X size={15} />
+                              <span>DISCARD</span>
+                            </div>
+                            <span className="inline-flex items-center justify-center font-mono text-[9px] font-black px-1.5 py-0.5 rounded bg-slate-200 text-slate-655">Esc</span>
+                          </button>
+                        )
+                      )}
+
+                      {/* Row 2 / Col 4: CLOSE */}
+                      <button
+                        type="button"
+                        onClick={() => { setShowModal(false); resetForm(); }}
+                        className="h-full bg-[#f8fafc] hover:bg-slate-100 text-slate-700 border-2 border-slate-200 rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer"
+                        style={{ borderRadius: '18px' }}
+                      >
+                        <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-slate-700">
+                          <X size={15} />
+                          <span>CLOSE</span>
+                        </div>
+                        <span className="inline-flex items-center justify-center font-mono text-[9px] font-black px-1.5 py-0.5 rounded bg-slate-200 text-slate-600">Esc</span>
+                      </button>
+
+                    </div>
+                  </div>
+
+                  {/* TOTALS CARD (RIGHT SIDE) */}
+                  <div className="xl:col-span-5 bg-white rounded-xl border border-slate-200 p-3 shadow-xs flex flex-col justify-between gap-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-2">
+                      
+                      {/* Tax Template Selection */}
+                      <div className="flex flex-col items-start">
+                        <span className="text-[9px] font-bold uppercase text-slate-400 tracking-wider">TAX TEMPLATE</span>
+                        <select
+                          value={form.taxes_and_charges || ''}
+                          disabled={isViewOnly || isReturnMode}
+                          onChange={e => applyTaxTemplate(e.target.value)}
+                          className="bg-transparent text-xs font-black text-slate-800 outline-none cursor-pointer p-0 m-0 border-none"
+                        >
+                          <option value="">No Tax Schedule...</option>
+                          {taxTemplates.map((t) => <option key={t.name} value={t.name}>{t.name}</option>)}
+                        </select>
+                      </div>
+
+                      {/* Total Qty Display */}
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-black uppercase text-slate-500">TOTAL QTY:</span>
+                        <span className="text-sm font-black text-slate-900">{(form.total_qty || 0).toFixed(2)}</span>
+                      </div>
+                    </div>
+
+                    {/* Subtotal, Tax and Grand Total */}
+                    <div className="flex items-end justify-between gap-3 pt-1">
+                      <div className="flex flex-col gap-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[9px] font-bold uppercase text-slate-400">SUBTOTAL</span>
+                          <span className="text-slate-800 font-bold text-sm">AED {(form.base_total || 0).toFixed(2)}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[9px] font-bold uppercase text-slate-400">TAX</span>
+                          <span className="text-slate-600 font-bold text-sm">AED {(form.total_taxes_and_charges || 0).toFixed(2)}</span>
+                        </div>
+                        {parseFloat(form.discount_amount || 0) > 0 && (
+                          <div className="flex items-center gap-2">
+                            <span className="text-[9px] font-bold uppercase text-rose-500">DISCOUNT</span>
+                            <span className="text-rose-600 font-bold text-sm">-AED {parseFloat(form.discount_amount).toFixed(2)}</span>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="flex flex-col items-end font-sans">
+                        <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">GRAND TOTAL</span>
+                        <span className="text-2xl font-black text-emerald-600 leading-none flex items-center gap-0.5 mt-0.5">
+                          <DirhamIcon size={18} /> {(form.rounded_total || form.grand_total || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+
+              {/* STATUS BAR FOOTER */}
+              <div className="bg-white border-t border-slate-100 px-4 py-1 text-[10px] text-slate-400 flex items-center gap-5 flex-shrink-0 mt-3" style={{ borderBottomLeftRadius: '12px', borderBottomRightRadius: '12px' }}>
+                <div className="flex items-center gap-1.5">
+                  <span className="font-bold uppercase">Items:</span>
+                  <span className="font-bold text-slate-800">{form.items.length}</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="font-bold uppercase">Customer:</span>
+                  <span className="font-bold text-emerald-600">{form.customer_name || 'Not Selected'}</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="font-bold uppercase">Branch:</span>
+                  <span className="font-bold text-emerald-600">{(form.set_warehouse || warehouse || 'No Branch').split(' - ')[0]}</span>
+                </div>
+
+                {/* Theme Toggle Button next to system status */}
+                <div className="ml-auto flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const nextTheme = siTheme === 'green' ? 'blue' : 'green';
+                      setSiTheme(nextTheme);
+                    }}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: '0.3rem',
+                      padding: '2px 8px', background: '#f8fafc',
+                      border: `1px solid ${themeColor}`, borderRadius: '6px',
+                      fontSize: '9px', fontWeight: 700, color: themeColor,
+                      cursor: 'pointer', transition: 'all 0.2s',
+                      textTransform: 'uppercase'
+                    }}
+                  >
+                    <Palette size={10} />
+                    {siTheme.toUpperCase()}
+                  </button>
+
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
+                  <span className="font-bold text-slate-400 opacity-60">READY · SYSTEM OK</span>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        ) : (
+          <div className="so-page font-sans bg-[#f8fafc] min-h-screen flex flex-col" style={{ flex: 1 }}>
           <div className="so-modal" style={{ maxWidth: 'none', width: '100%', margin: 0, borderRadius: 0, display: 'flex', flexDirection: 'column', background: '#f8fafc', flex: 1 }}>
 
               {/* Header */}
@@ -2926,7 +3707,8 @@ const SalesInvoiceList = () => {
               </div>
             </div>
           </div>
-        )}
+        )
+      )}
       </>
   );
 };

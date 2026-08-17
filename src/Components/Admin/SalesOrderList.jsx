@@ -7,8 +7,10 @@ import {
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import axios from 'axios';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import { useLegacyTheme } from '../../hooks/useLegacyTheme';
+import { toggleTheme as toggleMainTheme } from '../../Redux/Slices/userSlice';
+import '../Headers/LegacyPOS.css';
 import Swal from 'sweetalert2';
 import '../Admin/SalesOrder.css';
 import DirhamIcon from '../../assets/Currency/DirhamIcon';
@@ -144,7 +146,8 @@ const StatusBadge = ({ docstatus }) => {
 export default function SalesOrderList() {
   const { getShortcut, isShortcutPressed } = useCustomShortcuts();
   const navigate = useNavigate();
-  const { warehouse, user_roles } = useSelector((state) => state.user || {});
+  const dispatch = useDispatch();
+  const { warehouse, user_roles, theme } = useSelector((state) => state.user || {});
   const isAdmin = (user_roles || []).includes("Administrator") || (user_roles || []).includes("System Manager");
   const isAdministrator = (user_roles || []).includes("Administrator");
   const [customColumns, setCustomColumns] = useState(() => {
@@ -1458,6 +1461,26 @@ export default function SalesOrderList() {
                 <p className="so-page-subtitle">Manage and track all sales</p>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <button
+                  type="button"
+                  onClick={() => dispatch(toggleMainTheme())}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: '0.4rem',
+                    padding: '0.45rem 0.9rem',
+                    background: theme === 'legacy' ? '#ecfdf5' : (theme === 'modern_no_image' ? '#e0e7ff' : '#f0f9ff'),
+                    color: theme === 'legacy' ? '#059669' : (theme === 'modern_no_image' ? '#4f46e5' : '#0284c7'),
+                    border: `1.5px solid ${theme === 'legacy' ? '#a7f3d0' : (theme === 'modern_no_image' ? '#c7d2fe' : '#bae6fd')}`,
+                    borderRadius: '0.375rem',
+                    fontSize: '0.75rem', fontWeight: 900,
+                    cursor: 'pointer', transition: 'all 0.2s',
+                    textTransform: 'uppercase', letterSpacing: '0.04em'
+                  }}
+                  title="Switch UI Theme (Modern / No Image / Classic)"
+                >
+                  <Palette size={13} />
+                  <span>THEME: {(theme || 'modern').toUpperCase()}</span>
+                </button>
+
                 <button
                   onClick={toggleTheme}
                   style={{

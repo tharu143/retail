@@ -2376,6 +2376,7 @@ function PurchaseOrder() {
                 onGlobalSearch={handleGlobalSupplierSearch}
                 onActivate={handleActivateSupplier}
                 themeColor="#10b981"
+                disabled={isViewOnly || formData.docstatus !== 0}
               />
             </div>
 
@@ -2674,7 +2675,9 @@ function PurchaseOrder() {
                       }
                     })}
                     <td className="text-center px-1">
-                      <button type="button" onClick={() => removeItemRow(idx)} className="text-rose-400 hover:text-rose-600 font-black text-sm cursor-pointer">×</button>
+                      {!(isViewOnly || formData.docstatus !== 0) && (
+                        <button type="button" onClick={() => removeItemRow(idx)} className="text-rose-400 hover:text-rose-600 font-black text-sm cursor-pointer">×</button>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -2737,6 +2740,7 @@ function PurchaseOrder() {
                       onClick={() => handleDocAction('save')}
                       disabled={saving}
                       className="h-full bg-[#f59e0b] hover:bg-[#d97706] text-white border-2 border-[#f59e0b] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-40"
+                      style={{ borderRadius: '8px' }}
                     >
                       <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
                         <Save size={15} />
@@ -2753,6 +2757,7 @@ function PurchaseOrder() {
                       onClick={() => handleDocAction('submit')}
                       disabled={loading || saving}
                       className="h-full bg-[#10b981] hover:bg-[#059669] text-white border-2 border-[#10b981] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-40"
+                      style={{ borderRadius: '8px' }}
                     >
                       <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
                         <Send size={15} />
@@ -2768,6 +2773,7 @@ function PurchaseOrder() {
                       type="button"
                       onClick={() => navigate(`/purchasereceiptlist?po_name=${encodeURIComponent(formData.name)}`)}
                       className="h-full bg-[#0d9488] hover:bg-[#0f766e] text-white border-2 border-[#0d9488] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer"
+                      style={{ borderRadius: '8px' }}
                     >
                       <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
                         <Truck size={15} />
@@ -2784,6 +2790,7 @@ function PurchaseOrder() {
                       onClick={() => handleDocAction('cancel')}
                       disabled={saving}
                       className="h-full bg-[#dc2626] hover:bg-[#b91c1c] text-white border-2 border-[#dc2626] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-40"
+                      style={{ borderRadius: '8px' }}
                     >
                       <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
                         <X size={15} />
@@ -2800,6 +2807,7 @@ function PurchaseOrder() {
                       onClick={() => handleDocAction('amend')}
                       disabled={saving}
                       className="h-full bg-[#1d4ed8] hover:bg-[#1e40af] text-white border-2 border-[#1d4ed8] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-40"
+                      style={{ borderRadius: '8px' }}
                     >
                       <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
                         <Edit3 size={15} />
@@ -2815,6 +2823,7 @@ function PurchaseOrder() {
                       type="button"
                       onClick={handleDuplicate}
                       className="h-full bg-[#7e22ce] hover:bg-[#6b21a8] text-white border-2 border-[#7e22ce] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-40"
+                      style={{ borderRadius: '8px' }}
                     >
                       <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
                         <Copy size={15} />
@@ -2830,6 +2839,7 @@ function PurchaseOrder() {
                       type="button"
                       onClick={() => handlePrintPDF(formData.name)}
                       className="h-full bg-[#0284c7] hover:bg-[#0369a1] text-white border-2 border-[#0284c7] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer"
+                      style={{ borderRadius: '8px' }}
                     >
                       <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
                         <Printer size={15} />
@@ -2845,6 +2855,7 @@ function PurchaseOrder() {
                       type="button"
                       onClick={addItemRow}
                       className="h-full bg-[#10b981] hover:bg-[#059669] text-white border-2 border-[#10b981] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer"
+                      style={{ borderRadius: '8px' }}
                     >
                       <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
                         <Plus size={15} />
@@ -2861,6 +2872,7 @@ function PurchaseOrder() {
                       onClick={() => handleDocAction('delete')}
                       disabled={saving}
                       className="h-full bg-[#fff5f5] hover:bg-[#fed7d7] text-[#7f1d1d] border-2 border-[#fca5a5] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer"
+                      style={{ borderRadius: '8px' }}
                     >
                       <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#7f1d1d]">
                         <Trash2 size={15} />
@@ -2875,6 +2887,7 @@ function PurchaseOrder() {
                     type="button"
                     onClick={() => navigate('/purchaseorderlist')}
                     className="h-full bg-[#f1f5f9] hover:bg-[#e2e8f0] text-[#334155] border-2 border-[#cbd5e1] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer"
+                    style={{ borderRadius: '8px' }}
                   >
                     <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#334155]">
                       <ChevronLeft size={15} />

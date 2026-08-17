@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import {
     ShoppingCart, Package, MapPin, Phone, Mail, ChevronLeft, Loader2,
     AlertCircle, Globe, Tag, Receipt, Layers, CreditCard,
     ArrowRight, Settings, Edit2, Save, X, CheckCircle2, Clock,
-    Plus, Search, ScanLine, Trash2, Calendar, User, FileText, Info, Palette, Camera,
+    Plus, Search, ScanLine, Trash2, Calendar, User, FileText, Info, Palette, Camera, Copy, Printer,
     ChevronDown, Zap, Link
 } from 'lucide-react';
 import Swal from 'sweetalert2';
@@ -13,9 +13,12 @@ import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import { useLegacyTheme } from '../../hooks/useLegacyTheme';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
+import { toggleTheme as toggleMainTheme } from '../../Redux/Slices/userSlice';
+import '../Headers/LegacyPOS.css';
 import './SalesOrder.css';
 import DirhamIcon from '../../assets/Currency/DirhamIcon';
 import ColumnConfigModal from '../Purchase/ColumnConfigModal';
+import CustomSearchDropdown from '../Purchase/CustomSearchDropdown';
 import AttachmentSection from './AttachmentSection';
 import { useCustomShortcuts } from '../../hooks/useCustomShortcuts';
 
@@ -217,7 +220,8 @@ export default function SalesOrderDetails() {
     const isNew = name === 'create' || location.pathname.includes('/salesorder/create');
     const itemInputRefs = useRef({});
 
-    const { user_roles } = useSelector(state => state.user || {});
+    const dispatch = useDispatch();
+    const { warehouse, user_roles, theme } = useSelector(state => state.user || {});
     const isAdministrator = (user_roles || []).includes("Administrator");
 
     const { themeColor, themeLight, isGreen, toggleTheme, legacySubTheme } = useLegacyTheme();
@@ -654,6 +658,18 @@ export default function SalesOrderDetails() {
         } finally {
             setSaving(false);
         }
+    };
+
+    const handleDuplicate = () => {
+        setForm(prev => ({
+            ...prev,
+            name: '',
+            docstatus: 0,
+            creation: '',
+            amended_from: '',
+            naming_series: 'SAL-ORD-.YYYY.-'
+        }));
+        setIsEditing(true);
     };
 
     const handleTransistion = async (type) => {
@@ -1413,64 +1429,939 @@ export default function SalesOrderDetails() {
         </div>
     );
 
-    return (
-        <div className="so-page">
-            {/* 1. Premium Keyboard Shortcuts Guide Banner */}
-            <div className="so-shortcut-guide-banner">
-                <div className="so-shortcut-banner-title">
-                    <span className="relative flex h-2 w-2">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
-                    </span>
-                    <span>Quick Actions</span>
-                </div>
-                <div className="so-shortcut-badge sky">
-                    <span className="so-shortcut-key">{getShortcut('doc_editor', 'customerSupplier', 'F2')}</span>
-                    <span className="so-shortcut-label">Customer</span>
-                </div>
-                <div className="so-shortcut-badge sky">
-                    <span className="so-shortcut-key">{getShortcut('doc_editor', 'itemSearch', 'F3')}</span>
-                    <span className="so-shortcut-label">Search</span>
-                </div>
-                <div className="so-shortcut-badge sky">
-                    <span className="so-shortcut-key">{getShortcut('doc_editor', 'barcode', 'F4')}</span>
-                    <span className="so-shortcut-label">Barcode</span>
-                </div>
-                <div className="so-shortcut-badge sky">
-                    <span className="so-shortcut-key">{getShortcut('doc_editor', 'bulkQty', 'F6')}</span>
-                    <span className="so-shortcut-label">Bulk Qty</span>
-                </div>
-                <div className="so-shortcut-badge sky">
-                    <span className="so-shortcut-key">{getShortcut('doc_editor', 'uom', 'F8')}</span>
-                    <span className="so-shortcut-label">UOM Toggle</span>
-                </div>
-                <div className="so-shortcut-badge sky">
-                    <span className="so-shortcut-key">{getShortcut('doc_editor', 'addRow', 'F10')} / {getShortcut("doc_editor", "addRowAlt", "Alt+A")}</span>
-                    <span className="so-shortcut-label">Add Row</span>
-                </div>
-                {isAdministrator && (
-                    <div className="so-shortcut-badge violet">
-                        <span className="so-shortcut-key">{getShortcut('doc_editor', 'warehouseBranch', 'F9')}</span>
-                        <span className="so-shortcut-label">Branch</span>
+    if (theme === 'legacy') {
+        const isViewOnly = !isEditing || form.docstatus !== 0;
+
+        return (
+            <div className="classic-root" style={{ position: 'relative', height: '100vh', display: 'flex', flexDirection: 'column', background: '#f8fafc', overflow: 'hidden' }}>
+
+                {/* 1. CLASSIC SHORTCUTS GUIDE BAR */}
+                <div className="so-shortcut-guide-banner" style={{ background: '#0f172a', borderBottom: '1px solid #1e293b', padding: '6px 14px', display: 'flex', alignItems: 'center', gap: '8px', overflowX: 'auto', flexShrink: 0 }}>
+                    <div className="so-shortcut-banner-title" style={{ color: '#94a3b8', fontSize: '9px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.08em', display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}>
+                        <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block animate-ping mr-1"></span>
+                        SHORTCUTS
                     </div>
-                )}
-                <div className="so-shortcut-badge emerald">
-                    <span className="so-shortcut-key">{getShortcut('doc_editor', 'saveDraft', 'F7')}</span>
-                    <span className="so-shortcut-label">Save Draft</span>
+                    <div className="so-shortcut-badges-wrapper" style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'nowrap' }}>
+                        <div className="so-shortcut-badge" style={{ background: '#ffffff', border: '1.5px solid #cbd5e1', borderRadius: '6px', padding: '3px 7px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                            <span className="so-shortcut-key" style={{ background: '#3b82f6', color: '#fff', fontSize: '9px', fontWeight: 900, padding: '1px 5px', borderRadius: '4px' }}>F2</span>
+                            <span className="so-shortcut-label" style={{ fontSize: '11px', fontWeight: 900, color: '#0f172a' }}>CUSTOMER</span>
+                        </div>
+                        <div className="so-shortcut-badge" style={{ background: '#ffffff', border: '1.5px solid #cbd5e1', borderRadius: '6px', padding: '3px 7px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                            <span className="so-shortcut-key" style={{ background: '#0ea5e9', color: '#fff', fontSize: '9px', fontWeight: 900, padding: '1px 5px', borderRadius: '4px' }}>F3</span>
+                            <span className="so-shortcut-label" style={{ fontSize: '11px', fontWeight: 900, color: '#0f172a' }}>SEARCH</span>
+                        </div>
+                        <div className="so-shortcut-badge" style={{ background: '#ffffff', border: '1.5px solid #cbd5e1', borderRadius: '6px', padding: '3px 7px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                            <span className="so-shortcut-key" style={{ background: '#10b981', color: '#fff', fontSize: '9px', fontWeight: 900, padding: '1px 5px', borderRadius: '4px' }}>F4</span>
+                            <span className="so-shortcut-label" style={{ fontSize: '11px', fontWeight: 900, color: '#0f172a' }}>BARCODE</span>
+                        </div>
+                        <div className="so-shortcut-badge" style={{ background: '#ffffff', border: '1.5px solid #cbd5e1', borderRadius: '6px', padding: '3px 7px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                            <span className="so-shortcut-key" style={{ background: '#a855f7', color: '#fff', fontSize: '9px', fontWeight: 900, padding: '1px 5px', borderRadius: '4px' }}>F6</span>
+                            <span className="so-shortcut-label" style={{ fontSize: '11px', fontWeight: 900, color: '#0f172a' }}>BULK QTY</span>
+                        </div>
+                        <div className="so-shortcut-badge" style={{ background: '#ffffff', border: '1.5px solid #cbd5e1', borderRadius: '6px', padding: '3px 7px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                            <span className="so-shortcut-key" style={{ background: '#eab308', color: '#fff', fontSize: '9px', fontWeight: 900, padding: '1px 5px', borderRadius: '4px' }}>F7</span>
+                            <span className="so-shortcut-label" style={{ fontSize: '11px', fontWeight: 900, color: '#0f172a' }}>SAVE DRAFT</span>
+                        </div>
+                        <div className="so-shortcut-badge" style={{ background: '#ffffff', border: '1.5px solid #cbd5e1', borderRadius: '6px', padding: '3px 7px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                            <span className="so-shortcut-key" style={{ background: '#0ea5e9', color: '#fff', fontSize: '9px', fontWeight: 900, padding: '1px 5px', borderRadius: '4px' }}>F10</span>
+                            <span className="so-shortcut-label" style={{ fontSize: '11px', fontWeight: 900, color: '#0f172a' }}>ADD ROW</span>
+                        </div>
+                        <div className="so-shortcut-badge" style={{ background: '#ffffff', border: '1.5px solid #cbd5e1', borderRadius: '6px', padding: '3px 7px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                            <span className="so-shortcut-key" style={{ background: '#10b981', color: '#fff', fontSize: '9px', fontWeight: 900, padding: '1px 5px', borderRadius: '4px' }}>CTRL+↵</span>
+                            <span className="so-shortcut-label" style={{ fontSize: '11px', fontWeight: 900, color: '#0f172a' }}>SUBMIT</span>
+                        </div>
+                    </div>
                 </div>
-                <div className="so-shortcut-badge emerald">
-                    <span className="so-shortcut-key">{getShortcut("doc_editor", "submitAlt", "Ctrl+Enter")} / {getShortcut('doc_editor', 'submit', 'F12')}</span>
-                    <span className="so-shortcut-label">Submit</span>
+
+                {/* 2. CLASSIC HEADER FORM */}
+                <div className="classic-header-form" style={{ background: '#ffffff', borderBottom: '1px solid #e2e8f0', padding: '0.6rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.6rem', flexShrink: 0 }}>
+                    {/* Row 1 */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', width: '100%' }}>
+                        {/* Customer Selection */}
+                        <div className="classic-field flex items-center gap-3 relative flex-1">
+                            <label className="uppercase font-black text-[11px] text-slate-500 tracking-tight whitespace-nowrap">CUSTOMER</label>
+                            <div className="relative group flex-1">
+                                <CustomSearchDropdown
+                                    placeholder="Search customer..."
+                                    value={form.customer ? { name: form.customer, customer_name: form.customer_name } : null}
+                                    onSelect={(val) => {
+                                        if (val) {
+                                            setForm(prev => ({ ...prev, customer: val.name, customer_name: val.customer_name }));
+                                            setSearchCustomer(val.customer_name);
+                                        } else {
+                                            setForm(prev => ({ ...prev, customer: '', customer_name: '' }));
+                                            setSearchCustomer('');
+                                        }
+                                    }}
+                                    fetchData={async (val) => {
+                                        const res = await axios.get('/api/method/kyle_retail.retail_api.api.get_customers_list_so', { params: { search_term: val }, withCredentials: true });
+                                        return res.data.message || [];
+                                    }}
+                                    createOption={async (cName) => {
+                                        setIsCustomerModalOpen(true);
+                                    }}
+                                    optionsLabel="customer_name"
+                                    globalSearch={true}
+                                    themeColor={themeColor}
+                                    disabled={isViewOnly}
+                                />
+                            </div>
+                        </div>
+
+                        {/* Warehouse Selector */}
+                        <div className="classic-field flex items-center gap-3 relative flex-1">
+                            <label className="uppercase font-black text-[11px] text-slate-500 tracking-tight whitespace-nowrap">BRANCH</label>
+                            <div className="relative group flex-1">
+                                {isAdministrator && !isViewOnly ? (
+                                    <select
+                                        className="h-10 px-3 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-800 outline-none focus:border-emerald-500 focus:bg-white w-full"
+                                        value={form.set_source_warehouse || ''}
+                                        onChange={e => {
+                                            const wh = e.target.value;
+                                            setForm(prev => ({
+                                                ...prev,
+                                                set_source_warehouse: wh,
+                                                items: prev.items.map(item => ({ ...item, warehouse: wh }))
+                                            }));
+                                        }}
+                                    >
+                                        <option value="">Select Warehouse...</option>
+                                        {warehouses.map(w => (
+                                            <option key={w.name} value={w.name}>{w.warehouse_name || w.name}</option>
+                                        ))}
+                                    </select>
+                                ) : (
+                                    <div className="h-10 px-3 flex items-center border border-slate-200 bg-slate-50 rounded-lg text-xs font-black uppercase tracking-wider text-slate-700 shadow-2xs w-full">
+                                        <span>{form.set_source_warehouse || warehouse || 'Main Warehouse'}</span>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Issue Date */}
+                        <div className="classic-field flex items-center gap-3">
+                            <label className="uppercase font-black text-[10px] text-slate-500 tracking-tight whitespace-nowrap">DATE</label>
+                            <input
+                                type="date"
+                                value={form.transaction_date}
+                                disabled={isViewOnly}
+                                onClick={e => { try { e.target.showPicker(); } catch (err) { } }}
+                                onChange={e => setForm({ ...form, transaction_date: e.target.value })}
+                                className="h-10 px-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-800 outline-none focus:border-emerald-500 cursor-pointer disabled:bg-slate-100 disabled:text-slate-500"
+                            />
+                        </div>
+
+                        {/* Delivery Date */}
+                        <div className="classic-field flex items-center gap-3">
+                            <label className="uppercase font-black text-[10px] text-slate-500 tracking-tight whitespace-nowrap">DELIVERY</label>
+                            <input
+                                type="date"
+                                value={form.delivery_date}
+                                disabled={isViewOnly}
+                                onClick={e => { try { e.target.showPicker(); } catch (err) { } }}
+                                onChange={e => setForm({ ...form, delivery_date: e.target.value })}
+                                className="h-10 px-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-800 outline-none focus:border-emerald-500 cursor-pointer disabled:bg-slate-100 disabled:text-slate-500"
+                            />
+                        </div>
+
+                        {/* Currency */}
+                        <div className="classic-field flex items-center gap-3">
+                            <label className="uppercase font-black text-[10px] text-slate-500 tracking-tight whitespace-nowrap">CURRENCY</label>
+                            <div className="h-10 px-3 bg-slate-50 border border-slate-200 rounded-lg text-xs font-black text-slate-800 flex items-center gap-1.5 shadow-2xs select-none">
+                                <DirhamIcon size={14} className="text-slate-700" />
+                                <span>AED</span>
+                            </div>
+                        </div>
+
+                        {/* SO NO */}
+                        <div className="classic-field flex items-center gap-3">
+                            <label className="uppercase font-black text-[10px] text-slate-500 tracking-tight whitespace-nowrap">SO NO</label>
+                            <div className="h-10 px-3 flex items-center bg-slate-100 border border-slate-200 rounded-lg text-xs font-mono font-black text-slate-800">
+                                {form.name || form.naming_series || 'NEW-SAL-ORD'}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Row 2 */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', width: '100%', borderTop: '1px dashed #e2e8f0', paddingTop: '0.5rem' }}>
+                        {/* Series selection */}
+                        <div className="classic-field flex items-center gap-3" style={{ flex: 1 }}>
+                            <label className="uppercase font-black text-[10px] text-slate-500 tracking-tight whitespace-nowrap font-semibold">SERIES</label>
+                            <select
+                                className="h-10 px-3 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-800 outline-none focus:border-emerald-500 focus:bg-white w-full cursor-pointer disabled:bg-slate-100 disabled:text-slate-500"
+                                value={form.naming_series || 'SAL-ORD-.YYYY.-'}
+                                disabled={isViewOnly}
+                                onChange={e => setForm({ ...form, naming_series: e.target.value })}
+                            >
+                                <option value="SAL-ORD-.YYYY.-">SAL-ORD-.YYYY.-</option>
+                            </select>
+                        </div>
+
+                        {/* Order Type */}
+                        <div className="classic-field flex items-center gap-3" style={{ flex: 1 }}>
+                            <label className="uppercase font-black text-[10px] text-slate-500 tracking-tight whitespace-nowrap font-semibold">ORDER TYPE</label>
+                            <select
+                                className="h-10 px-3 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-800 outline-none focus:border-emerald-500 focus:bg-white w-full cursor-pointer disabled:bg-slate-100 disabled:text-slate-500"
+                                value={form.order_type || 'Sales'}
+                                disabled={isViewOnly}
+                                onChange={e => setForm({ ...form, order_type: e.target.value })}
+                            >
+                                <option value="Sales">Sales</option>
+                                <option value="Maintenance">Maintenance</option>
+                                <option value="Shopping Cart">Shopping Cart</option>
+                            </select>
+                        </div>
+
+                        {/* Customer PO */}
+                        <div className="classic-field flex items-center gap-3" style={{ flex: 1.5 }}>
+                            <label className="uppercase font-black text-[10px] text-slate-500 tracking-tight whitespace-nowrap font-semibold">CUSTOMER PO</label>
+                            <input
+                                type="text"
+                                className="h-10 px-3 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-800 outline-none focus:border-emerald-500 focus:bg-white w-full disabled:bg-slate-100 disabled:text-slate-500"
+                                value={form.po_no || ''}
+                                disabled={isViewOnly}
+                                onChange={e => setForm({ ...form, po_no: e.target.value })}
+                                placeholder="Enter PO Number"
+                            />
+                        </div>
+
+                        {/* Customer PO Date */}
+                        <div className="classic-field flex items-center gap-3" style={{ flex: 1.5 }}>
+                            <label className="uppercase font-black text-[10px] text-slate-500 tracking-tight whitespace-nowrap font-semibold">CUSTOMER PO DATE</label>
+                            <input
+                                type="date"
+                                className="h-10 px-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-800 outline-none focus:border-emerald-500 cursor-pointer disabled:bg-slate-100 disabled:text-slate-500 w-full"
+                                value={form.po_date || ''}
+                                disabled={isViewOnly || !form.po_no}
+                                onClick={e => { try { e.target.showPicker(); } catch (err) { } }}
+                                onChange={e => setForm({ ...form, po_date: e.target.value })}
+                            />
+                        </div>
+                    </div>
                 </div>
-                <div className="so-shortcut-badge slate">
-                    <span className="so-shortcut-key">Shift+F3</span>
-                    <span className="so-shortcut-label">Focus Table</span>
+
+                {/* 3. CLASSIC MAIN BODY: TABLE + BOTTOM CONTROLS */}
+                <div className="flex-1 flex flex-col overflow-hidden bg-slate-100 p-2">
+
+                    {/* Table container (occupies all remaining vertical space) */}
+                    <div className="flex-1 min-h-0 overflow-y-auto overflow-x-auto bg-white rounded-xl border border-slate-200 shadow-2xs">
+
+                        {/* Barcode scan bar */}
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.5rem 1rem', borderBottom: '1px solid #e2e8f0', background: '#ffffff', flexShrink: 0 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                                <div style={{ display: 'flex', flexDirection: 'column', minWidth: '220px' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                                        <div style={{ position: 'relative', flex: 1 }}>
+                                            <input
+                                                className="so-select"
+                                                style={{ height: '2.2rem', fontSize: '0.75rem', fontWeight: 700, paddingRight: '2.5rem', width: '100%' }}
+                                                placeholder="Focus here to scan..."
+                                                ref={barcodeRef}
+                                                disabled={isViewOnly}
+                                                value={barcodeInput}
+                                                onChange={e => setBarcodeInput(e.target.value)}
+                                                onKeyDown={handleBarcodeSearch}
+                                            />
+                                            <ScanLine size={14} style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', opacity: 0.4 }} />
+                                        </div>
+                                        <button
+                                            type="button"
+                                            disabled={isViewOnly}
+                                            onClick={() => setShowCamera(true)}
+                                            style={{
+                                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                width: '2.2rem', height: '2.2rem',
+                                                background: themeColor, color: '#fff',
+                                                border: 'none', borderRadius: '0.375rem',
+                                                cursor: 'pointer', transition: 'background 0.2s',
+                                                flexShrink: 0
+                                            }}
+                                            title="Start Camera Scanner"
+                                        >
+                                            <Camera size={14} />
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setShowColConfig(true)}
+                                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', display: 'flex', alignItems: 'center' }}
+                                title="Column Configuration"
+                            >
+                                <Settings size={14} style={{ color: '#94a3b8' }} />
+                            </button>
+                        </div>
+
+                        <table className="classic-table" style={{ width: 'max-content', minWidth: '100%', borderCollapse: 'collapse', background: '#ffffff', tableLayout: 'fixed' }}>
+                            <thead>
+                                <tr style={{ background: '#f8fafc', borderBottom: '1.5px solid #cbd5e1' }}>
+                                    <th style={{ width: '40px', minWidth: '40px', maxWidth: '40px', textAlign: 'center', padding: '10px 4px', fontSize: '11px', fontWeight: 900, color: '#475569', textTransform: 'uppercase', borderRight: '1px solid #e2e8f0' }}>#</th>
+                                    {(() => {
+                                        const hasAnyBox = form.items.some(i => i.use_box_entry);
+                                        const activeCols = soColumns.filter(c => {
+                                            if (!c.visible) return false;
+                                            if (!hasAnyBox && ['custom_pieces_per_box', 'custom_box_price', 'qty'].includes(c.id)) return false;
+                                            return true;
+                                        });
+
+                                        return activeCols.map(col => {
+                                            let finalLabel = col.label;
+                                            if (!hasAnyBox) {
+                                                if (col.id === 'custom_box_qty') finalLabel = 'Qty';
+                                                if (col.id === 'custom_box_price') finalLabel = 'Price';
+                                                if (col.id === 'custom_pieces_per_box') finalLabel = '';
+                                            }
+                                            const colW = col.width ? (typeof col.width === 'number' || !col.width.includes('px') ? `${parseInt(col.width)}px` : col.width) : '100px';
+                                            return (
+                                                <th
+                                                    key={col.id}
+                                                    style={{
+                                                        width: colW,
+                                                        minWidth: colW,
+                                                        maxWidth: colW,
+                                                        textAlign: ['custom_box_qty', 'qty', 'custom_pieces_per_box'].includes(col.id) ? 'left' : (['custom_box_price', 'custom_selling_price', 'rate', 'amount'].includes(col.id) ? 'right' : 'center'),
+                                                        padding: '10px 8px',
+                                                        fontSize: '11px',
+                                                        fontWeight: 900,
+                                                        color: '#475569',
+                                                        textTransform: 'uppercase',
+                                                        borderRight: '1px solid #e2e8f0',
+                                                        overflow: 'hidden',
+                                                        textOverflow: 'ellipsis',
+                                                        whiteSpace: 'nowrap'
+                                                    }}
+                                                >
+                                                    {finalLabel}
+                                                </th>
+                                            );
+                                        });
+                                    })()}
+                                    <th style={{ width: '40px', minWidth: '40px', textAlign: 'center', padding: '10px 4px' }}></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {form.items.filter(it => it.item_code).map((item, idx) => (
+                                    <tr key={idx} className="border-b border-slate-100 hover:bg-emerald-50/30 transition-colors">
+                                        <td className="text-center font-bold text-slate-400 text-xs py-2 border-r border-slate-100">{idx + 1}</td>
+                                        {(() => {
+                                            const hasAnyBox = form.items.some(i => i.use_box_entry);
+                                            const activeCols = soColumns.filter(c => {
+                                                if (!c.visible) return false;
+                                                if (!hasAnyBox && ['custom_pieces_per_box', 'custom_box_price', 'qty'].includes(c.id)) return false;
+                                                return true;
+                                            });
+
+                                            return activeCols.map(col => {
+                                                switch (col.id) {
+                                                    case 'item_code':
+                                                        return (
+                                                            <td key={col.id} className="px-2 py-1.5 border-r border-slate-100 align-middle">
+                                                                <span className="font-black text-slate-900 text-xs leading-tight">{item.item_code}</span>
+                                                            </td>
+                                                        );
+                                                    case 'item_name':
+                                                        return (
+                                                            <td key={col.id} className="px-2 py-1.5 border-r border-slate-100 align-middle">
+                                                                <span className="font-semibold text-slate-700 text-xs leading-tight block truncate" title={item.item_name || ''}>{item.item_name || '—'}</span>
+                                                            </td>
+                                                        );
+                                                    case 'custom_ref_sl_no':
+                                                        return (
+                                                            <td key={col.id} className="px-2 py-1 border-r border-slate-100 align-middle">
+                                                                <input
+                                                                    type="text"
+                                                                    value={item.custom_ref_sl_no || ''}
+                                                                    onChange={(e) => handleInputChangeDetails(e, idx)}
+                                                                    disabled={isViewOnly}
+                                                                    name="custom_ref_sl_no"
+                                                                    placeholder="Ref / SL #"
+                                                                    className="w-full h-8 px-2 text-xs font-bold text-slate-800 bg-transparent border-none outline-none focus:bg-emerald-50/40"
+                                                                />
+                                                            </td>
+                                                        );
+                                                    case 'uom':
+                                                        return (
+                                                            <td key={col.id} className="px-2 py-1 text-center border-r border-slate-100 align-middle">
+                                                                    <select
+                                                                        value={item.uom || 'Nos'}
+                                                                        onChange={(e) => handleUOMChangeDetails(e.target.value, idx)}
+                                                                        disabled={isViewOnly}
+                                                                        className="w-full h-8 px-1 text-center font-black text-xs text-slate-800 bg-transparent border-none outline-none cursor-pointer focus:bg-emerald-50/40"
+                                                                    >
+                                                                        {(() => {
+                                                                            const uniqueUoms = [];
+                                                                            const seen = new Set();
+                                                                            const candidates = [];
+                                                                            if (item.uom_list && Array.isArray(item.uom_list)) {
+                                                                                item.uom_list.forEach(u => { if (u && u.uom) candidates.push(u.uom); });
+                                                                            }
+                                                                            candidates.push(item.stock_uom || 'Nos');
+                                                                            candidates.push(item.uom || 'Nos');
+                                                                            candidates.push('Nos');
+                                                                            candidates.push('Box');
+
+                                                                            candidates.forEach(u => {
+                                                                                const norm = u.trim().toLowerCase();
+                                                                                let display = u.trim();
+                                                                                if (display === 'box' || display === 'BOX') display = 'Box';
+                                                                                else if (display === 'nos' || display === 'NOS') display = 'Nos';
+                                                                                if (!seen.has(norm)) {
+                                                                                    seen.add(norm);
+                                                                                    uniqueUoms.push(display);
+                                                                                }
+                                                                            });
+                                                                            return uniqueUoms.map(uomVal => (
+                                                                                <option key={uomVal} value={uomVal}>{uomVal}</option>
+                                                                            ));
+                                                                        })()}
+                                                                    </select>
+                                                            </td>
+                                                        );
+                                                    case 'custom_box_qty':
+                                                        return (
+                                                            <td key={col.id} className="px-2 py-1 text-center border-r border-slate-100 align-middle">
+                                                                <input
+                                                                    type="number"
+                                                                    name={item.use_box_entry ? "custom_box_qty" : "qty"}
+                                                                    value={item.use_box_entry ? (item.custom_box_qty || '') : (item.qty || '')}
+                                                                    onChange={(e) => handleInputChangeDetails(e, idx)}
+                                                                    disabled={isViewOnly}
+                                                                    className="w-full h-8 px-2 text-center font-black text-xs text-slate-800 bg-transparent border-none outline-none focus:bg-emerald-50/40"
+                                                                />
+                                                            </td>
+                                                        );
+                                                    case 'custom_pieces_per_box':
+                                                        return (
+                                                            <td key={col.id} className="px-2 py-1 text-center border-r border-slate-100 align-middle">
+                                                                {item.use_box_entry ? (
+                                                                    <input
+                                                                        type="number"
+                                                                        name="custom_pieces_per_box"
+                                                                        value={item.custom_pieces_per_box || ''}
+                                                                        onChange={(e) => handleInputChangeDetails(e, idx)}
+                                                                        disabled={isViewOnly}
+                                                                        className="w-full h-8 px-2 text-center font-black text-xs text-slate-800 bg-transparent border-none outline-none focus:bg-emerald-50/40"
+                                                                    />
+                                                                ) : (
+                                                                    <span className="text-slate-300">—</span>
+                                                                )}
+                                                            </td>
+                                                        );
+                                                    case 'custom_box_price':
+                                                        return (
+                                                            <td key={col.id} className="px-2 py-1 text-right border-r border-slate-100 align-middle">
+                                                                {item.use_box_entry ? (
+                                                                    <input
+                                                                        type="number"
+                                                                        name="custom_box_price"
+                                                                        value={item.custom_box_price || ''}
+                                                                        onChange={(e) => handleInputChangeDetails(e, idx)}
+                                                                        disabled={isViewOnly}
+                                                                        className="w-full h-8 px-2 text-right font-black text-xs text-slate-800 bg-transparent border-none outline-none focus:bg-emerald-50/40"
+                                                                    />
+                                                                ) : (
+                                                                    <span className="text-slate-300 pr-2">—</span>
+                                                                )}
+                                                            </td>
+                                                        );
+                                                    case 'rate':
+                                                        return (
+                                                            <td key={col.id} className="px-2 py-1 text-right border-r border-slate-100 align-middle">
+                                                                <input
+                                                                    type="number"
+                                                                    name="rate"
+                                                                    value={item.rate || ''}
+                                                                    onChange={(e) => handleInputChangeDetails(e, idx)}
+                                                                    disabled={isViewOnly}
+                                                                    className="w-full h-8 px-2 text-right font-black text-xs text-slate-800 bg-transparent border-none outline-none focus:bg-emerald-50/40"
+                                                                />
+                                                            </td>
+                                                        );
+                                                    case 'custom_selling_price':
+                                                        return (
+                                                            <td key={col.id} className="px-2 py-1 text-right border-r border-slate-100 align-middle">
+                                                                <input
+                                                                    type="number"
+                                                                    name="custom_selling_price"
+                                                                    value={item.custom_selling_price || ''}
+                                                                    onChange={(e) => handleInputChangeDetails(e, idx)}
+                                                                    disabled={isViewOnly}
+                                                                    className="w-full h-8 px-2 text-right font-black text-xs text-[#0284c7] bg-transparent border-none outline-none focus:bg-emerald-50/40"
+                                                                />
+                                                            </td>
+                                                        );
+                                                    case 'is_tax_inclusive':
+                                                        return (
+                                                            <td key={col.id} className="px-2 py-1 text-center border-r border-slate-100 align-middle">
+                                                                <select
+                                                                    value={item.is_tax_inclusive !== false ? 'Inclusive' : 'Exclusive'}
+                                                                    onChange={e => {
+                                                                        const val = e.target.value === 'Inclusive';
+                                                                        setForm(prev => {
+                                                                            const items = [...(prev.items || [])];
+                                                                            items[idx] = { ...items[idx], is_tax_inclusive: val };
+                                                                            return recalcForm({ ...prev, items });
+                                                                        });
+                                                                    }}
+                                                                    disabled={isViewOnly}
+                                                                    className="w-full h-8 px-1 text-center font-black text-xs text-slate-800 bg-transparent border-none outline-none cursor-pointer focus:bg-emerald-50/40"
+                                                                >
+                                                                    <option value="Inclusive">Inclusive</option>
+                                                                    <option value="Exclusive">Exclusive</option>
+                                                                </select>
+                                                            </td>
+                                                        );
+                                                    case 'qty':
+                                                        return (
+                                                            <td key={col.id} className="px-2 py-1 text-center border-r border-slate-100 align-middle text-xs font-black text-slate-500">
+                                                                {item.qty || 0}
+                                                            </td>
+                                                        );
+                                                    case 'amount':
+                                                        return (
+                                                            <td key={col.id} className="px-2 py-1 text-right border-r border-slate-100 align-middle text-xs font-black text-slate-900 pr-2">
+                                                                {((item.qty || 0) * (item.rate || 0)).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                                            </td>
+                                                        );
+                                                    default:
+                                                        return null;
+                                                }
+                                            });
+                                        })()}
+                                        <td className="text-center px-1">
+                                            {!isViewOnly && (
+                                                <button type="button" onClick={() => removeItemRow(idx)} className="text-rose-450 hover:text-rose-600 font-black text-sm cursor-pointer border-none bg-transparent">×</button>
+                                            )}
+                                        </td>
+                                    </tr>
+                                ))}
+
+                                {/* Inline smart search row */}
+                                {form.docstatus === 0 && isEditing && (
+                                    <tr className="bg-emerald-50/40 border-y-2 border-amber-400 cursor-pointer hover:bg-amber-50/60 transition-all">
+                                        <td className="text-center font-black text-amber-600 text-xs py-2">{form.items.filter(it => it.item_code).length + 1}</td>
+                                        {(() => {
+                                            const hasAnyBox = form.items.some(i => i.use_box_entry);
+                                            const visibleCols = soColumns.filter(c => {
+                                                if (!c.visible) return false;
+                                                if (!hasAnyBox && ['custom_pieces_per_box', 'custom_box_price', 'qty'].includes(c.id)) return false;
+                                                return true;
+                                            });
+                                            const barcodeIdx = visibleCols.findIndex(c => c.id === 'barcode');
+                                            const itemCodeIdx = visibleCols.findIndex(c => c.id === 'item_code');
+                                            const hasBoth = barcodeIdx !== -1 && itemCodeIdx !== -1;
+                                            const primaryIdx = hasBoth ? Math.min(barcodeIdx, itemCodeIdx) : (barcodeIdx !== -1 ? barcodeIdx : itemCodeIdx);
+                                            const secondaryIdx = hasBoth ? Math.max(barcodeIdx, itemCodeIdx) : -1;
+
+                                            return visibleCols.map((col, cIdx) => {
+                                                if (cIdx === primaryIdx) {
+                                                    return (
+                                                        <td
+                                                            key="search-input-col"
+                                                            colSpan={hasBoth && Math.abs(barcodeIdx - itemCodeIdx) === 1 ? 2 : 1}
+                                                            className="p-0 relative h-10 align-middle"
+                                                        >
+                                                            <CustomSearchDropdown
+                                                                placeholder="SCAN BARCODE OR TYPE ITEM NAME HERE TO ADD..."
+                                                                value={null}
+                                                                onSelect={(selectedItem) => {
+                                                                    if (selectedItem) {
+                                                                        selectItem(form.items.length, selectedItem);
+                                                                    }
+                                                                }}
+                                                                fetchData={async (val) => {
+                                                                    const res = await axios.get('/api/method/kyle_retail.retail_api.api.find_item_globally_retail', { params: { search_term: val }, withCredentials: true });
+                                                                    return res.data.message?.data || [];
+                                                                }}
+                                                                optionsLabel="item_name"
+                                                                globalSearch={true}
+                                                                themeColor={themeColor}
+                                                                className="w-full h-full font-black italic text-slate-650"
+                                                            />
+                                                        </td>
+                                                    );
+                                                }
+                                                if (hasBoth && Math.abs(barcodeIdx - itemCodeIdx) === 1 && cIdx === secondaryIdx) {
+                                                    return null;
+                                                }
+                                                return (
+                                                    <td key={`search-empty-${col.id}`} className="text-center bg-black/5 font-bold text-xs border-r border-slate-100">-</td>
+                                                );
+                                            });
+                                        })()}
+                                        <td className="text-center px-1">
+                                            <Search size={14} className="mx-auto text-amber-500" />
+                                        </td>
+                                    </tr>
+                                )}
+
+                                {/* Aesthetic placeholder rows */}
+                                {Array.from({ length: Math.max(0, 10 - form.items.filter(it => it.item_code).length) }).map((_, i) => (
+                                    <tr key={`empty-${i}`} className="bg-white/40 border-b border-slate-100 opacity-40">
+                                        <td className="text-center text-slate-300 font-bold text-xs py-2">{form.items.filter(it => it.item_code).length + i + 2}</td>
+                                        {soColumns.filter(c => {
+                                            const hasAnyBox = form.items.some(i => i.use_box_entry);
+                                            if (!c.visible) return false;
+                                            if (!hasAnyBox && ['custom_pieces_per_box', 'custom_box_price', 'qty'].includes(c.id)) return false;
+                                            return true;
+                                        }).map(col => (
+                                            <td key={`empty-cell-${col.id}`} className="border-r border-slate-100"></td>
+                                        ))}
+                                        <td></td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    {/* BOTTOM SECTION: ACTIONS GRID + TOTALS CARD (No right sidebar!) */}
+                    <div className="pt-3 flex-shrink-0">
+                        <div className="grid grid-cols-1 xl:grid-cols-12 gap-3.5 items-stretch">
+
+                            {/* ACTION BUTTON GRID (LEFT SIDE) */}
+                            <div className="xl:col-span-7 flex">
+                                <div className="grid grid-cols-4 grid-rows-2 gap-2.5 w-full h-full p-2.5 bg-white border border-slate-200 rounded-xl shadow-xs">
+
+                                    {/* Row 1 / Col 1: SAVE DRAFT */}
+                                    {isEditing && (
+                                        <button
+                                            type="button"
+                                            onClick={() => handleSave(false)}
+                                            disabled={saving}
+                                            className="h-full bg-[#f59e0b] hover:bg-[#d97706] text-white border-2 border-[#f59e0b] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-40"
+                                            style={{ borderRadius: '18px' }}
+                                        >
+                                            <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
+                                                <Save size={15} />
+                                                <span>SAVE DRAFT</span>
+                                            </div>
+                                            <span className="inline-flex items-center justify-center font-mono text-[9px] font-black px-1.5 py-0.5 rounded bg-white/20 text-white">F7</span>
+                                        </button>
+                                    )}
+
+                                    {/* Row 1 / Col 2: SUBMIT ORDER */}
+                                    {!isNew && form.docstatus === 0 && isEditing && (
+                                        <button
+                                            type="button"
+                                            onClick={() => handleSave(true)}
+                                            disabled={saving}
+                                            className="h-full bg-[#10b981] hover:bg-[#059669] text-white border-2 border-[#10b981] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer"
+                                            style={{ borderRadius: '18px' }}
+                                        >
+                                            <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
+                                                <CheckCircle2 size={15} />
+                                                <span>SUBMIT</span>
+                                            </div>
+                                            <span className="inline-flex items-center justify-center font-mono text-[9px] font-black px-1.5 py-0.5 rounded bg-white/20 text-white">Ctrl+↵</span>
+                                        </button>
+                                    )}
+
+                                    {/* Row 1 / Col 3: CREATE DN (Delivery Note) Transition */}
+                                    {form.name && form.docstatus === 1 && (form.per_delivered || 0) < 99.9 && (
+                                        <button
+                                            type="button"
+                                            onClick={() => handleTransistion('Delivery Note')}
+                                            className="h-full bg-[#0d9488] hover:bg-[#0f766e] text-white border-2 border-[#0d9488] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer"
+                                            style={{ borderRadius: '18px' }}
+                                        >
+                                            <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-white">
+                                                <Plus size={15} />
+                                                <span>CREATE DN</span>
+                                            </div>
+                                        </button>
+                                    )}
+
+                                    {/* Row 1 / Col 4: CREATE SI (Sales Invoice) Transition */}
+                                    {form.name && form.docstatus === 1 && (form.per_billed || 0) < 99.9 && (
+                                        <button
+                                            type="button"
+                                            onClick={() => handleTransistion('Sales Invoice')}
+                                            className="h-full bg-[#0ea5e9] hover:bg-[#0284c7] text-white border-2 border-[#0ea5e9] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer"
+                                            style={{ borderRadius: '18px' }}
+                                        >
+                                            <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-white">
+                                                <Plus size={15} />
+                                                <span>CREATE SI</span>
+                                            </div>
+                                        </button>
+                                    )}
+
+                                    {/* Row 2 / Col 1: DISCARD */}
+                                    {isEditing && (
+                                        <button
+                                            type="button"
+                                            onClick={() => isNew ? navigate('/salesorderlist') : setIsEditing(false)}
+                                            className="h-full bg-[#f1f5f9] hover:bg-[#e2e8f0] text-[#334155] border-2 border-[#cbd5e1] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer"
+                                            style={{ borderRadius: '18px' }}
+                                        >
+                                            <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#334155]">
+                                                <X size={15} />
+                                                <span>DISCARD</span>
+                                            </div>
+                                            <span className="inline-flex items-center justify-center font-mono text-[9px] font-black px-1.5 py-0.5 rounded bg-slate-200 text-slate-650">Esc</span>
+                                        </button>
+                                    )}
+
+                                    {/* Row 2 / Col 2: DUPLICATE */}
+                                    {form.name && (
+                                        <button
+                                            type="button"
+                                            onClick={handleDuplicate}
+                                            className="h-full bg-[#7e22ce] hover:bg-[#6b21a8] text-white border-2 border-[#7e22ce] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer"
+                                            style={{ borderRadius: '18px' }}
+                                        >
+                                            <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
+                                                <Copy size={15} />
+                                                <span>DUPLICATE</span>
+                                            </div>
+                                            <span className="inline-flex items-center justify-center font-mono text-[9px] font-black px-1.5 py-0.5 rounded bg-white/20 text-white">Alt+D</span>
+                                        </button>
+                                    )}
+
+                                    {/* Row 2 / Col 3: PRINT PDF */}
+                                    {form.name && (
+                                        <button
+                                            type="button"
+                                            onClick={() => handlePrintPDF?.(form.name) || window.open(`/api/method/frappe.utils.print_format.download_pdf?doctype=Sales Order&name=${form.name}`, '_blank')}
+                                            className="h-full bg-[#0284c7] hover:bg-[#0369a1] text-white border-2 border-[#0284c7] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer"
+                                            style={{ borderRadius: '18px' }}
+                                        >
+                                            <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
+                                                <Printer size={15} />
+                                                <span>PRINT PDF</span>
+                                            </div>
+                                            <span className="inline-flex items-center justify-center font-mono text-[9px] font-black px-1.5 py-0.5 rounded bg-white/20 text-white">PDF</span>
+                                        </button>
+                                    )}
+
+                                    {/* Row 2 / Col 4: BACK TO LIST */}
+                                    <button
+                                        type="button"
+                                        onClick={() => navigate('/salesorderlist')}
+                                        className="h-full bg-[#f8fafc] hover:bg-slate-100 text-slate-700 border-2 border-slate-200 rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer"
+                                        style={{ borderRadius: '18px' }}
+                                    >
+                                        <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-slate-700">
+                                            <ChevronLeft size={15} />
+                                            <span>LIST</span>
+                                        </div>
+                                        <span className="inline-flex items-center justify-center font-mono text-[9px] font-black px-1.5 py-0.5 rounded bg-slate-200 text-slate-600">Esc</span>
+                                    </button>
+
+                                </div>
+                            </div>
+
+                            {/* TOTALS CARD (RIGHT SIDE, col-span-5) */}
+                            <div className="xl:col-span-5 bg-white rounded-xl border border-slate-200 p-3 shadow-xs flex flex-col justify-between gap-3">
+                                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-2">
+
+                                    {/* Tax Template Selection */}
+                                    <div className="flex flex-col items-start">
+                                        <span className="text-[9px] font-bold uppercase text-slate-400 tracking-wider">TAX TEMPLATE</span>
+                                        <select
+                                            value={form.taxes_and_charges || ''}
+                                            disabled={isViewOnly}
+                                            onChange={async (e) => {
+                                                const val = e.target.value;
+                                                if (val) {
+                                                    try {
+                                                        const res = await axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_sales_taxes_templates_so', { params: { template: val }, withCredentials: true });
+                                                        let rows = (res.data.message || []).map(t => ({
+                                                            charge_type: t.charge_type,
+                                                            row_id: t.row_id,
+                                                            account_head: t.account_head,
+                                                            description: t.description,
+                                                            included_in_print_rate: t.included_in_print_rate,
+                                                            rate: t.rate,
+                                                            tax_amount: t.tax_amount,
+                                                            total: t.total,
+                                                            cost_center: t.cost_center,
+                                                            add_deduct_tax: t.add_deduct_tax || 'Add'
+                                                        }));
+                                                        setForm(prev => recalcForm({ ...prev, taxes_and_charges: val, taxes: rows }));
+                                                    } catch (err) { Swal.fire('Error', 'Failed to fetch tax template rows', 'error'); }
+                                                } else {
+                                                    setForm(prev => recalcForm({ ...prev, taxes_and_charges: '', taxes: [] }));
+                                                }
+                                            }}
+                                            className="bg-transparent text-xs font-black text-slate-800 outline-none cursor-pointer p-0 m-0 border-none"
+                                        >
+                                            <option value="">No Tax Schedule...</option>
+                                            {taxTemplates.map((t) => <option key={t.name} value={t.name}>{t.name}</option>)}
+                                        </select>
+                                    </div>
+
+                                    {/* Total Qty Display */}
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-[10px] font-black uppercase text-slate-500">TOTAL QTY:</span>
+                                        <span className="text-sm font-black text-slate-900">{(form.total_qty || 0).toFixed(2)}</span>
+                                    </div>
+                                </div>
+
+                                {/* Subtotal, Tax and Grand Total */}
+                                <div className="flex items-end justify-between gap-3 pt-1">
+                                    <div className="flex flex-col gap-1">
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-[9px] font-bold uppercase text-slate-400">SUBTOTAL</span>
+                                            <span className="text-slate-800 font-bold text-sm">AED {(form.base_total || 0).toFixed(2)}</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-[9px] font-bold uppercase text-slate-400">TAX</span>
+                                            <span className="text-slate-650 font-bold text-sm">AED {(form.total_taxes_and_charges || 0).toFixed(2)}</span>
+                                        </div>
+                                        {form.discount_amount > 0 && (
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-[9px] font-bold uppercase text-rose-500">DISCOUNT</span>
+                                                <span className="text-rose-650 font-bold text-sm">-AED {form.discount_amount.toFixed(2)}</span>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div className="flex flex-col items-end font-sans">
+                                        <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">GRAND TOTAL</span>
+                                        <span className="text-2xl font-black text-emerald-600 leading-none flex items-center gap-0.5 mt-0.5">
+                                            <DirhamIcon size={18} /> {(form.grand_total || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+
+                    {/* STATUS BAR FOOTER */}
+                    <div className="bg-white border-t border-slate-100 px-4 py-1 text-[10px] text-slate-400 flex items-center gap-5 flex-shrink-0 mt-3" style={{ borderBottomLeftRadius: '12px', borderBottomRightRadius: '12px' }}>
+                        <div className="flex items-center gap-1.5">
+                            <span className="font-bold uppercase">Items:</span>
+                            <span className="font-bold text-slate-850">{form.items.filter(it => it.item_code).length}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                            <span className="font-bold uppercase">Customer:</span>
+                            <span className="font-bold text-emerald-600">{form.customer_name || form.customer || 'Not Selected'}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                            <span className="font-bold uppercase">Branch:</span>
+                            <span className="font-bold text-emerald-600">{form.set_source_warehouse || warehouse || 'No Branch'}</span>
+                        </div>
+
+                        {/* Theme Toggle Button next to system status */}
+                        <div className="ml-auto flex items-center gap-3">
+                            <button
+                                type="button"
+                                onClick={() => dispatch(toggleMainTheme())}
+                                style={{
+                                    display: 'flex', alignItems: 'center', gap: '0.3rem',
+                                    padding: '2px 8px',
+                                    background: theme === 'legacy' ? '#ecfdf5' : '#f0f9ff',
+                                    color: theme === 'legacy' ? '#059669' : '#0284c7',
+                                    border: `1px solid ${theme === 'legacy' ? '#a7f3d0' : '#bae6fd'}`,
+                                    borderRadius: '6px',
+                                    fontSize: '9px', fontWeight: 900,
+                                    cursor: 'pointer', transition: 'all 0.2s',
+                                    textTransform: 'uppercase'
+                                }}
+                                title="Switch UI Theme"
+                            >
+                                <Palette size={10} />
+                                <span>THEME: {(theme || 'modern').toUpperCase()}</span>
+                            </button>
+
+                            <button
+                                onClick={toggleTheme}
+                                style={{
+                                    display: 'flex', alignItems: 'center', gap: '0.3rem',
+                                    padding: '2px 8px', background: '#f8fafc',
+                                    border: `1px solid ${themeColor}`, borderRadius: '6px',
+                                    fontSize: '9px', fontWeight: 705, color: themeColor,
+                                    cursor: 'pointer', transition: 'all 0.2s',
+                                    textTransform: 'uppercase'
+                                }}
+                            >
+                                <Palette size={10} />
+                                {legacySubTheme.toUpperCase()}
+                            </button>
+
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
+                            <span className="font-bold text-slate-400 opacity-60">READY · SYSTEM OK</span>
+                        </div>
+                    </div>
+
                 </div>
-                <div className="so-shortcut-badge rose">
-                    <span className="so-shortcut-key">Escape</span>
-                    <span className="so-shortcut-label">Close</span>
-                </div>
+
+                {/* Column Config Modal */}
+                <ColumnConfigModal
+                    isOpen={showColConfig}
+                    onClose={() => setShowColConfig(false)}
+                    config={soColumns}
+                    onUpdate={handleColConfigUpdate}
+                    doctype="Sales Order"
+                    themeColor={themeColor}
+                />
             </div>
+        );
+    }
+
+    return (
+        <div className={theme === 'legacy' ? "classic-root" : "so-page"} style={theme === 'legacy' ? { position: 'relative', height: '100vh', display: 'flex', flexDirection: 'column', background: '#f8fafc', overflow: 'hidden' } : {}}>
+            {/* 1. Premium Keyboard Shortcuts Guide Banner */}
+            {theme === 'legacy' && (
+                <div className="so-shortcut-guide-banner">
+                    <div className="so-shortcut-banner-title">
+                        <span className="relative flex h-2 w-2">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
+                        </span>
+                        <span>Quick Actions</span>
+                    </div>
+                    <div className="so-shortcut-badge sky">
+                        <span className="so-shortcut-key">{getShortcut('doc_editor', 'customerSupplier', 'F2')}</span>
+                        <span className="so-shortcut-label">Customer</span>
+                    </div>
+                    <div className="so-shortcut-badge sky">
+                        <span className="so-shortcut-key">{getShortcut('doc_editor', 'itemSearch', 'F3')}</span>
+                        <span className="so-shortcut-label">Search</span>
+                    </div>
+                    <div className="so-shortcut-badge sky">
+                        <span className="so-shortcut-key">{getShortcut('doc_editor', 'barcode', 'F4')}</span>
+                        <span className="so-shortcut-label">Barcode</span>
+                    </div>
+                    <div className="so-shortcut-badge sky">
+                        <span className="so-shortcut-key">{getShortcut('doc_editor', 'bulkQty', 'F6')}</span>
+                        <span className="so-shortcut-label">Bulk Qty</span>
+                    </div>
+                    <div className="so-shortcut-badge sky">
+                        <span className="so-shortcut-key">{getShortcut('doc_editor', 'uom', 'F8')}</span>
+                        <span className="so-shortcut-label">UOM Toggle</span>
+                    </div>
+                    <div className="so-shortcut-badge sky">
+                        <span className="so-shortcut-key">{getShortcut('doc_editor', 'addRow', 'F10')} / {getShortcut("doc_editor", "addRowAlt", "Alt+A")}</span>
+                        <span className="so-shortcut-label">Add Row</span>
+                    </div>
+                    {isAdministrator && (
+                        <div className="so-shortcut-badge violet">
+                            <span className="so-shortcut-key">{getShortcut('doc_editor', 'warehouseBranch', 'F9')}</span>
+                            <span className="so-shortcut-label">Branch</span>
+                        </div>
+                    )}
+                    <div className="so-shortcut-badge emerald">
+                        <span className="so-shortcut-key">{getShortcut('doc_editor', 'saveDraft', 'F7')}</span>
+                        <span className="so-shortcut-label">Save Draft</span>
+                    </div>
+                    <div className="so-shortcut-badge emerald">
+                        <span className="so-shortcut-key">{getShortcut("doc_editor", "submitAlt", "Ctrl+Enter")} / {getShortcut('doc_editor', 'submit', 'F12')}</span>
+                        <span className="so-shortcut-label">Submit</span>
+                    </div>
+                    <div className="so-shortcut-badge slate">
+                        <span className="so-shortcut-key">Shift+F3</span>
+                        <span className="so-shortcut-label">Focus Table</span>
+                    </div>
+                    <div className="so-shortcut-badge rose">
+                        <span className="so-shortcut-key">Escape</span>
+                        <span className="so-shortcut-label">Close</span>
+                    </div>
+                </div>
+            )}
 
             {/* 2. Page Header */}
             <div className="so-page-header">
@@ -1485,6 +2376,26 @@ export default function SalesOrderDetails() {
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <button
+                        type="button"
+                        onClick={() => dispatch(toggleMainTheme())}
+                        style={{
+                            display: 'flex', alignItems: 'center', gap: '0.4rem',
+                            padding: '0.45rem 0.9rem',
+                            background: theme === 'legacy' ? '#ecfdf5' : (theme === 'modern_no_image' ? '#e0e7ff' : '#f0f9ff'),
+                            color: theme === 'legacy' ? '#059669' : (theme === 'modern_no_image' ? '#4f46e5' : '#0284c7'),
+                            border: `1.5px solid ${theme === 'legacy' ? '#a7f3d0' : (theme === 'modern_no_image' ? '#c7d2fe' : '#bae6fd')}`,
+                            borderRadius: '0.375rem',
+                            fontSize: '0.75rem', fontWeight: 900,
+                            cursor: 'pointer', transition: 'all 0.2s',
+                            textTransform: 'uppercase', letterSpacing: '0.04em'
+                        }}
+                        title="Switch UI Theme (Modern / No Image / Classic)"
+                    >
+                        <Palette size={13} />
+                        <span>THEME: {(theme || 'modern').toUpperCase()}</span>
+                    </button>
+
                     <button
                         onClick={toggleTheme}
                         style={{
