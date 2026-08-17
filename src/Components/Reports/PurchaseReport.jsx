@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { 
     Loader2, FileText, AlertCircle, CheckCircle2, 
-    Calendar, Search, Filter, Palette, RefreshCw, 
-    Download, Printer, ChevronDown, Truck, Package, ExternalLink, Settings
+    Calendar, Search, Filter, RefreshCw, 
+    Download, Printer, ChevronDown, Truck, Package, ExternalLink, Settings,
+    DollarSign, Receipt, Tag, TrendingUp
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import '../Admin/SalesOrder.css';
-import { useLegacyTheme } from '../../hooks/useLegacyTheme';
+import DirhamIcon from '../../assets/Currency/DirhamIcon';
 import ColumnConfigModal from '../Purchase/ColumnConfigModal';
+import './PurchaseReport.css';
 
 function PurchaseReport() {
   const navigate = useNavigate();
@@ -18,10 +19,6 @@ function PurchaseReport() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  
-  // Theme Hook
-  const { legacySubTheme, isGreen, themeColor, themeColorHover, themeLight, toggleTheme } = useLegacyTheme();
-
 
   const [filters, setFilters] = useState({ 
     from_date: new Date(new Date().setDate(1)).toISOString().split('T')[0],
@@ -33,9 +30,6 @@ function PurchaseReport() {
 
   const getSession = () => localStorage.getItem('session') || '';
   const API_PATH = '/api/method/custom_retailpos.custom_retailpos.retail_api.retail';
-
-  // Apply Theme Effect removed — handled by hook
-
 
   useEffect(() => {
     fetchSuppliers();
@@ -147,229 +141,392 @@ function PurchaseReport() {
     localStorage.setItem('purchase_report_columns', JSON.stringify(newConfig));
   };
 
+  // Compute Summary KPI Stats
+  const totalSpend = data.reduce((acc, row) => acc + (row.total || row.amount || 0), 0);
+  const totalTax = data.reduce((acc, row) => acc + (row.tax_amount || 0), 0);
+  const totalNet = data.reduce((acc, row) => acc + (row.amount || 0), 0);
+  const totalQty = data.reduce((acc, row) => acc + (row.qty || 0), 0);
+  const uniqueInvoices = new Set(data.map(d => d.name)).size;
+
+  const handlePrint = () => {
+    window.print();
+  };
+
+  const handleExportCSV = () => {
+    if (!data.length) return;
+    const visibleCols = columnConfig.filter(c => c.visible);
+    const headers = visibleCols.map(c => `"${c.label}"`).join(',');
+    const rows = data.map(row => {
+      return visibleCols.map(c => {
+        const val = row[c.original.fieldname];
+        return `"${val !== undefined && val !== null ? String(val).replace(/"/g, '""') : ''}"`;
+      }).join(',');
+    });
+    const csvContent = 'data:text/csv;charset=utf-8,' + [headers, ...rows].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `Purchase_Report_${filters.from_date}_to_${filters.to_date}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
-    <div className="so-page">
-      <style dangerouslySetInnerHTML={{__html: `
-        .so-filter-bar input.so-filter-input-icon,
-        .so-filter-bar select.so-filter-input-icon {
-          padding-left: 2.5rem !important;
-        }
-      `}} />
+    <div className="pr-container">
       
-      {/* 1. PREMIUM HEADER */}
-      <div className="so-page-header">
-        <div>
-          <h1 className="so-page-title">
-            <Truck size={22} />
-            Purchase Summary Report
-          </h1>
-          <p className="so-page-subtitle">Historical breakdown of stock procurement and vendor payouts</p>
+      {/* 1. Header */}
+      <header className="pr-header no-print">
+        <div className="pr-header-title-box">
+          <div className="pr-icon-badge">
+            <Truck size={24} className="stroke-[2.5]" />
+          </div>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <h1 className="pr-title">Purchase Summary Report</h1>
+              <span className="pr-tag">Procurement</span>
+            </div>
+            <p className="pr-subtitle">Historical breakdown of stock procurement and vendor payouts</p>
+          </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          
-          <button
-            onClick={toggleTheme}
 
-            style={{
-              display: 'flex', alignItems: 'center', gap: '0.4rem',
-              padding: '0.45rem 1rem', background: '#f8fafc',
-              border: `1.5px solid ${themeColor}`, borderRadius: '0.5rem',
-              fontSize: '0.75rem', fontWeight: 800, color: themeColor,
-              cursor: 'pointer', transition: 'all 0.2s',
-              textTransform: 'uppercase', letterSpacing: '0.04em'
-            }}
+        <div className="pr-actions">
+          <button 
+            onClick={handlePrint}
+            className="pr-btn-secondary"
           >
-            <Palette size={14} /> {isGreen ? 'BLUE' : 'GREEN'}
-
-
-          </button>
-
-          <div style={{ width: '1px', height: '24px', background: '#e2e8f0', margin: '0 0.25rem' }}></div>
-
-          <button className="so-btn-secondary" style={{ height: '38px', padding: '0 1rem' }}>
-             <Printer size={16} /> Print
-          </button>
-          <button className="so-btn-primary" style={{ height: '38px', padding: '0 1.25rem' }}>
-             <Download size={16} /> Export
+            <Printer size={15} /> 
+            <span>Print</span>
           </button>
           <button 
-            className="so-btn-secondary" 
-            style={{ height: '38px', padding: '0 0.75rem' }}
+            onClick={handleExportCSV}
+            className="pr-btn-primary"
+          >
+            <Download size={15} /> 
+            <span>Export CSV</span>
+          </button>
+          <button 
+            className="pr-btn-icon" 
             onClick={() => setShowConfigModal(true)}
             title="Configure Columns"
           >
-             <Settings size={16} style={{ color: themeColor }} />
+            <Settings size={18} />
           </button>
+          <button 
+            onClick={() => fetchReport(filters)}
+            disabled={loading}
+            className="pr-btn-icon"
+            title="Refresh Data"
+          >
+            <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
+          </button>
+        </div>
+      </header>
+
+      {/* Print Only Header */}
+      <div className="hidden print:block border-b-2 border-slate-900 pb-4 mb-6 p-8">
+        <div className="flex justify-between items-start">
+          <div>
+            <h1 className="text-2xl font-black text-slate-900 tracking-tight">Purchase Summary Report</h1>
+            <p className="text-xs text-slate-600 mt-1">Vendor Stock Procurement & Tax Breakdown</p>
+          </div>
+          <div className="text-right text-xs font-bold text-slate-700">
+            <div><b>Period:</b> {filters.from_date || 'Start'} to {filters.to_date || 'End'}</div>
+            <div><b>Vendor:</b> {filters.supplier || 'All Suppliers'}</div>
+          </div>
         </div>
       </div>
 
-      <div className="so-layout">
-        {/* 2. DASHBOARD FILTER STRIP */}
-        <div className="so-filter-bar">
-          <div style={{ flex: '1 1 180px' }}>
-            <label className="so-filter-label">From Date</label>
-            <div className="so-relative">
-               <Calendar size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: themeColor }} />
-               <input 
-                 type="date" 
-                 className="so-filter-input so-filter-input-icon" 
-                 value={filters.from_date}
-                 onChange={(e) => handleFilterUpdate('from_date', e.target.value)}
-                 onFocus={(e) => { try { e.target.showPicker(); } catch(err) {} }}
-                 onClick={(e) => { try { e.target.showPicker(); } catch(err) {} }}
-               />
+      <main className="pr-main-body">
+        
+        {/* 2. Filters Bar */}
+        <div className="pr-filter-card no-print">
+          <div className="pr-filter-inputs">
+            {/* From Date */}
+            <div className="pr-field-block">
+              <label className="pr-label">
+                <Calendar size={12} color="#059669" />
+                From Date
+              </label>
+              <input 
+                type="date" 
+                className="pr-input" 
+                value={filters.from_date}
+                onChange={(e) => handleFilterUpdate('from_date', e.target.value)}
+                onFocus={(e) => { try { e.target.showPicker(); } catch(err) {} }}
+                onClick={(e) => { try { e.target.showPicker(); } catch(err) {} }}
+              />
             </div>
-          </div>
-          
-          <div style={{ flex: '1 1 180px' }}>
-            <label className="so-filter-label">To Date</label>
-            <div className="so-relative">
-               <Calendar size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: themeColor }} />
-               <input 
-                 type="date" 
-                 className="so-filter-input so-filter-input-icon" 
-                 value={filters.to_date}
-                 onChange={(e) => handleFilterUpdate('to_date', e.target.value)}
-                 onFocus={(e) => { try { e.target.showPicker(); } catch(err) {} }}
-                 onClick={(e) => { try { e.target.showPicker(); } catch(err) {} }}
-               />
+            
+            {/* To Date */}
+            <div className="pr-field-block">
+              <label className="pr-label">
+                <Calendar size={12} color="#059669" />
+                To Date
+              </label>
+              <input 
+                type="date" 
+                className="pr-input" 
+                value={filters.to_date}
+                onChange={(e) => handleFilterUpdate('to_date', e.target.value)}
+                onFocus={(e) => { try { e.target.showPicker(); } catch(err) {} }}
+                onClick={(e) => { try { e.target.showPicker(); } catch(err) {} }}
+              />
             </div>
-          </div>
 
-          <div style={{ flex: '1 1 250px' }}>
-            <label className="so-filter-label">Vendor / Supplier</label>
-            <div className="so-relative">
-               <Search size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
-               <select 
-                 className="so-filter-select so-filter-input-icon" 
-                 value={filters.supplier}
-                 onChange={(e) => handleFilterUpdate('supplier', e.target.value)}
-               >
-                 <option value="">All Suppliers</option>
-                 {suppliers.map(s => (
-                   <option key={s.name} value={s.name}>{s.supplier_name || s.name}</option>
-                 ))}
-               </select>
+            {/* Vendor / Supplier */}
+            <div className="pr-field-block" style={{ flex: '1.5 1 260px' }}>
+              <label className="pr-label">
+                <Search size={12} />
+                Vendor / Supplier
+              </label>
+              <div style={{ position: 'relative' }}>
+                <select 
+                  className="pr-select" 
+                  value={filters.supplier}
+                  onChange={(e) => handleFilterUpdate('supplier', e.target.value)}
+                  style={{ paddingRight: '2.5rem' }}
+                >
+                  <option value="">All Suppliers</option>
+                  {suppliers.map(s => (
+                    <option key={s.name} value={s.name}>{s.supplier_name || s.name}</option>
+                  ))}
+                </select>
+                <ChevronDown size={14} style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: '#64748b' }} />
+              </div>
             </div>
           </div>
 
           <button 
-             className="so-clear-btn" 
-             style={{ width: 'auto', padding: '0 1.5rem', height: '38px', margin: 0 }}
-             onClick={() => {
-               const reset = { from_date: '', to_date: '', supplier: '', item_code: '' };
-               setFilters(reset);
-               fetchReport(reset);
-             }}
+            className="pr-btn-reset"
+            onClick={() => {
+              const reset = { from_date: '', to_date: '', supplier: '', item_code: '' };
+              setFilters(reset);
+              fetchReport(reset);
+            }}
           >
-            Reset
+            Reset Filters
           </button>
         </div>
 
-        {/* 3. REPORT MATRIX AREA */}
-        <main className="so-content" style={{ padding: '1.5rem 2rem' }}>
-          {error && (
-            <div style={{ 
-                background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px', 
-                padding: '1rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem',
-                color: '#991b1b', fontSize: '0.85rem', fontWeight: 600
-            }}>
-               <AlertCircle size={18} /> {error}
-            </div>
-          )}
+        {/* Error Notification */}
+        {error && (
+          <div style={{ padding: '1rem 1.25rem', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '10px', color: '#b91c1c', fontSize: '0.85rem', fontWeight: 'bold' }}>
+            <AlertCircle size={18} color="#ef4444" style={{ flexShrink: 0 }} />
+            <span>{error}</span>
+          </div>
+        )}
 
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-            <p className="so-list-meta">Computed <b>{data.length}</b> line entries for this period</p>
-            {loading && <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: themeColor, fontSize: '0.75rem', fontWeight: 700 }}>
-               <RefreshCw size={16} className="animate-spin" /> FETCHING PROCUREMENT DATA...
-            </div>}
+        {/* 3. KPI Metrics Summary */}
+        <div className="pr-kpi-grid">
+          <div className="pr-kpi-card emerald">
+            <div className="pr-kpi-header">
+              <span className="pr-kpi-title">Total Procurement Spend</span>
+              <div className="pr-kpi-icon-pill">
+                <Receipt size={16} />
+              </div>
+            </div>
+            <div>
+              <div className="pr-kpi-value">
+                <DirhamIcon size={18} />
+                <span>{totalSpend.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+              </div>
+              <div className="pr-kpi-subtext">
+                Net: AED {totalNet.toFixed(2)}
+              </div>
+            </div>
           </div>
 
-          <div className="so-table-card">
-            <div className="so-table-wrapper" style={{ overflowX: 'auto' }}>
-              <table className="so-table premium-stock-table" style={{ tableLayout: 'fixed', minWidth: '100%', width: 'max-content' }}>
-                <thead>
+          <div className="pr-kpi-card blue">
+            <div className="pr-kpi-header">
+              <span className="pr-kpi-title">Total Invoices & Lines</span>
+              <div className="pr-kpi-icon-pill">
+                <FileText size={16} />
+              </div>
+            </div>
+            <div>
+              <div className="pr-kpi-value">
+                <span>{uniqueInvoices}</span>
+                <span style={{ fontSize: '0.9rem', color: '#64748b', fontWeight: 600 }}>inv / {data.length} items</span>
+              </div>
+              <div className="pr-kpi-subtext" style={{ color: '#2563eb' }}>
+                Purchase Invoices
+              </div>
+            </div>
+          </div>
+
+          <div className="pr-kpi-card purple">
+            <div className="pr-kpi-header">
+              <span className="pr-kpi-title">Total Units Purchased</span>
+              <div className="pr-kpi-icon-pill">
+                <Package size={16} />
+              </div>
+            </div>
+            <div>
+              <div className="pr-kpi-value">
+                <span>{totalQty.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+                <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 600 }}>Qty</span>
+              </div>
+              <div className="pr-kpi-subtext" style={{ color: '#7c3aed' }}>
+                Total Stock Quantity
+              </div>
+            </div>
+          </div>
+
+          <div className="pr-kpi-card amber">
+            <div className="pr-kpi-header">
+              <span className="pr-kpi-title">Total Input VAT / Tax</span>
+              <div className="pr-kpi-icon-pill">
+                <Tag size={16} />
+              </div>
+            </div>
+            <div>
+              <div className="pr-kpi-value">
+                <DirhamIcon size={18} />
+                <span>{totalTax.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+              </div>
+              <div className="pr-kpi-subtext" style={{ color: '#d97706' }}>
+                Input Tax Recoverable
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* 4. Table Card */}
+        <div className="pr-table-card">
+          <div className="pr-table-header">
+            <h3 className="pr-table-heading">
+              <FileText size={18} color="#10b981" />
+              <span>Purchase Invoices & Items Log</span>
+            </h3>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', fontSize: '0.8rem', fontWeight: 700, color: '#64748b' }}>
+              <span>Computed <b>{data.length}</b> line entries</span>
+              {loading && (
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#10b981' }}>
+                  <RefreshCw size={14} className="animate-spin" /> Fetching...
+                </span>
+              )}
+            </div>
+          </div>
+
+          <div className="pr-table-wrapper">
+            <table className="pr-table">
+              <thead>
+                <tr>
+                  {columnConfig.filter(c => c.visible).map((col) => (
+                    <th key={col.id} style={{ width: col.width, minWidth: col.width, textAlign: col.align }}>
+                      {col.label}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {loading && data.length === 0 ? (
                   <tr>
-                    {columnConfig.filter(c => c.visible).map((col, i) => (
-                      <th key={col.id} style={{ width: col.width, minWidth: col.width, maxWidth: col.width, textAlign: col.align }}>
-                        {col.label}
-                      </th>
-                    ))}
+                    <td colSpan={columnConfig.filter(c => c.visible).length || 1} style={{ padding: '5rem 0', textAlign: 'center' }}>
+                      <Loader2 size={32} color="#10b981" className="animate-spin" style={{ margin: '0 auto' }} />
+                      <p style={{ marginTop: '0.75rem', fontWeight: 800, color: '#94a3b8', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Analyzing Inbound Orders...</p>
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {loading && data.length === 0 ? (
-                    <tr>
-                      <td colSpan={columns.length || 1} className="so-empty" style={{ padding: '5rem 0' }}>
-                        <Loader2 size={32} className="animate-spin" style={{ margin: '0 auto', color: themeColor }} />
-                        <p style={{ marginTop: '1rem', fontWeight: 700, color: '#94a3b8', fontSize: '0.65rem', textTransform: 'uppercase' }}>Analyzing Inbound Orders...</p>
-                      </td>
+                ) : data.length === 0 ? (
+                  <tr>
+                    <td colSpan={columnConfig.filter(c => c.visible).length || 1} style={{ padding: '5rem 0', textAlign: 'center' }}>
+                      <div style={{ opacity: 0.2, marginBottom: '0.75rem' }}>
+                        <Package size={44} style={{ margin: '0 auto' }} />
+                      </div>
+                      <p style={{ fontSize: '0.85rem', fontWeight: 700, color: '#94a3b8' }}>No procurement records found for the selected vendor/period.</p>
+                    </td>
+                  </tr>
+                ) : (
+                  data.map((row, idx) => (
+                    <tr key={idx}>
+                      {columnConfig.filter(c => c.visible).map((col) => {
+                        const fieldname = col.original.fieldname;
+                        const cellValue = row[fieldname];
+                        return (
+                          <td 
+                            key={col.id} 
+                            style={{ 
+                              textAlign: col.align,
+                              fontFamily: col.original.fieldtype === 'Currency' || col.original.fieldtype === 'Float' ? 'ui-monospace, monospace' : 'inherit',
+                              width: col.width,
+                              minWidth: col.width,
+                              maxWidth: col.width,
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap'
+                            }}
+                            title={String(cellValue ?? '')}
+                          >
+                            {cellValue !== null && cellValue !== undefined ? (
+                              (fieldname === 'name' || fieldname === 'voucher_no') ? (
+                                <span 
+                                  onClick={() => navigate('/purchaseinvoicelist', { state: { search: cellValue } })} 
+                                  className="pr-doc-link"
+                                  style={{ justifyContent: col.align === 'right' ? 'flex-end' : 'flex-start' }}
+                                >
+                                  {cellValue}
+                                  <ExternalLink size={12} color="#10b981" />
+                                </span>
+                              ) : fieldname === 'item_code' ? (
+                                <span 
+                                  onClick={() => navigate('/itemlist', { state: { search: cellValue } })} 
+                                  className="pr-item-pill"
+                                  style={{ marginLeft: col.align === 'right' ? 'auto' : '0' }}
+                                >
+                                  {cellValue}
+                                  <ExternalLink size={11} color="#64748b" />
+                                </span>
+                              ) : typeof cellValue === 'number' && (col.label?.toLowerCase().includes('total') || col.label?.toLowerCase().includes('rate') || col.label?.toLowerCase().includes('amount')) ? 
+                                cellValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : 
+                                cellValue
+                            ) : '-'}
+                          </td>
+                        );
+                      })}
                     </tr>
-                  ) : data.length === 0 ? (
-                    <tr>
-                      <td colSpan={columns.length || 1} className="so-empty" style={{ padding: '5rem 0' }}>
-                        <div style={{ opacity: 0.1, marginBottom: '1rem' }}>
-                           <Package size={48} style={{ margin: '0 auto' }} />
-                        </div>
-                        <p>No procurement records found for the selected vendor/period.</p>
-                      </td>
-                    </tr>
-                  ) : (
-                    data.map((row, idx) => (
-                      <tr key={idx}>
-                        {columnConfig.filter(c => c.visible).map((col, cIdx) => {
-                          const fieldname = col.original.fieldname;
-                          const cellValue = row[fieldname];
-                          return (
-                            <td 
-                              key={col.id} 
-                              style={{ 
-                                textAlign: col.align,
-                                fontFamily: col.original.fieldtype === 'Currency' || col.original.fieldtype === 'Float' ? 'monospace' : 'inherit',
-                                width: col.width,
-                                minWidth: col.width,
-                                maxWidth: col.width,
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                                whiteSpace: 'nowrap'
-                              }}
-                              title={String(cellValue)}
-                            >
-                              {cellValue !== null && cellValue !== undefined ? (
-                                  (fieldname === 'name' || fieldname === 'voucher_no') ? (
-                                      <span onClick={() => navigate('/purchaseinvoicelist', { state: { search: cellValue } })} className="group flex items-center gap-1.5 hover:text-indigo-600 transition-colors underline-offset-4 hover:underline cursor-pointer" style={{ justifyContent: col.align === 'right' ? 'flex-end' : 'flex-start' }}>
-                                          {cellValue}
-                                          <ExternalLink size={12} className="opacity-0 group-hover:opacity-100 transition-opacity text-indigo-400" />
-                                      </span>
-                                  ) : fieldname === 'item_code' ? (
-                                      <span onClick={() => navigate('/itemlist', { state: { search: cellValue } })} className="code-capsule group flex items-center gap-1.5 w-fit hover:text-indigo-600 transition-colors cursor-pointer" style={{ marginLeft: col.align === 'right' ? 'auto' : '0' }}>
-                                          {cellValue}
-                                          <ExternalLink size={12} className="opacity-0 group-hover:opacity-100 transition-opacity" />
-                                      </span>
-                                  ) : typeof cellValue === 'number' && (col.label?.toLowerCase().includes('total') || col.label?.toLowerCase().includes('rate')) ? 
-                                  cellValue.toLocaleString(undefined, { minimumFractionDigits: 2 }) : 
-                                  cellValue
-                              ) : '-'}
-                            </td>
-                          );
-                        })}
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
+                  ))
+                )}
+              </tbody>
+              {data.length > 0 && (
+                <tfoot>
+                  <tr>
+                    {columnConfig.filter(c => c.visible).map((col, cIdx) => {
+                      const fname = col.original.fieldname;
+                      if (cIdx === 0) {
+                        return <td key={col.id} style={{ textAlign: col.align }}>TOTAL</td>;
+                      }
+                      if (fname === 'qty') {
+                        return <td key={col.id} style={{ textAlign: col.align, fontFamily: 'monospace' }}>{totalQty.toFixed(2)}</td>;
+                      }
+                      if (fname === 'amount') {
+                        return <td key={col.id} style={{ textAlign: col.align, fontFamily: 'monospace' }}>AED {totalNet.toFixed(2)}</td>;
+                      }
+                      if (fname === 'tax_amount') {
+                        return <td key={col.id} style={{ textAlign: col.align, fontFamily: 'monospace' }}>AED {totalTax.toFixed(2)}</td>;
+                      }
+                      if (fname === 'total') {
+                        return <td key={col.id} style={{ textAlign: col.align, fontFamily: 'monospace', color: '#059669', fontSize: '0.95rem' }}>AED {totalSpend.toFixed(2)}</td>;
+                      }
+                      return <td key={col.id}></td>;
+                    })}
+                  </tr>
+                </tfoot>
+              )}
+            </table>
           </div>
-        </main>
-      </div>
-      
+        </div>
+
+      </main>
+
+      {/* Column Config Modal */}
       <ColumnConfigModal
         isOpen={showConfigModal}
         onClose={() => setShowConfigModal(false)}
         config={columnConfig}
         onUpdate={handleColumnUpdate}
         doctype="Purchase Report"
-        themeColor={themeColor}
+        themeColor="#10b981"
       />
     </div>
   );
