@@ -3921,6 +3921,42 @@ function PurchaseReceiptList() {
 
           <div className="so-modal-body" style={{ flex: 1, overflowY: 'auto', padding: '1.25rem 2rem' }}>
             <div className="w-full flex flex-col gap-6">
+
+              {/* PR UPDATE STOCK HIGHLIGHT BANNER */}
+              <div style={{
+                background: '#f0fdf4',
+                border: '1.5px solid #a7f3d0',
+                borderRadius: '0.75rem',
+                padding: '0.75rem 1.25rem',
+                display: 'flex',
+                alignItems: 'center',
+                justify: 'space-between',
+                boxShadow: '0 1px 2px rgba(16,185,129,0.05)'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <span style={{
+                    width: '10px', height: '10px', borderRadius: '50%',
+                    background: '#10b981', display: 'inline-block',
+                    boxShadow: '0 0 0 3px #d1fae5'
+                  }} />
+                  <div>
+                    <span style={{ fontSize: '0.8rem', fontWeight: 900, color: '#047857', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+                      🟢 UPDATE STOCK: ACTIVE (YES)
+                    </span>
+                    <p style={{ fontSize: '0.7rem', color: '#059669', margin: '2px 0 0', fontWeight: 600 }}>
+                      Physical warehouse inventory will be <strong>INCREMENTED</strong> upon submitting this Purchase Receipt.
+                    </p>
+                  </div>
+                </div>
+                <span style={{
+                  fontSize: '0.65rem', fontWeight: 900, color: '#047857',
+                  background: '#d1fae5', padding: '4px 10px', borderRadius: '6px',
+                  border: '1px solid #6ee7b7', textTransform: 'uppercase'
+                }}>
+                  PR Stock Entry (update_stock = 1)
+                </span>
+              </div>
+
               {/* MAIN CONTENT AREA */}
                 {/* Basic Details Card */}
                 <div className="so-card">

@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
+import axios from 'axios';
 import { setWarehouse as updateActiveWarehouse } from '../../Redux/Slices/userSlice';
 import { 
     Loader2, Save, MapPin, AlertCircle, Database, 
     RefreshCw, Trash2, Settings as SettingsIcon,
     Palette, ShieldAlert, Cpu, HardDrive, 
     CheckCircle2, ChevronRight, LayoutDashboard,
-    RotateCcw, Award
+    RotateCcw, Award, Truck
 } from 'lucide-react';
 import { db } from '../../db';
 import { useNavigate } from 'react-router-dom';
@@ -164,6 +165,34 @@ const Settings = () => {
         }
     };
 
+    // Purchase Stock Workflow Settings
+    const [purchaseWorkflow, setPurchaseWorkflow] = useState('PR_FIRST'); // 'PR_FIRST' or 'PI_DIRECT'
+
+    useEffect(() => {
+        const fetchPurchaseWorkflow = async () => {
+            try {
+                const res = await axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_purchase_stock_settings');
+                const mode = res.data?.message?.workflow_mode || 'PR_FIRST';
+                setPurchaseWorkflow(mode);
+                localStorage.setItem('purchase_stock_workflow', mode);
+            } catch (err) {
+                console.error('Failed to fetch purchase stock settings:', err);
+            }
+        };
+        fetchPurchaseWorkflow();
+    }, []);
+
+    const handleSavePurchaseWorkflow = async () => {
+        try {
+            await axios.post('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.update_purchase_stock_settings', {
+                workflow_mode: purchaseWorkflow
+            });
+            localStorage.setItem('purchase_stock_workflow', purchaseWorkflow);
+        } catch (err) {
+            console.error('Failed to update purchase stock settings:', err);
+        }
+    };
+
     const handleSave = () => {
         if (!selectedWarehouse) {
             Swal.fire({
@@ -177,6 +206,14 @@ const Settings = () => {
 
         dispatch(updateActiveWarehouse(selectedWarehouse));
         handleSaveLoyaltySettings();
+        handleSavePurchaseWorkflow();
+        Swal.fire({
+            icon: 'success',
+            title: 'Settings Applied',
+            text: 'Terminal configuration and purchase stock workflow updated.',
+            timer: 2000,
+            showConfirmButton: false
+        });
     };
 
     const handleForceReset = async () => {
@@ -323,6 +360,78 @@ const Settings = () => {
                                 <p style={{ fontSize: '0.65rem', color: '#94a3b8', marginTop: '8px', fontStyle: 'italic' }}>
                                     Changing the warehouse redirects all sales, item searches, and stock counts to the selected location instantly.
                                 </p>
+                            </div>
+                        </div>
+
+                        {/* Purchase Stock Workflow Configuration Card */}
+                        <div className="so-table-card" style={{ padding: '1.5rem', border: `1.5px solid ${purchaseWorkflow === 'PR_FIRST' ? '#10b98130' : '#3b82f630'}` }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                    <div style={{ background: purchaseWorkflow === 'PR_FIRST' ? '#10b98115' : '#3b82f615', color: purchaseWorkflow === 'PR_FIRST' ? '#10b981' : '#3b82f6', padding: '8px', borderRadius: '10px' }}>
+                                        <Truck size={20} />
+                                    </div>
+                                    <div>
+                                        <h3 style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--so-text-heading)', margin: 0 }}>Purchase Stock Workflow (PO ➔ PR ➔ PI)</h3>
+                                        <p style={{ fontSize: '0.7rem', color: 'var(--so-text-muted)', margin: 0 }}>Configure when physical warehouse inventory is updated during procurement.</p>
+                                    </div>
+                                </div>
+                                <span style={{ fontSize: '0.65rem', fontWeight: 900, color: purchaseWorkflow === 'PR_FIRST' ? '#059669' : '#2563eb', background: purchaseWorkflow === 'PR_FIRST' ? '#ecfdf5' : '#eff6ff', padding: '4px 10px', borderRadius: '6px', textTransform: 'uppercase', border: `1px solid ${purchaseWorkflow === 'PR_FIRST' ? '#a7f3d0' : '#bfdbfe'}` }}>
+                                    {purchaseWorkflow === 'PR_FIRST' ? 'Stock at PR' : 'Stock at PI'}
+                                </span>
+                            </div>
+
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem' }}>
+                                {/* Option A: PO -> PR -> PI */}
+                                <div
+                                    onClick={() => setPurchaseWorkflow('PR_FIRST')}
+                                    style={{
+                                        border: `2px solid ${purchaseWorkflow === 'PR_FIRST' ? '#10b981' : '#e2e8f0'}`,
+                                        background: purchaseWorkflow === 'PR_FIRST' ? '#f0fdf4' : '#ffffff',
+                                        borderRadius: '0.75rem',
+                                        padding: '1rem',
+                                        cursor: 'pointer',
+                                        transition: 'all 0.2s'
+                                    }}
+                                >
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                                        <span style={{ fontSize: '0.8rem', fontWeight: 900, color: purchaseWorkflow === 'PR_FIRST' ? '#047857' : '#334155' }}>
+                                            PO ➔ PR ➔ PI
+                                        </span>
+                                        {purchaseWorkflow === 'PR_FIRST' && <CheckCircle2 size={16} color="#10b981" />}
+                                    </div>
+                                    <p style={{ fontSize: '0.68rem', fontWeight: 700, color: '#475569', margin: 0, marginBottom: '6px' }}>
+                                        Stock Updated at Purchase Receipt (PR)
+                                    </p>
+                                    <p style={{ fontSize: '0.63rem', color: '#64748b', margin: 0, lineHeight: 1.3 }}>
+                                        PR posts inventory ledger entries (<code style={{ background: '#e2e8f0', padding: '1px 3px', borderRadius: '3px' }}>update_stock=1</code>). Purchase Invoice created from PR is accounting only (<code style={{ background: '#e2e8f0', padding: '1px 3px', borderRadius: '3px' }}>update_stock=0</code>).
+                                    </p>
+                                </div>
+
+                                {/* Option B: PO -> PI */}
+                                <div
+                                    onClick={() => setPurchaseWorkflow('PI_DIRECT')}
+                                    style={{
+                                        border: `2px solid ${purchaseWorkflow === 'PI_DIRECT' ? '#3b82f6' : '#e2e8f0'}`,
+                                        background: purchaseWorkflow === 'PI_DIRECT' ? '#eff6ff' : '#ffffff',
+                                        borderRadius: '0.75rem',
+                                        padding: '1rem',
+                                        cursor: 'pointer',
+                                        transition: 'all 0.2s'
+                                    }}
+                                >
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                                        <span style={{ fontSize: '0.8rem', fontWeight: 900, color: purchaseWorkflow === 'PI_DIRECT' ? '#1d4ed8' : '#334155' }}>
+                                            PO ➔ PI (Direct)
+                                        </span>
+                                        {purchaseWorkflow === 'PI_DIRECT' && <CheckCircle2 size={16} color="#3b82f6" />}
+                                    </div>
+                                    <p style={{ fontSize: '0.68rem', fontWeight: 700, color: '#475569', margin: 0, marginBottom: '6px' }}>
+                                        Stock Updated Directly at Purchase Invoice (PI)
+                                    </p>
+                                    <p style={{ fontSize: '0.63rem', color: '#64748b', margin: 0, lineHeight: 1.3 }}>
+                                        Purchase Invoice posts inventory ledger entries directly (<code style={{ background: '#e2e8f0', padding: '1px 3px', borderRadius: '3px' }}>update_stock=1</code>). Skips separate PR requirement.
+                                    </p>
+                                </div>
                             </div>
                         </div>
 

@@ -178,6 +178,18 @@ function PurchaseOrder() {
   const [loadingDrafts, setLoadingDrafts] = useState(false);
   const [isUpdateMode, setIsUpdateMode] = useState(false);
   const [allowedActions, setAllowedActions] = useState([]); // Workflow actions [save, submit, cancel, etc]
+  const [purchaseWorkflowMode, setPurchaseWorkflowMode] = useState(() => localStorage.getItem('purchase_stock_workflow') || 'PR_FIRST');
+
+  useEffect(() => {
+    axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_purchase_stock_settings')
+      .then(res => {
+        if (res.data?.message?.workflow_mode) {
+          setPurchaseWorkflowMode(res.data.message.workflow_mode);
+          localStorage.setItem('purchase_stock_workflow', res.data.message.workflow_mode);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   // ----- Column Config -----
   const loadColumnConfig = () => {
@@ -3441,9 +3453,25 @@ function PurchaseOrder() {
         <div className="bg-white px-6 py-2 border-b border-slate-100 flex items-center justify-between">
           <div className="flex items-center gap-6">
             <div className="flex flex-col text-left">
-              <h1 className="text-[18px] font-bold text-[#0f172a] leading-tight tracking-tight">
-                {formData.docstatus === 1 ? `Purchase Order: ${formData.name}` : (formData.name ? (isViewOnly ? `View PO: ${formData.name}` : `Edit PO: ${formData.name}`) : 'New Purchase Order')}
-              </h1>
+              <div className="flex items-center gap-3">
+                <h1 className="text-[18px] font-bold text-[#0f172a] leading-tight tracking-tight">
+                  {formData.docstatus === 1 ? `Purchase Order: ${formData.name}` : (formData.name ? (isViewOnly ? `View PO: ${formData.name}` : `Edit PO: ${formData.name}`) : 'New Purchase Order')}
+                </h1>
+                <span style={{
+                  display: 'inline-flex', alignItems: 'center', gap: '0.35rem',
+                  padding: '0.25rem 0.65rem', borderRadius: '1rem',
+                  fontSize: '0.65rem', fontWeight: 900, textTransform: 'uppercase',
+                  background: purchaseWorkflowMode === 'PR_FIRST' ? '#ecfdf5' : '#eff6ff',
+                  color: purchaseWorkflowMode === 'PR_FIRST' ? '#047857' : '#1d4ed8',
+                  border: `1px solid ${purchaseWorkflowMode === 'PR_FIRST' ? '#a7f3d0' : '#bfdbfe'}`
+                }}>
+                  <Truck size={12} />
+                  {purchaseWorkflowMode === 'PR_FIRST'
+                    ? 'WORKFLOW: PO ➔ PR ➔ PI (Stock at PR)'
+                    : 'WORKFLOW: PO ➔ PI (Stock at PI Direct)'
+                  }
+                </span>
+              </div>
               <p className="text-[11px] font-normal text-slate-400 mt-0.5">
                 {formData.docstatus === 1 ? 'Submitted Document' : 'Procurement & Inventory'}
               </p>

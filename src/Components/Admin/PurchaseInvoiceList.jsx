@@ -4349,6 +4349,108 @@ function PurchaseInvoiceList() {
 
           <div className="so-modal-body" style={{ flex: 1, overflowY: 'auto', padding: '1.25rem 2rem' }}>
             <div className="w-full flex flex-col gap-6">
+
+              {/* STOCK UPDATE HIGHLIGHT BANNER */}
+              {formData.update_stock ? (
+                <div style={{
+                  background: '#f0fdf4',
+                  border: '1.5px solid #a7f3d0',
+                  borderRadius: '0.75rem',
+                  padding: '0.75rem 1.25rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justify: 'space-between',
+                  boxShadow: '0 1px 2px rgba(16,185,129,0.05)'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <span style={{
+                      width: '10px', height: '10px', borderRadius: '50%',
+                      background: '#10b981', display: 'inline-block',
+                      boxShadow: '0 0 0 3px #d1fae5'
+                    }} />
+                    <div>
+                      <span style={{ fontSize: '0.8rem', fontWeight: 900, color: '#047857', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+                        🟢 UPDATE STOCK: ACTIVE (YES)
+                      </span>
+                      <p style={{ fontSize: '0.7rem', color: '#059669', margin: '2px 0 0', fontWeight: 600 }}>
+                        Physical warehouse inventory will be <strong>INCREMENTED</strong> upon submitting this Purchase Invoice.
+                      </p>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <span style={{
+                      fontSize: '0.65rem', fontWeight: 900, color: '#047857',
+                      background: '#d1fae5', padding: '4px 10px', borderRadius: '6px',
+                      border: '1px solid #6ee7b7', textTransform: 'uppercase'
+                    }}>
+                      PI Stock Entry (update_stock = 1)
+                    </span>
+                    {!isViewMode && (
+                      <button
+                        type="button"
+                        onClick={() => setFormData(prev => ({ ...prev, update_stock: false }))}
+                        style={{
+                          fontSize: '0.65rem', fontWeight: 800, color: '#475569',
+                          background: '#ffffff', padding: '3px 8px', borderRadius: '6px',
+                          border: '1px solid #cbd5e1', cursor: 'pointer'
+                        }}
+                      >
+                        Turn OFF Stock Update
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div style={{
+                  background: '#f0f9ff',
+                  border: '1.5px solid #bae6fd',
+                  borderRadius: '0.75rem',
+                  padding: '0.75rem 1.25rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justify: 'space-between',
+                  boxShadow: '0 1px 2px rgba(14,165,233,0.05)'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <span style={{
+                      width: '10px', height: '10px', borderRadius: '50%',
+                      background: '#0ea5e9', display: 'inline-block',
+                      boxShadow: '0 0 0 3px #e0f2fe'
+                    }} />
+                    <div>
+                      <span style={{ fontSize: '0.8rem', fontWeight: 900, color: '#0369a1', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+                        ℹ️ UPDATE STOCK: INACTIVE (NO)
+                      </span>
+                      <p style={{ fontSize: '0.7rem', color: '#0284c7', margin: '2px 0 0', fontWeight: 600 }}>
+                        Warehouse inventory was <strong>ALREADY UPDATED</strong> via Purchase Receipt (PR) or stock update is disabled for this invoice.
+                      </p>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <span style={{
+                      fontSize: '0.65rem', fontWeight: 900, color: '#0369a1',
+                      background: '#e0f2fe', padding: '4px 10px', borderRadius: '6px',
+                      border: '1px solid #7dd3fc', textTransform: 'uppercase'
+                    }}>
+                      Accounting Only (update_stock = 0)
+                    </span>
+                    {!isViewMode && (
+                      <button
+                        type="button"
+                        onClick={() => setFormData(prev => ({ ...prev, update_stock: true }))}
+                        style={{
+                          fontSize: '0.65rem', fontWeight: 800, color: '#475569',
+                          background: '#ffffff', padding: '3px 8px', borderRadius: '6px',
+                          border: '1px solid #cbd5e1', cursor: 'pointer'
+                        }}
+                      >
+                        Turn ON Stock Update
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* Basic Details Card */}
               <div className="so-card">
                 <div className="so-card-header">
