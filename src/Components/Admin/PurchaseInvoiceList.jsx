@@ -971,10 +971,7 @@ function PurchaseInvoiceList() {
   const handlePrintPDF = (nameToPrint) => {
     const docToPrint = nameToPrint || docName || formData.name;
     if (!docToPrint) return;
-    const backendPort = '8089';
-    const host = window.location.hostname;
-    const protocol = window.location.protocol;
-    const printUrl = `${protocol}//${host}:${backendPort}/api/method/frappe.utils.print_format.download_pdf?doctype=Purchase%20Invoice&name=${encodeURIComponent(docToPrint)}&format=Retail%20Purchase%20Invoice&no_letterhead=1&letterhead=No%20Letterhead&settings=%7B%7D&_lang=en&pdf_generator=wkhtmltopdf`;
+    const printUrl = `/api/method/frappe.utils.print_format.download_pdf?doctype=Purchase%20Invoice&name=${encodeURIComponent(docToPrint)}&format=Retail%20Purchase%20Invoice&no_letterhead=1&letterhead=No%20Letterhead&settings=%7B%7D&_lang=en&pdf_generator=wkhtmltopdf`;
     window.open(printUrl, '_blank');
   };
 

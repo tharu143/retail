@@ -1383,10 +1383,7 @@ function PurchaseReceiptList() {
   const handlePrintPDF = (nameToPrint) => {
     const docToPrint = nameToPrint || docName || formData.name;
     if (!docToPrint) return;
-    const backendPort = '8089';
-    const host = window.location.hostname;
-    const protocol = window.location.protocol;
-    const printUrl = `${protocol}//${host}:${backendPort}/api/method/frappe.utils.print_format.download_pdf?doctype=Purchase%20Receipt&name=${encodeURIComponent(docToPrint)}&format=Purchase%20Receipt%20Print&no_letterhead=1&letterhead=No%20Letterhead&settings=%7B%7D&_lang=en&pdf_generator=wkhtmltopdf`;
+    const printUrl = `/api/method/frappe.utils.print_format.download_pdf?doctype=Purchase%20Receipt&name=${encodeURIComponent(docToPrint)}&format=Purchase%20Receipt%20Print&no_letterhead=1&letterhead=No%20Letterhead&settings=%7B%7D&_lang=en&pdf_generator=wkhtmltopdf`;
     window.open(printUrl, '_blank');
   };
 
