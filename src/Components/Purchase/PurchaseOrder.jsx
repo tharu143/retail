@@ -670,11 +670,12 @@ function PurchaseOrder() {
     return lastSavedData !== current;
   }, [formData, lastSavedData]);
 
-  const fetchWorkflowActions = async () => {
-    if (!formData.name) return;
+  const fetchWorkflowActions = async (forcedName) => {
+    const targetName = forcedName || formData.name;
+    if (!targetName) return;
     try {
       const res = await axios.get(`${API_PATH}.get_document_status_details`, {
-        params: { doctype: 'Purchase Order', docname: formData.name },
+        params: { doctype: 'Purchase Order', docname: targetName },
         withCredentials: true
       });
       // Handle both nested data and direct message response structures
@@ -763,6 +764,9 @@ function PurchaseOrder() {
           tax_total: parseFloat(formData.tax_total),
           total_qty: parseFloat(formData.total_qty),
           grand_total: parseFloat(formData.grand_total),
+          disable_rounded_total: 1,
+          rounded_total: parseFloat(formData.grand_total),
+          base_rounded_total: parseFloat(formData.grand_total),
           naming_series: formData.naming_series || 'PO-',
           name: formData.name || undefined,
           payment_schedule: []
@@ -1201,10 +1205,12 @@ function PurchaseOrder() {
       };
 
       setFormData(mapped);
+      setLastSavedData(JSON.stringify(mapped));
       // STRICT RULE: If submitted/cancelled (docstatus !== 0), must be ViewOnly. Drafts (docstatus === 0) are editable.
       setIsViewOnly(mapped.docstatus !== 0);
       setShowDraftsList(false);
       fetchLinkedDocs(draftName);
+      fetchWorkflowActions(draftName);
     } catch (err) {
       setError(`Failed to load draft: ${err.message}`);
     } finally {
@@ -2772,100 +2778,157 @@ function PurchaseOrder() {
             <div className="grid grid-cols-1 xl:grid-cols-12 gap-3.5 items-stretch">
               {/* ACTION BUTTON GRID (LEFT SIDE) */}
               <div className="xl:col-span-7 flex">
-                <div className="grid grid-cols-4 grid-rows-2 gap-2.5 w-full h-full p-2.5 bg-white border border-slate-200 rounded-xl shadow-xs">
-                  {/* Slot 1: SAVE DRAFT (New/Draft) / AMEND (Cancelled) */}
+                <div className="grid grid-cols-3 grid-rows-2 gap-2.5 w-full h-full p-2.5 bg-white border border-slate-200 rounded-xl shadow-xs">
+                  {/* Slot 1: SAVE DRAFT (New/Dirty) / SUBMIT (Clean Draft) / CANCEL (Submitted) / AMEND (Cancelled) */}
                   {formData.docstatus === 0 || formData.docstatus === undefined ? (
-                    <button
-                      type="button"
-                      onClick={() => handleDocAction('save')}
-                      disabled={saving}
-                      className="h-full bg-[#f59e0b] hover:bg-[#d97706] text-white border-2 border-[#f59e0b] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-40"
-                      style={{ borderRadius: '8px' }}
-                    >
-                      <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
-                        <Save size={15} />
-                        <span>{saving ? 'SAVING...' : 'SAVE DRAFT'}</span>
-                      </div>
-                      <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">Alt+S</span>
-                    </button>
-                  ) : formData.docstatus === 2 ? (
-                    <button
-                      type="button"
-                      onClick={() => handleDocAction('amend')}
-                      disabled={saving}
-                      className="h-full bg-[#1d4ed8] hover:bg-[#1e40af] text-white border-2 border-[#1d4ed8] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-40"
-                      style={{ borderRadius: '8px' }}
-                    >
-                      <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
-                        <Edit3 size={15} />
-                        <span>AMEND</span>
-                      </div>
-                      <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">Alt+M</span>
-                    </button>
-                  ) : (
-                    <div className="h-full bg-slate-100 border-2 border-slate-200 rounded-xl px-3 py-2 flex items-center justify-center text-slate-400 font-black text-[11px] uppercase tracking-wider select-none" style={{ borderRadius: '8px' }}>
-                      <span>LOCKED</span>
-                    </div>
-                  )}
-
-                  {/* Slot 2: SUBMIT (Draft) / CREATE PR (Submitted) */}
-                  {formData.docstatus === 0 || formData.docstatus === undefined ? (
-                    <button
-                      type="button"
-                      onClick={() => handleDocAction('submit')}
-                      disabled={loading || saving || !formData.name}
-                      className="h-full bg-[#10b981] hover:bg-[#059669] text-white border-2 border-[#10b981] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-40"
-                      style={{ borderRadius: '8px' }}
-                    >
-                      <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
-                        <Send size={15} />
-                        <span>SUBMIT</span>
-                      </div>
-                      <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">Ctrl+↵</span>
-                    </button>
+                    // In Draft mode: if new or form is dirty/unsaved, show SAVE DRAFT. If saved & not dirty, show SUBMIT if allowed
+                    (!formData.name || isDirty) ? (
+                      <button
+                        type="button"
+                        onClick={() => handleDocAction('save')}
+                        disabled={saving}
+                        className="h-full bg-[#f59e0b] hover:bg-[#d97706] text-white border-2 border-[#f59e0b] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-40"
+                        style={{ borderRadius: '8px' }}
+                      >
+                        <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
+                          <Save size={15} />
+                          <span>{saving ? 'SAVING...' : 'SAVE DRAFT'}</span>
+                        </div>
+                        <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">Alt+S</span>
+                      </button>
+                    ) : (
+                      (allowedActions.includes('submit') || allowedActions.length === 0) ? (
+                        <button
+                          type="button"
+                          onClick={() => handleDocAction('submit')}
+                          disabled={loading || saving || !formData.name}
+                          className="h-full bg-[#10b981] hover:bg-[#059669] text-white border-2 border-[#10b981] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-40"
+                          style={{ borderRadius: '8px' }}
+                        >
+                          <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
+                            <Send size={15} />
+                            <span>{saving ? 'SUBMITTING...' : 'SUBMIT'}</span>
+                          </div>
+                          <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">Ctrl+↵</span>
+                        </button>
+                      ) : (
+                        <div className="h-full bg-slate-100 border-2 border-slate-200 rounded-xl px-3 py-2 flex items-center justify-center text-slate-400 font-black text-[11px] uppercase tracking-wider select-none" style={{ borderRadius: '8px' }}>
+                          <span>DRAFT SAVED</span>
+                        </div>
+                      )
+                    )
                   ) : formData.docstatus === 1 ? (
+                    // Submitted Doc -> CANCEL
+                    allowedActions.includes('cancel') ? (
+                      <button
+                        type="button"
+                        onClick={() => handleDocAction('cancel')}
+                        disabled={saving}
+                        className="h-full bg-[#dc2626] hover:bg-[#b91c1c] text-white border-2 border-[#dc2626] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-40"
+                        style={{ borderRadius: '8px' }}
+                      >
+                        <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
+                          <X size={15} />
+                          <span>CANCEL</span>
+                        </div>
+                        <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">Alt+X</span>
+                      </button>
+                    ) : (
+                      <div className="h-full bg-slate-100 border-2 border-slate-200 rounded-xl px-3 py-2 flex items-center justify-center text-slate-400 font-black text-[11px] uppercase tracking-wider select-none" style={{ borderRadius: '8px' }}>
+                        <span>LOCKED</span>
+                      </div>
+                    )
+                  ) : formData.docstatus === 2 ? (
+                    // Cancelled Doc -> AMEND
+                    allowedActions.includes('amend') ? (
+                      <button
+                        type="button"
+                        onClick={() => handleDocAction('amend')}
+                        disabled={saving}
+                        className="h-full bg-[#1d4ed8] hover:bg-[#1e40af] text-white border-2 border-[#1d4ed8] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-40"
+                        style={{ borderRadius: '8px' }}
+                      >
+                        <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
+                          <Edit3 size={15} />
+                          <span>AMEND</span>
+                        </div>
+                        <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">Alt+M</span>
+                      </button>
+                    ) : (
+                      <div className="h-full bg-slate-100 border-2 border-slate-200 rounded-xl px-3 py-2 flex items-center justify-center text-slate-400 font-black text-[11px] uppercase tracking-wider select-none" style={{ borderRadius: '8px' }}>
+                        <span>CANCELLED</span>
+                      </div>
+                    )
+                  ) : null}
+
+                  {/* Slot 2: CREATE PR / CREATE PI / DELETE */}
+                  {formData.docstatus === 1 ? (
+                    formData.per_received < 100 ? (
+                      <button
+                        type="button"
+                        onClick={() => navigate(`/purchasereceiptlist?po_name=${encodeURIComponent(formData.name)}`)}
+                        className="h-full bg-[#0d9488] hover:bg-[#0f766e] text-white border-2 border-[#0d9488] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer"
+                        style={{ borderRadius: '8px' }}
+                      >
+                        <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
+                          <Truck size={15} />
+                          <span>CREATE PR</span>
+                        </div>
+                        <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">+PR</span>
+                      </button>
+                    ) : formData.per_billed < 100 ? (
+                      <button
+                        type="button"
+                        onClick={() => navigate(`/purchaseinvoicelist?po_name=${encodeURIComponent(formData.name)}`)}
+                        className="h-full bg-[#0284c7] hover:bg-[#0369a1] text-white border-2 border-[#0284c7] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer"
+                        style={{ borderRadius: '8px' }}
+                      >
+                        <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
+                          <Plus size={15} />
+                          <span>CREATE PI</span>
+                        </div>
+                        <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">+PI</span>
+                      </button>
+                    ) : (
+                      <div className="h-full bg-emerald-50 border-2 border-emerald-200 rounded-xl px-3 py-2 flex items-center justify-center text-emerald-700 font-black text-[11px] uppercase tracking-wider select-none" style={{ borderRadius: '8px' }}>
+                        <CheckCircle2 size={14} className="mr-1 text-emerald-600" />
+                        <span>COMPLETED</span>
+                      </div>
+                    )
+                  ) : formData.docstatus === 0 && formData.name && allowedActions.includes('delete') ? (
                     <button
                       type="button"
-                      onClick={() => navigate(`/purchasereceiptlist?po_name=${encodeURIComponent(formData.name)}`)}
-                      className="h-full bg-[#0d9488] hover:bg-[#0f766e] text-white border-2 border-[#0d9488] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer"
+                      onClick={() => handleDocAction('delete')}
+                      disabled={saving}
+                      className="h-full bg-[#fff5f5] hover:bg-[#fed7d7] text-[#7f1d1d] border-2 border-[#fca5a5] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer"
                       style={{ borderRadius: '8px' }}
                     >
-                      <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
-                        <Truck size={15} />
-                        <span>CREATE PR</span>
+                      <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#7f1d1d]">
+                        <Trash2 size={15} />
+                        <span>DELETE</span>
                       </div>
-                      <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">+PR</span>
+                      <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-[#dc2626] text-white">Del</span>
                     </button>
                   ) : (
-                    <div className="h-full bg-slate-100 border-2 border-slate-200 rounded-xl px-3 py-2 flex items-center justify-center text-slate-400 font-black text-[11px] uppercase tracking-wider select-none" style={{ borderRadius: '8px' }}>
-                      <span>CANCELLED</span>
+                    <div className="h-full bg-amber-50 border-2 border-amber-200 rounded-xl px-3 py-2 flex items-center justify-center text-amber-700 font-black text-[11px] uppercase tracking-wider select-none" style={{ borderRadius: '8px' }}>
+                      <span>{formData.docstatus === 2 ? 'CANCELLED' : 'DRAFT MODE'}</span>
                     </div>
                   )}
 
-                  {/* Slot 3: CANCEL (Submitted) / STATUS INDICATOR */}
-                  {formData.docstatus === 1 ? (
-                    <button
-                      type="button"
-                      onClick={() => handleDocAction('cancel')}
-                      disabled={saving}
-                      className="h-full bg-[#dc2626] hover:bg-[#b91c1c] text-white border-2 border-[#dc2626] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-40"
-                      style={{ borderRadius: '8px' }}
-                    >
-                      <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
-                        <X size={15} />
-                        <span>CANCEL</span>
-                      </div>
-                      <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">Alt+X</span>
-                    </button>
-                  ) : formData.docstatus === 0 || formData.docstatus === undefined ? (
-                    <div className="h-full bg-amber-50 border-2 border-amber-200 rounded-xl px-3 py-2 flex items-center justify-center text-amber-700 font-black text-[11px] uppercase tracking-wider select-none" style={{ borderRadius: '8px' }}>
-                      <span>DRAFT MODE</span>
+                  {/* Slot 3: DUPLICATE */}
+                  <button
+                    type="button"
+                    onClick={handleDuplicate}
+                    disabled={!formData.name}
+                    className="h-full bg-[#7e22ce] hover:bg-[#6b21a8] text-white border-2 border-[#7e22ce] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-40"
+                    style={{ borderRadius: '8px' }}
+                  >
+                    <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
+                      <Copy size={15} />
+                      <span>DUPLICATE</span>
                     </div>
-                  ) : (
-                    <div className="h-full bg-rose-50 border-2 border-rose-200 rounded-xl px-3 py-2 flex items-center justify-center text-rose-600 font-black text-[11px] uppercase tracking-wider select-none" style={{ borderRadius: '8px' }}>
-                      <span>CANCELLED</span>
-                    </div>
-                  )}
+                    <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">Alt+D</span>
+                  </button>
 
                   {/* Slot 4: PRINT PDF */}
                   <button
@@ -2882,41 +2945,12 @@ function PurchaseOrder() {
                     <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">PDF</span>
                   </button>
 
-                  {/* Slot 5: DUPLICATE */}
-                  <button
-                    type="button"
-                    onClick={handleDuplicate}
-                    disabled={!formData.name}
-                    className="h-full bg-[#7e22ce] hover:bg-[#6b21a8] text-white border-2 border-[#7e22ce] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-40"
-                    style={{ borderRadius: '8px' }}
-                  >
-                    <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
-                      <Copy size={15} />
-                      <span>DUPLICATE</span>
-                    </div>
-                    <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">Alt+D</span>
-                  </button>
-
-                  {/* Slot 6: ADD ROW (Draft) / CREATE PI (Submitted) */}
-                  {formData.docstatus === 1 ? (
-                    <button
-                      type="button"
-                      onClick={() => navigate(`/purchaseinvoicelist?po_name=${encodeURIComponent(formData.name)}`)}
-                      className="h-full bg-[#0284c7] hover:bg-[#0369a1] text-white border-2 border-[#0284c7] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer"
-                      style={{ borderRadius: '8px' }}
-                    >
-                      <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
-                        <Plus size={15} />
-                        <span>CREATE PI</span>
-                      </div>
-                      <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">+PI</span>
-                    </button>
-                  ) : (
+                  {/* Slot 5: ADD ROW / BULK QTY */}
+                  {formData.docstatus === 0 || formData.docstatus === undefined ? (
                     <button
                       type="button"
                       onClick={addItemRow}
-                      disabled={formData.docstatus !== 0 && formData.docstatus !== undefined}
-                      className="h-full bg-[#10b981] hover:bg-[#059669] text-white border-2 border-[#10b981] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-40"
+                      className="h-full bg-[#10b981] hover:bg-[#059669] text-white border-2 border-[#10b981] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer"
                       style={{ borderRadius: '8px' }}
                     >
                       <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
@@ -2925,24 +2959,23 @@ function PurchaseOrder() {
                       </div>
                       <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">F10</span>
                     </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleBulkQtyOpen}
+                      disabled={formData.docstatus !== 0 && formData.docstatus !== undefined}
+                      className="h-full bg-[#8b5cf6] hover:bg-[#7c3aed] text-white border-2 border-[#8b5cf6] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-40"
+                      style={{ borderRadius: '8px' }}
+                    >
+                      <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
+                        <LayoutGrid size={15} />
+                        <span>BULK QTY</span>
+                      </div>
+                      <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">F6</span>
+                    </button>
                   )}
 
-                  {/* Slot 7: BULK QTY */}
-                  <button
-                    type="button"
-                    onClick={handleBulkQtyOpen}
-                    disabled={formData.docstatus !== 0 && formData.docstatus !== undefined}
-                    className="h-full bg-[#8b5cf6] hover:bg-[#7c3aed] text-white border-2 border-[#8b5cf6] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-40"
-                    style={{ borderRadius: '8px' }}
-                  >
-                    <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
-                      <LayoutGrid size={15} />
-                      <span>BULK QTY</span>
-                    </div>
-                    <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">F6</span>
-                  </button>
-
-                  {/* Slot 8: CLOSE / LIST */}
+                  {/* Slot 6: CLOSE / EXIT */}
                   <button
                     type="button"
                     onClick={() => {
@@ -2960,37 +2993,6 @@ function PurchaseOrder() {
                       <span>EXIT</span>
                     </div>
                     <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">Esc</span>
-                  </button>
-
-                  {/* DELETE (Draft Only) */}
-                  {formData.name && formData.docstatus === 0 && allowedActions.includes('delete') && (
-                    <button
-                      type="button"
-                      onClick={() => handleDocAction('delete')}
-                      disabled={saving}
-                      className="h-full bg-[#fff5f5] hover:bg-[#fed7d7] text-[#7f1d1d] border-2 border-[#fca5a5] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer"
-                      style={{ borderRadius: '8px' }}
-                    >
-                      <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#7f1d1d]">
-                        <Trash2 size={15} />
-                        <span>DELETE</span>
-                      </div>
-                      <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-[#dc2626] text-white">Del</span>
-                    </button>
-                  )}
-
-                  {/* BACK TO LIST / NEW */}
-                  <button
-                    type="button"
-                    onClick={() => navigate('/purchaseorderlist')}
-                    className="h-full bg-[#f1f5f9] hover:bg-[#e2e8f0] text-[#334155] border-2 border-[#cbd5e1] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer"
-                    style={{ borderRadius: '8px' }}
-                  >
-                    <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#334155]">
-                      <ChevronLeft size={15} />
-                      <span>LIST</span>
-                    </div>
-                    <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-[#64748b] text-white">Esc</span>
                   </button>
                 </div>
               </div>

@@ -270,11 +270,12 @@ function PurchaseReceiptList() {
       rounded_total: final_rounded_total.toFixed(2)
     };
   }, []);
-  const fetchWorkflowActions = async () => {
-    if (!docName) return;
+  const fetchWorkflowActions = async (forcedName) => {
+    const targetName = forcedName || docName;
+    if (!targetName) return;
     try {
       const res = await axios.get(`${API_PATH}.get_document_status_details`, {
-        params: { doctype: 'Purchase Receipt', docname: docName },
+        params: { doctype: 'Purchase Receipt', docname: targetName },
         withCredentials: true
       });
       const details = res.data.message?.data || res.data.message || {};
@@ -1549,7 +1550,10 @@ function PurchaseReceiptList() {
       setIsEditMode(isDraft);
       setIsModalOpen(true);
       setLastSavedData(JSON.stringify(mapped)); // Use mapped object for stable comparison
-      if (doc.name) fetchLinkedDocuments(doc.name);
+      if (doc.name) {
+        fetchLinkedDocuments(doc.name);
+        fetchWorkflowActions(doc.name);
+      }
 
       // Fetch UOMs for all items asynchronously
       mapped.items.forEach((item, index) => {
@@ -1561,7 +1565,9 @@ function PurchaseReceiptList() {
                 if (updatedItems[index] && updatedItems[index].item_code === item.item_code) {
                   updatedItems[index].uom_list = uoms;
                 }
-                return { ...prev, items: updatedItems };
+                const updatedForm = { ...prev, items: updatedItems };
+                setLastSavedData(JSON.stringify(updatedForm));
+                return updatedForm;
               });
             }
           });
@@ -1730,11 +1736,12 @@ function PurchaseReceiptList() {
       apply_putaway_rule: formData.apply_putaway_rule,
       is_return: formData.is_return,
       supplier_delivery_note: formData.supplier_delivery_note,
-      // IMPORTANT: Explicitly send these
+      // IMPORTANT: Explicitly send these with disable_rounded_total = 1
+      disable_rounded_total: 1,
       base_grand_total: grand_total,
-      base_rounded_total: rounded_total,
+      base_rounded_total: grand_total,
       grand_total: grand_total,
-      rounded_total: rounded_total,
+      rounded_total: grand_total,
       items: formData.items
         .filter(i => i.item_code && parseFloat(i.accepted_qty) > 0)
         .map(i => {
@@ -3097,14 +3104,13 @@ function PurchaseReceiptList() {
               </tbody>
             </table>
           </div>
-
           {/* BOTTOM SECTION: ACTIONS GRID + TOTALS CARD */}
           <div className="p-3 bg-[#f8fafc] border-t border-slate-200 flex-shrink-0">
             <div className="grid grid-cols-1 xl:grid-cols-12 gap-3.5 items-stretch">
               {/* ACTION BUTTON GRID (LEFT SIDE) */}
               <div className="xl:col-span-7 flex">
-                <div className="grid grid-cols-4 grid-rows-2 gap-2 w-full h-full">
-                  {/* Slot 1: SAVE DRAFT (New / Edited Draft) / DRAFT SAVED (Clean Draft) / CANCEL (Submitted) */}
+                <div className="grid grid-cols-3 grid-rows-2 gap-2 w-full h-full">
+                  {/* Slot 1: SAVE DRAFT (New/Dirty) / SUBMIT (Clean Draft) / CANCEL (Submitted) / AMEND (Cancelled) */}
                   {formData.docstatus === 0 || formData.docstatus === undefined ? (
                     isDirty || !docName ? (
                       <button
@@ -3121,88 +3127,124 @@ function PurchaseReceiptList() {
                         <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">Alt+S</span>
                       </button>
                     ) : (
-                      <button
-                        type="button"
-                        onClick={() => handleDocAction('save')}
-                        disabled={saving}
-                        className="h-full bg-slate-100 hover:bg-slate-200 text-slate-700 border-2 border-slate-300 rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-40"
-                        style={{ borderRadius: '8px' }}
-                      >
-                        <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-slate-600">
-                          {saving ? <Loader2 size={15} className="animate-spin text-slate-600" /> : <CheckCircle2 size={15} className="text-emerald-600" />}
+                      (allowedActions.includes('submit') || allowedActions.length === 0) ? (
+                        <button
+                          type="button"
+                          onClick={() => handleDocAction('submit')}
+                          disabled={saving || !docName}
+                          className="h-full bg-[#10b981] hover:bg-[#059669] text-white border-2 border-[#10b981] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-40 ring-2 ring-emerald-300"
+                          style={{ borderRadius: '8px' }}
+                        >
+                          <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
+                            {saving ? <Loader2 size={15} className="animate-spin text-white" /> : <CheckCircle2 size={15} />}
+                            <span>{saving ? 'SUBMITTING...' : 'SUBMIT'}</span>
+                          </div>
+                          <span className="inline-flex items-center justify-center font-mono text-[10px] font-black px-1.5 py-0.5 rounded bg-white/20 text-white">Ctrl+↵</span>
+                        </button>
+                      ) : (
+                        <div className="h-full bg-slate-100 border-2 border-slate-200 rounded-xl px-3 py-2 flex items-center justify-center text-slate-400 font-black text-[11px] uppercase tracking-wider select-none" style={{ borderRadius: '8px' }}>
                           <span>DRAFT SAVED</span>
                         </div>
-                        <span className="inline-flex items-center justify-center font-mono text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-200 text-slate-600">Alt+S</span>
-                      </button>
+                      )
                     )
                   ) : formData.docstatus === 1 ? (
-                    <button
-                      type="button"
-                      onClick={() => handleDocAction('cancel')}
-                      disabled={saving}
-                      className="h-full bg-[#dc2626] hover:bg-[#b91c1c] text-white border-2 border-[#dc2626] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-40"
-                      style={{ borderRadius: '8px' }}
-                    >
-                      <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
-                        {saving ? <Loader2 size={15} className="animate-spin text-white" /> : <X size={15} />}
-                        <span>CANCEL</span>
+                    allowedActions.includes('cancel') ? (
+                      <button
+                        type="button"
+                        onClick={() => handleDocAction('cancel')}
+                        disabled={saving}
+                        className="h-full bg-[#dc2626] hover:bg-[#b91c1c] text-white border-2 border-[#dc2626] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-40"
+                        style={{ borderRadius: '8px' }}
+                      >
+                        <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
+                          {saving ? <Loader2 size={15} className="animate-spin text-white" /> : <X size={15} />}
+                          <span>CANCEL</span>
+                        </div>
+                        <span className="inline-flex items-center justify-center font-mono text-[10px] font-black px-1.5 py-0.5 rounded bg-white/20 text-white">Alt+C</span>
+                      </button>
+                    ) : (
+                      <div className="h-full bg-slate-100 border-2 border-slate-200 rounded-xl px-3 py-2 flex items-center justify-center text-slate-400 font-black text-[11px] uppercase tracking-wider select-none" style={{ borderRadius: '8px' }}>
+                        <span>LOCKED</span>
                       </div>
-                      <span className="inline-flex items-center justify-center font-mono text-[10px] font-black px-1.5 py-0.5 rounded bg-white/20 text-white">Alt+C</span>
-                    </button>
+                    )
                   ) : (
-                    <div className="h-full bg-slate-100 border-2 border-slate-200 rounded-xl px-3 py-2 flex items-center justify-center text-slate-400 font-black text-[11px] uppercase tracking-wider select-none" style={{ borderRadius: '8px' }}>
-                      <span>CANCELLED</span>
-                    </div>
+                    allowedActions.includes('amend') ? (
+                      <button
+                        type="button"
+                        onClick={() => handleDocAction('amend')}
+                        disabled={saving}
+                        className="h-full bg-[#1d4ed8] hover:bg-[#1e40af] text-white border-2 border-[#1d4ed8] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-40"
+                        style={{ borderRadius: '8px' }}
+                      >
+                        <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
+                          {saving ? <Loader2 size={15} className="animate-spin text-white" /> : <Plus size={15} />}
+                          <span>AMEND</span>
+                        </div>
+                        <span className="inline-flex items-center justify-center font-mono text-[10px] font-black px-1.5 py-0.5 rounded bg-white/20 text-white">Alt+M</span>
+                      </button>
+                    ) : (
+                      <div className="h-full bg-slate-100 border-2 border-slate-200 rounded-xl px-3 py-2 flex items-center justify-center text-slate-400 font-black text-[11px] uppercase tracking-wider select-none" style={{ borderRadius: '8px' }}>
+                        <span>CANCELLED</span>
+                      </div>
+                    )
                   )}
 
-                  {/* Slot 2: SUBMIT (Draft) / STATUS (Submitted) */}
-                  {formData.docstatus === 0 || formData.docstatus === undefined ? (
-                    <button
-                      type="button"
-                      onClick={() => handleDocAction('submit')}
-                      disabled={saving || !docName}
-                      className={`h-full text-white border-2 rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-40 ${
-                        !isDirty && docName ? 'bg-[#10b981] hover:bg-[#059669] border-[#10b981] shadow-md ring-2 ring-emerald-300' : 'bg-[#10b981] hover:bg-[#059669] border-[#10b981]'
-                      }`}
-                      style={{ borderRadius: '8px' }}
-                    >
-                      <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
-                        {saving ? <Loader2 size={15} className="animate-spin text-white" /> : <CheckCircle2 size={15} />}
-                        <span>{saving ? 'SUBMITTING...' : 'SUBMIT'}</span>
-                      </div>
-                      <span className="inline-flex items-center justify-center font-mono text-[10px] font-black px-1.5 py-0.5 rounded bg-white/20 text-white">Ctrl+↵</span>
-                    </button>
-                  ) : (
-                    <div className="h-full bg-emerald-600 text-white border-2 border-emerald-600 rounded-xl px-3 py-2 flex items-center justify-center font-black text-[11px] uppercase tracking-wider select-none shadow-xs" style={{ borderRadius: '8px' }}>
-                      <CheckCircle2 size={15} className="mr-1.5 text-white" />
-                      <span>{formData.docstatus === 1 ? 'SUBMITTED' : 'CANCELLED'}</span>
-                    </div>
-                  )}
-
-                  {/* Slot 3: CREATE INVOICE (If Submitted) / DRAFT STATUS */}
+                  {/* Slot 2: CREATE INVOICE (Submitted) / DELETE (Draft) */}
                   {formData.docstatus === 1 ? (
+                    formData.per_billed < 100 ? (
+                      <button
+                        type="button"
+                        onClick={handleCreateInvoice}
+                        disabled={saving}
+                        className="h-full bg-[#d97706] hover:bg-[#b45309] text-white border-2 border-[#d97706] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer"
+                        style={{ borderRadius: '8px' }}
+                      >
+                        <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
+                          <Plus size={15} />
+                          <span>CREATE INVOICE</span>
+                        </div>
+                        <span className="inline-flex items-center justify-center font-mono text-[10px] font-black px-1.5 py-0.5 rounded bg-white/20 text-white">+PI</span>
+                      </button>
+                    ) : (
+                      <div className="h-full bg-emerald-50 border-2 border-emerald-200 rounded-xl px-3 py-2 flex items-center justify-center text-emerald-700 font-black text-[11px] uppercase tracking-wider select-none" style={{ borderRadius: '8px' }}>
+                        <CheckCircle2 size={14} className="mr-1 text-emerald-600" />
+                        <span>COMPLETED</span>
+                      </div>
+                    )
+                  ) : formData.docstatus === 0 && docName && allowedActions.includes('delete') ? (
                     <button
                       type="button"
-                      onClick={handleCreateInvoice}
+                      onClick={() => handleDocAction('delete')}
                       disabled={saving}
-                      className="h-full bg-[#d97706] hover:bg-[#b45309] text-white border-2 border-[#d97706] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer"
+                      className="h-full bg-[#fff5f5] hover:bg-[#fed7d7] text-[#7f1d1d] border-2 border-[#fca5a5] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer"
                       style={{ borderRadius: '8px' }}
                     >
-                      <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
-                        <Plus size={15} />
-                        <span>CREATE INVOICE</span>
+                      <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#7f1d1d]">
+                        <Trash2 size={15} />
+                        <span>DELETE</span>
                       </div>
-                      <span className="inline-flex items-center justify-center font-mono text-[10px] font-black px-1.5 py-0.5 rounded bg-white/20 text-white">+PI</span>
+                      <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-[#dc2626] text-white">Del</span>
                     </button>
-                  ) : formData.docstatus === 0 || formData.docstatus === undefined ? (
-                    <div className="h-full bg-amber-50 border-2 border-amber-200 rounded-xl px-3 py-2 flex items-center justify-center text-amber-700 font-black text-[11px] uppercase tracking-wider select-none" style={{ borderRadius: '8px' }}>
-                      <span>DRAFT MODE</span>
-                    </div>
                   ) : (
-                    <div className="h-full bg-rose-50 border-2 border-rose-200 rounded-xl px-3 py-2 flex items-center justify-center text-rose-600 font-black text-[11px] uppercase tracking-wider select-none" style={{ borderRadius: '8px' }}>
-                      <span>CANCELLED</span>
+                    <div className="h-full bg-amber-50 border-2 border-amber-200 rounded-xl px-3 py-2 flex items-center justify-center text-amber-700 font-black text-[11px] uppercase tracking-wider select-none" style={{ borderRadius: '8px' }}>
+                      <span>{formData.docstatus === 2 ? 'CANCELLED' : 'DRAFT MODE'}</span>
                     </div>
                   )}
+
+                  {/* Slot 3: DUPLICATE */}
+                  <button
+                    type="button"
+                    onClick={handleDuplicate}
+                    disabled={!docName}
+                    className="h-full bg-[#7c3aed] hover:bg-[#6d28d9] text-white border-2 border-[#7c3aed] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-40"
+                    style={{ borderRadius: '8px' }}
+                  >
+                    <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
+                      <Copy size={15} />
+                      <span>DUPLICATE</span>
+                    </div>
+                    <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">Alt+D</span>
+                  </button>
 
                   {/* Slot 4: PRINT PDF */}
                   <button
@@ -3219,37 +3261,8 @@ function PurchaseReceiptList() {
                     <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">PDF</span>
                   </button>
 
-                  {/* Slot 5: DUPLICATE */}
-                  <button
-                    type="button"
-                    onClick={handleDuplicate}
-                    disabled={!docName}
-                    className="h-full bg-[#7c3aed] hover:bg-[#6d28d9] text-white border-2 border-[#7c3aed] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-40"
-                    style={{ borderRadius: '8px' }}
-                  >
-                    <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
-                      <Copy size={15} />
-                      <span>DUPLICATE</span>
-                    </div>
-                    <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">Alt+D</span>
-                  </button>
-
-                  {/* Slot 6: ADD ROW (Draft) / PURCHASE RETURN (If Submitted) */}
-                  {formData.docstatus === 1 ? (
-                    <button
-                      type="button"
-                      onClick={() => handleCreateReturn()}
-                      disabled={saving}
-                      className="h-full bg-[#e11d48] hover:bg-[#be123c] text-white border-2 border-[#e11d48] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer"
-                      style={{ borderRadius: '8px' }}
-                    >
-                      <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
-                        <Link size={14} />
-                        <span>PURCHASE RETURN</span>
-                      </div>
-                      <span className="inline-flex items-center justify-center font-mono text-[10px] font-black px-1.5 py-0.5 rounded bg-white/20 text-white">+Ret</span>
-                    </button>
-                  ) : (
+                  {/* Slot 5: ADD ROW (Draft) / BULK QTY */}
+                  {formData.docstatus === 0 || formData.docstatus === undefined ? (
                     <button
                       type="button"
                       onClick={addItemRow}
@@ -3263,24 +3276,23 @@ function PurchaseReceiptList() {
                       </div>
                       <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">F10</span>
                     </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleBulkQtyOpen}
+                      disabled={formData.docstatus !== 0 && formData.docstatus !== undefined}
+                      className="h-full bg-[#8b5cf6] hover:bg-[#7c3aed] text-white border-2 border-[#8b5cf6] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-40"
+                      style={{ borderRadius: '8px' }}
+                    >
+                      <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
+                        <LayoutGrid size={15} />
+                        <span>BULK QTY</span>
+                      </div>
+                      <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">F6</span>
+                    </button>
                   )}
 
-                  {/* Slot 7: BULK QTY */}
-                  <button
-                    type="button"
-                    onClick={handleBulkQtyOpen}
-                    disabled={formData.docstatus !== 0 && formData.docstatus !== undefined}
-                    className="h-full bg-[#8b5cf6] hover:bg-[#7c3aed] text-white border-2 border-[#8b5cf6] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-40"
-                    style={{ borderRadius: '8px' }}
-                  >
-                    <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
-                      <LayoutGrid size={15} />
-                      <span>BULK QTY</span>
-                    </div>
-                    <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">F6</span>
-                  </button>
-
-                  {/* Slot 8: CLOSE / EXIT */}
+                  {/* Slot 6: CLOSE / EXIT */}
                   <button
                     type="button"
                     onClick={() => {

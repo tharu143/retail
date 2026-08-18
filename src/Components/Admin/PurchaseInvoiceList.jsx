@@ -1933,6 +1933,11 @@ function PurchaseInvoiceList() {
 
     return {
       name: docName || undefined,
+      disable_rounded_total: 1,
+      grand_total: grandTotalCalc,
+      rounded_total: grandTotalCalc,
+      base_grand_total: grandTotalCalc,
+      base_rounded_total: grandTotalCalc,
       supplier: formData.supplier,
       posting_date: formData.posting_date,
       due_date: formData.due_date || null,
@@ -3457,22 +3462,44 @@ function PurchaseInvoiceList() {
             <div className="grid grid-cols-1 xl:grid-cols-12 gap-3.5 items-stretch">
               {/* ACTION BUTTON GRID (LEFT SIDE) */}
               <div className="xl:col-span-7 flex">
-                <div className="grid grid-cols-4 grid-rows-2 gap-2 w-full h-full">
-                  {/* DYNAMIC ACTION 1: SAVE DRAFT (Draft) / CANCEL (Submitted) / AMEND (Cancelled) */}
+                <div className="grid grid-cols-3 grid-rows-2 gap-2 w-full h-full">
+                  {/* Slot 1: SAVE DRAFT (New/Dirty) / SUBMIT (Clean Draft) / CANCEL (Submitted) / AMEND (Cancelled) */}
                   {formData.docstatus === 0 || formData.docstatus === undefined ? (
-                    <button
-                      type="button"
-                      onClick={handleSaveDraft}
-                      disabled={saving}
-                      className="h-full bg-[#f59e0b] hover:bg-[#d97706] text-white border-2 border-[#f59e0b] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-40"
-                      style={{ borderRadius: '8px' }}
-                    >
-                      <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
-                        {saving ? <Loader2 size={15} className="animate-spin text-white" /> : <Save size={15} />}
-                        <span>{saving ? 'SAVING...' : 'SAVE DRAFT'}</span>
-                      </div>
-                      <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">Alt+S</span>
-                    </button>
+                    isDirty || !docName ? (
+                      <button
+                        type="button"
+                        onClick={handleSaveDraft}
+                        disabled={saving}
+                        className="h-full bg-[#f59e0b] hover:bg-[#d97706] text-white border-2 border-[#f59e0b] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-40"
+                        style={{ borderRadius: '8px' }}
+                      >
+                        <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
+                          {saving ? <Loader2 size={15} className="animate-spin text-white" /> : <Save size={15} />}
+                          <span>{saving ? 'SAVING...' : 'SAVE DRAFT'}</span>
+                        </div>
+                        <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">Alt+S</span>
+                      </button>
+                    ) : (
+                      (allowedActions.includes('submit') || allowedActions.length === 0) ? (
+                        <button
+                          type="button"
+                          onClick={handleSubmit}
+                          disabled={saving || !docName}
+                          className="h-full bg-[#10b981] hover:bg-[#059669] text-white border-2 border-[#10b981] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-40 ring-2 ring-emerald-300"
+                          style={{ borderRadius: '8px' }}
+                        >
+                          <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
+                            {saving ? <Loader2 size={15} className="animate-spin text-white" /> : <Send size={15} />}
+                            <span>{saving ? 'SUBMITTING...' : 'SUBMIT'}</span>
+                          </div>
+                          <span className="inline-flex items-center justify-center font-mono text-[10px] font-black px-1.5 py-0.5 rounded bg-white/20 text-white">Ctrl+↵</span>
+                        </button>
+                      ) : (
+                        <div className="h-full bg-slate-100 border-2 border-slate-200 rounded-xl px-3 py-2 flex items-center justify-center text-slate-400 font-black text-[11px] uppercase tracking-wider select-none" style={{ borderRadius: '8px' }}>
+                          <span>DRAFT SAVED</span>
+                        </div>
+                      )
+                    )
                   ) : formData.docstatus === 1 ? (
                     (allowedActions.includes('cancel') || allowedActions.length === 0) ? (
                       <button
@@ -3515,59 +3542,7 @@ function PurchaseInvoiceList() {
                     )
                   )}
 
-                  {/* SUBMIT (Only in Draft Mode) */}
-                  {formData.docstatus === 0 || formData.docstatus === undefined ? (
-                    <button
-                      type="button"
-                      onClick={handleSubmit}
-                      disabled={saving}
-                      className="h-full bg-[#10b981] hover:bg-[#059669] text-white border-2 border-[#10b981] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-40"
-                      style={{ borderRadius: '8px' }}
-                    >
-                      <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
-                        {saving ? <Loader2 size={15} className="animate-spin text-white" /> : <Send size={15} />}
-                        <span>{saving ? 'SUBMITTING...' : 'SUBMIT'}</span>
-                      </div>
-                      <span className="inline-flex items-center justify-center font-mono text-[10px] font-black px-1.5 py-0.5 rounded bg-white/20 text-white">Ctrl+↵</span>
-                    </button>
-                  ) : (
-                    <div className="h-full bg-emerald-600 text-white border-2 border-emerald-600 rounded-xl px-3 py-2 flex items-center justify-center font-black text-[11px] uppercase tracking-wider select-none shadow-xs" style={{ borderRadius: '8px' }}>
-                      <CheckCircle2 size={15} className="mr-1.5 text-white" />
-                      <span>{formData.docstatus === 1 ? 'SUBMITTED' : 'CANCELLED'}</span>
-                    </div>
-                  )}
-
-                  {/* PRINT PDF */}
-                  <button
-                    type="button"
-                    onClick={() => handlePrintPDF(docName)}
-                    disabled={!docName}
-                    className="h-full bg-[#0284c7] hover:bg-[#0369a1] text-white border-2 border-[#0284c7] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-40"
-                    style={{ borderRadius: '8px' }}
-                  >
-                    <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
-                      <Printer size={15} />
-                      <span>PRINT PDF</span>
-                    </div>
-                    <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">Space</span>
-                  </button>
-
-                  {/* DUPLICATE */}
-                  <button
-                    type="button"
-                    onClick={handleDuplicate}
-                    disabled={!docName}
-                    className="h-full bg-[#7c3aed] hover:bg-[#6d28d9] text-white border-2 border-[#7c3aed] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-40"
-                    style={{ borderRadius: '8px' }}
-                  >
-                    <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
-                      <Copy size={15} />
-                      <span>DUPLICATE</span>
-                    </div>
-                    <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">Alt+D</span>
-                  </button>
-
-                  {/* Slot 6: ADD ROW (Draft) / CREATE PAYMENT ENTRY (If Submitted) */}
+                  {/* Slot 2: CREATE PAYMENT ENTRY (Submitted) / DELETE (Draft) */}
                   {formData.docstatus === 1 ? (
                     <button
                       type="button"
@@ -3582,7 +3557,58 @@ function PurchaseInvoiceList() {
                       </div>
                       <span className="inline-flex items-center justify-center font-mono text-[10px] font-black px-1.5 py-0.5 rounded bg-white/20 text-white">+Pay</span>
                     </button>
+                  ) : formData.docstatus === 0 && docName && (allowedActions.includes('delete') || allowedActions.length === 0) ? (
+                    <button
+                      type="button"
+                      onClick={() => handleDocAction('delete')}
+                      disabled={saving}
+                      className="h-full bg-[#fff5f5] hover:bg-[#fed7d7] text-[#7f1d1d] border-2 border-[#fca5a5] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer"
+                      style={{ borderRadius: '8px' }}
+                    >
+                      <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-[#7f1d1d]">
+                        <Trash2 size={15} />
+                        <span>DELETE</span>
+                      </div>
+                      <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-[#dc2626] text-white">Del</span>
+                    </button>
                   ) : (
+                    <div className="h-full bg-amber-50 border-2 border-amber-200 rounded-xl px-3 py-2 flex items-center justify-center text-amber-700 font-black text-[11px] uppercase tracking-wider select-none" style={{ borderRadius: '8px' }}>
+                      <span>{formData.docstatus === 2 ? 'CANCELLED' : 'DRAFT MODE'}</span>
+                    </div>
+                  )}
+
+                  {/* Slot 3: DUPLICATE */}
+                  <button
+                    type="button"
+                    onClick={handleDuplicate}
+                    disabled={!docName}
+                    className="h-full bg-[#7c3aed] hover:bg-[#6d28d9] text-white border-2 border-[#7c3aed] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-40"
+                    style={{ borderRadius: '8px' }}
+                  >
+                    <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
+                      <Copy size={15} />
+                      <span>DUPLICATE</span>
+                    </div>
+                    <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">Alt+D</span>
+                  </button>
+
+                  {/* Slot 4: PRINT PDF */}
+                  <button
+                    type="button"
+                    onClick={() => handlePrintPDF(docName)}
+                    disabled={!docName}
+                    className="h-full bg-[#0284c7] hover:bg-[#0369a1] text-white border-2 border-[#0284c7] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-40"
+                    style={{ borderRadius: '8px' }}
+                  >
+                    <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
+                      <Printer size={15} />
+                      <span>PRINT PDF</span>
+                    </div>
+                    <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">Space</span>
+                  </button>
+
+                  {/* Slot 5: ADD ROW (Draft) / BULK QTY */}
+                  {formData.docstatus === 0 || formData.docstatus === undefined ? (
                     <button
                       type="button"
                       onClick={addItemRow}
@@ -3596,23 +3622,23 @@ function PurchaseInvoiceList() {
                       </div>
                       <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">Alt+A</span>
                     </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleBulkQtyOpen}
+                      disabled={formData.docstatus !== 0 && formData.docstatus !== undefined}
+                      className="h-full bg-[#8b5cf6] hover:bg-[#7c3aed] text-white border-2 border-[#8b5cf6] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-40"
+                      style={{ borderRadius: '8px' }}
+                    >
+                      <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
+                        <LayoutGrid size={15} />
+                        <span>BULK QTY</span>
+                      </div>
+                      <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">F6</span>
+                    </button>
                   )}
-                  {/* Slot 7: BULK QTY */}
-                  <button
-                    type="button"
-                    onClick={handleBulkQtyOpen}
-                    disabled={formData.docstatus !== 0 && formData.docstatus !== undefined}
-                    className="h-full bg-[#8b5cf6] hover:bg-[#7c3aed] text-white border-2 border-[#8b5cf6] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-40"
-                    style={{ borderRadius: '8px' }}
-                  >
-                    <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
-                      <LayoutGrid size={15} />
-                      <span>BULK QTY</span>
-                    </div>
-                    <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">F6</span>
-                  </button>
 
-                  {/* Slot 8: CLOSE / EXIT */}
+                  {/* Slot 6: CLOSE / EXIT */}
                   <button
                     type="button"
                     onClick={() => {
