@@ -1334,10 +1334,30 @@ function Home() {
     const [groupSearch, setGroupSearch] = useState("");
 
     const filteredCategories = useMemo(() => {
+        if (!groupSearch.trim()) return categories;
+        const term = groupSearch.toLowerCase().trim();
+
+        // Find which categories match the category name directly
+        // OR contain any item matching by item name, item code/id, sub-group, barcodes
+        const matchingCategoriesFromItems = new Set();
+        (Items || []).forEach(i => {
+            const nameMatch = (i.name || "").toLowerCase().includes(term);
+            const idMatch = (i.id || "").toLowerCase().includes(term) || (i.item_code || "").toLowerCase().includes(term);
+            const groupMatch = (i.group || "").toLowerCase().includes(term);
+            const subGroupMatch = (i.sub_group || i.item_sub_group || i.custom_sub_group || "").toLowerCase().includes(term);
+            const barcodeMatch = (i.barcodes || []).some(b => (b.barcode || "").toLowerCase().includes(term));
+
+            if (nameMatch || idMatch || groupMatch || subGroupMatch || barcodeMatch) {
+                if (i.group) matchingCategoriesFromItems.add(i.group);
+            }
+        });
+
         return categories.filter(cat =>
-            cat === "all" || cat.toLowerCase().includes(groupSearch.toLowerCase())
+            cat === "all" || 
+            cat.toLowerCase().includes(term) || 
+            matchingCategoriesFromItems.has(cat)
         );
-    }, [categories, groupSearch]);
+    }, [categories, groupSearch, Items]);
 
     const [filteredItems, setFilteredItems] = useState([]);
     const [activeCardIndex, setActiveCardIndex] = useState(-1);
@@ -2478,6 +2498,8 @@ function Home() {
                     name: item.item_name || item.name,
                     image: finalImage,
                     group: item.group || item.item_group || "others",
+                    sub_group: item.sub_group || item.item_sub_group || item.custom_sub_group || item.parent_item_group || "",
+                    description: item.description || "",
                     // Base price (Nos/Piece price) – branch-specific from API
                     price: item.price || item.price_list_rate || 0,
                     // UOM-keyed price map (e.g. { Nos: 10, Box: 120 }) – branch selling prices
@@ -2575,16 +2597,36 @@ function Home() {
             filtered = filtered.filter(i => (i.local_qty !== undefined ? i.local_qty : 0) > 0);
         }
 
+        // Filter by barcodeInput (main search)
         if (barcodeInput.trim()) {
             const term = barcodeInput.toLowerCase().trim();
             filtered = filtered.filter(i =>
                 (i.name || "").toLowerCase().includes(term) ||
                 (i.id || "").toLowerCase().includes(term) ||
+                (i.item_code || "").toLowerCase().includes(term) ||
+                (i.group || "").toLowerCase().includes(term) ||
+                (i.sub_group || i.item_sub_group || i.custom_sub_group || "").toLowerCase().includes(term) ||
+                (i.description || "").toLowerCase().includes(term) ||
                 (i.barcodes || []).some(b => (b.barcode || "").toLowerCase().includes(term))
             );
         }
+
+        // Filter by groupSearch (Item Group bar search: Group, Sub-group, Item Name, Item Code)
+        if (groupSearch.trim()) {
+            const gTerm = groupSearch.toLowerCase().trim();
+            filtered = filtered.filter(i =>
+                (i.group || "").toLowerCase().includes(gTerm) ||
+                (i.sub_group || i.item_sub_group || i.custom_sub_group || "").toLowerCase().includes(gTerm) ||
+                (i.name || "").toLowerCase().includes(gTerm) ||
+                (i.id || "").toLowerCase().includes(gTerm) ||
+                (i.item_code || "").toLowerCase().includes(gTerm) ||
+                (i.description || "").toLowerCase().includes(gTerm) ||
+                (i.barcodes || []).some(b => (b.barcode || "").toLowerCase().includes(gTerm))
+            );
+        }
+
         setFilteredItems(filtered);
-    }, [selectedCategory, Items, barcodeInput, showAvailableOnly]);
+    }, [selectedCategory, Items, barcodeInput, groupSearch, showAvailableOnly]);
 
     const handleOutOfStockAlert = async (item) => {
         const result = await Swal.fire({
@@ -8229,12 +8271,12 @@ function Home() {
                             {!hideAllShortcuts && shortcutsPosition === 'left' && renderShortcutsVertical('left')}
                             <div className="so-item-side">
                                 <div className="so-cat-bar">
-                                    {/* Item Group Search Input */}
-                                    <div className="relative flex items-center bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 shrink-0" style={{ height: '36px', width: '180px' }}>
+                                    {/* Item Group & Item Multi-Filter Search Input */}
+                                    <div className="relative flex items-center bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 shrink-0" style={{ height: '36px', width: '220px' }}>
                                         <Search size={14} className="text-slate-400 mr-2 shrink-0" />
                                         <input
                                             type="text"
-                                            placeholder="Search groups..."
+                                            placeholder="Search groups, items, codes..."
                                             value={groupSearch}
                                             onChange={(e) => setGroupSearch(e.target.value)}
                                             className="w-full text-xs font-bold text-slate-700 placeholder:text-slate-400 bg-transparent border-none outline-none"

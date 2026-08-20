@@ -3,27 +3,14 @@ import { useSelector } from 'react-redux';
 import { 
     Loader2, FileText, AlertCircle, CheckCircle2, 
     Calendar, Filter, RefreshCw, Printer, ChevronDown, 
-    TrendingUp, DollarSign, Clock, User, Shield, CreditCard, ChevronRight, HelpCircle,
-    ArrowUpRight, Receipt, Landmark, Smartphone, Tag, Gift, Check
+    TrendingUp, DollarSign, Clock, User, Shield, CreditCard, ChevronRight,
+    Receipt, Landmark, Smartphone, Tag, Gift, Check,
+    ArrowRightLeft, Percent, Edit3, XCircle, RotateCcw, Eye, ExternalLink,
+    ArrowUpRight, ArrowDownLeft, X
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import DirhamIcon from '../../assets/Currency/DirhamIcon';
-import { ExternalLink } from 'lucide-react';
 import './DailySalesReport.css';
-
-const UAE_DENOMS = [
-    { value: 1000, label: '1000 AED' },
-    { value: 500, label: '500 AED' },
-    { value: 200, label: '200 AED' },
-    { value: 100, label: '100 AED' },
-    { value: 50, label: '50 AED' },
-    { value: 20, label: '20 AED' },
-    { value: 10, label: '10 AED' },
-    { value: 5, label: '5 AED' },
-    { value: 1, label: '1 AED' },
-    { value: 0.50, label: '0.50 AED' },
-    { value: 0.25, label: '0.25 AED' }
-];
 
 function DailySalesReport() {
     const navigate = useNavigate();
@@ -39,8 +26,21 @@ function DailySalesReport() {
     const [warehouses, setWarehouses] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
-    const [data, setData] = useState({ openings: [], closings: [], invoices: [] });
-    const [activeTab, setActiveTab] = useState('invoices'); // invoices, openings, closings
+    const [data, setData] = useState({ 
+        day_summary: {},
+        openings: [], 
+        closings: [], 
+        invoices: [], 
+        high_discount_invoices: [],
+        return_invoices: [],
+        modified_invoices: [],
+        receipts: [], 
+        payments: [], 
+        transfers: [] 
+    });
+    const [activeTab, setActiveTab] = useState('invoices'); // invoices, receipts_payments, transfers, discounts, modified, shifts
+    const [searchTerm, setSearchTerm] = useState('');
+    const [showThermalPreview, setShowThermalPreview] = useState(false);
 
     const getSession = () => localStorage.getItem('session') || '';
     const API_PATH = '/api/method/custom_retailpos.custom_retailpos.retail_api.retail';
@@ -107,64 +107,100 @@ function DailySalesReport() {
         }
     };
 
-    // Calculate aggregated daily metric totals
-    const totalInvoicesCount = data.invoices?.length || 0;
-    const totalRevenue = data.invoices?.reduce((sum, inv) => sum + (inv.grand_total || 0), 0) || 0;
+    // Calculate aggregated metrics with fallback to day_summary from backend
+    const summary = data.day_summary || {};
+    const cashSale = summary.cash_sale !== undefined ? summary.cash_sale : 0;
+    const cardSale = summary.card_sale !== undefined ? summary.card_sale : 0;
+    const instaSale = summary.instapay_sale !== undefined ? summary.instapay_sale : 0;
+    const creditSale = summary.credit_sale !== undefined ? summary.credit_sale : 0;
+    const salesReturn = summary.sales_return !== undefined ? summary.sales_return : 0;
+    const receiptsTotal = summary.receipts !== undefined ? summary.receipts : 0;
+    const paymentsTotal = summary.payments !== undefined ? summary.payments : 0;
+    const netTotal = summary.net_total !== undefined ? summary.net_total : (cashSale + cardSale + instaSale + creditSale - salesReturn + receiptsTotal - paymentsTotal);
     
-    // Detailed payment modes calculation
-    const getPaymentTotals = (invoices) => {
-        let cash = 0;
-        let card = 0;
-        let instapay = 0;
-        let bank = 0;
-        let credit = 0;
-        let total = 0;
-        let netTotal = 0;
-        let loyaltyAmount = 0;
-        let discountAmount = 0;
+    const billsCount = summary.total_bills_count !== undefined ? summary.total_bills_count : (data.invoices?.filter(i => !i.is_return)?.length || 0);
+    const returnBillsCount = summary.return_bills_count !== undefined ? summary.return_bills_count : (data.return_invoices?.length || 0);
+    const highDiscountCount = summary.high_discount_count !== undefined ? summary.high_discount_count : (data.high_discount_invoices?.length || 0);
+    const modifiedBillsCount = data.modified_invoices?.length || 0;
+    const transfersCount = data.transfers?.length || 0;
 
-        invoices?.forEach(inv => {
-            netTotal += (inv.net_total || 0);
-            loyaltyAmount += (inv.loyalty_amount || 0);
-            discountAmount += (inv.discount_amount || 0);
+    const shiftOpenTime = summary.shift_open_time ? new Date(summary.shift_open_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : (data.openings?.[0]?.period_start_date ? new Date(data.openings[0].period_start_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'N/A');
+    const shiftCloseTime = summary.shift_close_time ? new Date(summary.shift_close_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : (data.closings?.[0]?.period_end_date ? new Date(data.closings[0].period_end_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Active');
 
-            if (inv.outstanding_amount > 0) {
-                credit += (inv.outstanding_amount || 0);
-            }
-
-            inv.payments?.forEach(p => {
-                const mode = (p.mode_of_payment || '').toLowerCase().trim();
-                const amt = p.amount || 0;
-                total += amt;
-                
-                if (mode === 'cash') {
-                    cash += amt;
-                } else if (mode.includes('card') || mode.includes('visa') || mode.includes('master')) {
-                    card += amt;
-                } else if (mode.includes('insta')) {
-                    instapay += amt;
-                } else if (mode.includes('bank') || mode.includes('transfer') || mode.includes('wire')) {
-                    bank += amt;
-                } else if (mode.includes('credit')) {
-                    // Handled via outstanding_amount above or direct payment
-                } else {
-                    cash += amt;
-                }
-            });
-        });
-
-        return { cash, card, instapay, bank, credit, total, netTotal, loyaltyAmount, discountAmount };
-    };
-
-    const totals = getPaymentTotals(data.invoices);
-
-    const handlePrint = () => {
+    // Print handlers
+    const handlePrintA4 = () => {
         window.print();
     };
 
+    const handlePrintThermal = () => {
+        const thermalElement = document.getElementById('thermal-day-summary-slip');
+        if (!thermalElement) return;
+
+        const printWindow = window.open('', '_blank', 'width=380,height=600');
+        if (!printWindow) {
+            alert('Please allow popups to print thermal slip');
+            return;
+        }
+
+        printWindow.document.write(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Day Summary - ${selectedDate}</title>
+                <style>
+                    @page {
+                        margin: 0;
+                        size: 80mm auto;
+                    }
+                    body {
+                        font-family: 'Courier New', Courier, monospace;
+                        font-size: 12px;
+                        color: #000;
+                        background: #fff;
+                        padding: 10px;
+                        margin: 0;
+                        line-height: 1.35;
+                    }
+                    .text-center { text-align: center; }
+                    .text-right { text-align: right; }
+                    .text-left { text-align: left; }
+                    .font-bold { font-weight: bold; }
+                    .font-black { font-weight: 900; }
+                    .divider { border-top: 1px dashed #000; margin: 6px 0; }
+                    .double-divider { border-top: 1px dashed #000; border-bottom: 1px dashed #000; height: 3px; margin: 6px 0; }
+                    .flex-row { display: flex; justify-content: space-between; margin: 3px 0; }
+                    .title { font-size: 15px; font-weight: bold; text-transform: uppercase; margin: 5px 0; }
+                    .subtitle { font-size: 10px; margin-bottom: 5px; }
+                </style>
+            </head>
+            <body>
+                ${thermalElement.innerHTML}
+                <script>
+                    window.onload = function() {
+                        window.focus();
+                        window.print();
+                        setTimeout(() => window.close(), 500);
+                    };
+                </script>
+            </body>
+            </html>
+        `);
+        printWindow.document.close();
+    };
+
+    // Filter invoices by search term
+    const filteredInvoices = (data.invoices || []).filter(inv => {
+        if (!searchTerm) return true;
+        const term = searchTerm.toLowerCase();
+        return (
+            (inv.name || '').toLowerCase().includes(term) ||
+            (inv.customer_name || '').toLowerCase().includes(term) ||
+            (inv.owner || '').toLowerCase().includes(term)
+        );
+    });
+
     return (
         <div className="dsr-container">
-            
             {/* Top Bar / Header */}
             <header className="dsr-header no-print">
                 <div className="dsr-header-title-box">
@@ -173,20 +209,29 @@ function DailySalesReport() {
                     </div>
                     <div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <h1 className="dsr-title">Daily Shift & Sales Report</h1>
+                            <h1 className="dsr-title">Daily Sales & Shift Summary</h1>
                             <span className="dsr-live-tag">Live Audit</span>
                         </div>
-                        <p className="dsr-subtitle">Shift float opening counts, daily sales payments, and closing reconciliations</p>
+                        <p className="dsr-subtitle">Daily sales, cash flows, discounts, inter-branch transfers & shift reconciliations</p>
                     </div>
                 </div>
 
                 <div className="dsr-actions">
                     <button 
-                        onClick={handlePrint}
+                        onClick={() => setShowThermalPreview(true)}
+                        className="dsr-btn-thermal"
+                        title="View & Print 80mm POS Thermal Slip"
+                    >
+                        <Receipt size={15} /> 
+                        <span>Thermal Slip</span>
+                    </button>
+                    <button 
+                        onClick={handlePrintA4}
                         className="dsr-btn-print"
+                        title="Print Full A4 Report"
                     >
                         <Printer size={15} /> 
-                        <span>Print Report</span>
+                        <span>Print A4</span>
                     </button>
                     <button 
                         onClick={fetchDailyReport}
@@ -199,7 +244,7 @@ function DailySalesReport() {
                 </div>
             </header>
 
-            {/* Print Only Header */}
+            {/* Print-Only A4 Header */}
             <div className="hidden print:block border-b-2 border-slate-900 pb-4 mb-6 p-8">
                 <div className="flex justify-between items-start">
                     <div>
@@ -209,12 +254,13 @@ function DailySalesReport() {
                     <div className="text-right text-xs font-bold text-slate-700">
                         <div><b>Report Date:</b> {selectedDate}</div>
                         <div><b>Branch:</b> {isAdmin ? (selectedBranch || 'All Branches') : warehouse}</div>
+                        <div><b>Shift Open:</b> {shiftOpenTime} | <b>Shift Close:</b> {shiftCloseTime}</div>
                     </div>
                 </div>
             </div>
 
             <main className="dsr-main-body">
-                {/* Clean Independent Filters Bar */}
+                {/* Independent Filter Controls */}
                 <div className="dsr-filter-card no-print">
                     <div className="dsr-filter-inputs">
                         {/* Date Input */}
@@ -268,6 +314,25 @@ function DailySalesReport() {
                                 </div>
                             </div>
                         )}
+
+                        {/* Shift Timing Badge */}
+                        <div className="dsr-field-block" style={{ flex: '1.2 1 240px' }}>
+                            <label className="dsr-label">
+                                <Clock size={12} color="#0284c7" />
+                                Shift Timings (Open / Close)
+                            </label>
+                            <div className="dsr-timing-badge-box">
+                                <div className="dsr-timing-item">
+                                    <span className="dsr-timing-label">OPEN</span>
+                                    <span className="dsr-timing-val">{shiftOpenTime}</span>
+                                </div>
+                                <div className="dsr-timing-divider" />
+                                <div className="dsr-timing-item">
+                                    <span className="dsr-timing-label">CLOSE</span>
+                                    <span className="dsr-timing-val">{shiftCloseTime}</span>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     {/* Reset Button */}
@@ -278,43 +343,24 @@ function DailySalesReport() {
                         }}
                         className="dsr-btn-reset"
                     >
-                        Reset to Today
+                        Today
                     </button>
                 </div>
 
                 {/* Error Message */}
                 {error && (
-                    <div style={{ padding: '1rem 1.25rem', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '10px', color: '#b91c1c', fontSize: '0.85rem', fontWeight: 'bold' }}>
+                    <div className="dsr-error-banner">
                         <AlertCircle size={18} color="#ef4444" style={{ flexShrink: 0 }} />
                         <span>{error}</span>
                     </div>
                 )}
 
-                {/* KPI Metrics Cards Grid */}
+                {/* 11 Primary KPI Metrics Grid */}
                 <div className="dsr-kpi-grid">
-                    {/* 1. Total POS Revenue */}
-                    <div className="dsr-kpi-card emerald">
+                    {/* 1. Cash Sale */}
+                    <div className="dsr-kpi-card green" onClick={() => setActiveTab('invoices')}>
                         <div className="dsr-kpi-header">
-                            <span className="dsr-kpi-title">Total POS Revenue</span>
-                            <div className="dsr-kpi-icon-pill">
-                                <Receipt size={14} />
-                            </div>
-                        </div>
-                        <div>
-                            <div className="dsr-kpi-value">
-                                <DirhamIcon size={16} /> 
-                                <span>{totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                            </div>
-                            <div className="dsr-kpi-subtext">
-                                Net: AED {totals.netTotal.toFixed(2)}
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* 2. Cash Payments */}
-                    <div className="dsr-kpi-card green">
-                        <div className="dsr-kpi-header">
-                            <span className="dsr-kpi-title">Cash Payments</span>
+                            <span className="dsr-kpi-title">1. Cash Sale</span>
                             <div className="dsr-kpi-icon-pill">
                                 <DollarSign size={14} />
                             </div>
@@ -322,18 +368,18 @@ function DailySalesReport() {
                         <div>
                             <div className="dsr-kpi-value">
                                 <DirhamIcon size={16} /> 
-                                <span>{totals.cash.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                <span>{cashSale.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                             </div>
                             <div className="dsr-kpi-subtext" style={{ color: '#059669' }}>
-                                Physical Cash Sales
+                                Physical Cash In Register
                             </div>
                         </div>
                     </div>
 
-                    {/* 3. Card Payments */}
-                    <div className="dsr-kpi-card blue">
+                    {/* 2. Card Sale */}
+                    <div className="dsr-kpi-card blue" onClick={() => setActiveTab('invoices')}>
                         <div className="dsr-kpi-header">
-                            <span className="dsr-kpi-title">Card Payments</span>
+                            <span className="dsr-kpi-title">2. Card Sale</span>
                             <div className="dsr-kpi-icon-pill">
                                 <CreditCard size={14} />
                             </div>
@@ -341,18 +387,56 @@ function DailySalesReport() {
                         <div>
                             <div className="dsr-kpi-value">
                                 <DirhamIcon size={16} /> 
-                                <span>{totals.card.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                <span>{cardSale.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                             </div>
                             <div className="dsr-kpi-subtext" style={{ color: '#2563eb' }}>
-                                Credit / Debit Cards
+                                Debit / Credit Cards
                             </div>
                         </div>
                     </div>
 
-                    {/* 4. InstaPay Payments */}
-                    <div className="dsr-kpi-card cyan">
+                    {/* 3. Receipts */}
+                    <div className="dsr-kpi-card teal" onClick={() => setActiveTab('receipts_payments')}>
                         <div className="dsr-kpi-header">
-                            <span className="dsr-kpi-title">InstaPay Payments</span>
+                            <span className="dsr-kpi-title">3. Receipts (+)</span>
+                            <div className="dsr-kpi-icon-pill">
+                                <ArrowDownLeft size={14} />
+                            </div>
+                        </div>
+                        <div>
+                            <div className="dsr-kpi-value">
+                                <DirhamIcon size={16} /> 
+                                <span>{receiptsTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                            </div>
+                            <div className="dsr-kpi-subtext" style={{ color: '#0d9488' }}>
+                                {data.receipts?.length || 0} Collections Received
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* 4. Payments */}
+                    <div className="dsr-kpi-card red" onClick={() => setActiveTab('receipts_payments')}>
+                        <div className="dsr-kpi-header">
+                            <span className="dsr-kpi-title">4. Payments (-)</span>
+                            <div className="dsr-kpi-icon-pill">
+                                <ArrowUpRight size={14} />
+                            </div>
+                        </div>
+                        <div>
+                            <div className="dsr-kpi-value">
+                                <DirhamIcon size={16} /> 
+                                <span>{paymentsTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                            </div>
+                            <div className="dsr-kpi-subtext" style={{ color: '#e11d48' }}>
+                                {data.payments?.length || 0} Expenses / Outflows
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* 5. Insta Sale */}
+                    <div className="dsr-kpi-card cyan" onClick={() => setActiveTab('invoices')}>
+                        <div className="dsr-kpi-header">
+                            <span className="dsr-kpi-title">5. Insta Sale</span>
                             <div className="dsr-kpi-icon-pill">
                                 <Smartphone size={14} />
                             </div>
@@ -360,7 +444,7 @@ function DailySalesReport() {
                         <div>
                             <div className="dsr-kpi-value">
                                 <DirhamIcon size={16} /> 
-                                <span>{totals.instapay.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                <span>{instaSale.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                             </div>
                             <div className="dsr-kpi-subtext" style={{ color: '#0891b2' }}>
                                 InstaPay Transfers
@@ -368,10 +452,10 @@ function DailySalesReport() {
                         </div>
                     </div>
 
-                    {/* 5. Credit Sales */}
-                    <div className="dsr-kpi-card amber">
+                    {/* 6. Credit Sale */}
+                    <div className="dsr-kpi-card amber" onClick={() => setActiveTab('invoices')}>
                         <div className="dsr-kpi-header">
-                            <span className="dsr-kpi-title">Credit Sales</span>
+                            <span className="dsr-kpi-title">6. Credit Sale</span>
                             <div className="dsr-kpi-icon-pill">
                                 <Clock size={14} />
                             </div>
@@ -379,103 +463,208 @@ function DailySalesReport() {
                         <div>
                             <div className="dsr-kpi-value">
                                 <DirhamIcon size={16} /> 
-                                <span>{totals.credit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                <span>{creditSale.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                             </div>
                             <div className="dsr-kpi-subtext" style={{ color: '#d97706' }}>
-                                Outstanding Credit
+                                Outstanding Customer Credit
                             </div>
                         </div>
                     </div>
 
-                    {/* 6. Loyalty Points */}
-                    <div className="dsr-kpi-card purple">
+                    {/* 7. Inter-Branch Transfers */}
+                    <div className="dsr-kpi-card indigo" onClick={() => setActiveTab('transfers')}>
                         <div className="dsr-kpi-header">
-                            <span className="dsr-kpi-title">Loyalty Redeemed</span>
+                            <span className="dsr-kpi-title">7. Branch Transfers</span>
                             <div className="dsr-kpi-icon-pill">
-                                <Gift size={14} />
+                                <ArrowRightLeft size={14} />
                             </div>
                         </div>
                         <div>
-                            <div className="dsr-kpi-value">
-                                <DirhamIcon size={16} /> 
-                                <span>{totals.loyaltyAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                            <div className="dsr-kpi-value" style={{ fontSize: '1.25rem' }}>
+                                <span>{transfersCount} Transfers</span>
                             </div>
-                            <div className="dsr-kpi-subtext" style={{ color: '#7c3aed' }}>
-                                Points Redeemed
+                            <div className="dsr-kpi-subtext" style={{ color: '#4f46e5' }}>
+                                Material Stock Move
                             </div>
                         </div>
                     </div>
 
-                    {/* 7. Total Discounts */}
-                    <div className="dsr-kpi-card pink">
+                    {/* 8. Shift Timing Card */}
+                    <div className="dsr-kpi-card slate" onClick={() => setActiveTab('shifts')}>
                         <div className="dsr-kpi-header">
-                            <span className="dsr-kpi-title">Discounts Given</span>
+                            <span className="dsr-kpi-title">8. Shift Hours</span>
                             <div className="dsr-kpi-icon-pill">
-                                <Tag size={14} />
+                                <Clock size={14} />
                             </div>
                         </div>
                         <div>
-                            <div className="dsr-kpi-value">
-                                <DirhamIcon size={16} /> 
-                                <span>{totals.discountAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                            <div className="dsr-kpi-value" style={{ fontSize: '1rem', gap: '4px' }}>
+                                <span style={{ color: '#059669' }}>{shiftOpenTime}</span>
+                                <span style={{ color: '#94a3b8' }}>-</span>
+                                <span style={{ color: '#2563eb' }}>{shiftCloseTime}</span>
+                            </div>
+                            <div className="dsr-kpi-subtext" style={{ color: '#64748b' }}>
+                                {data.openings?.length || 0} Shift Openings
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* 9. >10% Discounts */}
+                    <div className="dsr-kpi-card pink" onClick={() => setActiveTab('discounts')}>
+                        <div className="dsr-kpi-header">
+                            <span className="dsr-kpi-title">9. &gt;10% Discounts</span>
+                            <div className="dsr-kpi-icon-pill">
+                                <Percent size={14} />
+                            </div>
+                        </div>
+                        <div>
+                            <div className="dsr-kpi-value" style={{ fontSize: '1.25rem' }}>
+                                <span>{highDiscountCount} Bills</span>
                             </div>
                             <div className="dsr-kpi-subtext" style={{ color: '#db2777' }}>
-                                Price Discounts
+                                High Discount Audits
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* 10. Total Bills Count */}
+                    <div className="dsr-kpi-card emerald" onClick={() => setActiveTab('invoices')}>
+                        <div className="dsr-kpi-header">
+                            <span className="dsr-kpi-title">10. Daily Bills Count</span>
+                            <div className="dsr-kpi-icon-pill">
+                                <FileText size={14} />
+                            </div>
+                        </div>
+                        <div>
+                            <div className="dsr-kpi-value" style={{ fontSize: '1.25rem' }}>
+                                <span>{billsCount} Bills</span>
+                            </div>
+                            <div className="dsr-kpi-subtext" style={{ color: '#059669' }}>
+                                {returnBillsCount} Returns • {summary.total_items_qty || 0} Items
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* 11. Modify / Return Bills */}
+                    <div className="dsr-kpi-card orange" onClick={() => setActiveTab('modified')}>
+                        <div className="dsr-kpi-header">
+                            <span className="dsr-kpi-title">11. Modify / Returns</span>
+                            <div className="dsr-kpi-icon-pill">
+                                <Edit3 size={14} />
+                            </div>
+                        </div>
+                        <div>
+                            <div className="dsr-kpi-value" style={{ fontSize: '1.25rem' }}>
+                                <span>{modifiedBillsCount} Invoices</span>
+                            </div>
+                            <div className="dsr-kpi-subtext" style={{ color: '#ea580c' }}>
+                                Returned / Amended Logs
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Net Grand Total Card */}
+                    <div className="dsr-kpi-card net-total-card">
+                        <div className="dsr-kpi-header">
+                            <span className="dsr-kpi-title">Day Net Total</span>
+                            <div className="dsr-kpi-icon-pill">
+                                <Receipt size={14} />
+                            </div>
+                        </div>
+                        <div>
+                            <div className="dsr-kpi-value net-value">
+                                <DirhamIcon size={18} /> 
+                                <span>{netTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                            </div>
+                            <div className="dsr-kpi-subtext" style={{ color: '#047857', fontWeight: 800 }}>
+                                Final Reconciled Day Balance
                             </div>
                         </div>
                     </div>
                 </div>
 
-                {/* Tabs Bar */}
+                {/* Tab Navigation */}
                 <div className="dsr-tab-nav no-print">
                     <button
                         onClick={() => setActiveTab('invoices')}
                         className={`dsr-tab-btn ${activeTab === 'invoices' ? 'active' : ''}`}
                     >
-                        <FileText size={16} /> 
-                        <span>Sales Invoices ({data.invoices?.length || 0})</span>
+                        <FileText size={15} /> 
+                        <span>Sales Invoices ({billsCount})</span>
                     </button>
                     <button
-                        onClick={() => setActiveTab('openings')}
-                        className={`dsr-tab-btn ${activeTab === 'openings' ? 'active' : ''}`}
+                        onClick={() => setActiveTab('receipts_payments')}
+                        className={`dsr-tab-btn ${activeTab === 'receipts_payments' ? 'active' : ''}`}
                     >
-                        <Clock size={16} /> 
-                        <span>Shifts Opened ({data.openings?.length || 0})</span>
+                        <Landmark size={15} /> 
+                        <span>Receipts & Payments ({(data.receipts?.length || 0) + (data.payments?.length || 0)})</span>
                     </button>
                     <button
-                        onClick={() => setActiveTab('closings')}
-                        className={`dsr-tab-btn ${activeTab === 'closings' ? 'active' : ''}`}
+                        onClick={() => setActiveTab('transfers')}
+                        className={`dsr-tab-btn ${activeTab === 'transfers' ? 'active' : ''}`}
                     >
-                        <CheckCircle2 size={16} /> 
-                        <span>Shifts Closed ({data.closings?.length || 0})</span>
+                        <ArrowRightLeft size={15} /> 
+                        <span>Branch Transfers ({transfersCount})</span>
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('discounts')}
+                        className={`dsr-tab-btn ${activeTab === 'discounts' ? 'active' : ''}`}
+                    >
+                        <Percent size={15} /> 
+                        <span>&gt;10% Discounts ({highDiscountCount})</span>
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('modified')}
+                        className={`dsr-tab-btn ${activeTab === 'modified' ? 'active' : ''}`}
+                    >
+                        <Edit3 size={15} /> 
+                        <span>Modify / Returns ({modifiedBillsCount})</span>
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('shifts')}
+                        className={`dsr-tab-btn ${activeTab === 'shifts' ? 'active' : ''}`}
+                    >
+                        <Clock size={15} /> 
+                        <span>Shifts & Cash Float ({(data.openings?.length || 0) + (data.closings?.length || 0)})</span>
                     </button>
                 </div>
 
                 {/* Content Views */}
                 {loading ? (
-                    <div style={{ padding: '6rem 2rem', background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '1rem' }}>
+                    <div className="dsr-loading-box">
                         <Loader2 size={36} color="#10b981" className="animate-spin" />
-                        <span style={{ fontSize: '0.85rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Loading daily transactions data...</span>
+                        <span className="dsr-loading-text">Loading daily transactions data...</span>
                     </div>
                 ) : (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
 
-                        {/* SECTION 1: Sales Invoices */}
-                        <div className={`dsr-section-card ${activeTab === 'invoices' ? 'block' : 'hidden print:block'}`}>
-                            <div className="dsr-section-header">
-                                <h3 className="dsr-section-heading">
-                                    <FileText size={18} color="#10b981" />
-                                    <span>Sales Invoices Breakdown</span>
-                                </h3>
-                                <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#64748b' }}>Total: {data.invoices?.length || 0} Invoices</span>
-                            </div>
-
-                            {data.invoices?.length === 0 ? (
-                                <div style={{ padding: '3rem 1rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem', fontWeight: 600 }}>
-                                    No sales invoices submitted on this date.
+                        {/* ==================== TAB 1: SALES INVOICES ==================== */}
+                        {activeTab === 'invoices' && (
+                            <div className="dsr-section-card">
+                                <div className="dsr-section-header">
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                        <h3 className="dsr-section-heading">
+                                            <FileText size={18} color="#10b981" />
+                                            <span>Sales Invoices Breakdown</span>
+                                        </h3>
+                                        <span className="dsr-badge-count">{filteredInvoices.length} Bills</span>
+                                    </div>
+                                    <div className="no-print" style={{ minWidth: '220px' }}>
+                                        <input 
+                                            type="text" 
+                                            placeholder="Search invoice, customer, cashier..." 
+                                            value={searchTerm} 
+                                            onChange={(e) => setSearchTerm(e.target.value)} 
+                                            className="dsr-search-input"
+                                        />
+                                    </div>
                                 </div>
-                            ) : (
-                                <div>
+
+                                {filteredInvoices.length === 0 ? (
+                                    <div className="dsr-empty-box">
+                                        No sales invoices found for this date.
+                                    </div>
+                                ) : (
                                     <div className="dsr-table-wrapper">
                                         <table className="dsr-table">
                                             <thead>
@@ -485,36 +674,44 @@ function DailySalesReport() {
                                                     <th>Customer</th>
                                                     <th>Cashier</th>
                                                     <th>Time</th>
+                                                    <th>Items / Qty</th>
                                                     <th>Payment Breakdown</th>
                                                     <th style={{ textAlign: 'right' }}>Grand Total</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                {data.invoices?.map((inv, idx) => (
-                                                    <tr key={inv.name}>
+                                                {filteredInvoices.map((inv, idx) => (
+                                                    <tr key={inv.name} className={inv.is_return ? 'dsr-return-row' : ''}>
                                                         <td style={{ textAlign: 'center', color: '#94a3b8', fontWeight: 800 }}>{idx + 1}</td>
                                                         <td>
-                                                            <span 
-                                                                onClick={() => navigate('/salesinvoicelist', { state: { search: inv.name } })} 
-                                                                className="dsr-doc-link"
-                                                            >
-                                                                {inv.name}
-                                                                <ExternalLink size={12} color="#10b981" />
-                                                            </span>
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                                <span 
+                                                                    onClick={() => navigate('/salesinvoicelist', { state: { search: inv.name } })} 
+                                                                    className="dsr-doc-link"
+                                                                >
+                                                                    {inv.name}
+                                                                    <ExternalLink size={11} color="#10b981" />
+                                                                </span>
+                                                                {inv.is_return && <span className="dsr-tag-return">RETURN</span>}
+                                                                {inv.is_high_discount && <span className="dsr-tag-discount">{inv.discount_percentage}% OFF</span>}
+                                                            </div>
                                                         </td>
-                                                        <td style={{ fontWeight: 800, color: '#1e293b' }}>{inv.customer_name}</td>
+                                                        <td style={{ fontWeight: 800, color: '#1e293b' }}>{inv.customer_name || 'Walk-in Customer'}</td>
                                                         <td style={{ color: '#475569' }}>{inv.owner?.split('@')[0]}</td>
                                                         <td style={{ fontFamily: 'monospace', color: '#64748b' }}>{inv.posting_time}</td>
+                                                        <td style={{ color: '#334155', fontWeight: 700 }}>
+                                                            {inv.total_qty || 0} pcs <span style={{ color: '#94a3b8', fontSize: '0.72rem' }}>({inv.item_count || 0} items)</span>
+                                                        </td>
                                                         <td>
-                                                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                                                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
                                                                 {inv.payments?.map((p, pIdx) => (
-                                                                    <span key={pIdx} style={{ background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '2px 7px', fontSize: '0.72rem', fontWeight: 700, color: '#334155' }}>
-                                                                        {p.mode_of_payment}: <b style={{ color: '#0f172a' }}>{p.amount.toFixed(2)}</b>
+                                                                    <span key={pIdx} className={`dsr-pay-pill ${p.mode_of_payment?.toLowerCase()}`}>
+                                                                        {p.mode_of_payment}: <b>{p.amount.toFixed(2)}</b>
                                                                     </span>
                                                                 ))}
                                                             </div>
                                                         </td>
-                                                        <td style={{ textAlign: 'right', fontWeight: 900, color: '#0f172a' }}>
+                                                        <td style={{ textAlign: 'right', fontWeight: 900, color: inv.is_return ? '#e11d48' : '#0f172a' }}>
                                                             AED {inv.grand_total.toFixed(2)}
                                                         </td>
                                                     </tr>
@@ -523,180 +720,399 @@ function DailySalesReport() {
                                             <tfoot>
                                                 <tr>
                                                     <td style={{ textAlign: 'center' }}>TOTAL</td>
-                                                    <td colSpan={4} style={{ color: '#64748b' }}>
-                                                        {totalInvoicesCount} Invoices Processed
+                                                    <td colSpan={5} style={{ color: '#64748b' }}>
+                                                        {billsCount} Sales Bills ({returnBillsCount} Returns)
                                                     </td>
                                                     <td>
                                                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                                                            {totals.cash > 0 && <span style={{ background: '#dcfce7', border: '1px solid #86efac', color: '#166534', borderRadius: '6px', padding: '2px 7px', fontSize: '0.72rem', fontWeight: 900 }}>Cash: {totals.cash.toFixed(2)}</span>}
-                                                            {totals.card > 0 && <span style={{ background: '#dbeafe', border: '1px solid #93c5fd', color: '#1e40af', borderRadius: '6px', padding: '2px 7px', fontSize: '0.72rem', fontWeight: 900 }}>Card: {totals.card.toFixed(2)}</span>}
-                                                            {totals.bank > 0 && <span style={{ background: '#f3e8ff', border: '1px solid #d8b4fe', color: '#6b21a8', borderRadius: '6px', padding: '2px 7px', fontSize: '0.72rem', fontWeight: 900 }}>Bank: {totals.bank.toFixed(2)}</span>}
-                                                            {totals.instapay > 0 && <span style={{ background: '#fef3c7', border: '1px solid #fcd34d', color: '#92400e', borderRadius: '6px', padding: '2px 7px', fontSize: '0.72rem', fontWeight: 900 }}>InstaPay: {totals.instapay.toFixed(2)}</span>}
-                                                            {totals.credit > 0 && <span style={{ background: '#ffe4e6', border: '1px solid #fda4af', color: '#9f1239', borderRadius: '6px', padding: '2px 7px', fontSize: '0.72rem', fontWeight: 900 }}>Credit: {totals.credit.toFixed(2)}</span>}
+                                                            {cashSale > 0 && <span className="dsr-pay-pill cash font-black">Cash: {cashSale.toFixed(2)}</span>}
+                                                            {cardSale > 0 && <span className="dsr-pay-pill card font-black">Card: {cardSale.toFixed(2)}</span>}
+                                                            {instaSale > 0 && <span className="dsr-pay-pill insta font-black">Insta: {instaSale.toFixed(2)}</span>}
+                                                            {creditSale > 0 && <span className="dsr-pay-pill credit font-black">Credit: {creditSale.toFixed(2)}</span>}
+                                                            {salesReturn > 0 && <span className="dsr-pay-pill return font-black">Return: -{salesReturn.toFixed(2)}</span>}
                                                         </div>
                                                     </td>
-                                                    <td style={{ textAlign: 'right', fontWeight: 900, color: '#059669', fontSize: '0.95rem' }}>
-                                                        AED {totalRevenue.toFixed(2)}
+                                                    <td style={{ textAlign: 'right', fontWeight: 900, color: '#059669', fontSize: '1rem' }}>
+                                                        AED {netTotal.toFixed(2)}
                                                     </td>
                                                 </tr>
                                             </tfoot>
                                         </table>
                                     </div>
-                                    
-                                    {/* Summary Cards */}
-                                    <div style={{ marginTop: '1.5rem', paddingTop: '1.25rem', borderTop: '1px solid #e2e8f0' }}>
-                                        <h4 style={{ fontSize: '0.7rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#64748b', marginBottom: '0.75rem' }}>Daily Payment Mode Summary</h4>
-                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '0.75rem' }}>
-                                            <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '0.75rem', textAlign: 'center' }}>
-                                                <span style={{ display: 'block', fontSize: '0.65rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase' }}>Cash</span>
-                                                <span style={{ display: 'block', fontSize: '0.95rem', fontWeight: 900, color: '#059669', marginTop: '0.2rem' }}>AED {totals.cash.toFixed(2)}</span>
-                                            </div>
-                                            <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '0.75rem', textAlign: 'center' }}>
-                                                <span style={{ display: 'block', fontSize: '0.65rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase' }}>Card</span>
-                                                <span style={{ display: 'block', fontSize: '0.95rem', fontWeight: 900, color: '#2563eb', marginTop: '0.2rem' }}>AED {totals.card.toFixed(2)}</span>
-                                            </div>
-                                            <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '0.75rem', textAlign: 'center' }}>
-                                                <span style={{ display: 'block', fontSize: '0.65rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase' }}>Bank Transfer</span>
-                                                <span style={{ display: 'block', fontSize: '0.95rem', fontWeight: 900, color: '#7c3aed', marginTop: '0.2rem' }}>AED {totals.bank.toFixed(2)}</span>
-                                            </div>
-                                            <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '0.75rem', textAlign: 'center' }}>
-                                                <span style={{ display: 'block', fontSize: '0.65rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase' }}>InstaPay</span>
-                                                <span style={{ display: 'block', fontSize: '0.95rem', fontWeight: 900, color: '#d97706', marginTop: '0.2rem' }}>AED {totals.instapay.toFixed(2)}</span>
-                                            </div>
-                                            <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '0.75rem', textAlign: 'center' }}>
-                                                <span style={{ display: 'block', fontSize: '0.65rem', fontWeight: 900, color: '#64748b', textTransform: 'uppercase' }}>Credit</span>
-                                                <span style={{ display: 'block', fontSize: '0.95rem', fontWeight: 900, color: '#e11d48', marginTop: '0.2rem' }}>AED {totals.credit.toFixed(2)}</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-
-                        {/* SECTION 2: Shifts Opened */}
-                        <div className={`dsr-section-card ${activeTab === 'openings' ? 'block' : 'hidden print:block'}`}>
-                            <div className="dsr-section-header">
-                                <h3 className="dsr-section-heading">
-                                    <Clock size={18} color="#10b981" />
-                                    <span>Register Shifts Opened</span>
-                                </h3>
-                                <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#64748b' }}>{data.openings?.length || 0} Shifts</span>
+                                )}
                             </div>
+                        )}
 
-                            {data.openings?.length === 0 ? (
-                                <div style={{ padding: '3rem 1rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem', fontWeight: 600 }}>
-                                    No shifts opened on this date.
+                        {/* ==================== TAB 2: RECEIPTS & PAYMENTS ==================== */}
+                        {activeTab === 'receipts_payments' && (
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '1.5rem' }}>
+                                {/* Receipts (Collections) */}
+                                <div className="dsr-section-card">
+                                    <div className="dsr-section-header">
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                            <ArrowDownLeft size={18} color="#0d9488" />
+                                            <h3 className="dsr-section-heading">Customer Receipts / Cash In</h3>
+                                        </div>
+                                        <span className="dsr-badge-count green">AED {receiptsTotal.toFixed(2)}</span>
+                                    </div>
+
+                                    {data.receipts?.length === 0 ? (
+                                        <div className="dsr-empty-box">No customer receipts recorded for this date.</div>
+                                    ) : (
+                                        <div className="dsr-table-wrapper">
+                                            <table className="dsr-table">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Receipt #</th>
+                                                        <th>Customer / Party</th>
+                                                        <th>Mode</th>
+                                                        <th style={{ textAlign: 'right' }}>Amount</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {data.receipts?.map(rc => (
+                                                        <tr key={rc.name}>
+                                                            <td><b style={{ color: '#0d9488' }}>{rc.name}</b></td>
+                                                            <td>
+                                                                <div><b>{rc.party_name}</b></div>
+                                                                {rc.remarks && <span style={{ fontSize: '0.7rem', color: '#64748b' }}>{rc.remarks}</span>}
+                                                            </td>
+                                                            <td><span className="dsr-pay-pill">{rc.mode_of_payment}</span></td>
+                                                            <td style={{ textAlign: 'right', fontWeight: 900, color: '#0d9488' }}>+AED {rc.amount.toFixed(2)}</td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    )}
                                 </div>
-                            ) : (
-                                <div>
-                                    {data.openings?.map((op) => (
-                                        <div key={op.name} className="dsr-shift-card">
-                                            <div className="dsr-shift-header">
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                                    <span 
-                                                        onClick={() => navigate('/openingentry', { state: { search: op.name } })} 
-                                                        className="dsr-doc-link"
-                                                        style={{ fontSize: '0.95rem' }}
-                                                    >
-                                                        {op.name}
-                                                        <ExternalLink size={14} color="#10b981" />
-                                                    </span>
-                                                    <span className={`dsr-status-badge ${op.status?.toLowerCase() === 'open' ? 'open' : 'closed'}`}>
-                                                        {op.status}
-                                                    </span>
-                                                </div>
-                                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', fontSize: '0.78rem', fontWeight: 700, color: '#475569' }}>
-                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}><User size={14} color="#94a3b8" /> Cashier: <b style={{ color: '#0f172a' }}>{op.user?.split('@')[0]}</b></div>
-                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}><Clock size={14} color="#94a3b8" /> Opened: <b style={{ color: '#0f172a' }}>{new Date(op.period_start_date).toLocaleTimeString()}</b></div>
-                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}><CreditCard size={14} color="#94a3b8" /> Profile: <b style={{ color: '#0f172a' }}>{op.pos_profile}</b></div>
-                                                </div>
-                                            </div>
 
-                                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.25rem' }}>
-                                                {/* Balances details */}
-                                                <div>
-                                                    <span style={{ fontSize: '0.68rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b', display: 'block', marginBottom: '0.5rem' }}>Payment Mode Starting Floats</span>
-                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                                                        {op.balances?.map((bal, idx) => (
-                                                            <div key={idx} style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '8px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                                                <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#334155' }}>{bal.mode_of_payment}</span>
-                                                                <span style={{ fontSize: '0.85rem', fontWeight: 900, color: '#0f172a' }}>AED {bal.opening_amount.toFixed(2)}</span>
+                                {/* Payments (Expenses / Payouts) */}
+                                <div className="dsr-section-card">
+                                    <div className="dsr-section-header">
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                            <ArrowUpRight size={18} color="#e11d48" />
+                                            <h3 className="dsr-section-heading">Supplier Payments & Expenses / Cash Out</h3>
+                                        </div>
+                                        <span className="dsr-badge-count red">-AED {paymentsTotal.toFixed(2)}</span>
+                                    </div>
+
+                                    {data.payments?.length === 0 ? (
+                                        <div className="dsr-empty-box">No expense or supplier payments recorded for this date.</div>
+                                    ) : (
+                                        <div className="dsr-table-wrapper">
+                                            <table className="dsr-table">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Payment #</th>
+                                                        <th>Supplier / Party</th>
+                                                        <th>Mode</th>
+                                                        <th style={{ textAlign: 'right' }}>Amount</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {data.payments?.map(pm => (
+                                                        <tr key={pm.name}>
+                                                            <td><b style={{ color: '#e11d48' }}>{pm.name}</b></td>
+                                                            <td>
+                                                                <div><b>{pm.party_name}</b></div>
+                                                                {pm.remarks && <span style={{ fontSize: '0.7rem', color: '#64748b' }}>{pm.remarks}</span>}
+                                                            </td>
+                                                            <td><span className="dsr-pay-pill">{pm.mode_of_payment}</span></td>
+                                                            <td style={{ textAlign: 'right', fontWeight: 900, color: '#e11d48' }}>-AED {pm.amount.toFixed(2)}</td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* ==================== TAB 3: INTER-BRANCH TRANSFERS ==================== */}
+                        {activeTab === 'transfers' && (
+                            <div className="dsr-section-card">
+                                <div className="dsr-section-header">
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <ArrowRightLeft size={18} color="#4f46e5" />
+                                        <h3 className="dsr-section-heading">Inter-Branch Stock Transfers</h3>
+                                    </div>
+                                    <span className="dsr-badge-count">{transfersCount} Transfers</span>
+                                </div>
+
+                                {data.transfers?.length === 0 ? (
+                                    <div className="dsr-empty-box">No inter-branch transfers recorded for this date.</div>
+                                ) : (
+                                    <div className="dsr-table-wrapper">
+                                        <table className="dsr-table">
+                                            <thead>
+                                                <tr>
+                                                    <th>Transfer ID</th>
+                                                    <th>Time</th>
+                                                    <th>Source (From)</th>
+                                                    <th>Destination (To)</th>
+                                                    <th>Total Qty</th>
+                                                    <th>Items Breakdown</th>
+                                                    <th style={{ textAlign: 'right' }}>Valuation Amount</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {data.transfers?.map(tr => (
+                                                    <tr key={tr.name}>
+                                                        <td><b style={{ color: '#4f46e5' }}>{tr.name}</b></td>
+                                                        <td style={{ fontFamily: 'monospace' }}>{tr.posting_time}</td>
+                                                        <td><span className="dsr-wh-pill from">{tr.from_warehouse}</span></td>
+                                                        <td><span className="dsr-wh-pill to">{tr.to_warehouse}</span></td>
+                                                        <td style={{ fontWeight: 800 }}>{tr.total_qty} units</td>
+                                                        <td>
+                                                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                                                                {tr.items?.map((it, itIdx) => (
+                                                                    <span key={itIdx} className="dsr-item-pill">
+                                                                        {it.item_name || it.item_code} (x{it.qty})
+                                                                    </span>
+                                                                ))}
                                                             </div>
-                                                        ))}
+                                                        </td>
+                                                        <td style={{ textAlign: 'right', fontWeight: 900, color: '#0f172a' }}>
+                                                            AED {tr.total_amount.toFixed(2)}
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {/* ==================== TAB 4: >10% DISCOUNTS AUDIT ==================== */}
+                        {activeTab === 'discounts' && (
+                            <div className="dsr-section-card">
+                                <div className="dsr-section-header">
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <Percent size={18} color="#db2777" />
+                                        <h3 className="dsr-section-heading">&gt; 10% High Discount Bills Audit</h3>
+                                    </div>
+                                    <span className="dsr-badge-count red">{highDiscountCount} High Discount Bills</span>
+                                </div>
+
+                                {data.high_discount_invoices?.length === 0 ? (
+                                    <div className="dsr-empty-box">No invoices with &gt; 10% discount recorded on this date.</div>
+                                ) : (
+                                    <div className="dsr-table-wrapper">
+                                        <table className="dsr-table">
+                                            <thead>
+                                                <tr>
+                                                    <th>Invoice ID</th>
+                                                    <th>Customer</th>
+                                                    <th>Cashier</th>
+                                                    <th>Time</th>
+                                                    <th style={{ textAlign: 'center' }}>Discount %</th>
+                                                    <th style={{ textAlign: 'right' }}>Discount Amount</th>
+                                                    <th style={{ textAlign: 'right' }}>Grand Total</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {data.high_discount_invoices?.map(inv => (
+                                                    <tr key={inv.name}>
+                                                        <td>
+                                                            <span 
+                                                                onClick={() => navigate('/salesinvoicelist', { state: { search: inv.name } })} 
+                                                                className="dsr-doc-link"
+                                                            >
+                                                                {inv.name}
+                                                                <ExternalLink size={11} color="#db2777" />
+                                                            </span>
+                                                        </td>
+                                                        <td style={{ fontWeight: 800 }}>{inv.customer_name}</td>
+                                                        <td style={{ color: '#475569' }}>{inv.owner?.split('@')[0]}</td>
+                                                        <td style={{ fontFamily: 'monospace' }}>{inv.posting_time}</td>
+                                                        <td style={{ textAlign: 'center' }}>
+                                                            <span className="dsr-high-discount-badge">
+                                                                {inv.discount_percentage}% OFF
+                                                            </span>
+                                                        </td>
+                                                        <td style={{ textAlign: 'right', fontWeight: 800, color: '#db2777' }}>
+                                                            -AED {inv.discount_amount.toFixed(2)}
+                                                        </td>
+                                                        <td style={{ textAlign: 'right', fontWeight: 900, color: '#0f172a' }}>
+                                                            AED {inv.grand_total.toFixed(2)}
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {/* ==================== TAB 5: MODIFIED & RETURN BILLS ==================== */}
+                        {activeTab === 'modified' && (
+                            <div className="dsr-section-card">
+                                <div className="dsr-section-header">
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <Edit3 size={18} color="#ea580c" />
+                                        <h3 className="dsr-section-heading">Modified, Return & Cancelled Bills</h3>
+                                    </div>
+                                    <span className="dsr-badge-count">{modifiedBillsCount} Entries</span>
+                                </div>
+
+                                {data.modified_invoices?.length === 0 ? (
+                                    <div className="dsr-empty-box">No modified, cancelled, or return bills recorded on this date.</div>
+                                ) : (
+                                    <div className="dsr-table-wrapper">
+                                        <table className="dsr-table">
+                                            <thead>
+                                                <tr>
+                                                    <th>Invoice ID</th>
+                                                    <th>Type / Status</th>
+                                                    <th>Customer</th>
+                                                    <th>Cashier</th>
+                                                    <th>Original Reference</th>
+                                                    <th style={{ textAlign: 'right' }}>Amount</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {data.modified_invoices?.map((inv, idx) => (
+                                                    <tr key={idx}>
+                                                        <td><b style={{ color: '#ea580c' }}>{inv.name}</b></td>
+                                                        <td>
+                                                            {inv.is_return ? (
+                                                                <span className="dsr-tag-return">RETURN BILL</span>
+                                                            ) : inv.status === 'Cancelled' ? (
+                                                                <span className="dsr-tag-cancelled">CANCELLED</span>
+                                                            ) : (
+                                                                <span className="dsr-tag-amended">AMENDED</span>
+                                                            )}
+                                                        </td>
+                                                        <td style={{ fontWeight: 800 }}>{inv.customer_name}</td>
+                                                        <td style={{ color: '#475569' }}>{inv.owner?.split('@')[0]}</td>
+                                                        <td>
+                                                            {inv.return_against ? (
+                                                                <span style={{ fontFamily: 'monospace', color: '#0284c7', fontSize: '0.75rem' }}>Against: {inv.return_against}</span>
+                                                            ) : inv.amended_from ? (
+                                                                <span style={{ fontFamily: 'monospace', color: '#64748b', fontSize: '0.75rem' }}>Amended From: {inv.amended_from}</span>
+                                                            ) : '-'}
+                                                        </td>
+                                                        <td style={{ textAlign: 'right', fontWeight: 900, color: inv.is_return ? '#e11d48' : '#0f172a' }}>
+                                                            AED {Math.abs(inv.grand_total || 0).toFixed(2)}
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {/* ==================== TAB 6: SHIFT FLOATS & RECONCILIATIONS ==================== */}
+                        {activeTab === 'shifts' && (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                                {/* Shifts Opened */}
+                                <div className="dsr-section-card">
+                                    <div className="dsr-section-header">
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                            <Clock size={18} color="#10b981" />
+                                            <h3 className="dsr-section-heading">Register Shifts Opened & Starting Cash Float</h3>
+                                        </div>
+                                        <span className="dsr-badge-count">{data.openings?.length || 0} Shifts</span>
+                                    </div>
+
+                                    {data.openings?.length === 0 ? (
+                                        <div className="dsr-empty-box">No register openings recorded on this date.</div>
+                                    ) : (
+                                        <div>
+                                            {data.openings?.map(op => (
+                                                <div key={op.name} className="dsr-shift-card">
+                                                    <div className="dsr-shift-header">
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                            <span 
+                                                                onClick={() => navigate('/openingentry', { state: { search: op.name } })} 
+                                                                className="dsr-doc-link"
+                                                                style={{ fontSize: '0.95rem' }}
+                                                            >
+                                                                {op.name}
+                                                                <ExternalLink size={14} color="#10b981" />
+                                                            </span>
+                                                            <span className={`dsr-status-badge ${op.status?.toLowerCase() === 'open' ? 'open' : 'closed'}`}>
+                                                                {op.status}
+                                                            </span>
+                                                        </div>
+                                                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', fontSize: '0.78rem', fontWeight: 700, color: '#475569' }}>
+                                                            <div><User size={14} color="#94a3b8" /> Cashier: <b>{op.user?.split('@')[0]}</b></div>
+                                                            <div><Clock size={14} color="#94a3b8" /> Opened: <b>{new Date(op.period_start_date).toLocaleTimeString()}</b></div>
+                                                            <div><CreditCard size={14} color="#94a3b8" /> Profile: <b>{op.pos_profile}</b></div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.25rem' }}>
+                                                        <div>
+                                                            <span className="dsr-sub-heading">Starting Floats</span>
+                                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                                                {op.balances?.map((bal, idx) => (
+                                                                    <div key={idx} className="dsr-bal-row">
+                                                                        <span>{bal.mode_of_payment}</span>
+                                                                        <b>AED {bal.opening_amount.toFixed(2)}</b>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                        <div>
+                                                            <span className="dsr-sub-heading">Opening Denominations</span>
+                                                            <div className="dsr-denom-grid">
+                                                                {op.denominations?.map((den, idx) => (
+                                                                    <div key={idx} className="dsr-denom-box">
+                                                                        <span className="dsr-denom-label">{den.denomination} AED</span>
+                                                                        <div className="dsr-denom-count">{den.count} qty</div>
+                                                                        <span className="dsr-denom-total">AED {den.amount.toFixed(2)}</span>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        </div>
                                                     </div>
                                                 </div>
-
-                                                {/* UAE currency Denominations list */}
-                                                <div>
-                                                    <span style={{ fontSize: '0.68rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b', display: 'block', marginBottom: '0.5rem' }}>Counted Opening Cash Denominations</span>
-                                                    {op.denominations?.length === 0 ? (
-                                                        <div style={{ fontSize: '0.78rem', fontWeight: 600, color: '#94a3b8', padding: '1rem', background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '8px', textAlign: 'center' }}>No denominations recorded.</div>
-                                                    ) : (
-                                                        <div className="dsr-denom-grid">
-                                                            {op.denominations?.map((den, idx) => (
-                                                                <div key={idx} className="dsr-denom-box">
-                                                                    <span className="dsr-denom-label">{den.denomination} AED</span>
-                                                                    <div className="dsr-denom-count">{den.count} <span style={{ fontSize: '0.65rem', color: '#94a3b8', fontWeight: 500 }}>qty</span></div>
-                                                                    <span className="dsr-denom-total">AED {den.amount.toFixed(2)}</span>
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </div>
+                                            ))}
                                         </div>
-                                    ))}
+                                    )}
                                 </div>
-                            )}
-                        </div>
 
-                        {/* SECTION 3: Shifts Closed */}
-                        <div className={`dsr-section-card ${activeTab === 'closings' ? 'block' : 'hidden print:block'}`}>
-                            <div className="dsr-section-header">
-                                <h3 className="dsr-section-heading">
-                                    <CheckCircle2 size={18} color="#10b981" />
-                                    <span>Register Shifts Closed & Reconciled</span>
-                                </h3>
-                                <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#64748b' }}>{data.closings?.length || 0} Closed Shifts</span>
-                            </div>
+                                {/* Shifts Closed */}
+                                <div className="dsr-section-card">
+                                    <div className="dsr-section-header">
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                            <CheckCircle2 size={18} color="#10b981" />
+                                            <h3 className="dsr-section-heading">Register Shifts Closed & Reconciliations</h3>
+                                        </div>
+                                        <span className="dsr-badge-count">{data.closings?.length || 0} Closings</span>
+                                    </div>
 
-                            {data.closings?.length === 0 ? (
-                                <div style={{ padding: '3rem 1rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem', fontWeight: 600 }}>
-                                    No shifts closed on this date.
-                                </div>
-                            ) : (
-                                <div>
-                                    {data.closings?.map((cl) => (
-                                        <div key={cl.name} className="dsr-shift-card">
-                                            <div className="dsr-shift-header">
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                                    <span 
-                                                        onClick={() => navigate('/closingentrylist', { state: { search: cl.name } })} 
-                                                        className="dsr-doc-link"
-                                                        style={{ fontSize: '0.95rem' }}
-                                                    >
-                                                        {cl.name}
-                                                        <ExternalLink size={14} color="#10b981" />
-                                                    </span>
-                                                    <span 
-                                                        onClick={() => navigate('/openingentry', { state: { search: cl.pos_opening_entry } })} 
-                                                        style={{ background: '#e2e8f0', color: '#334155', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', padding: '3px 8px', borderRadius: '6px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
-                                                    >
-                                                        Opening: {cl.pos_opening_entry}
-                                                        <ExternalLink size={10} color="#64748b" />
-                                                    </span>
-                                                </div>
-                                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', fontSize: '0.78rem', fontWeight: 700, color: '#475569' }}>
-                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}><User size={14} color="#94a3b8" /> Closed By: <b style={{ color: '#0f172a' }}>{cl.user?.split('@')[0]}</b></div>
-                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}><Clock size={14} color="#94a3b8" /> Closed: <b style={{ color: '#0f172a' }}>{new Date(cl.period_end_date).toLocaleTimeString()}</b></div>
-                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}><CreditCard size={14} color="#94a3b8" /> Profile: <b style={{ color: '#0f172a' }}>{cl.pos_profile}</b></div>
-                                                </div>
-                                            </div>
+                                    {data.closings?.length === 0 ? (
+                                        <div className="dsr-empty-box">No register closings recorded on this date.</div>
+                                    ) : (
+                                        <div>
+                                            {data.closings?.map(cl => (
+                                                <div key={cl.name} className="dsr-shift-card">
+                                                    <div className="dsr-shift-header">
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                            <span 
+                                                                onClick={() => navigate('/closingentrylist', { state: { search: cl.name } })} 
+                                                                className="dsr-doc-link"
+                                                                style={{ fontSize: '0.95rem' }}
+                                                            >
+                                                                {cl.name}
+                                                                <ExternalLink size={14} color="#10b981" />
+                                                            </span>
+                                                            <span className="dsr-status-badge closed">CLOSED</span>
+                                                        </div>
+                                                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', fontSize: '0.78rem', fontWeight: 700, color: '#475569' }}>
+                                                            <div><User size={14} color="#94a3b8" /> Closed By: <b>{cl.user?.split('@')[0]}</b></div>
+                                                            <div><Clock size={14} color="#94a3b8" /> Closed At: <b>{new Date(cl.period_end_date).toLocaleTimeString()}</b></div>
+                                                        </div>
+                                                    </div>
 
-                                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.25rem' }}>
-                                                {/* Reconciliation breakdown details */}
-                                                <div>
-                                                    <span style={{ fontSize: '0.68rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b', display: 'block', marginBottom: '0.5rem' }}>Payment Mode Reconciliation</span>
                                                     <div className="dsr-table-wrapper">
                                                         <table className="dsr-table">
                                                             <thead>
@@ -711,17 +1127,11 @@ function DailySalesReport() {
                                                             <tbody>
                                                                 {cl.reconciliation?.map((r, rIdx) => (
                                                                     <tr key={rIdx}>
-                                                                        <td style={{ fontWeight: 800 }}>{r.mode_of_payment}</td>
+                                                                        <td><b>{r.mode_of_payment}</b></td>
                                                                         <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{(r.opening_amount || 0).toFixed(2)}</td>
                                                                         <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{(r.expected_amount || 0).toFixed(2)}</td>
-                                                                        <td style={{ textAlign: 'right', fontFamily: 'monospace', fontWeight: 900, color: '#0f172a' }}>{(r.closing_amount || 0).toFixed(2)}</td>
-                                                                        <td style={{ 
-                                                                            textAlign: 'right', 
-                                                                            fontFamily: 'monospace', 
-                                                                            fontWeight: 900,
-                                                                            color: r.difference > 0 ? '#e11d48' : r.difference < 0 ? '#059669' : '#94a3b8',
-                                                                            background: r.difference > 0 ? '#fff1f2' : r.difference < 0 ? '#f0fdf4' : 'transparent'
-                                                                        }}>
+                                                                        <td style={{ textAlign: 'right', fontFamily: 'monospace', fontWeight: 900 }}>{(r.closing_amount || 0).toFixed(2)}</td>
+                                                                        <td style={{ textAlign: 'right', fontFamily: 'monospace', fontWeight: 900, color: r.difference > 0 ? '#e11d48' : r.difference < 0 ? '#059669' : '#64748b' }}>
                                                                             {r.difference !== 0 ? (r.difference > 0 ? `-${r.difference.toFixed(2)}` : `+${Math.abs(r.difference).toFixed(2)}`) : '0.00'}
                                                                         </td>
                                                                     </tr>
@@ -729,43 +1139,137 @@ function DailySalesReport() {
                                                             </tbody>
                                                         </table>
                                                     </div>
-
-                                                    {/* Discrepancy Reason */}
-                                                    {cl.discrepancy_reason && (
-                                                        <div style={{ marginTop: '0.75rem', padding: '0.75rem', background: '#fff1f2', border: '1px solid #fecdd3', borderRadius: '8px' }}>
-                                                            <span style={{ fontSize: '0.65rem', fontWeight: 900, textTransform: 'uppercase', color: '#e11d48', display: 'block' }}>Variance Reason</span>
-                                                            <p style={{ fontSize: '0.78rem', fontWeight: 600, color: '#9f1239', margin: '0.2rem 0 0 0' }}>"{cl.discrepancy_reason}"</p>
-                                                        </div>
-                                                    )}
                                                 </div>
-
-                                                {/* UAE currency closing denominations counted list */}
-                                                <div>
-                                                    <span style={{ fontSize: '0.68rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b', display: 'block', marginBottom: '0.5rem' }}>Counted Closing Cash Denominations</span>
-                                                    {cl.denominations?.length === 0 ? (
-                                                        <div style={{ fontSize: '0.78rem', fontWeight: 600, color: '#94a3b8', padding: '1rem', background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '8px', textAlign: 'center' }}>No closing denominations recorded.</div>
-                                                    ) : (
-                                                        <div className="dsr-denom-grid">
-                                                            {cl.denominations?.map((den, idx) => (
-                                                                <div key={idx} className="dsr-denom-box">
-                                                                    <span className="dsr-denom-label">{den.denomination} AED</span>
-                                                                    <div className="dsr-denom-count">{den.count} <span style={{ fontSize: '0.65rem', color: '#94a3b8', fontWeight: 500 }}>qty</span></div>
-                                                                    <span className="dsr-denom-total">AED {den.amount.toFixed(2)}</span>
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </div>
+                                            ))}
                                         </div>
-                                    ))}
+                                    )}
                                 </div>
-                            )}
-                        </div>
+                            </div>
+                        )}
 
                     </div>
                 )}
             </main>
+
+            {/* ==================== THERMAL DAY SUMMARY PREVIEW MODAL ==================== */}
+            {showThermalPreview && (
+                <div className="dsr-modal-backdrop" onClick={() => setShowThermalPreview(false)}>
+                    <div className="dsr-modal-card" onClick={e => e.stopPropagation()}>
+                        <div className="dsr-modal-header">
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <Receipt size={20} color="#059669" />
+                                <h3>POS Thermal Day Summary</h3>
+                            </div>
+                            <button onClick={() => setShowThermalPreview(false)} className="dsr-btn-icon">
+                                <X size={18} />
+                            </button>
+                        </div>
+
+                        <div className="dsr-modal-body">
+                            {/* Thermal Paper Slip UI Replicating User Image */}
+                            <div className="dsr-thermal-slip" id="thermal-day-summary-slip">
+                                <div className="text-center font-bold" style={{ fontSize: '13px', letterSpacing: '0.05em' }}>
+                                    {isAdmin && selectedBranch ? selectedBranch : warehouse || 'RETAIL POS'}
+                                </div>
+                                <div className="text-center subtitle">
+                                    {selectedBranch ? `Branch: ${selectedBranch}` : 'All Branch Summary'}
+                                </div>
+                                
+                                <div className="text-center title">
+                                    Day Summary
+                                </div>
+
+                                <div className="flex-row">
+                                    <span>Date: {selectedDate.split('-').reverse().join('/')}</span>
+                                    <span>{new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                </div>
+
+                                <div className="divider"></div>
+
+                                <div className="flex-row">
+                                    <span>Cash Sale</span>
+                                    <span>: {cashSale.toFixed(2).padStart(10, ' ')}</span>
+                                </div>
+                                <div className="flex-row">
+                                    <span>Card Sale</span>
+                                    <span>: {cardSale.toFixed(2).padStart(10, ' ')}</span>
+                                </div>
+                                <div className="flex-row">
+                                    <span>Ins. Sale</span>
+                                    <span>: {instaSale.toFixed(2).padStart(10, ' ')}</span>
+                                </div>
+                                <div className="flex-row">
+                                    <span>Sales Return</span>
+                                    <span>: {salesReturn.toFixed(2).padStart(10, ' ')}</span>
+                                </div>
+                                <div className="flex-row">
+                                    <span>Receipts</span>
+                                    <span>: {receiptsTotal.toFixed(2).padStart(10, ' ')}</span>
+                                </div>
+                                <div className="flex-row">
+                                    <span>Payments</span>
+                                    <span>: {-paymentsTotal.toFixed(2).padStart(10, ' ')}</span>
+                                </div>
+                                {creditSale > 0 && (
+                                    <div className="flex-row">
+                                        <span>Credit Sale</span>
+                                        <span>: {creditSale.toFixed(2).padStart(10, ' ')}</span>
+                                    </div>
+                                )}
+
+                                <div className="divider"></div>
+
+                                <div className="flex-row font-bold" style={{ fontSize: '13px' }}>
+                                    <span>Total</span>
+                                    <span>: {netTotal.toFixed(2).padStart(10, ' ')}</span>
+                                </div>
+
+                                <div className="double-divider"></div>
+
+                                <div className="flex-row" style={{ fontSize: '11px' }}>
+                                    <span>Total Bills</span>
+                                    <span>: {billsCount} (Ret: {returnBillsCount})</span>
+                                </div>
+                                <div className="flex-row" style={{ fontSize: '11px' }}>
+                                    <span>Shift Open</span>
+                                    <span>: {shiftOpenTime}</span>
+                                </div>
+                                <div className="flex-row" style={{ fontSize: '11px' }}>
+                                    <span>Shift Close</span>
+                                    <span>: {shiftCloseTime}</span>
+                                </div>
+                                {highDiscountCount > 0 && (
+                                    <div className="flex-row" style={{ fontSize: '11px' }}>
+                                        <span>&gt;10% Discounts</span>
+                                        <span>: {highDiscountCount} bills</span>
+                                    </div>
+                                )}
+                                {transfersCount > 0 && (
+                                    <div className="flex-row" style={{ fontSize: '11px' }}>
+                                        <span>Branch Transfers</span>
+                                        <span>: {transfersCount}</span>
+                                    </div>
+                                )}
+
+                                <div className="divider"></div>
+                                <div className="text-center font-bold" style={{ fontSize: '10px', marginTop: '8px', letterSpacing: '0.1em' }}>
+                                    *** END OF REPORT ***
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="dsr-modal-footer">
+                            <button 
+                                onClick={handlePrintThermal} 
+                                className="dsr-btn-print-modal"
+                            >
+                                <Printer size={16} />
+                                <span>Print Thermal Slip (80mm)</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
