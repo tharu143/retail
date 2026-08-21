@@ -1255,46 +1255,46 @@ function DailySalesReport() {
                                 <div className="thermal-table-body">
                                     <div className="thermal-row-3col">
                                         <span className="col-title">Cash Sale</span>
-                                        <span className="col-qty">{cashSaleCount || ''}</span>
+                                        <span className="col-qty">{cashSaleCount || 0}</span>
                                         <span className="col-val">{cashSale ? (cashSale % 1 === 0 ? cashSale.toFixed(0) : cashSale.toFixed(2)) : '0'}</span>
                                     </div>
                                     <div className="thermal-row-3col">
                                         <span className="col-title">Card Sale</span>
-                                        <span className="col-qty">{cardSaleCount || ''}</span>
+                                        <span className="col-qty">{cardSaleCount || 0}</span>
                                         <span className="col-val">{cardSale ? (cardSale % 1 === 0 ? cardSale.toFixed(0) : cardSale.toFixed(2)) : '0'}</span>
                                     </div>
                                     <div className="thermal-row-3col">
                                         <span className="col-title">online payment</span>
-                                        <span className="col-qty">{onlinePaymentCount || ''}</span>
-                                        <span className="col-val">{onlinePayment > 0 ? (onlinePayment % 1 === 0 ? onlinePayment.toFixed(0) : onlinePayment.toFixed(2)) : ''}</span>
+                                        <span className="col-qty">{onlinePaymentCount || 0}</span>
+                                        <span className="col-val">{onlinePayment ? (onlinePayment % 1 === 0 ? onlinePayment.toFixed(0) : onlinePayment.toFixed(2)) : '0'}</span>
                                     </div>
                                     <div className="thermal-row-3col">
                                         <span className="col-title">Ins. Cash</span>
-                                        <span className="col-qty">{instaCashCount || ''}</span>
-                                        <span className="col-val">{instaCash > 0 ? (instaCash % 1 === 0 ? instaCash.toFixed(0) : instaCash.toFixed(2)) : ''}</span>
+                                        <span className="col-qty">{instaCashCount || 0}</span>
+                                        <span className="col-val">{instaCash ? (instaCash % 1 === 0 ? instaCash.toFixed(0) : instaCash.toFixed(2)) : '0'}</span>
                                     </div>
                                     <div className="thermal-row-3col">
                                         <span className="col-title">Receipts</span>
-                                        <span className="col-qty">{receiptsCount || ''}</span>
-                                        <span className="col-val">{receiptsTotal > 0 ? (receiptsTotal % 1 === 0 ? receiptsTotal.toFixed(0) : receiptsTotal.toFixed(2)) : '0'}</span>
+                                        <span className="col-qty">{receiptsCount || 0}</span>
+                                        <span className="col-val">{receiptsTotal ? (receiptsTotal % 1 === 0 ? receiptsTotal.toFixed(0) : receiptsTotal.toFixed(2)) : '0'}</span>
                                     </div>
                                     <div className="thermal-row-3col">
                                         <span className="col-title">Sales Return</span>
-                                        <span className="col-qty">{salesReturnCount || ''}</span>
+                                        <span className="col-qty">{salesReturnCount || 0}</span>
                                         <span className="col-val">{salesReturn > 0 ? `-${salesReturn % 1 === 0 ? salesReturn.toFixed(0) : salesReturn.toFixed(2)}` : '0'}</span>
                                     </div>
                                     <div className="thermal-row-3col">
                                         <span className="col-title">Payments</span>
-                                        <span className="col-qty">{paymentsCount || ''}</span>
-                                        <span className="col-val">{paymentsTotal > 0 ? `-${paymentsTotal % 1 === 0 ? paymentsTotal.toFixed(0) : paymentsTotal.toFixed(2)}` : '-0'}</span>
+                                        <span className="col-qty">{paymentsCount || 0}</span>
+                                        <span className="col-val">{paymentsTotal > 0 ? `-${paymentsTotal % 1 === 0 ? paymentsTotal.toFixed(0) : paymentsTotal.toFixed(2)}` : '0'}</span>
                                     </div>
 
                                     <div className="thermal-line-sep">------------------------------------------------</div>
 
                                     <div className="thermal-row-3col total-highlight">
                                         <span className="col-title font-black">Total</span>
-                                        <span className="col-qty font-black">{totalCount}</span>
-                                        <span className="col-val font-black">{netTotal % 1 === 0 ? netTotal.toFixed(0) : netTotal.toFixed(2)}</span>
+                                        <span className="col-qty font-black">{totalCount || 0}</span>
+                                        <span className="col-val font-black">{netTotal ? (netTotal % 1 === 0 ? netTotal.toFixed(0) : netTotal.toFixed(2)) : '0'}</span>
                                     </div>
 
                                     <div className="thermal-line-sep">------------------------------------------------</div>
@@ -1302,44 +1302,44 @@ function DailySalesReport() {
                                     <div className="thermal-row-3col">
                                         <span className="col-title">cash balance</span>
                                         <span className="col-qty"></span>
-                                        <span className="col-val">{cashBalance % 1 === 0 ? cashBalance.toFixed(0) : cashBalance.toFixed(2)}</span>
+                                        <span className="col-val">{cashBalance ? (cashBalance % 1 === 0 ? cashBalance.toFixed(0) : cashBalance.toFixed(2)) : '0'}</span>
                                     </div>
                                     <div className="thermal-row-3col">
                                         <span className="col-title">Advance Amount</span>
-                                        <span className="col-qty">{advanceCount || ''}</span>
-                                        <span className="col-val">{advanceAmount > 0 ? (advanceAmount % 1 === 0 ? advanceAmount.toFixed(0) : advanceAmount.toFixed(2)) : ''}</span>
+                                        <span className="col-qty">{advanceCount || 0}</span>
+                                        <span className="col-val">{advanceAmount ? (advanceAmount % 1 === 0 ? advanceAmount.toFixed(0) : advanceAmount.toFixed(2)) : '0'}</span>
                                     </div>
 
                                     <div className="thermal-dotted-sep">................................................</div>
 
                                     <div className="thermal-row-3col">
                                         <span className="col-title">Credit</span>
-                                        <span className="col-qty">{creditSaleCount || ''}</span>
-                                        <span className="col-val">{creditSale > 0 ? (creditSale % 1 === 0 ? creditSale.toFixed(0) : creditSale.toFixed(2)) : ''}</span>
+                                        <span className="col-qty">{creditSaleCount || 0}</span>
+                                        <span className="col-val">{creditSale ? (creditSale % 1 === 0 ? creditSale.toFixed(0) : creditSale.toFixed(2)) : '0'}</span>
                                     </div>
                                     <div className="thermal-row-3col">
                                         <span className="col-title">Ins. Credit</span>
-                                        <span className="col-qty">{instaCreditCount || ''}</span>
-                                        <span className="col-val">{instaCredit > 0 ? (instaCredit % 1 === 0 ? instaCredit.toFixed(0) : instaCredit.toFixed(2)) : ''}</span>
+                                        <span className="col-qty">{instaCreditCount || 0}</span>
+                                        <span className="col-val">{instaCredit ? (instaCredit % 1 === 0 ? instaCredit.toFixed(0) : instaCredit.toFixed(2)) : '0'}</span>
                                     </div>
                                     <div className="thermal-row-3col">
                                         <span className="col-title">branch transfers</span>
-                                        <span className="col-qty">{branchTransfersCount || ''}</span>
-                                        <span className="col-val">{branchTransfersAmount > 0 ? (branchTransfersAmount % 1 === 0 ? branchTransfersAmount.toFixed(0) : branchTransfersAmount.toFixed(2)) : ''}</span>
+                                        <span className="col-qty">{branchTransfersCount || 0}</span>
+                                        <span className="col-val">{branchTransfersAmount ? (branchTransfersAmount % 1 === 0 ? branchTransfersAmount.toFixed(0) : branchTransfersAmount.toFixed(2)) : '0'}</span>
                                     </div>
                                     <div className="thermal-row-3col">
                                         <span className="col-title">10% Above Discount</span>
-                                        <span className="col-qty">{highDiscountCount || ''}</span>
-                                        <span className="col-val">{highDiscountAmount > 0 ? (highDiscountAmount % 1 === 0 ? highDiscountAmount.toFixed(0) : highDiscountAmount.toFixed(2)) : ''}</span>
+                                        <span className="col-qty">{highDiscountCount || 0}</span>
+                                        <span className="col-val">{highDiscountAmount ? (highDiscountAmount % 1 === 0 ? highDiscountAmount.toFixed(0) : highDiscountAmount.toFixed(2)) : '0'}</span>
                                     </div>
                                     <div className="thermal-row-3col">
                                         <span className="col-title">Modify Bills</span>
-                                        <span className="col-qty">{modifyBillsCount || ''}</span>
+                                        <span className="col-qty">{modifyBillsCount || 0}</span>
                                         <span className="col-val"></span>
                                     </div>
                                     <div className="thermal-row-3col">
                                         <span className="col-title">Cancel Bills</span>
-                                        <span className="col-qty">{cancelBillsCount || ''}</span>
+                                        <span className="col-qty">{cancelBillsCount || 0}</span>
                                         <span className="col-val"></span>
                                     </div>
 
@@ -1348,17 +1348,17 @@ function DailySalesReport() {
                                     <div className="thermal-row-3col">
                                         <span className="col-title">counter cash</span>
                                         <span className="col-qty"></span>
-                                        <span className="col-val">{counterCash > 0 ? (counterCash % 1 === 0 ? counterCash.toFixed(0) : counterCash.toFixed(2)) : ''}</span>
+                                        <span className="col-val">{counterCash ? (counterCash % 1 === 0 ? counterCash.toFixed(0) : counterCash.toFixed(2)) : '0'}</span>
                                     </div>
                                     <div className="thermal-row-3col">
                                         <span className="col-title">petty cash</span>
                                         <span className="col-qty"></span>
-                                        <span className="col-val">{pettyCash > 0 ? (pettyCash % 1 === 0 ? pettyCash.toFixed(0) : pettyCash.toFixed(2)) : ''}</span>
+                                        <span className="col-val">{pettyCash ? (pettyCash % 1 === 0 ? pettyCash.toFixed(0) : pettyCash.toFixed(2)) : '0'}</span>
                                     </div>
                                     <div className="thermal-row-3col">
                                         <span className="col-title">recharg</span>
                                         <span className="col-qty"></span>
-                                        <span className="col-val">{recharge > 0 ? (recharge % 1 === 0 ? recharge.toFixed(0) : recharge.toFixed(2)) : ''}</span>
+                                        <span className="col-val">{recharge ? (recharge % 1 === 0 ? recharge.toFixed(0) : recharge.toFixed(2)) : '0'}</span>
                                     </div>
                                 </div>
                             </div>
