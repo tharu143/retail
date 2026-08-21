@@ -137,9 +137,11 @@ function DailySalesReport() {
     const instaCreditCount = summary.insta_credit_count || 0;
     const branchTransfersAmount = summary.branch_transfers_amount !== undefined ? summary.branch_transfers_amount : 0;
     const branchTransfersCount = summary.branch_transfers_count || (data.transfers?.length || 0);
+    const transfersCount = branchTransfersCount;
     const highDiscountAmount = summary.high_discount_amount !== undefined ? summary.high_discount_amount : 0;
     const highDiscountCount = summary.high_discount_count !== undefined ? summary.high_discount_count : (data.high_discount_invoices?.length || 0);
     const modifyBillsCount = summary.modify_bills_count !== undefined ? summary.modify_bills_count : (data.modified_invoices?.length || 0);
+    const modifiedBillsCount = modifyBillsCount;
     const cancelBillsCount = summary.cancel_bills_count || (data.modified_invoices?.filter(m => m.status === 'Cancelled')?.length || 0);
     const counterCash = summary.counter_cash !== undefined ? summary.counter_cash : 0;
     const pettyCash = summary.petty_cash !== undefined ? summary.petty_cash : 0;
