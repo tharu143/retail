@@ -110,22 +110,49 @@ function DailySalesReport() {
     // Calculate aggregated metrics with fallback to day_summary from backend
     const summary = data.day_summary || {};
     const cashSale = summary.cash_sale !== undefined ? summary.cash_sale : 0;
+    const cashSaleCount = summary.cash_sale_count || 0;
     const cardSale = summary.card_sale !== undefined ? summary.card_sale : 0;
-    const instaSale = summary.instapay_sale !== undefined ? summary.instapay_sale : 0;
-    const creditSale = summary.credit_sale !== undefined ? summary.credit_sale : 0;
-    const salesReturn = summary.sales_return !== undefined ? summary.sales_return : 0;
+    const cardSaleCount = summary.card_sale_count || 0;
+    const onlinePayment = summary.online_payment !== undefined ? summary.online_payment : 0;
+    const onlinePaymentCount = summary.online_payment_count || 0;
+    const instaCash = summary.insta_cash !== undefined ? summary.insta_cash : (summary.instapay_sale || 0);
+    const instaCashCount = summary.insta_cash_count || 0;
     const receiptsTotal = summary.receipts !== undefined ? summary.receipts : 0;
+    const receiptsCount = summary.receipts_count || (data.receipts?.length || 0);
+    const salesReturn = summary.sales_return !== undefined ? summary.sales_return : 0;
+    const salesReturnCount = summary.sales_return_count || (data.return_invoices?.length || 0);
     const paymentsTotal = summary.payments !== undefined ? summary.payments : 0;
-    const netTotal = summary.net_total !== undefined ? summary.net_total : (cashSale + cardSale + instaSale + creditSale - salesReturn + receiptsTotal - paymentsTotal);
+    const paymentsCount = summary.payments_count || (data.payments?.length || 0);
     
+    const totalCount = summary.total_count || (cashSaleCount + cardSaleCount + onlinePaymentCount + instaCashCount + receiptsCount + salesReturnCount + paymentsCount);
+    const netTotal = summary.net_total !== undefined ? summary.net_total : (cashSale + cardSale + onlinePayment + instaCash - salesReturn + receiptsTotal - paymentsTotal);
+    const cashBalance = summary.cash_balance !== undefined ? summary.cash_balance : (cashSale + instaCash + receiptsTotal - salesReturn - paymentsTotal);
+    const advanceAmount = summary.advance_amount !== undefined ? summary.advance_amount : 0;
+    const advanceCount = summary.advance_count || 0;
+
+    const creditSale = summary.credit_sale !== undefined ? summary.credit_sale : 0;
+    const creditSaleCount = summary.credit_sale_count || 0;
+    const instaCredit = summary.insta_credit !== undefined ? summary.insta_credit : 0;
+    const instaCreditCount = summary.insta_credit_count || 0;
+    const branchTransfersAmount = summary.branch_transfers_amount !== undefined ? summary.branch_transfers_amount : 0;
+    const branchTransfersCount = summary.branch_transfers_count || (data.transfers?.length || 0);
+    const highDiscountAmount = summary.high_discount_amount !== undefined ? summary.high_discount_amount : 0;
+    const highDiscountCount = summary.high_discount_count !== undefined ? summary.high_discount_count : (data.high_discount_invoices?.length || 0);
+    const modifyBillsCount = summary.modify_bills_count !== undefined ? summary.modify_bills_count : (data.modified_invoices?.length || 0);
+    const cancelBillsCount = summary.cancel_bills_count || (data.modified_invoices?.filter(m => m.status === 'Cancelled')?.length || 0);
+    const counterCash = summary.counter_cash !== undefined ? summary.counter_cash : 0;
+    const pettyCash = summary.petty_cash !== undefined ? summary.petty_cash : 0;
+    const recharge = summary.recharge !== undefined ? summary.recharge : 0;
+
     const billsCount = summary.total_bills_count !== undefined ? summary.total_bills_count : (data.invoices?.filter(i => !i.is_return)?.length || 0);
     const returnBillsCount = summary.return_bills_count !== undefined ? summary.return_bills_count : (data.return_invoices?.length || 0);
-    const highDiscountCount = summary.high_discount_count !== undefined ? summary.high_discount_count : (data.high_discount_invoices?.length || 0);
-    const modifiedBillsCount = data.modified_invoices?.length || 0;
-    const transfersCount = data.transfers?.length || 0;
 
-    const shiftOpenTime = summary.shift_open_time ? new Date(summary.shift_open_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : (data.openings?.[0]?.period_start_date ? new Date(data.openings[0].period_start_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'N/A');
-    const shiftCloseTime = summary.shift_close_time ? new Date(summary.shift_close_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : (data.closings?.[0]?.period_end_date ? new Date(data.closings[0].period_end_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Active');
+    const shiftOpenTime = summary.shift_open_time ? new Date(summary.shift_open_time).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).toLowerCase() : (data.openings?.[0]?.period_start_date ? new Date(data.openings[0].period_start_date).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).toLowerCase() : '9:10am');
+    const shiftCloseTime = summary.shift_close_time ? new Date(summary.shift_close_time).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).toLowerCase() : (data.closings?.[0]?.period_end_date ? new Date(data.closings[0].period_end_date).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).toLowerCase() : '10.00pm');
+    const shiftStatus = summary.shift_status || (data.closings?.length > 0 ? 'Closed' : (data.openings?.length > 0 ? 'Active' : 'Active'));
+
+    const dayName = new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long' });
+    const formattedDate = selectedDate.split('-').reverse().join('/');
 
     // Print handlers
     const handlePrintA4 = () => {
@@ -136,7 +163,7 @@ function DailySalesReport() {
         const thermalElement = document.getElementById('thermal-day-summary-slip');
         if (!thermalElement) return;
 
-        const printWindow = window.open('', '_blank', 'width=380,height=600');
+        const printWindow = window.open('', '_blank', 'width=380,height=650');
         if (!printWindow) {
             alert('Please allow popups to print thermal slip');
             return;
@@ -157,7 +184,7 @@ function DailySalesReport() {
                         font-size: 12px;
                         color: #000;
                         background: #fff;
-                        padding: 10px;
+                        padding: 10px 8px;
                         margin: 0;
                         line-height: 1.35;
                     }
@@ -166,11 +193,53 @@ function DailySalesReport() {
                     .text-left { text-align: left; }
                     .font-bold { font-weight: bold; }
                     .font-black { font-weight: 900; }
-                    .divider { border-top: 1px dashed #000; margin: 6px 0; }
-                    .double-divider { border-top: 1px dashed #000; border-bottom: 1px dashed #000; height: 3px; margin: 6px 0; }
-                    .flex-row { display: flex; justify-content: space-between; margin: 3px 0; }
-                    .title { font-size: 15px; font-weight: bold; text-transform: uppercase; margin: 5px 0; }
-                    .subtitle { font-size: 10px; margin-bottom: 5px; }
+                    .thermal-top-row {
+                        display: flex;
+                        justify-content: space-between;
+                        font-weight: bold;
+                        font-size: 13px;
+                        margin-bottom: 2px;
+                    }
+                    .thermal-sub-row {
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                        font-size: 11px;
+                        margin-bottom: 4px;
+                    }
+                    .thermal-dotted-sep {
+                        border-top: 1px dotted #000;
+                        margin: 5px 0;
+                    }
+                    .thermal-line-sep {
+                        border-top: 1px solid #000;
+                        margin: 5px 0;
+                    }
+                    .thermal-row-3col {
+                        display: flex;
+                        align-items: center;
+                        justify-content: space-between;
+                        margin: 3px 0;
+                        font-size: 12px;
+                    }
+                    .col-title {
+                        flex: 2;
+                        text-align: left;
+                    }
+                    .col-qty {
+                        flex: 0.8;
+                        text-align: right;
+                        padding-right: 14px;
+                    }
+                    .col-val {
+                        flex: 1.2;
+                        text-align: right;
+                        font-weight: 600;
+                    }
+                    .total-highlight {
+                        font-size: 13.5px;
+                        font-weight: 900;
+                    }
                 </style>
             </head>
             <body>
@@ -1166,94 +1235,128 @@ function DailySalesReport() {
                         </div>
 
                         <div className="dsr-modal-body">
-                            {/* Thermal Paper Slip UI Replicating User Image */}
+                            {/* Thermal Paper Slip UI Replicating User's Spreadsheet Reference */}
                             <div className="dsr-thermal-slip" id="thermal-day-summary-slip">
-                                <div className="text-center font-bold" style={{ fontSize: '13px', letterSpacing: '0.05em' }}>
-                                    {isAdmin && selectedBranch ? selectedBranch : warehouse || 'RETAIL POS'}
+                                <div className="thermal-top-row">
+                                    <span className="font-bold">{dayName}</span>
+                                    <span className="font-bold">{formattedDate}</span>
                                 </div>
-                                <div className="text-center subtitle">
-                                    {selectedBranch ? `Branch: ${selectedBranch}` : 'All Branch Summary'}
-                                </div>
-                                
-                                <div className="text-center title">
-                                    Day Summary
-                                </div>
-
-                                <div className="flex-row">
-                                    <span>Date: {selectedDate.split('-').reverse().join('/')}</span>
-                                    <span>{new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                <div className="thermal-sub-row">
+                                    <span>{shiftOpenTime}</span>
+                                    <span className="font-bold">{shiftStatus}</span>
+                                    <span>{shiftCloseTime}</span>
                                 </div>
 
-                                <div className="divider"></div>
+                                <div className="thermal-dotted-sep">................................................</div>
 
-                                <div className="flex-row">
-                                    <span>Cash Sale</span>
-                                    <span>: {cashSale.toFixed(2).padStart(10, ' ')}</span>
-                                </div>
-                                <div className="flex-row">
-                                    <span>Card Sale</span>
-                                    <span>: {cardSale.toFixed(2).padStart(10, ' ')}</span>
-                                </div>
-                                <div className="flex-row">
-                                    <span>Ins. Sale</span>
-                                    <span>: {instaSale.toFixed(2).padStart(10, ' ')}</span>
-                                </div>
-                                <div className="flex-row">
-                                    <span>Sales Return</span>
-                                    <span>: {salesReturn.toFixed(2).padStart(10, ' ')}</span>
-                                </div>
-                                <div className="flex-row">
-                                    <span>Receipts</span>
-                                    <span>: {receiptsTotal.toFixed(2).padStart(10, ' ')}</span>
-                                </div>
-                                <div className="flex-row">
-                                    <span>Payments</span>
-                                    <span>: {-paymentsTotal.toFixed(2).padStart(10, ' ')}</span>
-                                </div>
-                                {creditSale > 0 && (
-                                    <div className="flex-row">
-                                        <span>Credit Sale</span>
-                                        <span>: {creditSale.toFixed(2).padStart(10, ' ')}</span>
+                                <div className="thermal-table-body">
+                                    <div className="thermal-row-3col">
+                                        <span className="col-title">Cash Sale</span>
+                                        <span className="col-qty">{cashSaleCount || ''}</span>
+                                        <span className="col-val">{cashSale ? (cashSale % 1 === 0 ? cashSale.toFixed(0) : cashSale.toFixed(2)) : '0'}</span>
                                     </div>
-                                )}
-
-                                <div className="divider"></div>
-
-                                <div className="flex-row font-bold" style={{ fontSize: '13px' }}>
-                                    <span>Total</span>
-                                    <span>: {netTotal.toFixed(2).padStart(10, ' ')}</span>
-                                </div>
-
-                                <div className="double-divider"></div>
-
-                                <div className="flex-row" style={{ fontSize: '11px' }}>
-                                    <span>Total Bills</span>
-                                    <span>: {billsCount} (Ret: {returnBillsCount})</span>
-                                </div>
-                                <div className="flex-row" style={{ fontSize: '11px' }}>
-                                    <span>Shift Open</span>
-                                    <span>: {shiftOpenTime}</span>
-                                </div>
-                                <div className="flex-row" style={{ fontSize: '11px' }}>
-                                    <span>Shift Close</span>
-                                    <span>: {shiftCloseTime}</span>
-                                </div>
-                                {highDiscountCount > 0 && (
-                                    <div className="flex-row" style={{ fontSize: '11px' }}>
-                                        <span>&gt;10% Discounts</span>
-                                        <span>: {highDiscountCount} bills</span>
+                                    <div className="thermal-row-3col">
+                                        <span className="col-title">Card Sale</span>
+                                        <span className="col-qty">{cardSaleCount || ''}</span>
+                                        <span className="col-val">{cardSale ? (cardSale % 1 === 0 ? cardSale.toFixed(0) : cardSale.toFixed(2)) : '0'}</span>
                                     </div>
-                                )}
-                                {transfersCount > 0 && (
-                                    <div className="flex-row" style={{ fontSize: '11px' }}>
-                                        <span>Branch Transfers</span>
-                                        <span>: {transfersCount}</span>
+                                    <div className="thermal-row-3col">
+                                        <span className="col-title">online payment</span>
+                                        <span className="col-qty">{onlinePaymentCount || ''}</span>
+                                        <span className="col-val">{onlinePayment > 0 ? (onlinePayment % 1 === 0 ? onlinePayment.toFixed(0) : onlinePayment.toFixed(2)) : ''}</span>
                                     </div>
-                                )}
+                                    <div className="thermal-row-3col">
+                                        <span className="col-title">Ins. Cash</span>
+                                        <span className="col-qty">{instaCashCount || ''}</span>
+                                        <span className="col-val">{instaCash > 0 ? (instaCash % 1 === 0 ? instaCash.toFixed(0) : instaCash.toFixed(2)) : ''}</span>
+                                    </div>
+                                    <div className="thermal-row-3col">
+                                        <span className="col-title">Receipts</span>
+                                        <span className="col-qty">{receiptsCount || ''}</span>
+                                        <span className="col-val">{receiptsTotal > 0 ? (receiptsTotal % 1 === 0 ? receiptsTotal.toFixed(0) : receiptsTotal.toFixed(2)) : '0'}</span>
+                                    </div>
+                                    <div className="thermal-row-3col">
+                                        <span className="col-title">Sales Return</span>
+                                        <span className="col-qty">{salesReturnCount || ''}</span>
+                                        <span className="col-val">{salesReturn > 0 ? `-${salesReturn % 1 === 0 ? salesReturn.toFixed(0) : salesReturn.toFixed(2)}` : '0'}</span>
+                                    </div>
+                                    <div className="thermal-row-3col">
+                                        <span className="col-title">Payments</span>
+                                        <span className="col-qty">{paymentsCount || ''}</span>
+                                        <span className="col-val">{paymentsTotal > 0 ? `-${paymentsTotal % 1 === 0 ? paymentsTotal.toFixed(0) : paymentsTotal.toFixed(2)}` : '-0'}</span>
+                                    </div>
 
-                                <div className="divider"></div>
-                                <div className="text-center font-bold" style={{ fontSize: '10px', marginTop: '8px', letterSpacing: '0.1em' }}>
-                                    *** END OF REPORT ***
+                                    <div className="thermal-line-sep">------------------------------------------------</div>
+
+                                    <div className="thermal-row-3col total-highlight">
+                                        <span className="col-title font-black">Total</span>
+                                        <span className="col-qty font-black">{totalCount}</span>
+                                        <span className="col-val font-black">{netTotal % 1 === 0 ? netTotal.toFixed(0) : netTotal.toFixed(2)}</span>
+                                    </div>
+
+                                    <div className="thermal-line-sep">------------------------------------------------</div>
+
+                                    <div className="thermal-row-3col">
+                                        <span className="col-title">cash balance</span>
+                                        <span className="col-qty"></span>
+                                        <span className="col-val">{cashBalance % 1 === 0 ? cashBalance.toFixed(0) : cashBalance.toFixed(2)}</span>
+                                    </div>
+                                    <div className="thermal-row-3col">
+                                        <span className="col-title">Advance Amount</span>
+                                        <span className="col-qty">{advanceCount || ''}</span>
+                                        <span className="col-val">{advanceAmount > 0 ? (advanceAmount % 1 === 0 ? advanceAmount.toFixed(0) : advanceAmount.toFixed(2)) : ''}</span>
+                                    </div>
+
+                                    <div className="thermal-dotted-sep">................................................</div>
+
+                                    <div className="thermal-row-3col">
+                                        <span className="col-title">Credit</span>
+                                        <span className="col-qty">{creditSaleCount || ''}</span>
+                                        <span className="col-val">{creditSale > 0 ? (creditSale % 1 === 0 ? creditSale.toFixed(0) : creditSale.toFixed(2)) : ''}</span>
+                                    </div>
+                                    <div className="thermal-row-3col">
+                                        <span className="col-title">Ins. Credit</span>
+                                        <span className="col-qty">{instaCreditCount || ''}</span>
+                                        <span className="col-val">{instaCredit > 0 ? (instaCredit % 1 === 0 ? instaCredit.toFixed(0) : instaCredit.toFixed(2)) : ''}</span>
+                                    </div>
+                                    <div className="thermal-row-3col">
+                                        <span className="col-title">branch transfers</span>
+                                        <span className="col-qty">{branchTransfersCount || ''}</span>
+                                        <span className="col-val">{branchTransfersAmount > 0 ? (branchTransfersAmount % 1 === 0 ? branchTransfersAmount.toFixed(0) : branchTransfersAmount.toFixed(2)) : ''}</span>
+                                    </div>
+                                    <div className="thermal-row-3col">
+                                        <span className="col-title">10% Above Discount</span>
+                                        <span className="col-qty">{highDiscountCount || ''}</span>
+                                        <span className="col-val">{highDiscountAmount > 0 ? (highDiscountAmount % 1 === 0 ? highDiscountAmount.toFixed(0) : highDiscountAmount.toFixed(2)) : ''}</span>
+                                    </div>
+                                    <div className="thermal-row-3col">
+                                        <span className="col-title">Modify Bills</span>
+                                        <span className="col-qty">{modifyBillsCount || ''}</span>
+                                        <span className="col-val"></span>
+                                    </div>
+                                    <div className="thermal-row-3col">
+                                        <span className="col-title">Cancel Bills</span>
+                                        <span className="col-qty">{cancelBillsCount || ''}</span>
+                                        <span className="col-val"></span>
+                                    </div>
+
+                                    <div className="thermal-dotted-sep">................................................</div>
+
+                                    <div className="thermal-row-3col">
+                                        <span className="col-title">counter cash</span>
+                                        <span className="col-qty"></span>
+                                        <span className="col-val">{counterCash > 0 ? (counterCash % 1 === 0 ? counterCash.toFixed(0) : counterCash.toFixed(2)) : ''}</span>
+                                    </div>
+                                    <div className="thermal-row-3col">
+                                        <span className="col-title">petty cash</span>
+                                        <span className="col-qty"></span>
+                                        <span className="col-val">{pettyCash > 0 ? (pettyCash % 1 === 0 ? pettyCash.toFixed(0) : pettyCash.toFixed(2)) : ''}</span>
+                                    </div>
+                                    <div className="thermal-row-3col">
+                                        <span className="col-title">recharg</span>
+                                        <span className="col-qty"></span>
+                                        <span className="col-val">{recharge > 0 ? (recharge % 1 === 0 ? recharge.toFixed(0) : recharge.toFixed(2)) : ''}</span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
