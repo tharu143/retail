@@ -116,6 +116,7 @@ function DailySalesReport() {
     const onlinePayment = summary.online_payment !== undefined ? summary.online_payment : 0;
     const onlinePaymentCount = summary.online_payment_count || 0;
     const instaCash = summary.insta_cash !== undefined ? summary.insta_cash : (summary.instapay_sale || 0);
+    const instaSale = instaCash;
     const instaCashCount = summary.insta_cash_count || 0;
     const receiptsTotal = summary.receipts !== undefined ? summary.receipts : 0;
     const receiptsCount = summary.receipts_count || (data.receipts?.length || 0);
