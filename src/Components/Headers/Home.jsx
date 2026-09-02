@@ -1433,6 +1433,7 @@ function Home() {
     const [searchLoading, setSearchLoading] = useState(false);
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [showCreateSecretKey, setShowCreateSecretKey] = useState(false);
+    const [customerGroups, setCustomerGroups] = useState([]);
     const [createForm, setCreateForm] = useState({
         name: '', phone: '', email: '',
         customer_group: 'Retail Customer',
@@ -1440,6 +1441,27 @@ function Home() {
         address_line1: '', address_line2: '', city: '', emirate: '', country: 'United Arab Emirates',
         custom_trn: ''
     });
+
+    useEffect(() => {
+        const fetchCustomerGroups = async () => {
+            try {
+                const res = await axios.get(`${LEGACY_API}.get_customer_meta_options`, { withCredentials: true });
+                const groups = res.data?.message?.data?.customer_group || res.data?.data?.customer_group;
+                if (groups && Array.isArray(groups) && groups.length > 0) {
+                    setCustomerGroups(groups);
+                } else {
+                    const fallbackRes = await axios.get('/api/resource/Customer Group?fields=["name"]&limit=500', { withCredentials: true });
+                    const fbGroups = fallbackRes.data?.data?.map(g => g.name).filter(Boolean);
+                    if (fbGroups && fbGroups.length > 0) {
+                        setCustomerGroups(fbGroups);
+                    }
+                }
+            } catch (err) {
+                console.error("Failed to fetch customer groups:", err);
+            }
+        };
+        fetchCustomerGroups();
+    }, []);
 
     const [hiddenShortcuts, setHiddenShortcuts] = useState(() => {
         try {
@@ -5487,11 +5509,16 @@ function Home() {
                                     style={{ borderRadius: '8px', boxShadow: 'none' }}
                                     className="w-full h-10 px-3 bg-white border border-slate-300 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 text-xs font-bold text-slate-800 outline-none cursor-pointer transition-all appearance-none"
                                 >
-                                    <option value="Retail Customer">Retail Customer</option>
-                                    <option value="Credit Customer">Credit Customer</option>
-                                    <option value="Discount Customer">Discount Customer</option>
-                                    <option value="Commercial Customer">Commercial Customer</option>
-                                    <option value="Individual">Individual</option>
+                                    {(customerGroups && customerGroups.length > 0 ? customerGroups : [
+                                        'Retail Customer',
+                                        'Discount Customer',
+                                        'Credit Customer',
+                                        'Commercial Customer',
+                                        'Individual',
+                                        'All Customer Groups'
+                                    ]).map(grp => (
+                                        <option key={grp} value={grp}>{grp}</option>
+                                    ))}
                                 </select>
                                 <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
                                     <Layers size={14} />

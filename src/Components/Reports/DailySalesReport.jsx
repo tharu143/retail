@@ -6,7 +6,7 @@ import {
     TrendingUp, DollarSign, Clock, User, Shield, CreditCard, ChevronRight,
     Receipt, Landmark, Smartphone, Tag, Gift, Check,
     ArrowRightLeft, Percent, Edit3, XCircle, RotateCcw, Eye, ExternalLink,
-    ArrowUpRight, ArrowDownLeft, X
+    ArrowUpRight, ArrowDownLeft, X, Wallet
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import DirhamIcon from '../../assets/Currency/DirhamIcon';
@@ -138,6 +138,10 @@ function DailySalesReport() {
     const branchTransfersAmount = summary.branch_transfers_amount !== undefined ? summary.branch_transfers_amount : 0;
     const branchTransfersCount = summary.branch_transfers_count || (data.transfers?.length || 0);
     const transfersCount = branchTransfersCount;
+
+    const branchCollectionsAmount = summary.branch_collections_amount !== undefined ? summary.branch_collections_amount : 0;
+    const branchCollectionsCount = summary.branch_collections_count || (data.branch_collections?.length || 0);
+
     const highDiscountAmount = summary.high_discount_amount !== undefined ? summary.high_discount_amount : 0;
     const highDiscountCount = summary.high_discount_count !== undefined ? summary.high_discount_count : (data.high_discount_invoices?.length || 0);
     const modifyBillsCount = summary.modify_bills_count !== undefined ? summary.modify_bills_count : (data.modified_invoices?.length || 0);
@@ -635,6 +639,25 @@ function DailySalesReport() {
                         </div>
                     </div>
 
+                    {/* 12. Closing Collections */}
+                    <div className="dsr-kpi-card emerald" onClick={() => setActiveTab('collections')}>
+                        <div className="dsr-kpi-header">
+                            <span className="dsr-kpi-title">12. Branch Collections</span>
+                            <div className="dsr-kpi-icon-pill">
+                                <Wallet size={14} />
+                            </div>
+                        </div>
+                        <div>
+                            <div className="dsr-kpi-value">
+                                <DirhamIcon size={16} />
+                                <span>{branchCollectionsAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                            </div>
+                            <div className="dsr-kpi-subtext" style={{ color: '#059669' }}>
+                                {branchCollectionsCount} Collection(s) Received
+                            </div>
+                        </div>
+                    </div>
+
                     {/* Net Grand Total Card */}
                     <div className="dsr-kpi-card net-total-card">
                         <div className="dsr-kpi-header">
@@ -698,6 +721,13 @@ function DailySalesReport() {
                     >
                         <Clock size={15} /> 
                         <span>Shifts & Cash Float ({(data.openings?.length || 0) + (data.closings?.length || 0)})</span>
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('collections')}
+                        className={`dsr-tab-btn ${activeTab === 'collections' ? 'active' : ''}`}
+                    >
+                        <Wallet size={15} /> 
+                        <span>Closing Collections ({branchCollectionsCount})</span>
                     </button>
                 </div>
 
@@ -1219,6 +1249,72 @@ function DailySalesReport() {
                             </div>
                         )}
 
+                        {/* TAB 7: BRANCH CLOSING COLLECTIONS */}
+                        {activeTab === 'collections' && (
+                            <div className="dsr-section-card">
+                                <div className="dsr-section-header">
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <Wallet size={18} color="#059669" />
+                                        <h3 className="dsr-section-heading">Branch Closing Collections</h3>
+                                    </div>
+                                    <span className="dsr-badge-count">{data.branch_collections?.length || 0} Records</span>
+                                </div>
+
+                                {(!data.branch_collections || data.branch_collections.length === 0) ? (
+                                    <div className="dsr-empty-box">No closing collections recorded for this branch on this date.</div>
+                                ) : (
+                                    <div className="dsr-table-wrapper">
+                                        <table className="dsr-table">
+                                            <thead>
+                                                <tr>
+                                                    <th>Doc No</th>
+                                                    <th>Time</th>
+                                                    <th>Collector</th>
+                                                    <th>Secret Code</th>
+                                                    <th>Mode / Banking</th>
+                                                    <th style={{ textAlign: 'right' }}>Collected Amount</th>
+                                                    <th style={{ textAlign: 'right' }}>Remaining Balance</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {data.branch_collections.map((col, cIdx) => (
+                                                    <tr key={col.name || cIdx}>
+                                                        <td>
+                                                            <span className="font-bold text-slate-800">{col.name}</span>
+                                                        </td>
+                                                        <td>{col.posting_time || '-'}</td>
+                                                        <td>
+                                                            <b>{col.collector_name || col.employee || '-'}</b>
+                                                        </td>
+                                                        <td>
+                                                            <span style={{ fontFamily: 'monospace', background: '#f1f5f9', padding: '2px 6px', borderRadius: '4px', fontWeight: 700 }}>
+                                                                {col.secret_code || '-'}
+                                                            </span>
+                                                        </td>
+                                                        <td>
+                                                            {col.collection_type === 'Bank Transfer' ? (
+                                                                <span style={{ color: '#0284c7', fontWeight: 700 }}>
+                                                                    Bank: {col.banking_reference || col.bank_account || 'Transfer'}
+                                                                </span>
+                                                            ) : (
+                                                                <span style={{ color: '#059669', fontWeight: 700 }}>Cash</span>
+                                                            )}
+                                                        </td>
+                                                        <td style={{ textAlign: 'right', fontFamily: 'monospace', fontWeight: 900, color: '#059669' }}>
+                                                            AED {parseFloat(col.amount || 0).toFixed(2)}
+                                                        </td>
+                                                        <td style={{ textAlign: 'right', fontFamily: 'monospace', fontWeight: 700, color: '#475569' }}>
+                                                            AED {parseFloat(col.remaining_balance || 0).toFixed(2)}
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
                     </div>
                 )}
             </main>
@@ -1326,6 +1422,11 @@ function DailySalesReport() {
                                         <span className="col-title">branch transfers</span>
                                         <span className="col-qty">{branchTransfersCount || 0}</span>
                                         <span className="col-val">{branchTransfersAmount ? (branchTransfersAmount % 1 === 0 ? branchTransfersAmount.toFixed(0) : branchTransfersAmount.toFixed(2)) : '0'}</span>
+                                    </div>
+                                    <div className="thermal-row-3col">
+                                        <span className="col-title">branch collections</span>
+                                        <span className="col-qty">{branchCollectionsCount || 0}</span>
+                                        <span className="col-val">{branchCollectionsAmount ? (branchCollectionsAmount % 1 === 0 ? branchCollectionsAmount.toFixed(0) : branchCollectionsAmount.toFixed(2)) : '0'}</span>
                                     </div>
                                     <div className="thermal-row-3col">
                                         <span className="col-title">10% Above Discount</span>

@@ -61,6 +61,7 @@ import PosProfileList from './PosProfileList';
 import PosOpeningentryList from './PosOpeningentryList';
 import PosClosingEntryList from './PosClosingEntryList';
 import ClosingEntry from '../OpeningEntry/ClosingEntry';
+import ClosingCollection from '../Collection/ClosingCollection';
 import InvoiceList from '../Headers/InvoiceList';
 import InterBranchTransferList from './InterBranchTransferList';
 import InterBranchTransferDetails from './InterBranchTransferDetails';
@@ -115,6 +116,7 @@ const routeMap = {
   'Opening Entry': { icon: Lock },
   'Closing Entry List': { icon: FileText },
   'New Closing Entry': { icon: Monitor },
+  'Closing Collection': { icon: Receipt },
   'POS Invoices': { icon: Receipt },
 
   'Inter-Branch Requests': { icon: ArrowRightLeft },
@@ -272,7 +274,7 @@ function Dashboard() {
       icon: Monitor,
       colorClass: 'icon-pos',
       cardClass: 'card-pos',
-      items: ['POS Profile', 'Opening Entry', 'Closing Entry List'],
+      items: ['POS Profile', 'Opening Entry', 'Closing Entry List', 'Closing Collection'],
     },
     {
       title: 'Reports',
@@ -344,6 +346,8 @@ function Dashboard() {
         return <PosClosingEntryList />;
       case 'New Closing Entry':
         return <ClosingEntry />;
+      case 'Closing Collection':
+        return <ClosingCollection />;
       case 'POS Invoices':
         return <InvoiceList />;
       case 'Inter-Branch Requests':

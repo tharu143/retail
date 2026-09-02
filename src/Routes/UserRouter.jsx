@@ -63,6 +63,7 @@ import ProductBundleList from '../Components/Admin/ProductBundleList'
 import SidebarLayout from '../Components/Nav/SidebarLayout'
 import DriverDashboardPage from '../Pages/DriverDashboardPage'
 import DocumentationPage from '../Components/Admin/DocumentationPage'
+import ClosingCollectionPage from '../Pages/ClosingCollectionPage'
 
 function UserRouter() {
   const location = useLocation();
@@ -329,6 +330,8 @@ function UserRouter() {
 
             <Route element={<SidebarLayout />}>
             <Route path='closingentry' element={<ClosingEntryPage />} />
+            <Route path='closingcollection' element={<ClosingCollectionPage />} />
+            <Route path='closing-collection' element={<ClosingCollectionPage />} />
             <Route path='invoicelist' element={<InvoiceListPage />} />
             <Route path='purchaseorder' element={<PurchaseOrderPage />} />
             <Route path='purchaseorderlist' element={<PurchaseOrderListPage />} />
