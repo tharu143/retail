@@ -7,7 +7,7 @@ import {
     RefreshCw, Trash2, Settings as SettingsIcon,
     Palette, ShieldAlert, Cpu, HardDrive, 
     CheckCircle2, ChevronRight, LayoutDashboard,
-    RotateCcw, Award, Truck
+    RotateCcw, Award, Truck, Package
 } from 'lucide-react';
 import { db } from '../../db';
 import { useNavigate } from 'react-router-dom';
@@ -193,6 +193,12 @@ const Settings = () => {
         }
     };
 
+    // Base UOM Filter Settings (Packing UOMs Only)
+    const [filterPackingUomsOnly, setFilterPackingUomsOnly] = useState(() => {
+        const saved = localStorage.getItem('uom_filter_packing_only');
+        return saved !== null ? saved === 'true' : true;
+    });
+
     const handleSave = () => {
         if (!selectedWarehouse) {
             Swal.fire({
@@ -207,10 +213,12 @@ const Settings = () => {
         dispatch(updateActiveWarehouse(selectedWarehouse));
         handleSaveLoyaltySettings();
         handleSavePurchaseWorkflow();
+        localStorage.setItem('uom_filter_packing_only', filterPackingUomsOnly ? 'true' : 'false');
+        window.dispatchEvent(new Event('uom_setting_changed'));
         Swal.fire({
             icon: 'success',
             title: 'Settings Applied',
-            text: 'Terminal configuration and purchase stock workflow updated.',
+            text: 'Terminal configuration, UOM filter, and purchase stock workflow updated.',
             timer: 2000,
             showConfirmButton: false
         });
@@ -509,6 +517,75 @@ const Settings = () => {
                             </div>
                         </div>
 
+                        {/* Base UOM Master Filter Card */}
+                        <div className="so-table-card" style={{ padding: '1.5rem', border: `1.5px solid ${filterPackingUomsOnly ? '#10b98130' : '#e2e8f0'}` }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                    <div style={{ background: filterPackingUomsOnly ? '#10b98115' : '#64748b15', color: filterPackingUomsOnly ? '#10b981' : '#64748b', padding: '8px', borderRadius: '10px' }}>
+                                        <Package size={20} />
+                                    </div>
+                                    <div>
+                                        <h3 style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--so-text-heading)', margin: 0 }}>Base UOM Filter (Packing UOMs)</h3>
+                                        <p style={{ fontSize: '0.7rem', color: 'var(--so-text-muted)', margin: 0 }}>Control active unit options in Item Master creation form (Nos, Box, etc.).</p>
+                                    </div>
+                                </div>
+                                <span style={{ fontSize: '0.65rem', fontWeight: 900, color: filterPackingUomsOnly ? '#059669' : '#64748b', background: filterPackingUomsOnly ? '#ecfdf5' : '#f1f5f9', padding: '4px 10px', borderRadius: '6px', textTransform: 'uppercase', border: `1px solid ${filterPackingUomsOnly ? '#a7f3d0' : '#cbd5e1'}` }}>
+                                    {filterPackingUomsOnly ? 'Packing UOMs Only' : 'All UOMs Enabled'}
+                                </span>
+                            </div>
+
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem' }}>
+                                <div
+                                    onClick={() => setFilterPackingUomsOnly(true)}
+                                    style={{
+                                        border: `2px solid ${filterPackingUomsOnly ? '#10b981' : '#e2e8f0'}`,
+                                        background: filterPackingUomsOnly ? '#f0fdf4' : '#ffffff',
+                                        borderRadius: '0.75rem',
+                                        padding: '1rem',
+                                        cursor: 'pointer',
+                                        transition: 'all 0.2s'
+                                    }}
+                                >
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                                        <span style={{ fontSize: '0.8rem', fontWeight: 900, color: filterPackingUomsOnly ? '#047857' : '#334155' }}>
+                                            Packing UOMs Only
+                                        </span>
+                                        {filterPackingUomsOnly && <CheckCircle2 size={16} color="#10b981" />}
+                                    </div>
+                                    <p style={{ fontSize: '0.68rem', fontWeight: 700, color: '#475569', margin: 0, marginBottom: '6px' }}>
+                                        Nos, Box, Pcs, Pkt, Carton, Set, Pack, etc.
+                                    </p>
+                                    <p style={{ fontSize: '0.63rem', color: '#64748b', margin: 0, lineHeight: 1.3 }}>
+                                        Restricts Base UOM dropdown to packing units. Non-packing units are disabled/hidden.
+                                    </p>
+                                </div>
+
+                                <div
+                                    onClick={() => setFilterPackingUomsOnly(false)}
+                                    style={{
+                                        border: `2px solid ${!filterPackingUomsOnly ? '#3b82f6' : '#e2e8f0'}`,
+                                        background: !filterPackingUomsOnly ? '#eff6ff' : '#ffffff',
+                                        borderRadius: '0.75rem',
+                                        padding: '1rem',
+                                        cursor: 'pointer',
+                                        transition: 'all 0.2s'
+                                    }}
+                                >
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                                        <span style={{ fontSize: '0.8rem', fontWeight: 900, color: !filterPackingUomsOnly ? '#1d4ed8' : '#334155' }}>
+                                            Show All UOMs
+                                        </span>
+                                        {!filterPackingUomsOnly && <CheckCircle2 size={16} color="#3b82f6" />}
+                                    </div>
+                                    <p style={{ fontSize: '0.68rem', fontWeight: 700, color: '#475569', margin: 0, marginBottom: '6px' }}>
+                                        All registered system UOMs active
+                                    </p>
+                                    <p style={{ fontSize: '0.63rem', color: '#64748b', margin: 0, lineHeight: 1.3 }}>
+                                        Displays all unit measurements in Base UOM field without filtering.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
 
                         {/* Keyboard Shortcuts Customization Card */}
                         <div className="so-table-card" style={{ padding: '1.5rem' }}>

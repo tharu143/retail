@@ -749,7 +749,14 @@ const ItemDetails = () => {
                     <tbody>
                       {priceData?.prices?.length > 0 ? priceData.prices.map((p, i) => (
                         <tr key={i} style={{ borderBottom: `1px solid ${T.borderLight}` }}>
-                          <td style={{ padding: '13px 18px', fontWeight: 600 }}>{p.price_list}</td>
+                          <td style={{ padding: '13px 18px', fontWeight: 600 }}>
+                          {p.price_list}
+                          {(p.selling === 1 || p.buying === 1) && (
+                            <div style={{ fontSize: '10px', color: '#64748b', marginTop: '4px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                              {[p.selling ? 'Selling' : null, p.buying ? 'Buying' : null].filter(Boolean).join(' & ')}
+                            </div>
+                          )}
+                        </td>
                           <td style={{ padding: '13px 18px' }}><span style={{ fontSize: 11, background: T.bg, padding: '4px 8px', borderRadius: 6, color: T.textSub, fontWeight: 600 }}>{p.uom}</span></td>
                           <td style={{ padding: '13px 18px', textAlign: 'right', fontWeight: 700, fontSize: 14 }}>{Number(p.price_list_rate || 0).toFixed(2)}</td>
                         </tr>

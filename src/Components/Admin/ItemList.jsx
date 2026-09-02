@@ -571,6 +571,54 @@ export default function ItemList() {
   const [itemGroups, setItemGroups] = useState([]);
   const [brands, setBrands] = useState([]);
   const [uoms, setUoms] = useState([]);
+  const [onlyPackingUoms, setOnlyPackingUoms] = useState(() => {
+    const saved = localStorage.getItem('uom_filter_packing_only');
+    return saved !== null ? saved === 'true' : true;
+  });
+
+  useEffect(() => {
+    const handleUomSettingChanged = () => {
+      const saved = localStorage.getItem('uom_filter_packing_only');
+      setOnlyPackingUoms(saved !== null ? saved === 'true' : true);
+    };
+    window.addEventListener('uom_setting_changed', handleUomSettingChanged);
+    return () => window.removeEventListener('uom_setting_changed', handleUomSettingChanged);
+  }, []);
+
+  const isPackingUom = (uomValue) => {
+    if (!uomValue) return false;
+    const val = String(uomValue).trim().toLowerCase();
+    const packingKeywords = [
+      'nos', 'no', 'box', 'boxes', 'pcs', 'piece', 'pieces', 'pkt', 'packet', 'packets',
+      'ctn', 'carton', 'cartons', 'doz', 'dozen', 'set', 'sets', 'pack', 'packs',
+      'pair', 'pairs', 'bag', 'bags', 'bundle', 'bundles', 'roll', 'rolls',
+      'bottle', 'bottles', 'can', 'cans', 'jar', 'jars', 'tin', 'tins', 'strip', 'strips',
+      'unit', 'units', 'case', 'cases', 'crate', 'crates', 'bale', 'bales'
+    ];
+    return packingKeywords.some(k => val === k || val === `${k}.` || val.startsWith(`${k} `) || val.endsWith(` ${k}`));
+  };
+
+  const baseUomOptions = useMemo(() => {
+    if (!onlyPackingUoms) return uoms;
+    const filtered = uoms.filter(u => isPackingUom(u.value) || isPackingUom(u.label) || u.value === form.default_uom);
+    const defaultPacking = [
+      { label: 'Nos', value: 'Nos' },
+      { label: 'Box', value: 'Box' },
+      { label: 'Pcs', value: 'Pcs' },
+      { label: 'Pkt', value: 'Pkt' },
+      { label: 'Carton', value: 'Carton' },
+      { label: 'Set', value: 'Set' },
+      { label: 'Pack', value: 'Pack' },
+      { label: 'Dozen', value: 'Dozen' }
+    ];
+    const merged = [...filtered];
+    defaultPacking.forEach(dp => {
+      if (!merged.some(m => String(m.value).toLowerCase() === dp.value.toLowerCase())) {
+        merged.push(dp);
+      }
+    });
+    return merged;
+  }, [uoms, onlyPackingUoms, form.default_uom]);
   const [countries, setCountries] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
   const [availableAttributes, setAvailableAttributes] = useState([]);
@@ -2908,6 +2956,35 @@ export default function ItemList() {
             {/* ===== EDIT/CREATE FORM ===== */}
             {!isViewMode && (
               <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 16 }}>
+                {/* Barcodes */}
+                <CardSection title="Barcodes" icon={<Barcode size={14} />}
+                  action={
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <button className="il-btn il-btn-secondary" style={{ padding: '5px 10px', fontSize: 12 }} onClick={() => setShowCameraScanner(true)}><Camera size={12} />Camera</button>
+                      <button className="il-btn il-btn-secondary" style={{ padding: '5px 10px', fontSize: 12, color: isScanning ? T.blue : T.textSub, borderColor: isScanning ? T.blue : T.border }} onClick={() => setIsScanning(s => !s)}>
+                        {isScanning ? '● Scanning' : 'HW Scan'}
+                      </button>
+                    </div>
+                  }
+                >
+                  <div style={{ padding: '14px 16px' }}>
+                    <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+                      <input ref={barcodeInputRef} className="il-input" style={{ flex: 1 }} value={barcodeInput} onChange={e => setBarcodeInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && addBarcode(barcodeInput)} placeholder="Type barcode and press Enter..." />
+                      <button className="il-btn il-btn-primary" onClick={() => addBarcode(barcodeInput)}>Add</button>
+                    </div>
+                    {barcodes.length > 0 && (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                        {barcodes.map((b, i) => (
+                          <span key={i} className="il-chip">
+                            {b.barcode}<span style={{ color: T.textMuted }}>·{b.uom}</span>
+                            <button onClick={() => setBarcodes(p => p.filter((_, idx) => idx !== i))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.red, display: 'flex', padding: 0, marginLeft: 2 }}><X size={11} /></button>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </CardSection>
+
                 {/* Specifications */}
                 <CardSection title="Specifications" icon={<Package size={14} />}>
                   <div style={{ padding: 20 }}>
@@ -3012,7 +3089,7 @@ export default function ItemList() {
                         <SearchableSelect
                           label="Base UOM"
                           value={form.default_uom}
-                          options={uoms}
+                          options={baseUomOptions}
                           required
                           placeholder="Select UOM"
                           onChange={val => setForm({ ...form, default_uom: val })}
@@ -3724,35 +3801,6 @@ export default function ItemList() {
                     </div>
                   </CardSection>
                 )}
-
-                {/* Barcodes */}
-                <CardSection title="Barcodes" icon={<Barcode size={14} />}
-                  action={
-                    <div style={{ display: 'flex', gap: 6 }}>
-                      <button className="il-btn il-btn-secondary" style={{ padding: '5px 10px', fontSize: 12 }} onClick={() => setShowCameraScanner(true)}><Camera size={12} />Camera</button>
-                      <button className="il-btn il-btn-secondary" style={{ padding: '5px 10px', fontSize: 12, color: isScanning ? T.blue : T.textSub, borderColor: isScanning ? T.blue : T.border }} onClick={() => setIsScanning(s => !s)}>
-                        {isScanning ? '● Scanning' : 'HW Scan'}
-                      </button>
-                    </div>
-                  }
-                >
-                  <div style={{ padding: '14px 16px' }}>
-                    <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
-                      <input ref={barcodeInputRef} className="il-input" style={{ flex: 1 }} value={barcodeInput} onChange={e => setBarcodeInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && addBarcode(barcodeInput)} placeholder="Type barcode and press Enter..." />
-                      <button className="il-btn il-btn-primary" onClick={() => addBarcode(barcodeInput)}>Add</button>
-                    </div>
-                    {barcodes.length > 0 && (
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                        {barcodes.map((b, i) => (
-                          <span key={i} className="il-chip">
-                            {b.barcode}<span style={{ color: T.textMuted }}>·{b.uom}</span>
-                            <button onClick={() => setBarcodes(p => p.filter((_, idx) => idx !== i))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.red, display: 'flex', padding: 0, marginLeft: 2 }}><X size={11} /></button>
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </CardSection>
 
                 {/* UOM + Suppliers */}
                 <div className="il-form-grid-2">

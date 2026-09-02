@@ -34,7 +34,7 @@ const DEFAULT_PI_COLUMNS = [
   { id: 'custom_pieces_per_box', label: 'Pcs/Box', visible: true, width: 90 },
   { id: 'custom_box_price', label: 'Box Price', visible: true, width: 90 },
   { id: 'rate', label: 'Rate (Nos)', visible: true, width: 90 },
-  { id: 'discount_amount', label: 'Disc Amt', visible: true, width: 90 },
+  { id: 'discount_amount', label: 'Disc Amt (%)', visible: true, width: 90 },
   { id: 'custom_selling_price', label: 'Selling Price (Nos)', visible: true, width: 100 },
   { id: 'custom_box_selling_price', label: 'Selling Price (Box)', visible: true, width: 100 },
   { id: 'qty', label: 'Total Qty', visible: true, width: 90 },
@@ -433,7 +433,7 @@ function PurchaseInvoiceList() {
             paymentTerms = suppRes.data.message.payment_terms || paymentTerms;
             creditDays = suppRes.data.message.credit_days || 0;
           }
-        } catch (e) {}
+        } catch (e) { }
       }
       if (!creditDays && paymentTerms) {
         creditDays = parseCreditDays(paymentTerms);
@@ -526,12 +526,19 @@ function PurchaseInvoiceList() {
 
       // Update metrics in formData for UI logic
       if (details.per_received !== undefined || details.per_billed !== undefined) {
-        setFormData(prev => ({
-          ...prev,
-          per_received: details.per_received ?? prev.per_received,
-          per_billed: details.per_billed ?? prev.per_billed,
-          grand_total: details.grand_total ?? prev.grand_total
-        }));
+        setFormData(prev => {
+          const updated = {
+            ...prev,
+            per_received: details.per_received ?? prev.per_received,
+            per_billed: details.per_billed ?? prev.per_billed,
+            grand_total: details.grand_total ?? prev.grand_total
+          };
+          // Only update lastSavedData if it's already set (meaning we are not in the middle of editing a new unsaved doc)
+          if (targetName) {
+            setLastSavedData(JSON.stringify(updated));
+          }
+          return updated;
+        });
       }
     } catch (err) { console.error("Workflow fetch failed", err); }
   }, [docName]);
@@ -635,7 +642,7 @@ function PurchaseInvoiceList() {
       const success = rawMsg.success || rawMsg.status === 'success';
 
       if (success) {
-        setLastSavedData(JSON.stringify(payload)); // Update base for dirty check after save
+        setLastSavedData(JSON.stringify(formData)); // Update base for dirty check after save
         Swal.fire({
           icon: 'success',
           title: `${action === 'save' ? 'Draft Saved' : action === 'submit' ? 'Invoice Submitted' : action.toUpperCase() + ' Successful'}`,
@@ -648,6 +655,12 @@ function PurchaseInvoiceList() {
         if (action === 'delete') {
           closeModal();
           fetchInvoices();
+          return;
+        }
+
+        if (action === 'submit') {
+          fetchInvoices();
+          setSearchParams({ name: 'new' }, { replace: true });
           return;
         }
 
@@ -732,9 +745,9 @@ function PurchaseInvoiceList() {
             let items = [...prev.items];
             const isBoxScan = (item.scanned_uom || item.uom || '').toLowerCase() === 'box';
             const pcsPerBox = parseFloat(item.custom_pcs_per_box || item.custom_pieces_per_box || 12);
-            
+
             // Check if item already exists in table
-            const existingIdx = items.findIndex(i => 
+            const existingIdx = items.findIndex(i =>
               i.item_code === item.item_code && (isBoxScan ? i.use_box_entry : !i.use_box_entry)
             );
 
@@ -1084,19 +1097,19 @@ function PurchaseInvoiceList() {
             rate: i.rate || 0,
             amount: i.amount || 0,
             discount_percentage: i.discount_percentage !== undefined && i.discount_percentage !== null ? parseFloat(i.discount_percentage) : 0,
-            discount_amount: i.discount_amount !== undefined && i.discount_amount !== null 
+            discount_amount: i.discount_amount !== undefined && i.discount_amount !== null
               ? (() => {
-                  const calc = parseFloat(i.discount_amount) * (parseFloat(i.qty) || 1);
-                  return Math.abs(calc - Math.round(calc)) < 0.05 ? Math.round(calc) : parseFloat(calc.toFixed(2));
-                })()
+                const calc = parseFloat(i.discount_amount) * (parseFloat(i.qty) || 1);
+                return Math.abs(calc - Math.round(calc)) < 0.05 ? Math.round(calc) : parseFloat(calc.toFixed(2));
+              })()
               : 0,
             custom_box_qty: parseFloat(i.custom_box_qty || 0),
             custom_pieces_per_box: parseFloat(i.custom_pieces_per_box || 1),
             default_pieces_per_box: parseFloat(i.custom_pieces_per_box || 1),
             custom_box_price: parseFloat(i.custom_box_price || 0),
             custom_selling_price: parseFloat(i.custom_selling_price || 0),
-            custom_box_selling_price: parseFloat(i.custom_box_selling_price || 0) > 0 
-              ? parseFloat(i.custom_box_selling_price) 
+            custom_box_selling_price: parseFloat(i.custom_box_selling_price || 0) > 0
+              ? parseFloat(i.custom_box_selling_price)
               : ((parseFloat(i.custom_selling_price || 0) * (parseFloat(i.custom_pieces_per_box) || 1)) || 0),
             custom_supplier_sl_no: i.custom_ref_sl_no || i.custom_supplier_sl_num || '',
             custom_ref_sl_no: i.custom_ref_sl_no || i.custom_supplier_sl_num || '',
@@ -1196,6 +1209,7 @@ function PurchaseInvoiceList() {
         }
 
         setFormData(mapped);
+        setLastSavedData(JSON.stringify(mapped)); // FIX: Set lastSavedData to prevent isDirty from being true on load
         setSearchSupplier(d.supplier_name || d.supplier);
         setDocName(d.name);
         setDocStatus(parseInt(d.docstatus) || 0); // Store docstatus
@@ -1318,7 +1332,7 @@ function PurchaseInvoiceList() {
           '<p style="margin: 5px 0 0; font-size: 0.9rem; font-weight: 900; color: #1e293b;">' + (formData.supplier_name || formData.supplier) + '</p>' +
           '<div style="margin-top: 10px; padding-top: 10px; border-top: 1px dashed #cbd5e1; display: flex; justify-content: space-between; align-items: center;">' +
           '<span style="font-size: 0.75rem; font-weight: 700; color: #64748b;">Outstanding:</span>' +
-          '<span style="font-size: 1rem; font-weight: 900; color: #10b981; display: inline-flex; align-items: center; gap: 3px;"><svg viewBox=\"0 0 344.84 299.91\" style=\"width: 14px; height: 12px; display: inline-block; fill: currentColor; margin-right: 2px;\"><path d=\"M342.14,140.96l2.7,2.54v-7.72c0-17-11.92-30.84-26.56-30.84h-23.41C278.49,36.7,222.69,0,139.68,0c-52.86,0-59.65,0-109.71,0,0,0,15.03,12.63,15.03,52.4v52.58h-27.68c-5.38,0-10.43-2.08-14.61-6.01l-2.7-2.54v7.72c0,17.01,11.92,30.84,26.56,30.84h18.44s0,29.99,0,29.99h-27.68c-5.38,0-10.43-2.07-14.61-6.01l-2.7-2.54v7.71c0,17,11.92,30.82,26.56,30.82h18.44s0,54.89,0,54.89c0,38.65-15.03,50.06-15.03,50.06h109.71c85.62,0,139.64-36.96,155.38-104.98h32.46c5.38,0,10.43,2.07,14.61,6l2.7,2.54v-7.71c0-17-11.92-30.83-26.56-30.83h-18.9c.32-4.88.49-9.87.49-15s-.18-10.11-.51-14.99h28.17c5.37,0,10.43,2.07,14.61,6.01ZM89.96,15.01h45.86c61.7,0,97.44,27.33,108.1,89.94l-153.96.02V15.01ZM136.21,284.93h-46.26v-89.98l153.87-.02c-9.97,56.66-42.07,88.38-107.61,90ZM247.34,149.96c0,5.13-.11,10.13-.34,14.99l-157.04.02v-29.99l157.05-.02c.22,4.84.33,9.83.33,15Z\"/></svg> ' + (parseFloat(formData.outstanding_amount !== undefined ? formData.outstanding_amount : formData.grand_total) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 }) + '</span>' +
+          '<span style="font-size: 1rem; font-weight: 900; color: #10b981; display: inline-flex; align-items: center; gap: 3px;"><svg viewBox="0 0 344.84 299.91" style="width: 14px; height: 12px; display: inline-block; fill: currentColor; margin-right: 2px;"><path d="M342.14,140.96l2.7,2.54v-7.72c0-17-11.92-30.84-26.56-30.84h-23.41C278.49,36.7,222.69,0,139.68,0c-52.86,0-59.65,0-109.71,0,0,0,15.03,12.63,15.03,52.4v52.58h-27.68c-5.38,0-10.43-2.08-14.61-6.01l-2.7-2.54v7.72c0,17.01,11.92,30.84,26.56,30.84h18.44s0,29.99,0,29.99h-27.68c-5.38,0-10.43-2.07-14.61-6.01l-2.7-2.54v7.71c0,17,11.92,30.82,26.56,30.82h18.44s0,54.89,0,54.89c0,38.65-15.03,50.06-15.03,50.06h109.71c85.62,0,139.64-36.96,155.38-104.98h32.46c5.38,0,10.43,2.07,14.61,6l2.7,2.54v-7.71c0-17-11.92-30.83-26.56-30.83h-18.9c.32-4.88.49-9.87.49-15s-.18-10.11-.51-14.99h28.17c5.37,0,10.43,2.07,14.61,6.01ZM89.96,15.01h45.86c61.7,0,97.44,27.33,108.1,89.94l-153.96.02V15.01ZM136.21,284.93h-46.26v-89.98l153.87-.02c-9.97,56.66-42.07,88.38-107.61,90ZM247.34,149.96c0,5.13-.11,10.13-.34,14.99l-157.04.02v-29.99l157.05-.02c.22,4.84.33,9.83.33,15Z"/></svg> ' + (parseFloat(formData.outstanding_amount !== undefined ? formData.outstanding_amount : formData.grand_total) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 }) + '</span>' +
           '</div>' +
           '</div>' +
           '<div style="text-align: left; margin-bottom: 20px;">' +
@@ -1334,8 +1348,8 @@ function PurchaseInvoiceList() {
           '<input id="swal-post-date" type="date" class="swal2-input" style="margin: 0; width: 100%;" value="' + new Date().toISOString().split('T')[0] + '">' +
           '</div>' +
           '<div style="text-align: left; margin-bottom: 20px;">' +
-          '<label style="font-size: 0.8rem; font-weight: bold; display: flex; align-items: center; gap: 4px; margin-bottom: 5px;">Amount to Pay <svg viewBox=\"0 0 344.84 299.91\" style=\"width: 12px; height: 10px; display: inline-block; fill: currentColor;\"><path d=\"M342.14,140.96l2.7,2.54v-7.72c0-17-11.92-30.84-26.56-30.84h-23.41C278.49,36.7,222.69,0,139.68,0c-52.86,0-59.65,0-109.71,0,0,0,15.03,12.63,15.03,52.4v52.58h-27.68c-5.38,0-10.43-2.08-14.61-6.01l-2.7-2.54v7.72c0,17.01,11.92,30.84,26.56,30.84h18.44s0,29.99,0,29.99h-27.68c-5.38,0-10.43-2.07-14.61-6.01l-2.7-2.54v7.71c0,17,11.92,30.82,26.56,30.82h18.44s0,54.89,0,54.89c0,38.65-15.03,50.06-15.03,50.06h109.71c85.62,0,139.64-36.96,155.38-104.98h32.46c5.38,0,10.43,2.07,14.61,6l2.7,2.54v-7.71c0-17-11.92-30.83-26.56-30.83h-18.9c.32-4.88.49-9.87.49-15s-.18-10.11-.51-14.99h28.17c5.37,0,10.43,2.07,14.61,6.01ZM89.96,15.01h45.86c61.7,0,97.44,27.33,108.1,89.94l-153.96.02V15.01ZM136.21,284.93h-46.26v-89.98l153.87-.02c-9.97,56.66-42.07,88.38-107.61,90ZM247.34,149.96c0,5.13-.11,10.13-.34,14.99l-157.04.02v-29.99l157.05-.02c.22,4.84.33,9.83.33,15Z\"/></svg></label>' +
-          '<input id="swal-amount" type="number" class="swal2-input" style="margin: 0; width: 100%;" value="' + (parseFloat(formData.outstanding_amount !== undefined ? formData.outstanding_amount : formData.grand_total) || 0).toFixed(2) + '">' +
+          '<label style="font-size: 0.8rem; font-weight: bold; display: flex; align-items: center; gap: 4px; margin-bottom: 5px;">Amount to Pay <svg viewBox="0 0 344.84 299.91" style="width: 12px; height: 10px; display: inline-block; fill: currentColor;"><path d="M342.14,140.96l2.7,2.54v-7.72c0-17-11.92-30.84-26.56-30.84h-23.41C278.49,36.7,222.69,0,139.68,0c-52.86,0-59.65,0-109.71,0,0,0,15.03,12.63,15.03,52.4v52.58h-27.68c-5.38,0-10.43-2.08-14.61-6.01l-2.7-2.54v7.72c0,17.01,11.92,30.84,26.56,30.84h18.44s0,29.99,0,29.99h-27.68c-5.38,0-10.43-2.07-14.61-6.01l-2.7-2.54v7.71c0,17,11.92,30.82,26.56,30.82h18.44s0,54.89,0,54.89c0,38.65-15.03,50.06-15.03,50.06h109.71c85.62,0,139.64-36.96,155.38-104.98h32.46c5.38,0,10.43,2.07,14.61,6l2.7,2.54v-7.71c0-17-11.92-30.83-26.56-30.83h-18.9c.32-4.88.49-9.87.49-15s-.18-10.11-.51-14.99h28.17c5.37,0,10.43,2.07,14.61,6.01ZM89.96,15.01h45.86c61.7,0,97.44,27.33,108.1,89.94l-153.96.02V15.01ZM136.21,284.93h-46.26v-89.98l153.87-.02c-9.97,56.66-42.07,88.38-107.61,90ZM247.34,149.96c0,5.13-.11,10.13-.34,14.99l-157.04.02v-29.99l157.05-.02c.22,4.84.33,9.83.33,15Z"/></svg></label>' +
+          '<input id="swal-amount" type="text" inputMode="decimal" class="swal2-input" style="margin: 0; width: 100%;" value="' + (parseFloat(formData.outstanding_amount !== undefined ? formData.outstanding_amount : formData.grand_total) || 0).toFixed(2) + '">' +
           '</div>' +
           '<div id="ref-fields-container" style="display: none;">' +
           '<div style="text-align: left; margin-bottom: 20px;">' +
@@ -1797,9 +1811,9 @@ function PurchaseInvoiceList() {
     setFormData(prev => {
       let items = [...prev.items];
       const isBoxScan = (item.scanned_uom || item.uom || '').toLowerCase() === 'box';
-      existingIdx = items.findIndex((i, idx) => 
-        idx !== rowIndex && 
-        i.item_code === item.item_code && 
+      existingIdx = items.findIndex((i, idx) =>
+        idx !== rowIndex &&
+        i.item_code === item.item_code &&
         (isBoxScan ? i.use_box_entry : !i.use_box_entry)
       );
       const pcsPerBox = parseFloat(item.custom_pcs_per_box || item.custom_pieces_per_box || 12);
@@ -1886,14 +1900,24 @@ function PurchaseInvoiceList() {
       console.log("No buying rate found");
     }
 
-    // Auto-focus the custom_ref_sl_no field of the selected item row
+    // Auto-focus the item search / item name field of the selected item row
     setTimeout(() => {
-      const rowNum = rowIndex + 1;
-      const targetInput = document.querySelector(`table.purchase-table tbody tr:nth-child(${rowNum}) input[name="custom_ref_sl_no"]`);
-      if (targetInput) {
-        targetInput.focus();
-        targetInput.select?.();
-      }
+      setFormData(currentForm => {
+        const targetIdx = currentForm.items.findIndex(it => it && it.item_code === item.item_code);
+        if (targetIdx !== -1) {
+          const rowNum = targetIdx + 1;
+          const targetInput = document.querySelector(`table.purchase-table tbody tr:nth-child(${rowNum}) input[placeholder*="Search item"]`) ||
+            document.querySelector(`table.classic-table tbody tr:nth-child(${rowNum}) input[placeholder*="Search item"]`) ||
+            document.querySelector(`table tbody tr:nth-child(${rowNum}) input[placeholder*="Search item"]`) ||
+            document.querySelector(`table tbody tr:nth-child(${rowNum}) td:nth-child(2) input`) ||
+            document.querySelector(`table tbody tr:nth-child(${rowNum}) input`);
+          if (targetInput) {
+            targetInput.focus();
+            targetInput.select?.();
+          }
+        }
+        return currentForm;
+      });
     }, 150);
   };
 
@@ -2036,6 +2060,13 @@ function PurchaseInvoiceList() {
     }
 
     if (Object.keys(errors).length > 0) {
+      if (errors.supplier) {
+        Swal.fire({
+          icon: 'warning',
+          title: 'Supplier Required',
+          text: 'Please choose supplier',
+        });
+      }
       setFormErrors(errors);
       return;
     }
@@ -2110,6 +2141,13 @@ function PurchaseInvoiceList() {
     if (formData.items.filter(i => i.item_code && i.qty > 0).length === 0) errors.items = 'Add at least one item';
     if (formData.update_stock && !formData.accepted_warehouse) errors.accepted_warehouse = 'Accepted Warehouse is required';
     if (Object.keys(errors).length > 0) {
+      if (errors.supplier) {
+        Swal.fire({
+          icon: 'warning',
+          title: 'Supplier Required',
+          text: 'Please choose supplier',
+        });
+      }
       setFormErrors(errors);
       return;
     }
@@ -2148,10 +2186,8 @@ function PurchaseInvoiceList() {
         timer: 2000,
         showConfirmButton: false
       });
-      setIsModalOpen(false);
-      setDocName('');
-      setDocStatus(null);
       fetchInvoices();
+      setSearchParams({ name: 'new' }, { replace: true });
     } catch (err) {
       const errMsg = err.response?.data?.message || err.response?.data?._server_messages || err.message || 'Submit failed';
       Swal.fire({
@@ -2221,7 +2257,7 @@ function PurchaseInvoiceList() {
     const prParam = searchParams.get('pr');
 
     if (nameParam === 'new') {
-      if (!isModalOpen) {
+      if (!isModalOpen || docName !== '') {
         openCreateModal();
       }
     } else if (nameParam) {
@@ -2408,15 +2444,17 @@ function PurchaseInvoiceList() {
         }
       }
 
-      // Save Draft / Update Draft
-      if (isShortcutPressed(e, 'doc_editor', 'saveDraft', 'F7') || (e.ctrlKey && (e.key.toLowerCase() === 's' || e.code === 'KeyS'))) {
+      // Save Draft / Update Draft (Alt+S, Ctrl+S, F7)
+      if (
+        (e.altKey && (e.key.toLowerCase() === 's' || e.code === 'KeyS')) ||
+        (e.ctrlKey && (e.key.toLowerCase() === 's' || e.code === 'KeyS')) ||
+        e.key === 'F7' ||
+        isShortcutPressed(e, 'doc_editor', 'saveDraft', 'F7')
+      ) {
         e.preventDefault();
+        e.stopPropagation();
         if (!saving && (formData.docstatus === 0 || formData.docstatus === undefined)) {
-          if (docName && !isDirty) {
-            handleDocAction('submit');
-          } else {
-            handleDocAction('save');
-          }
+          handleSaveDraft();
         }
       }
 
@@ -2637,7 +2675,7 @@ function PurchaseInvoiceList() {
             e.preventDefault();
             qtyBtn.click();
           } else {
-            const numInput = tr.querySelector('input[type="number"]:not([disabled])');
+            const numInput = tr.querySelector('input[type="text" inputMode="decimal"]:not([disabled])');
             if (numInput) {
               e.preventDefault();
               const currentVal = parseFloat(numInput.value) || 0;
@@ -2877,9 +2915,9 @@ function PurchaseInvoiceList() {
             )}
 
             {/* CLOSE / BACK TO LIST */}
-            <button 
+            <button
               type="button"
-              onClick={() => setIsModalOpen(false)} 
+              onClick={() => setIsModalOpen(false)}
               className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded-lg font-black text-[11px] uppercase tracking-wider flex items-center gap-1.5 cursor-pointer transition-all shadow-2xs ml-1"
             >
               <ChevronLeft size={14} />
@@ -2912,7 +2950,7 @@ function PurchaseInvoiceList() {
               <span className="so-shortcut-label" style={{ fontSize: '11px', fontWeight: 900, color: '#0f172a' }}>BULK QTY</span>
             </div>
             <div className="so-shortcut-badge" style={{ background: '#ffffff', border: '1.5px solid #cbd5e1', borderRadius: '6px', padding: '3px 7px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-              <span className="so-shortcut-key" style={{ background: '#f59e0b', color: '#fff', fontSize: '9px', fontWeight: 900, padding: '1px 5px', borderRadius: '4px' }}>F7</span>
+              <span className="so-shortcut-key" style={{ background: '#f59e0b', color: '#fff', fontSize: '9px', fontWeight: 900, padding: '1px 5px', borderRadius: '4px' }}>Alt+S</span>
               <span className="so-shortcut-label" style={{ fontSize: '11px', fontWeight: 900, color: '#0f172a' }}>SAVE DRAFT</span>
             </div>
             <div className="so-shortcut-badge" style={{ background: '#ffffff', border: '1.5px solid #cbd5e1', borderRadius: '6px', padding: '3px 7px', display: 'flex', alignItems: 'center', gap: '5px' }}>
@@ -2929,11 +2967,11 @@ function PurchaseInvoiceList() {
         {/* CLASSIC HEADER FORM: ENTRY HEADER BAR DESIGN */}
         <header className="rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-xs shrink-0 mx-2 my-1.5">
           <div className="grid grid-cols-2 items-end gap-x-4 gap-y-3 md:grid-cols-4 xl:grid-cols-[1.6fr_1.6fr_1fr_1fr_1fr_1fr_1fr_auto]">
-            
+
             {/* 1. Supplier */}
             <div className="flex min-w-0 flex-col gap-1.5 col-span-2 md:col-span-2 xl:col-span-1">
               <span className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
-                Supplier
+                Supplier Name
               </span>
               <div className="relative group w-full" ref={supplierRef}>
                 <CustomSearchDropdown
@@ -2977,11 +3015,11 @@ function PurchaseInvoiceList() {
             </div>
 
             {/* 3. Posting Date */}
-            <div 
+            <div
               onClick={(e) => {
                 const inp = e.currentTarget.querySelector('input[type="date"]');
                 if (inp && inp.showPicker) {
-                  try { inp.showPicker(); } catch (err) {}
+                  try { inp.showPicker(); } catch (err) { }
                 }
               }}
               className="flex min-w-0 flex-col gap-1.5 cursor-pointer group"
@@ -3040,11 +3078,11 @@ function PurchaseInvoiceList() {
             </div>
 
             {/* 6. Inv Date */}
-            <div 
+            <div
               onClick={(e) => {
                 const inp = e.currentTarget.querySelector('input[type="date"]');
                 if (inp && inp.showPicker) {
-                  try { inp.showPicker(); } catch (err) {}
+                  try { inp.showPicker(); } catch (err) { }
                 }
               }}
               className="flex min-w-0 flex-col gap-1.5 cursor-pointer group"
@@ -3077,14 +3115,13 @@ function PurchaseInvoiceList() {
                 Bill Amt
               </span>
               <input
-                type="number"
+                type="text" inputMode="decimal"
                 step="0.01"
                 placeholder="0.00"
                 value={formData.custom_supplier_invoice_amount || ''}
                 disabled={isViewMode}
                 onChange={e => setFormData(prev => ({ ...prev, custom_supplier_invoice_amount: e.target.value }))}
                 className="h-10 w-full min-w-0 rounded-md border border-slate-200 bg-slate-50/50 px-3 text-sm font-bold text-right tabular-nums text-emerald-600 outline-none transition-colors placeholder:font-normal placeholder:text-slate-400 focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-500/20"
-                inputMode="decimal"
                 aria-label="Bill amount"
               />
             </div>
@@ -3160,7 +3197,7 @@ function PurchaseInvoiceList() {
                     );
                   })}
                   <th style={{ width: '40px', minWidth: '40px', textAlign: 'center', padding: '8px 4px' }}>
-                    <button type="button" onClick={() => setShowColConfig(true)} className="text-slate-400 hover:text-emerald-600 cursor-pointer" title="Configure Columns">
+                    <button type="button" tabIndex={-1} onClick={() => setShowColConfig(true)} className="text-slate-400 hover:text-emerald-600 cursor-pointer" title="Configure Columns">
                       <Settings size={14} />
                     </button>
                   </th>
@@ -3173,223 +3210,223 @@ function PurchaseInvoiceList() {
                   const displayIndex = formData.items.slice(0, idx + 1).filter(it => it && it.item_code).length;
                   return (
                     <tr key={item.item_code ? `${item.item_code}-${idx}` : idx} data-row-index={idx} className="border-b border-slate-100 hover:bg-emerald-50/30 transition-colors">
-                    <td className="text-center font-bold text-slate-400 text-xs py-2 border-r border-slate-100">{displayIndex}</td>
-                    {columnConfig.filter(c => c.visible).map(col => {
-                      switch (col.id) {
-                        case 'item_code':
-                          return (
-                            <td key={col.id} className="px-2 py-1 border-r border-slate-100 align-middle">
-                              <span className="font-black text-slate-900 text-xs leading-tight">{item.item_code}</span>
-                            </td>
-                          );
-                        case 'item_name':
-                          return (
-                            <td key={col.id} className="px-2 py-1 border-r border-slate-100 align-middle">
-                              <span className="font-semibold text-slate-700 text-xs leading-tight block truncate" title={item.item_name || ''}>{item.item_name || '—'}</span>
-                            </td>
-                          );
-                        case 'barcode':
-                          return (
-                            <td key={col.id} className="px-2 py-1 border-r border-slate-100 align-middle">
-                              <input
-                                type="text"
-                                value={item.barcode || ''}
-                                onChange={(e) => updateItem(idx, "barcode", e.target.value)}
-                                disabled={isViewMode || formData.docstatus !== 0}
-                                placeholder="Barcode"
-                                className="w-full h-8 px-2 text-xs font-bold text-slate-800 bg-transparent border-none outline-none focus:bg-emerald-50/40 disabled:bg-slate-100 disabled:text-slate-500"
-                              />
-                            </td>
-                          );
-                        case 'custom_ref_sl_no':
-                          return (
-                            <td key={col.id} className="px-2 py-1 border-r border-slate-100 align-middle">
-                              <input
-                                type="text"
-                                value={item.custom_ref_sl_no || item.custom_supplier_sl_num || ''}
-                                onChange={(e) => updateItem(idx, "custom_ref_sl_no", e.target.value)}
-                                disabled={isViewMode || formData.docstatus !== 0}
-                                placeholder="Ref / SL #"
-                                className="w-full h-8 px-2 text-xs font-bold text-slate-800 bg-transparent border-none outline-none focus:bg-emerald-50/40 disabled:bg-slate-100 disabled:text-slate-500"
-                              />
-                            </td>
-                          );
-                        case 'uom':
-                          return (
-                            <td key={col.id} className="px-2 py-1 text-center border-r border-slate-100 align-middle">
-                              <select
-                                value={item.uom || 'Nos'}
-                                onChange={(e) => handleUOMChange(e.target.value, idx)}
-                                disabled={isViewMode || formData.docstatus !== 0}
-                                className="w-full h-8 px-1 text-center font-black text-xs text-slate-800 bg-transparent border-none outline-none cursor-pointer focus:bg-emerald-50/40 disabled:bg-slate-100 disabled:text-slate-500"
-                              >
-                                <option value="Nos">Nos</option>
-                                <option value="Box">Box</option>
-                              </select>
-                            </td>
-                          );
-                        case 'custom_box_qty':
-                          return (
-                            <td key={col.id} className="px-2 py-1 text-center border-r border-slate-100 align-middle">
-                              <div className="flex flex-col items-center justify-center">
+                      <td className="text-center font-bold text-slate-400 text-xs py-2 border-r border-slate-100">{displayIndex}</td>
+                      {columnConfig.filter(c => c.visible).map(col => {
+                        switch (col.id) {
+                          case 'item_code':
+                            return (
+                              <td key={col.id} className="px-2 py-1 border-r border-slate-100 align-middle">
+                                <span className="font-black text-slate-900 text-xs leading-tight">{item.item_code}</span>
+                              </td>
+                            );
+                          case 'item_name':
+                            return (
+                              <td key={col.id} className="px-2 py-1 border-r border-slate-100 align-middle">
+                                <span className="font-semibold text-slate-700 text-xs leading-tight block truncate" title={item.item_name || ''}>{item.item_name || '—'}</span>
+                              </td>
+                            );
+                          case 'barcode':
+                            return (
+                              <td key={col.id} className="px-2 py-1 border-r border-slate-100 align-middle">
                                 <input
-                                  type="number"
-                                  value={item.use_box_entry ? (item.custom_box_qty || '') : (item.qty || '')}
-                                  onChange={(e) => updateItem(idx, item.use_box_entry ? "custom_box_qty" : "qty", e.target.value)}
+                                  type="text"
+                                  value={item.barcode || ''}
+                                  onChange={(e) => updateItem(idx, "barcode", e.target.value)}
                                   disabled={isViewMode || formData.docstatus !== 0}
-                                  className="w-full h-8 text-center font-black text-xs text-slate-800 bg-transparent border-none outline-none focus:bg-emerald-50/40 disabled:bg-slate-100 disabled:text-slate-500"
+                                  placeholder="Barcode"
+                                  className="w-full h-8 px-2 text-xs font-bold text-slate-800 bg-transparent border-none outline-none focus:bg-emerald-50/40 disabled:bg-slate-100 disabled:text-slate-500"
                                 />
-                                <span className="text-[8px] font-extrabold uppercase text-slate-400 mt-0.5">{item.use_box_entry ? 'BOX' : 'NOS'}</span>
-                              </div>
-                            </td>
-                          );
-                        case 'custom_pieces_per_box':
-                          return (
-                            <td key={col.id} className="px-2 py-1 text-center font-bold text-xs text-slate-700 border-r border-slate-100 align-middle">
-                              {item.use_box_entry ? (
+                              </td>
+                            );
+                          case 'custom_ref_sl_no':
+                            return (
+                              <td key={col.id} className="px-2 py-1 border-r border-slate-100 align-middle">
                                 <input
-                                  type="number"
-                                  value={item.custom_pieces_per_box || ''}
-                                  onChange={(e) => updateItem(idx, "custom_pieces_per_box", e.target.value)}
+                                  type="text"
+                                  name="custom_ref_sl_no"
+                                  value={item.custom_ref_sl_no || item.custom_supplier_sl_num || ''}
+                                  onChange={(e) => updateItem(idx, "custom_ref_sl_no", e.target.value)}
                                   disabled={isViewMode || formData.docstatus !== 0}
-                                  className="w-full h-8 text-center font-black text-xs text-slate-800 bg-transparent border-none outline-none focus:bg-emerald-50/40 disabled:bg-slate-100 disabled:text-slate-500"
+                                  placeholder="Ref / SL #"
+                                  className="w-full h-8 px-2 text-xs font-bold text-slate-800 bg-transparent border-none outline-none focus:bg-emerald-50/40 disabled:bg-slate-100 disabled:text-slate-500"
                                 />
-                              ) : (
-                                <span className="text-slate-300">—</span>
-                              )}
-                            </td>
-                          );
-                        case 'custom_box_price':
-                          return (
-                            <td key={col.id} className="px-2 py-1 text-right font-bold text-xs text-slate-700 border-r border-slate-100 align-middle">
-                              {item.use_box_entry ? (
+                              </td>
+                            );
+                          case 'uom':
+                            return (
+                              <td key={col.id} className="px-2 py-1 text-center border-r border-slate-100 align-middle">
+                                <select
+                                  value={item.uom || 'Nos'}
+                                  onChange={(e) => handleUOMChange(e.target.value, idx)}
+                                  disabled={isViewMode || formData.docstatus !== 0}
+                                  className="w-full h-8 px-1 text-center font-black text-xs text-slate-800 bg-transparent border-none outline-none cursor-pointer transition-all focus:bg-emerald-100 focus:text-emerald-900 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 focus:outline-none disabled:bg-slate-100 disabled:text-slate-500"
+                                >
+                                  <option value="Nos">Nos</option>
+                                  <option value="Box">Box</option>
+                                </select>
+                              </td>
+                            );
+                          case 'custom_box_qty':
+                            return (
+                              <td key={col.id} className="px-2 py-1 text-center border-r border-slate-100 align-middle">
+                                <div className="flex flex-col items-center justify-center">
+                                  <input
+                                    type="text" inputMode="decimal"
+                                    value={item.use_box_entry ? (item.custom_box_qty || '') : (item.qty || '')}
+                                    onChange={(e) => updateItem(idx, item.use_box_entry ? "custom_box_qty" : "qty", e.target.value)} onBlur={(e) => updateItem(idx, item.use_box_entry ? "custom_box_qty" : "qty", e.target.value ? Number(e.target.value).toFixed(2) : "")}
+                                    disabled={isViewMode || formData.docstatus !== 0}
+                                    className="w-full h-8 text-center font-black text-xs text-slate-800 bg-transparent border-none outline-none focus:bg-emerald-50/40 disabled:bg-slate-100 disabled:text-slate-500"
+                                  />
+                                </div>
+                              </td>
+                            );
+                          case 'custom_pieces_per_box':
+                            return (
+                              <td key={col.id} className="px-2 py-1 text-center font-bold text-xs text-slate-700 border-r border-slate-100 align-middle">
+                                {item.use_box_entry ? (
+                                  <input
+                                    type="text" inputMode="decimal"
+                                    value={item.custom_pieces_per_box || ''}
+                                    onChange={(e) => updateItem(idx, "custom_pieces_per_box", e.target.value)} onBlur={(e) => updateItem(idx, "custom_pieces_per_box", e.target.value ? Number(e.target.value).toFixed(2) : "")}
+                                    disabled={isViewMode || formData.docstatus !== 0}
+                                    className="w-full h-8 text-center font-black text-xs text-slate-800 bg-transparent border-none outline-none focus:bg-emerald-50/40 disabled:bg-slate-100 disabled:text-slate-500"
+                                  />
+                                ) : (
+                                  <span className="text-slate-300">—</span>
+                                )}
+                              </td>
+                            );
+                          case 'custom_box_price':
+                            return (
+                              <td key={col.id} className="px-2 py-1 text-right font-bold text-xs text-slate-700 border-r border-slate-100 align-middle">
+                                {item.use_box_entry ? (
+                                  <input
+                                    type="text" inputMode="decimal"
+                                    value={item.custom_box_price || ''}
+                                    onChange={(e) => updateItem(idx, "custom_box_price", e.target.value)} onBlur={(e) => updateItem(idx, "custom_box_price", e.target.value ? Number(e.target.value).toFixed(2) : "")}
+                                    disabled={isViewMode || formData.docstatus !== 0}
+                                    className="w-full h-8 px-2 text-right font-black text-xs text-slate-800 bg-transparent border-none outline-none focus:bg-emerald-50/40 disabled:bg-slate-100 disabled:text-slate-500"
+                                  />
+                                ) : (
+                                  <span className="text-slate-300">—</span>
+                                )}
+                              </td>
+                            );
+                          case 'rate':
+                            return (
+                              <td key={col.id} className="px-2 py-1 text-right border-r border-slate-100 align-middle">
                                 <input
-                                  type="number"
-                                  value={item.custom_box_price || ''}
-                                  onChange={(e) => updateItem(idx, "custom_box_price", e.target.value)}
+                                  type="text" inputMode="decimal"
+                                  value={item.rate || ''}
+                                  onChange={(e) => updateItem(idx, "rate", e.target.value)} onBlur={(e) => updateItem(idx, "rate", e.target.value ? Number(e.target.value).toFixed(2) : "")}
                                   disabled={isViewMode || formData.docstatus !== 0}
                                   className="w-full h-8 px-2 text-right font-black text-xs text-slate-800 bg-transparent border-none outline-none focus:bg-emerald-50/40 disabled:bg-slate-100 disabled:text-slate-500"
                                 />
-                              ) : (
-                                <span className="text-slate-300">—</span>
-                              )}
-                            </td>
-                          );
-                        case 'rate':
-                          return (
-                            <td key={col.id} className="px-2 py-1 text-right border-r border-slate-100 align-middle">
-                              <input
-                                type="number"
-                                value={item.rate || ''}
-                                onChange={(e) => updateItem(idx, "rate", e.target.value)}
-                                disabled={isViewMode || formData.docstatus !== 0}
-                                className="w-full h-8 px-2 text-right font-black text-xs text-slate-800 bg-transparent border-none outline-none focus:bg-emerald-50/40 disabled:bg-slate-100 disabled:text-slate-500"
-                              />
-                            </td>
-                          );
-                        case 'custom_selling_price':
-                          return (
-                            <td key={col.id} className="px-2 py-1 text-right border-r border-slate-100 align-middle">
-                              <input
-                                type="number"
-                                value={item.custom_selling_price || ''}
-                                onChange={(e) => updateItem(idx, "custom_selling_price", e.target.value)}
-                                onBlur={(e) => {
-                                  const sellVal = parseFloat(e.target.value) || 0;
-                                  const rateVal = parseFloat(item.rate) || 0;
-                                  if (sellVal > 0 && rateVal > 0 && sellVal < rateVal) {
-                                    updateItem(idx, "custom_selling_price", '');
-                                    Swal.fire({
-                                      icon: 'error',
-                                      title: 'Price Restriction Warning',
-                                      html: `Row #${idx + 1} (${item.item_name || item.item_code}):<br/>Selling Price (<b>AED ${sellVal.toFixed(2)}</b>) cannot be LESS than Buying Rate (<b>AED ${rateVal.toFixed(2)}</b>)!<br/><br/><i>Entered value has been cleared.</i>`,
-                                      confirmButtonColor: '#ef4444'
-                                    });
-                                  }
-                                }}
-                                disabled={isViewMode || formData.docstatus !== 0}
-                                className="w-full h-8 px-2 text-right font-black text-xs text-emerald-700 bg-transparent border-none outline-none focus:bg-emerald-50/40 disabled:bg-slate-100 disabled:text-slate-500"
-                              />
-                            </td>
-                          );
-                        case 'custom_box_selling_price':
-                          return (
-                            <td key={col.id} className="px-2 py-1 text-right border-r border-slate-100 align-middle">
-                              <input
-                                type="number"
-                                value={item.custom_box_selling_price || ''}
-                                onChange={(e) => updateItem(idx, "custom_box_selling_price", e.target.value)}
-                                onBlur={(e) => {
-                                  const sellVal = parseFloat(e.target.value) || 0;
-                                  const pPerBox = parseFloat(item.custom_pieces_per_box) || 1;
-                                  const buyPriceBox = parseFloat(item.custom_box_price) || ((parseFloat(item.rate) || 0) * pPerBox);
-                                  if (sellVal > 0 && buyPriceBox > 0 && sellVal < buyPriceBox) {
-                                    updateItem(idx, "custom_box_selling_price", '');
-                                    Swal.fire({
-                                      icon: 'error',
-                                      title: 'Box Price Restriction Warning',
-                                      html: `Row #${idx + 1} (${item.item_name || item.item_code}):<br/>Box Selling Price (<b>AED ${sellVal.toFixed(2)}</b>) cannot be LESS than Box Buying Rate (<b>AED ${buyPriceBox.toFixed(2)}</b>)!<br/><br/><i>Entered value has been cleared.</i>`,
-                                      confirmButtonColor: '#ef4444'
-                                    });
-                                  }
-                                }}
-                                disabled={isViewMode || formData.docstatus !== 0}
-                                className="w-full h-8 px-2 text-right font-black text-xs text-sky-700 bg-transparent border-none outline-none focus:bg-emerald-50/40 disabled:bg-slate-100 disabled:text-slate-500"
-                              />
-                            </td>
-                          );
-                        case 'discount_percentage':
-                          return (
-                            <td key={col.id} className="px-2 py-1 text-right border-r border-slate-100 align-middle">
-                              <input
-                                type="number"
-                                value={item.discount_percentage || ''}
-                                onChange={(e) => updateItem(idx, "discount_percentage", e.target.value)}
-                                disabled={isViewMode || formData.docstatus !== 0}
-                                className="w-full h-8 px-2 text-right font-black text-xs text-slate-800 bg-transparent border-none outline-none focus:bg-emerald-50/40 disabled:bg-slate-100 disabled:text-slate-500"
-                              />
-                            </td>
-                          );
-                        case 'discount_amount':
-                          return (
-                            <td key={col.id} className="px-2 py-1 text-right border-r border-slate-100 align-middle">
-                              <input
-                                type="number"
-                                value={item.discount_amount || ''}
-                                onChange={(e) => updateItem(idx, "discount_amount", e.target.value)}
-                                disabled={isViewMode || formData.docstatus !== 0}
-                                className="w-full h-8 px-2 text-right font-black text-xs text-slate-800 bg-transparent border-none outline-none focus:bg-emerald-50/40 disabled:bg-slate-100 disabled:text-slate-500"
-                              />
-                            </td>
-                          );
-                        case 'qty':
-                          return (
-                            <td key={col.id} className="px-2 py-1 text-center font-black text-xs text-slate-800 border-r border-slate-100 align-middle">
-                              {item.qty || 0}
-                            </td>
-                          );
-                        case 'amount':
-                          return (
-                            <td key={col.id} className="px-2 py-1 text-right font-black text-xs text-slate-900 border-r border-slate-100 align-middle">
-                              {formatPrice(item.amount || 0)}
-                            </td>
-                          );
-                        case 'last_purchase_rate':
-                          return (
-                            <td key={col.id} className="px-2 py-1 text-right font-bold text-xs text-amber-700 bg-amber-50/40 border-r border-slate-100 align-middle">
-                              {item.last_purchase_rate || item.last_buying_rate ? formatPrice(item.last_purchase_rate || item.last_buying_rate) : '—'}
-                            </td>
-                          );
-                        default:
-                          return <td key={col.id} className="px-2 py-1 text-xs border-r border-slate-100 align-middle">{item[col.id] || '—'}</td>;
-                      }
-                    })}
-                    <td className="text-center px-1">
-                      {!(isViewMode || formData.docstatus !== 0) && (
-                        <button type="button" onClick={() => removeItemRow(idx)} className="text-rose-400 hover:text-rose-600 font-black text-sm cursor-pointer">×</button>
-                      )}
-                    </td>
-                  </tr>
+                              </td>
+                            );
+                          case 'custom_selling_price':
+                            return (
+                              <td key={col.id} className="px-2 py-1 text-right border-r border-slate-100 align-middle">
+                                <input
+                                  type="text" inputMode="decimal"
+                                  value={item.custom_selling_price || ''}
+                                  onChange={(e) => updateItem(idx, "custom_selling_price", e.target.value)}
+                                  onBlur={(e) => {
+                                    const sellVal = parseFloat(e.target.value) || 0;
+                                    const rateVal = parseFloat(item.rate) || 0;
+                                    if (sellVal > 0 && rateVal > 0 && sellVal < rateVal) {
+                                      updateItem(idx, "custom_selling_price", '');
+                                      Swal.fire({
+                                        icon: 'error',
+                                        title: 'Price Restriction Warning',
+                                        html: `Row #${idx + 1} (${item.item_name || item.item_code}):<br/>Selling Price (<b>AED ${sellVal.toFixed(2)}</b>) cannot be LESS than Buying Rate (<b>AED ${rateVal.toFixed(2)}</b>)!<br/><br/><i>Entered value has been cleared.</i>`,
+                                        confirmButtonColor: '#ef4444'
+                                      });
+                                    }
+                                  }}
+                                  disabled={isViewMode || formData.docstatus !== 0}
+                                  className="w-full h-8 px-2 text-right font-black text-xs text-emerald-700 bg-transparent border-none outline-none focus:bg-emerald-50/40 disabled:bg-slate-100 disabled:text-slate-500"
+                                />
+                              </td>
+                            );
+                          case 'custom_box_selling_price':
+                            return (
+                              <td key={col.id} className="px-2 py-1 text-right border-r border-slate-100 align-middle">
+                                <input
+                                  type="text" inputMode="decimal"
+                                  value={item.custom_box_selling_price || ''}
+                                  onChange={(e) => updateItem(idx, "custom_box_selling_price", e.target.value)}
+                                  onBlur={(e) => {
+                                    const sellVal = parseFloat(e.target.value) || 0;
+                                    const pPerBox = parseFloat(item.custom_pieces_per_box) || 1;
+                                    const buyPriceBox = parseFloat(item.custom_box_price) || ((parseFloat(item.rate) || 0) * pPerBox);
+                                    if (sellVal > 0 && buyPriceBox > 0 && sellVal < buyPriceBox) {
+                                      updateItem(idx, "custom_box_selling_price", '');
+                                      Swal.fire({
+                                        icon: 'error',
+                                        title: 'Box Price Restriction Warning',
+                                        html: `Row #${idx + 1} (${item.item_name || item.item_code}):<br/>Box Selling Price (<b>AED ${sellVal.toFixed(2)}</b>) cannot be LESS than Box Buying Rate (<b>AED ${buyPriceBox.toFixed(2)}</b>)!<br/><br/><i>Entered value has been cleared.</i>`,
+                                        confirmButtonColor: '#ef4444'
+                                      });
+                                    }
+                                  }}
+                                  disabled={isViewMode || formData.docstatus !== 0}
+                                  className="w-full h-8 px-2 text-right font-black text-xs text-sky-700 bg-transparent border-none outline-none focus:bg-emerald-50/40 disabled:bg-slate-100 disabled:text-slate-500"
+                                />
+                              </td>
+                            );
+                          case 'discount_percentage':
+                            return (
+                              <td key={col.id} className="px-2 py-1 text-right border-r border-slate-100 align-middle">
+                                <input
+                                  type="text" inputMode="decimal"
+                                  value={item.discount_percentage || ''}
+                                  onChange={(e) => updateItem(idx, "discount_percentage", e.target.value)} onBlur={(e) => updateItem(idx, "discount_percentage", e.target.value ? Number(e.target.value).toFixed(2) : "")}
+                                  disabled={isViewMode || formData.docstatus !== 0}
+                                  className="w-full h-8 px-2 text-right font-black text-xs text-slate-800 bg-transparent border-none outline-none focus:bg-emerald-50/40 disabled:bg-slate-100 disabled:text-slate-500"
+                                />
+                              </td>
+                            );
+                          case 'discount_amount':
+                            return (
+                              <td key={col.id} className="px-2 py-1 text-right border-r border-slate-100 align-middle">
+                                <input
+                                  type="text" inputMode="decimal"
+                                  value={item.discount_amount || ''}
+                                  onChange={(e) => updateItem(idx, "discount_amount", e.target.value)} onBlur={(e) => updateItem(idx, "discount_amount", e.target.value ? Number(e.target.value).toFixed(2) : "")}
+                                  disabled={isViewMode || formData.docstatus !== 0}
+                                  className="w-full h-8 px-2 text-right font-black text-xs text-slate-800 bg-transparent border-none outline-none focus:bg-emerald-50/40 disabled:bg-slate-100 disabled:text-slate-500"
+                                />
+                              </td>
+                            );
+                          case 'qty':
+                            return (
+                              <td key={col.id} className="px-2 py-1 text-center font-black text-xs text-slate-800 border-r border-slate-100 align-middle">
+                                {item.qty || 0}
+                              </td>
+                            );
+                          case 'amount':
+                            return (
+                              <td key={col.id} className="px-2 py-1 text-right font-black text-xs text-slate-900 border-r border-slate-100 align-middle">
+                                {formatPrice(item.amount || 0)}
+                              </td>
+                            );
+                          case 'last_purchase_rate':
+                            return (
+                              <td key={col.id} className="px-2 py-1 text-right font-bold text-xs text-amber-700 bg-amber-50/40 border-r border-slate-100 align-middle">
+                                {item.last_purchase_rate || item.last_buying_rate ? formatPrice(item.last_purchase_rate || item.last_buying_rate) : '0'}
+                              </td>
+                            );
+                          default:
+                            return <td key={col.id} className="px-2 py-1 text-xs border-r border-slate-100 align-middle">{item[col.id] || '—'}</td>;
+                        }
+                      })}
+                      <td className="text-center px-1">
+                        {!(isViewMode || formData.docstatus !== 0) && (
+                          <button type="button" onClick={() => removeItemRow(idx)} className="text-rose-400 hover:text-rose-600 font-black text-sm cursor-pointer">×</button>
+                        )}
+                      </td>
+                    </tr>
                   );
                 })}
                 {/* ADVANCED: Smart Inline Search Row */}
@@ -3407,9 +3444,9 @@ function PurchaseInvoiceList() {
                       return visibleCols.map((col, cIdx) => {
                         if (cIdx === primaryIdx) {
                           return (
-                            <td 
-                              key="search-input-col" 
-                              colSpan={hasBoth && Math.abs(barcodeIdx - itemCodeIdx) === 1 ? 2 : 1} 
+                            <td
+                              key="search-input-col"
+                              colSpan={hasBoth && Math.abs(barcodeIdx - itemCodeIdx) === 1 ? 2 : 1}
                               className="p-0 relative h-10 align-middle"
                             >
                               <CustomSearchDropdown
@@ -3746,8 +3783,8 @@ function PurchaseInvoiceList() {
       <>
         <div className="so-page font-sans bg-[#f8fafc] min-h-screen flex flex-col" style={{ height: '100vh', overflowY: 'auto' }}>
           {/* Premium Glassmorphic Keyboard Shortcuts Guide Banner */}
-        <div className="so-shortcut-guide-banner">
-          <style>{`
+          <div className="so-shortcut-guide-banner">
+            <style>{`
             .so-shortcut-guide-banner {
               width: 100%;
               background: #f8fafc;
@@ -3962,11 +3999,19 @@ function PurchaseInvoiceList() {
             .purchase-table .premium-cell-box input:focus,
             .purchase-table .premium-cell-box select:focus,
             .purchase-table .premium-cell-box .so-input:focus,
-            .purchase-table .premium-cell-box div.relative.flex-1 input:focus {
-              background-color: #f8fafc !important;
-              outline: 1.5px solid #3b82f6 !important;
+            .purchase-table .premium-cell-box div.relative.flex-1 input:focus,
+            .classic-table input:focus,
+            .classic-table select:focus,
+            input:focus,
+            select:focus,
+            button:focus-visible {
+              background-color: #d1fae5 !important;
+              outline: 2.5px solid #059669 !important;
               outline-offset: -1.5px !important;
-              z-index: 5 !important;
+              box-shadow: inset 0 0 0 1.5px #059669, 0 0 0 4px rgba(16, 185, 129, 0.35) !important;
+              color: #064e3b !important;
+              font-weight: 900 !important;
+              z-index: 20 !important;
             }
             .purchase-table .premium-cell-readonly {
               border: none !important;
@@ -4040,64 +4085,64 @@ function PurchaseInvoiceList() {
               align-items: stretch !important;
             }
           `}</style>
-          <div className="so-shortcut-banner-title">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-            </span>
-            Quick Shortcuts
+            <div className="so-shortcut-banner-title">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
+              Quick Shortcuts
+            </div>
+            <div className="so-shortcut-badges-wrapper">
+              <div className="so-shortcut-badge blue">
+                <span className="so-shortcut-key">{getShortcut('doc_editor', 'customerSupplier', 'F2')}</span>
+                <span className="so-shortcut-label">Supplier</span>
+              </div>
+              <div className="so-shortcut-badge indigo">
+                <span className="so-shortcut-key">{getShortcut('doc_editor', 'itemSearch', 'F3')}</span>
+                <span className="so-shortcut-label">Item Search</span>
+              </div>
+              <div className="so-shortcut-badge cyan">
+                <span className="so-shortcut-key">{getShortcut('doc_editor', 'barcode', 'F4')}</span>
+                <span className="so-shortcut-label">Barcode</span>
+              </div>
+              <div className="so-shortcut-badge pink">
+                <span className="so-shortcut-key">{getShortcut('doc_editor', 'bulkQty', 'F6')}</span>
+                <span className="so-shortcut-label">Bulk Qty</span>
+              </div>
+              <div className="so-shortcut-badge violet">
+                <span className="so-shortcut-key">{getShortcut('doc_editor', 'uom', 'F8')}</span>
+                <span className="so-shortcut-label">Toggle UOM</span>
+              </div>
+              <div className="so-shortcut-badge amber">
+                <span className="so-shortcut-key">Alt+S</span>
+                <span className="so-shortcut-label">Save Draft</span>
+              </div>
+              <div className="so-shortcut-badge sky">
+                <span className="so-shortcut-key">{getShortcut('doc_editor', 'addRow', 'F10')} / {getShortcut("doc_editor", "addRowAlt", "Alt+A")}</span>
+                <span className="so-shortcut-label">Add Row</span>
+              </div>
+              <div className="so-shortcut-badge violet">
+                <span className="so-shortcut-key">{getShortcut('doc_editor', 'warehouseBranch', 'F9')}</span>
+                <span className="so-shortcut-label">Warehouse</span>
+              </div>
+              <div className="so-shortcut-badge emerald">
+                <span className="so-shortcut-key">{getShortcut("doc_editor", "submitAlt", "Ctrl+Enter")} / {getShortcut('doc_editor', 'submit', 'F12')}</span>
+                <span className="so-shortcut-label">Submit</span>
+              </div>
+              <div className="so-shortcut-badge slate">
+                <span className="so-shortcut-key">Shift+F3 / Ctrl+↓</span>
+                <span className="so-shortcut-label">Focus Table</span>
+              </div>
+              <div className="so-shortcut-badge rose">
+                <span className="so-shortcut-key">Escape</span>
+                <span className="so-shortcut-label">Close / Clear</span>
+              </div>
+              <div className="so-shortcut-badge slate">
+                <span className="so-shortcut-key">+ / -</span>
+                <span className="so-shortcut-label">Qty Adjust</span>
+              </div>
+            </div>
           </div>
-          <div className="so-shortcut-badges-wrapper">
-          <div className="so-shortcut-badge blue">
-            <span className="so-shortcut-key">{getShortcut('doc_editor', 'customerSupplier', 'F2')}</span>
-            <span className="so-shortcut-label">Supplier</span>
-          </div>
-          <div className="so-shortcut-badge indigo">
-            <span className="so-shortcut-key">{getShortcut('doc_editor', 'itemSearch', 'F3')}</span>
-            <span className="so-shortcut-label">Item Search</span>
-          </div>
-          <div className="so-shortcut-badge cyan">
-            <span className="so-shortcut-key">{getShortcut('doc_editor', 'barcode', 'F4')}</span>
-            <span className="so-shortcut-label">Barcode</span>
-          </div>
-          <div className="so-shortcut-badge pink">
-            <span className="so-shortcut-key">{getShortcut('doc_editor', 'bulkQty', 'F6')}</span>
-            <span className="so-shortcut-label">Bulk Qty</span>
-          </div>
-          <div className="so-shortcut-badge violet">
-            <span className="so-shortcut-key">{getShortcut('doc_editor', 'uom', 'F8')}</span>
-            <span className="so-shortcut-label">Toggle UOM</span>
-          </div>
-          <div className="so-shortcut-badge amber">
-            <span className="so-shortcut-key">{getShortcut('doc_editor', 'saveDraft', 'F7')}</span>
-            <span className="so-shortcut-label">Save Draft</span>
-          </div>
-          <div className="so-shortcut-badge sky">
-            <span className="so-shortcut-key">{getShortcut('doc_editor', 'addRow', 'F10')} / {getShortcut("doc_editor", "addRowAlt", "Alt+A")}</span>
-            <span className="so-shortcut-label">Add Row</span>
-          </div>
-          <div className="so-shortcut-badge violet">
-            <span className="so-shortcut-key">{getShortcut('doc_editor', 'warehouseBranch', 'F9')}</span>
-            <span className="so-shortcut-label">Warehouse</span>
-          </div>
-          <div className="so-shortcut-badge emerald">
-            <span className="so-shortcut-key">{getShortcut("doc_editor", "submitAlt", "Ctrl+Enter")} / {getShortcut('doc_editor', 'submit', 'F12')}</span>
-            <span className="so-shortcut-label">Submit</span>
-          </div>
-          <div className="so-shortcut-badge slate">
-            <span className="so-shortcut-key">Shift+F3 / Ctrl+↓</span>
-            <span className="so-shortcut-label">Focus Table</span>
-          </div>
-          <div className="so-shortcut-badge rose">
-            <span className="so-shortcut-key">Escape</span>
-            <span className="so-shortcut-label">Close / Clear</span>
-          </div>
-          <div className="so-shortcut-badge slate">
-            <span className="so-shortcut-key">+ / -</span>
-            <span className="so-shortcut-label">Qty Adjust</span>
-          </div>
-          </div>
-        </div>
 
           <div className="so-page-header" style={{ padding: '0.85rem 2rem', background: '#fff', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, zIndex: 100 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
@@ -4209,27 +4254,28 @@ function PurchaseInvoiceList() {
                         {saving ? <Loader2 size={14} className="so-spinner" /> : 'SAVE DRAFT'}
                       </button>
                     ) : (
-                      // Saved Document -> Show BOTH Update and Submit (if allowed)
+                      // Saved Document -> Show Save Draft if dirty, else Submit
                       <div style={{ display: 'flex', gap: '0.75rem' }}>
-                        {!isViewMode && (
+                        {isDirty && !isViewMode ? (
                           <button
                             onClick={() => handleDocAction('save')}
                             disabled={saving}
                             className="so-btn-secondary"
                             style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#f1f5f9', color: '#475569', border: '1px solid #e2e8f0', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', transition: 'all 0.2s' }}
                           >
-                            {saving ? <Loader2 size={14} className="so-spinner" /> : 'UPDATE DRAFT'}
+                            {saving ? <Loader2 size={14} className="so-spinner" /> : 'SAVE DRAFT'}
                           </button>
-                        )}
-                        {(allowedActions.includes('submit') || allowedActions.length === 0) && (
-                          <button
-                            onClick={() => handleDocAction('submit')}
-                            disabled={saving}
-                            className="so-btn-primary"
-                            style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#10b981', color: 'white', border: 'none', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)', transition: 'all 0.2s' }}
-                          >
-                            {saving ? <Loader2 size={14} className="so-spinner" /> : 'SUBMIT'}
-                          </button>
+                        ) : (
+                          (allowedActions.includes('submit') || allowedActions.length === 0) && (
+                            <button
+                              onClick={() => handleDocAction('submit')}
+                              disabled={saving}
+                              className="so-btn-primary"
+                              style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#10b981', color: 'white', border: 'none', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)', transition: 'all 0.2s' }}
+                            >
+                              {saving ? <Loader2 size={14} className="so-spinner" /> : 'SUBMIT'}
+                            </button>
+                          )
                         )}
                       </div>
                     )}
@@ -4558,11 +4604,10 @@ function PurchaseInvoiceList() {
                                 return { ...prev, is_cash_purchase: false, due_date: calculatedDueDate, payment_schedule: schedule };
                               });
                             }}
-                            className={`py-2 px-3 rounded-xl border text-xs font-black flex items-center justify-center gap-2 transition-all ${
-                              !formData.is_cash_purchase
+                            className={`py-2 px-3 rounded-xl border text-xs font-black flex items-center justify-center gap-2 transition-all ${!formData.is_cash_purchase
                                 ? 'bg-indigo-50 border-indigo-500 text-indigo-700 shadow-xs'
                                 : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'
-                            }`}
+                              }`}
                           >
                             <span className={`w-2.5 h-2.5 rounded-full ${!formData.is_cash_purchase ? 'bg-indigo-600' : 'bg-slate-300'}`} />
                             CREDIT
@@ -4581,11 +4626,10 @@ function PurchaseInvoiceList() {
                                 return { ...prev, is_cash_purchase: true, due_date: calculatedDueDate, payment_schedule: schedule };
                               });
                             }}
-                            className={`py-2 px-3 rounded-xl border text-xs font-black flex items-center justify-center gap-2 transition-all ${
-                              formData.is_cash_purchase
+                            className={`py-2 px-3 rounded-xl border text-xs font-black flex items-center justify-center gap-2 transition-all ${formData.is_cash_purchase
                                 ? 'bg-emerald-50 border-emerald-500 text-emerald-700 shadow-xs'
                                 : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'
-                            }`}
+                              }`}
                           >
                             <span className={`w-2.5 h-2.5 rounded-full ${formData.is_cash_purchase ? 'bg-emerald-600' : 'bg-slate-300'}`} />
                             CASH
@@ -4687,7 +4731,7 @@ function PurchaseInvoiceList() {
                         <div className="relative">
                           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-extrabold text-xs pointer-events-none">AED</span>
                           <input
-                            type="number"
+                            type="text" inputMode="decimal"
                             step="0.01"
                             value={formData.custom_supplier_invoice_amount}
                             onChange={e => setFormData(prev => ({ ...prev, custom_supplier_invoice_amount: e.target.value }))}
@@ -4797,11 +4841,11 @@ function PurchaseInvoiceList() {
                             });
                           })()}
                           <th style={{ width: '40px', textAlign: 'center' }}>
-                            
-                              <button type="button" onClick={() => setShowColConfig(true)} className="text-slate-400 hover:text-indigo-600 transition-colors p-1" title="Configure Columns">
-                                <Settings size={16} />
-                              </button>
-                            
+
+                            <button type="button" onClick={() => setShowColConfig(true)} className="text-slate-400 hover:text-indigo-600 transition-colors p-1" title="Configure Columns">
+                              <Settings size={16} />
+                            </button>
+
                           </th>
                         </tr>
                       </thead>
@@ -4845,7 +4889,7 @@ function PurchaseInvoiceList() {
                                               </div>
                                             ) : !item.use_box_entry ? (
                                               <input
-                                                type="number"
+                                                type="text" inputMode="decimal"
                                                 step="1"
                                                 value={item.qty !== undefined ? item.qty : ''}
                                                 onFocus={e => e.target.select()}
@@ -4860,7 +4904,7 @@ function PurchaseInvoiceList() {
                                               />
                                             ) : (
                                               <input
-                                                type="number"
+                                                type="text" inputMode="decimal"
                                                 step="1"
                                                 value={item.custom_box_qty !== undefined ? item.custom_box_qty : ''}
                                                 onFocus={e => e.target.select()}
@@ -4872,21 +4916,6 @@ function PurchaseInvoiceList() {
                                                 className="so-input text-center font-bold w-full h-[28px] border-none"
                                                 style={{ padding: '0 4px', fontSize: '0.75rem' }}
                                               />
-                                            )}
-                                            {item.item_code && (
-                                              <div className="flex justify-center w-full mt-0.5">
-                                                <span
-                                                  className="text-[8px] font-extrabold select-none pointer-events-none px-1.5 py-0.2 rounded border uppercase tracking-wider"
-                                                  style={{
-                                                    color: item.use_box_entry ? themeColor : '#64748b',
-                                                    backgroundColor: item.use_box_entry ? `${themeColor}12` : '#f8fafc',
-                                                    borderColor: item.use_box_entry ? `${themeColor}25` : '#e2e8f0',
-                                                    lineHeight: 1.2
-                                                  }}
-                                                >
-                                                  {item.use_box_entry ? 'BOX' : 'NOS'}
-                                                </span>
-                                              </div>
                                             )}
                                           </div>
                                         </div>
@@ -4905,11 +4934,11 @@ function PurchaseInvoiceList() {
                                               </div>
                                             ) : (
                                               <input
-                                                type="number"
+                                                type="text" inputMode="decimal"
                                                 value={item.custom_pieces_per_box !== undefined ? item.custom_pieces_per_box : ''}
                                                 onFocus={e => e.target.select()}
                                                 onClick={e => e.target.select()}
-                                                onChange={e => updateItem(i, 'custom_pieces_per_box', e.target.value)}
+                                                onChange={e => updateItem(i, 'custom_pieces_per_box', e.target.value)} onBlur={e => updateItem(i, 'custom_pieces_per_box', e.target.value ? Number(e.target.value).toFixed(2) : "")}
                                                 className="so-input text-left pl-3 font-bold"
                                               />
                                             )}
@@ -5051,29 +5080,14 @@ function PurchaseInvoiceList() {
                                               </div>
                                             ) : (
                                               <input
-                                                type="number"
+                                                type="text" inputMode="decimal"
                                                 value={item.qty}
                                                 onFocus={e => e.target.select()}
                                                 onClick={e => e.target.select()}
-                                                onChange={e => updateItem(i, 'qty', e.target.value)}
+                                                onChange={e => updateItem(i, 'qty', e.target.value)} onBlur={e => updateItem(i, 'qty', e.target.value ? Number(e.target.value).toFixed(2) : "")}
                                                 className="so-input text-center font-bold w-full h-[28px] border-none"
                                                 style={{ padding: '0 4px', fontSize: '0.75rem' }}
                                               />
-                                            )}
-                                            {item.use_box_entry && (
-                                              <div className="flex justify-center w-full mt-0.5">
-                                                <span
-                                                  className="text-[8px] font-extrabold select-none pointer-events-none px-1.5 py-0.2 rounded border uppercase tracking-wider"
-                                                  style={{
-                                                    color: '#64748b',
-                                                    backgroundColor: '#f8fafc',
-                                                    borderColor: '#e2e8f0',
-                                                    lineHeight: 1.2
-                                                  }}
-                                                >
-                                                  NOS
-                                                </span>
-                                              </div>
                                             )}
                                           </div>
                                         </div>
@@ -5092,7 +5106,7 @@ function PurchaseInvoiceList() {
                                               <select
                                                 value={item.uom || ''}
                                                 onChange={(e) => handleUOMChange(e.target.value, i)}
-                                                className="text-center text-[10px] font-bold text-slate-600 bg-white"
+                                                className="w-full h-8 text-center text-xs font-black text-slate-800 bg-white border-none outline-none transition-all focus:bg-emerald-100 focus:text-emerald-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none cursor-pointer"
                                               >
                                                 {(() => {
                                                   const uniqueUoms = [];
@@ -5145,11 +5159,11 @@ function PurchaseInvoiceList() {
                                               </div>
                                             ) : (
                                               <input
-                                                type="number"
+                                                type="text" inputMode="decimal"
                                                 value={item.custom_box_price !== undefined ? item.custom_box_price : ''}
                                                 onFocus={e => e.target.select()}
                                                 onClick={e => e.target.select()}
-                                                onChange={e => updateItem(i, 'custom_box_price', e.target.value)}
+                                                onChange={e => updateItem(i, 'custom_box_price', e.target.value)} onBlur={e => updateItem(i, 'custom_box_price', e.target.value ? Number(e.target.value).toFixed(2) : "")}
                                                 className="so-input text-right pr-3 font-bold"
                                                 style={{ textAlign: 'right' }}
                                                 step="0.01"
@@ -5173,11 +5187,11 @@ function PurchaseInvoiceList() {
                                               </div>
                                             ) : (
                                               <input
-                                                type="number"
+                                                type="text" inputMode="decimal"
                                                 value={item.rate}
                                                 onFocus={e => e.target.select()}
                                                 onClick={e => e.target.select()}
-                                                onChange={e => updateItem(i, 'rate', e.target.value)}
+                                                onChange={e => updateItem(i, 'rate', e.target.value)} onBlur={e => updateItem(i, 'rate', e.target.value ? Number(e.target.value).toFixed(2) : "")}
                                                 className="so-input text-right pr-3 font-bold"
                                                 style={{ textAlign: 'right' }}
                                                 step="0.01"
@@ -5198,24 +5212,24 @@ function PurchaseInvoiceList() {
                                               </div>
                                             ) : (
                                               <input
-                                                type="number"
+                                                type="text" inputMode="decimal"
                                                 value={item.custom_selling_price || ''}
                                                 onFocus={e => e.target.select()}
                                                 onClick={e => e.target.select()}
                                                 onChange={e => updateItem(i, 'custom_selling_price', e.target.value)}
                                                 onBlur={e => {
-                                                   const sellVal = parseFloat(e.target.value) || 0;
-                                                   const rateVal = parseFloat(item.rate) || 0;
-                                                   if (sellVal > 0 && rateVal > 0 && sellVal < rateVal) {
-                                                     updateItem(i, 'custom_selling_price', '');
-                                                     Swal.fire({
-                                                       icon: 'error',
-                                                       title: 'Price Restriction Warning',
-                                                       html: `Row #${i + 1} (${item.item_name || item.item_code}):<br/>Selling Price (<b>AED ${sellVal.toFixed(2)}</b>) cannot be LESS than Buying Rate (<b>AED ${rateVal.toFixed(2)}</b>)!<br/><br/><i>Entered value has been cleared.</i>`,
-                                                       confirmButtonColor: '#ef4444'
-                                                     });
-                                                   }
-                                                 }}
+                                                  const sellVal = parseFloat(e.target.value) || 0;
+                                                  const rateVal = parseFloat(item.rate) || 0;
+                                                  if (sellVal > 0 && rateVal > 0 && sellVal < rateVal) {
+                                                    updateItem(i, 'custom_selling_price', '');
+                                                    Swal.fire({
+                                                      icon: 'error',
+                                                      title: 'Price Restriction Warning',
+                                                      html: `Row #${i + 1} (${item.item_name || item.item_code}):<br/>Selling Price (<b>AED ${sellVal.toFixed(2)}</b>) cannot be LESS than Buying Rate (<b>AED ${rateVal.toFixed(2)}</b>)!<br/><br/><i>Entered value has been cleared.</i>`,
+                                                      confirmButtonColor: '#ef4444'
+                                                    });
+                                                  }
+                                                }}
                                                 className="so-input text-right pr-3 font-bold text-[#6366f1]"
                                                 style={{ textAlign: 'right' }}
                                                 step="0.01"
@@ -5241,7 +5255,7 @@ function PurchaseInvoiceList() {
                                                 </div>
                                               ) : (
                                                 <input
-                                                  type="number"
+                                                  type="text" inputMode="decimal"
                                                   value={item._temp_box_selling_price !== undefined ? item._temp_box_selling_price : (item.custom_selling_price ? ((item.custom_selling_price || 0) * (item.custom_pieces_per_box || 1)).toFixed(2) : '')}
                                                   onFocus={e => e.target.select()}
                                                   onClick={e => e.target.select()}
@@ -5319,11 +5333,11 @@ function PurchaseInvoiceList() {
                                               </div>
                                             ) : (
                                               <input
-                                                type="number"
+                                                type="text" inputMode="decimal"
                                                 value={item.discount_percentage ?? ''}
                                                 onFocus={e => e.target.select()}
                                                 onClick={e => e.target.select()}
-                                                onChange={e => updateItem(i, 'discount_percentage', e.target.value)}
+                                                onChange={e => updateItem(i, 'discount_percentage', e.target.value)} onBlur={e => updateItem(i, 'discount_percentage', e.target.value ? Number(e.target.value).toFixed(2) : "")}
                                                 className="so-input text-right pr-3 font-bold text-rose-600"
                                                 style={{ textAlign: 'right' }}
                                                 step="0.01"
@@ -5345,11 +5359,11 @@ function PurchaseInvoiceList() {
                                               </div>
                                             ) : (
                                               <input
-                                                type="number"
+                                                type="text" inputMode="decimal"
                                                 value={item.discount_amount ?? ''}
                                                 onFocus={e => e.target.select()}
                                                 onClick={e => e.target.select()}
-                                                onChange={e => updateItem(i, 'discount_amount', e.target.value)}
+                                                onChange={e => updateItem(i, 'discount_amount', e.target.value)} onBlur={e => updateItem(i, 'discount_amount', e.target.value ? Number(e.target.value).toFixed(2) : "")}
                                                 className="so-input text-right pr-3 font-bold text-rose-600"
                                                 style={{ textAlign: 'right' }}
                                                 step="0.01"
@@ -5378,7 +5392,7 @@ function PurchaseInvoiceList() {
                                         <div className="premium-cell-container">
                                           <div className="premium-cell-box">
                                             <div className="premium-cell-readonly premium-cell-readonly-right pr-3 font-bold text-amber-700 bg-amber-50/50" style={{ textAlign: 'right' }}>
-                                              {item.last_purchase_rate || item.last_buying_rate ? formatPrice(item.last_purchase_rate || item.last_buying_rate) : '—'}
+                                              {item.last_purchase_rate || item.last_buying_rate ? formatPrice(item.last_purchase_rate || item.last_buying_rate) : '0'}
                                             </div>
                                           </div>
                                         </div>
@@ -5428,7 +5442,7 @@ function PurchaseInvoiceList() {
                         <div className="so-field">
                           <label className="so-label">Discount (%)</label>
                           <input
-                            type="number"
+                            type="text" inputMode="decimal"
                             value={formData.additional_discount_percentage}
                             onChange={e => setFormData(prev => ({ ...prev, additional_discount_percentage: e.target.value, discount_amount: 0 }))}
                             className="so-input"
@@ -5439,7 +5453,7 @@ function PurchaseInvoiceList() {
                         <div className="so-field">
                           <label className="so-label">Discount Amount</label>
                           <input
-                            type="number"
+                            type="text" inputMode="decimal"
                             value={formData.discount_amount}
                             onChange={e => setFormData(prev => ({ ...prev, discount_amount: e.target.value, additional_discount_percentage: 0 }))}
                             className="so-input"
@@ -5848,15 +5862,15 @@ function PurchaseInvoiceList() {
                                       borderRadius: '0.5rem', boxShadow: 'var(--so-shadow)',
                                       minWidth: '120px', overflow: 'hidden'
                                     }}>
-                                       <button
-                                         style={{ width: '100%', padding: '0.6rem 1rem', textAlign: 'left', background: 'none', border: 'none', fontSize: '0.8rem', color: '#0284c7', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 700 }}
-                                         onMouseEnter={e => e.currentTarget.style.background = '#f0f9ff'}
-                                         onMouseLeave={e => e.currentTarget.style.background = 'none'}
-                                         onClick={() => handlePrintPDF(inv.name)}
-                                       >
-                                         <Printer size={13} /> Print PDF
-                                       </button>
-                                       {inv.status === 'Draft' && (
+                                      <button
+                                        style={{ width: '100%', padding: '0.6rem 1rem', textAlign: 'left', background: 'none', border: 'none', fontSize: '0.8rem', color: '#0284c7', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 700 }}
+                                        onMouseEnter={e => e.currentTarget.style.background = '#f0f9ff'}
+                                        onMouseLeave={e => e.currentTarget.style.background = 'none'}
+                                        onClick={() => handlePrintPDF(inv.name)}
+                                      >
+                                        <Printer size={13} /> Print PDF
+                                      </button>
+                                      {inv.status === 'Draft' && (
                                         <button
                                           style={{ width: '100%', padding: '0.6rem 1rem', textAlign: 'left', background: 'none', border: 'none', fontSize: '0.8rem', color: '#ef4444', cursor: 'pointer' }}
                                           onMouseEnter={e => e.currentTarget.style.background = '#fff1f1'}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { Search, Plus } from 'lucide-react';
 
@@ -211,6 +211,18 @@ const CustomSearchDropdown = ({
     }
   };
 
+  const displayResults = useMemo(() => {
+    if (!Array.isArray(results)) return [];
+    const seen = new Set();
+    return results.filter(item => {
+      const labelVal = item[optionsLabel] || item.item_name || item.name || item.item_code || '';
+      const key = String(labelVal).trim().toLowerCase();
+      if (!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [results, optionsLabel]);
+
   const handleItemClick = (item) => {
     onSelect(item);
     setQuery(value ? (item[optionsLabel] || '') : '');
@@ -225,19 +237,18 @@ const CustomSearchDropdown = ({
     if (e.key === 'ArrowDown') {
       e.preventDefault();
       e.stopPropagation();
-      setSelectedIndex(prev => (prev < results.length - 1 ? prev + 1 : prev));
+      setSelectedIndex(prev => (prev < displayResults.length - 1 ? prev + 1 : prev));
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
       e.stopPropagation();
       setSelectedIndex(prev => (prev > 0 ? prev - 1 : 0));
     } else if (e.key === 'Enter') {
-      if (selectedIndex >= 0 && results[selectedIndex]) {
-        e.preventDefault();
-        e.stopPropagation();
-        handleItemClick(results[selectedIndex]);
-      } else if (query.trim() && createOption && results.length === 0) {
-        e.preventDefault();
-        e.stopPropagation();
+      e.preventDefault();
+      e.stopPropagation();
+      if (displayResults.length > 0) {
+        const idxToSelect = selectedIndex >= 0 ? selectedIndex : 0;
+        handleItemClick(displayResults[idxToSelect]);
+      } else if (query.trim() && createOption) {
         handleCreate();
       }
     } else if (e.key === 'Escape') {
@@ -313,9 +324,9 @@ const CustomSearchDropdown = ({
               : (themeColor ? `${themeColor}15` : '#6366f115')
           }}
         >
-          {results.length > 0 && (
+          {displayResults.length > 0 && (
             <div className="py-1 flex flex-col">
-              {results.map((item, i) => (
+              {displayResults.map((item, i) => (
                 <div
                   key={i}
                   onClick={() => handleItemClick(item)}
@@ -325,7 +336,7 @@ const CustomSearchDropdown = ({
                   <div className="flex flex-col gap-1 flex-1 min-w-0 pr-3">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className={`font-bold text-[13.5px] transition-colors truncate ${selectedIndex === i ? 'text-[var(--po-primary,#6366f1)]' : 'text-slate-700'}`}>
-                        {item[optionsLabel] || item.name || item.item_code || 'Unknown'}
+                        {item[optionsLabel] || item.item_name || item.name || item.item_code || 'Unknown'}
                       </span>
                       {item.actual_qty !== undefined && (
                         <span className="text-[9px] bg-slate-100 text-slate-500 font-bold px-1.5 py-0.5 rounded uppercase tracking-tight shrink-0">
@@ -338,9 +349,6 @@ const CustomSearchDropdown = ({
                         </span>
                       )}
                     </div>
-                    {(item.name || item.item_code) && (item.name || item.item_code) !== item[optionsLabel] && (
-                      <span className="text-[10px] text-slate-400 font-semibold tracking-wide font-mono truncate">{item.item_name || item.name || item.item_code}</span>
-                    )}
                   </div>
                   {item.supplier_type && (
                     <span className="text-[9px] bg-slate-100 text-slate-500 font-bold px-2 py-0.5 rounded-full uppercase tracking-tighter opacity-70 group-hover:opacity-100 group-hover:bg-[var(--po-primary-light)] group-hover:text-[var(--po-primary)] transition-all shrink-0">

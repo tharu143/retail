@@ -9585,7 +9585,7 @@ function Home() {
                                                     <Banknote size={15} />
                                                     <span>CASH</span>
                                                 </div>
-                                                <span className="inline-flex items-center justify-center font-mono text-[9px] font-extrabold px-2 py-0.5 rounded-full border border-white/30 bg-white/10 text-white">{isMac ? '⌥ + I' : 'ALT+1'}</span>
+                                                <span className="inline-flex items-center justify-center font-mono text-[9px] font-extrabold px-2 py-0.5 rounded-md bg-slate-900 text-white shadow-sm">{isMac ? '⌥ + I' : 'ALT+1'}</span>
                                             </button>
 
                                             {/* BANK */}
@@ -9599,7 +9599,7 @@ function Home() {
                                                     <Building2 size={15} />
                                                     <span>BANK</span>
                                                 </div>
-                                                <span className="inline-flex items-center justify-center font-mono text-[9px] font-extrabold px-2 py-0.5 rounded-full border border-white/30 bg-white/10 text-white">{isMac ? '⌘ + V' : 'CTRL+V'}</span>
+                                                <span className="inline-flex items-center justify-center font-mono text-[9px] font-extrabold px-2 py-0.5 rounded-md bg-slate-900 text-white shadow-sm">{isMac ? '⌘ + V' : 'CTRL+V'}</span>
                                             </button>
 
                                             {/* CARD */}
@@ -9613,7 +9613,7 @@ function Home() {
                                                     <CreditCard size={15} />
                                                     <span>CARD</span>
                                                 </div>
-                                                <span className="inline-flex items-center justify-center font-mono text-[9px] font-extrabold px-2 py-0.5 rounded-full border border-white/30 bg-white/10 text-white">{isMac ? '⌥ + K' : 'ALT+2'}</span>
+                                                <span className="inline-flex items-center justify-center font-mono text-[9px] font-extrabold px-2 py-0.5 rounded-md bg-slate-900 text-white shadow-sm">{isMac ? '⌥ + K' : 'ALT+2'}</span>
                                             </button>
 
                                             {/* PRINT / LOADING CONTROL IN ROW 1 OR FULL SPAN */}
@@ -9639,7 +9639,7 @@ function Home() {
                                                             <Printer size={15} />
                                                             <span>PAY & PRINT</span>
                                                         </div>
-                                                        <span className="inline-flex items-center justify-center font-mono text-[9px] font-extrabold px-2 py-0.5 rounded-full border border-white/30 bg-white/10 text-white">SPACE</span>
+                                                        <span className="inline-flex items-center justify-center font-mono text-[9px] font-extrabold px-2 py-0.5 rounded-md bg-slate-900 text-white shadow-sm">SPACE</span>
                                                     </button>
 
                                                     {/* DIRECT */}
@@ -9653,7 +9653,7 @@ function Home() {
                                                             <Zap size={15} />
                                                             <span>DIRECT</span>
                                                         </div>
-                                                        <span className="inline-flex items-center justify-center font-mono text-[9px] font-extrabold px-2 py-0.5 rounded-full border border-white/30 bg-white/10 text-white">{isMac ? '⌥ + N' : 'ALT+N'}</span>
+                                                        <span className="inline-flex items-center justify-center font-mono text-[9px] font-extrabold px-2 py-0.5 rounded-md bg-slate-900 text-white shadow-sm">{isMac ? '⌥ + N' : 'ALT+N'}</span>
                                                     </button>
                                                 </>
                                             )}
@@ -9669,7 +9669,7 @@ function Home() {
                                                     <Percent size={15} className="text-slate-700" />
                                                     <span>DISCOUNT</span>
                                                 </div>
-                                                <span className="inline-flex items-center justify-center font-mono text-[9px] font-extrabold px-2 py-0.5 rounded-lg border border-slate-300 bg-white text-slate-600">F1</span>
+                                                <span className="inline-flex items-center justify-center font-mono text-[9px] font-extrabold px-2 py-0.5 rounded-md bg-slate-900 text-white shadow-sm">F1</span>
                                             </button>
 
                                             {/* LOYALTY */}
@@ -9682,7 +9682,7 @@ function Home() {
                                                     <Gift size={15} className="text-slate-700" />
                                                     <span>LOYALTY</span>
                                                 </div>
-                                                <span className="inline-flex items-center justify-center font-mono text-[9px] font-extrabold px-2 py-0.5 rounded-lg border border-slate-300 bg-white text-slate-600">{isMac ? '⌥ + L' : 'ALT+L'}</span>
+                                                <span className="inline-flex items-center justify-center font-mono text-[9px] font-extrabold px-2 py-0.5 rounded-md bg-slate-900 text-white shadow-sm">{isMac ? '⌥ + L' : 'ALT+L'}</span>
                                             </button>
 
                                             {/* SAVE DRAFT */}
@@ -9695,7 +9695,7 @@ function Home() {
                                                     <Upload size={15} />
                                                     <span>SAVE DRAFT</span>
                                                 </div>
-                                                <span className="inline-flex items-center justify-center font-mono text-[9px] font-extrabold px-2 py-0.5 rounded-full border border-white/30 bg-white/10 text-white">{isMac ? '⌥ + S' : 'ALT+S'}</span>
+                                                <span className="inline-flex items-center justify-center font-mono text-[9px] font-extrabold px-2 py-0.5 rounded-md bg-slate-900 text-white shadow-sm">{isMac ? '⌥ + S' : 'ALT+S'}</span>
                                             </button>
 
                                             {/* A4 */}
@@ -9709,7 +9709,7 @@ function Home() {
                                                     <FileText size={15} />
                                                     <span>A4</span>
                                                 </div>
-                                                <span className="inline-flex items-center justify-center font-mono text-[9px] font-extrabold px-2 py-0.5 rounded-full border border-white/30 bg-white/10 text-white">{isMac ? '⌥ + A' : 'ALT+A'}</span>
+                                                <span className="inline-flex items-center justify-center font-mono text-[9px] font-extrabold px-2 py-0.5 rounded-md bg-slate-900 text-white shadow-sm">{isMac ? '⌥ + A' : 'ALT+A'}</span>
                                             </button>
 
                                             {/* CLEAR BILL */}
@@ -9720,9 +9720,9 @@ function Home() {
                                             >
                                                 <div className="flex items-center gap-1.5 text-[11px] font-extrabold uppercase tracking-wider text-white">
                                                     <Trash2 size={15} />
-                                                    <span>CLEAR BILL</span>
+                                                    <span>RESET</span>
                                                 </div>
-                                                <span className="inline-flex items-center justify-center font-mono text-[9px] font-extrabold px-2 py-0.5 rounded-full border border-white/30 bg-white/10 text-white">{isMac ? '⌥ + C' : 'ALT+C'}</span>
+                                                <span className="inline-flex items-center justify-center font-mono text-[9px] font-extrabold px-2 py-0.5 rounded-md bg-slate-900 text-white shadow-sm">{isMac ? '⌥ + C' : 'ALT+C'}</span>
                                             </button>
                                         </div>
                                     </div>
@@ -10316,7 +10316,7 @@ function Home() {
                                                             <Printer size={12} />
                                                             <span>Pay & Print</span>
                                                         </span>
-                                                        <span className="btn-shortcut-key" style={{ background: 'rgba(255, 255, 255, 0.2)', color: 'white', fontSize: '8px', padding: '1px 3px', borderRadius: '3px' }}>Space</span>
+                                                        <span className="btn-shortcut-key">Space</span>
                                                     </button>
                                                     <button
                                                         className="home-bill-pay-btn"
@@ -10341,7 +10341,7 @@ function Home() {
                                                             <CreditCard size={12} />
                                                             <span>Pay No Print</span>
                                                         </span>
-                                                        <span className="btn-shortcut-key" style={{ background: 'rgba(255, 255, 255, 0.2)', color: 'white', fontSize: '8px', padding: '1px 3px', borderRadius: '3px' }}>Alt+N</span>
+                                                        <span className="btn-shortcut-key">Alt+N</span>
                                                     </button>
                                                     <button
                                                         className="home-bill-pay-btn"
@@ -10366,7 +10366,7 @@ function Home() {
                                                             <Printer size={12} />
                                                             <span>Pay A4 Print</span>
                                                         </span>
-                                                        <span className="btn-shortcut-key" style={{ background: 'rgba(255, 255, 255, 0.2)', color: 'white', fontSize: '8px', padding: '1px 3px', borderRadius: '3px' }}>Alt+A</span>
+                                                        <span className="btn-shortcut-key">Alt+A</span>
                                                     </button>
                                                 </div>
                                             )}
@@ -10388,7 +10388,7 @@ function Home() {
                                                 >
                                                     <Printer size={12} />
                                                     <span>Print Bill</span>
-                                                    <span className="btn-shortcut-key" style={{ background: 'rgba(255, 255, 255, 0.2)', color: 'white', fontSize: '9px', padding: '0px 4px', borderRadius: '3px', marginLeft: '4px' }}>F10</span>
+                                                    <span className="btn-shortcut-key" style={{ marginLeft: '4px' }}>F10</span>
                                                 </button>
                                             </div>
                                         </div>
