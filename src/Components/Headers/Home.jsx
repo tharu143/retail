@@ -4420,8 +4420,14 @@ function Home() {
                     };
                 }
 
+                const custDisplayName = selectedCustomer?.customer_name || selectedCustomer?.name || (customerName && customerName !== 'Cash' ? customerName : 'Cash');
+                const custMobile = phoneNumber || selectedCustomer?.mobile_no || '';
+
                 const printData = {
                     name: serverName,
+                    customer: customerId,
+                    customer_name: custDisplayName,
+                    contact_mobile: custMobile,
                     grand_total: grandTotal,
                     subtotal: subtotal,
                     discount_amount: discountAmount,
@@ -4550,8 +4556,14 @@ function Home() {
             console.error("Order Submission Error:", e);
             if (isOffline) {
                 await db.invoices.add({ ...payload, is_synced: 0, grand_total: grandTotal });
+                const custDisplayName = selectedCustomer?.customer_name || selectedCustomer?.name || (customerName && customerName !== 'Cash' ? customerName : 'Cash');
+                const custMobile = phoneNumber || selectedCustomer?.mobile_no || '';
+
                 const offlinePrintData = {
                     name: offlineId,
+                    customer: customerId,
+                    customer_name: custDisplayName,
+                    contact_mobile: custMobile,
                     grand_total: grandTotal,
                     subtotal: subtotal,
                     discount_amount: discountAmount,
@@ -6598,6 +6610,8 @@ function Home() {
                 <div class="divider"></div>
                 <div class="info">
                     <div class="info-row"><span>CASHIER:</span> <span class="bold">#${cashierName}</span></div>
+                    <div class="info-row"><span>CUSTOMER:</span> <span class="bold">${invoiceData.customer_name || invoiceData.customer || selectedCustomer?.customer_name || selectedCustomer?.name || (customerName && customerName !== 'Cash' ? customerName : 'Cash')}</span></div>
+                    ${(invoiceData.contact_mobile || phoneNumber || selectedCustomer?.mobile_no) ? `<div class="info-row"><span>PHONE:</span> <span>${invoiceData.contact_mobile || phoneNumber || selectedCustomer?.mobile_no}</span></div>` : ''}
                     <div class="info-row"><span>DATE:</span> <span>${invoiceData.posting_date}</span></div>
                     <div class="info-row"><span>TIME:</span> <span>${invoiceData.posting_time || 'N/A'}</span></div>
                     <div class="info-row"><span>INV NO:</span> <span class="bold">${invoiceData.name}</span></div>

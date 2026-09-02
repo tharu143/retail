@@ -1156,6 +1156,8 @@ const SalesInvoiceList = () => {
             <div class="divider"></div>
             <div class="info">
                 <div class="info-row"><span>CASHIER:</span> <span class="bold">#${cashierName}</span></div>
+                <div class="info-row"><span>CUSTOMER:</span> <span class="bold">${invoiceData.customer_name || invoiceData.customer || 'Cash'}</span></div>
+                ${(invoiceData.contact_mobile || invoiceData.phone) ? `<div class="info-row"><span>PHONE:</span> <span>${invoiceData.contact_mobile || invoiceData.phone}</span></div>` : ''}
                 <div class="info-row"><span>DATE:</span> <span>${invoiceData.posting_date}</span></div>
                 <div class="info-row"><span>TIME:</span> <span>${invoiceData.posting_time || 'N/A'}</span></div>
                 <div class="info-row"><span>INV NO:</span> <span class="bold">${invoiceData.name}</span></div>
