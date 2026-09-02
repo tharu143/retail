@@ -81,23 +81,24 @@ export const matchShortcutEvent = (e, shortcutString) => {
     const parts = shortcutString.toUpperCase().split('+').map(p => p.trim());
     
     // Extract modifiers
-    const needsCtrl = parts.includes('CTRL') || parts.includes('CONTROL');
-    const needsAlt = parts.includes('ALT');
+    const needsCtrl = parts.includes('CTRL') || parts.includes('CONTROL') || parts.includes('CMD') || parts.includes('COMMAND');
+    const needsAlt = parts.includes('ALT') || parts.includes('OPTION');
     const needsShift = parts.includes('SHIFT');
     
     // Find the main key (which is the part that is not CTRL, ALT, or SHIFT)
-    const mainKeyPart = parts.find(p => p !== 'CTRL' && p !== 'CONTROL' && p !== 'ALT' && p !== 'SHIFT');
+    const mainKeyPart = parts.find(p => !['CTRL', 'CONTROL', 'CMD', 'COMMAND', 'ALT', 'OPTION', 'SHIFT', 'META'].includes(p));
     if (!mainKeyPart) return false;
     
-    // Check modifiers match
-    if (e.ctrlKey !== needsCtrl) return false;
-    if (e.altKey !== needsAlt) return false;
-    if (e.shiftKey !== needsShift) return false;
+    // Check modifiers match - on Mac, Command key (e.metaKey) or Ctrl key (e.ctrlKey) both satisfy Ctrl/Cmd
+    const hasCtrlOrMeta = !!(e.ctrlKey || e.metaKey);
+    if (hasCtrlOrMeta !== needsCtrl) return false;
+    if (!!e.altKey !== needsAlt) return false;
+    if (!!e.shiftKey !== needsShift) return false;
     
     // Check key - use both e.key and e.code for Mac compatibility.
-    // On Mac, Option+letter generates special characters in e.key (e.g. Option+S → "ß"),
-    // but e.code always reflects the physical key pressed (e.g. "KeyS").
-    let eventKey = e.key.toUpperCase();
+    // On Mac, Option+letter generates special characters in e.key (e.g. Option+S → "ß", Option+N → "˜", Option+K → "˚"),
+    // but e.code always reflects the physical key pressed (e.g. "KeyS", "KeyN", "KeyK").
+    let eventKey = (e.key || '').toUpperCase();
     let targetKey = mainKeyPart;
     
     // Translate special terms
@@ -107,10 +108,24 @@ export const matchShortcutEvent = (e, shortcutString) => {
     // Direct match on e.key
     if (eventKey === targetKey) return true;
     
-    // Fallback: check physical key via e.code (e.g. "KeyS" -> "S", "Digit1" -> "1", "F10" -> "F10")
+    // Match common Mac Option dead keys directly
+    const macOptionMap = {
+        '˜': 'N', '~': 'N', 'ˆ': 'I', 'ˇ': 'C', '´': 'E', '`': '`',
+        'Å': 'A', 'Í': 'S', 'Ï': 'F', '∏': 'P', 'π': 'P', 'ß': 'S',
+        '©': 'G', '˙': 'H', '∆': 'J', '˚': 'K', '¬': 'L', 'µ': 'M',
+        '≈': 'X', 'Ç': 'C', 'ç': 'C', '√': 'V', '∫': 'B', 'Ω': 'Z',
+        'œ': 'Q', '∑': 'W', '®': 'R', '†': 'T', '¥': 'Y', 'ø': 'O',
+        '¡': '1', '™': '2', '£': '3', '¢': '4', '∞': '5', '§': '6',
+        '¶': '7', '•': '8', 'ª': '9', 'º': '0'
+    };
+    if (macOptionMap[e.key] && macOptionMap[e.key] === targetKey) {
+        return true;
+    }
+    
+    // Fallback: check physical key via e.code (e.g. "KeyS" -> "S", "KeyN" -> "N", "Digit1" -> "1", "F10" -> "F10")
     if (e.code) {
         let codeKey = e.code.toUpperCase();
-        if (codeKey.startsWith('KEY')) codeKey = codeKey.slice(3);         // "KEYS" -> "S"
+        if (codeKey.startsWith('KEY')) codeKey = codeKey.slice(3);         // "KEYN" -> "N"
         else if (codeKey.startsWith('DIGIT')) codeKey = codeKey.slice(5);  // "DIGIT1" -> "1"
         else if (codeKey.startsWith('NUMPAD')) codeKey = codeKey.slice(6); // "NUMPAD1" -> "1"
         if (codeKey === targetKey) return true;
@@ -126,15 +141,17 @@ export const getShortcutStringFromEvent = (e) => {
     if (modifiers.includes(e.key)) return '';
     
     const parts = [];
-    if (e.ctrlKey) parts.push('Ctrl');
+    if (e.ctrlKey || e.metaKey) parts.push('Ctrl');
     if (e.altKey) parts.push('Alt');
     if (e.shiftKey) parts.push('Shift');
     
     let mainKey = e.key;
     if (mainKey === ' ') mainKey = 'Space';
     
-    // Format main key
-    if (mainKey.length === 1) {
+    // If on Mac and pressing Option/Alt, resolve the real key using e.code
+    if (e.altKey && e.code && e.code.startsWith('Key')) {
+        mainKey = e.code.slice(3);
+    } else if (mainKey.length === 1) {
         mainKey = mainKey.toUpperCase();
     } else {
         // e.g. "Escape", "ArrowUp", "Enter", "F1", etc.

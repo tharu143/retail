@@ -7679,7 +7679,8 @@ function Home() {
                 }
             }
 
-            if (e.altKey && e.key.toLowerCase() === 'p') {
+            // Fast Checkout: Print Slip (Alt+P / Option+P)
+            if ((e.altKey && (e.key.toLowerCase() === 'p' || e.code === 'KeyP')) || e.key === 'π' || e.key === '∏') {
                 if (document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
                     if (billItems.length > 0 && !showPaymentModal && !showOpeningModal) {
                         e.preventDefault();
@@ -7688,7 +7689,8 @@ function Home() {
                 }
             }
 
-            if (e.altKey && e.key.toLowerCase() === 'n') {
+            // Fast Checkout: No Print (Alt+N / Option+N / dead ~)
+            if ((e.altKey && (e.key.toLowerCase() === 'n' || e.code === 'KeyN')) || e.key === '˜' || e.key === '~') {
                 if (document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
                     if (billItems.length > 0 && !showPaymentModal && !showOpeningModal) {
                         e.preventDefault();
@@ -7697,7 +7699,8 @@ function Home() {
                 }
             }
 
-            if (e.altKey && e.key.toLowerCase() === 'a') {
+            // Fast Checkout: A4 Print (Alt+A / Option+A)
+            if ((e.altKey && (e.key.toLowerCase() === 'a' || e.code === 'KeyA')) || e.key === 'Å' || e.key === 'å') {
                 if (document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
                     if (billItems.length > 0 && !showPaymentModal && !showOpeningModal) {
                         e.preventDefault();
@@ -7706,14 +7709,20 @@ function Home() {
                 }
             }
 
+            // Create Customer Modal Toggle (Alt+K / Option+K / dead ˚)
+            if ((e.altKey && (e.key.toLowerCase() === 'k' || e.code === 'KeyK')) || e.key === '˚' || e.key === '°') {
+                e.preventDefault();
+                openCreateCustomerModal();
+            }
+
             // Active Orders Toggle
             if (isShortcutPressed(e, 'pos_home', 'orders', 'F9')) {
                 e.preventDefault();
                 setShowDraftsModal(prev => !prev);
             }
 
-            // Print Job Modal Shortcut (Alt+P / Option+P)
-            if ((e.altKey && (e.key.toLowerCase() === 'p' || e.code === 'KeyP')) || e.key === 'π' || e.key === '∏') {
+            // Print Job Modal Shortcut (Alt+J / Option+J / Alt+P)
+            if ((e.altKey && e.shiftKey && (e.key.toLowerCase() === 'p' || e.code === 'KeyP')) || (e.altKey && (e.key.toLowerCase() === 'j' || e.code === 'KeyJ')) || e.key === '∆') {
                 e.preventDefault();
                 setShowPrintJobModal(prev => !prev);
             }
@@ -7732,21 +7741,23 @@ function Home() {
                     setShowFastPrintModal(false);
                 } else if (showLoyaltyModal) {
                     setShowLoyaltyModal(false);
+                } else if (showCreateModal) {
+                    setShowCreateModal(false);
                 } else if (showItemDropdown) {
                     setShowItemDropdown(false);
                 }
             }
 
             // Clear Bill
-            if (isShortcutPressed(e, 'pos_home', 'clearBill', 'Alt+C')) {
+            if (isShortcutPressed(e, 'pos_home', 'clearBill', 'Alt+C') || (e.altKey && (e.key.toLowerCase() === 'c' || e.code === 'KeyC')) || e.key === 'ç' || e.key === 'Ç') {
                 e.preventDefault();
                 if (billItems.length > 0) {
                     clearBillHandler();
                 }
             }
 
-            // Direct Cash
-            if (isShortcutPressed(e, 'pos_home', 'directCash', 'Alt+1') || (e.altKey && (e.key === '1' || e.code === 'Digit1' || e.code === 'Numpad1'))) {
+            // Direct Cash (Alt+1 / Option+1)
+            if (isShortcutPressed(e, 'pos_home', 'directCash', 'Alt+1') || (e.altKey && (e.key === '1' || e.code === 'Digit1' || e.code === 'Numpad1')) || e.key === '¡') {
                 e.preventDefault();
                 e.stopPropagation();
                 if (billItems.length > 0 && grandTotal > 0 && !paymentLoading) {
@@ -7754,8 +7765,8 @@ function Home() {
                 }
             }
 
-            // Direct Bank
-            if (isShortcutPressed(e, 'pos_home', 'directBank', 'Ctrl+V')) {
+            // Direct Bank (Ctrl+V / Cmd+V / Direct Bank shortcut)
+            if (isShortcutPressed(e, 'pos_home', 'directBank', 'Ctrl+V') || ((e.ctrlKey || e.metaKey) && (e.key.toLowerCase() === 'v' || e.code === 'KeyV'))) {
                 if (billItems.length > 0 && !isInputFocused) {
                     e.preventDefault();
                     e.stopPropagation();
@@ -7763,8 +7774,8 @@ function Home() {
                 }
             }
 
-            // Direct Card
-            if (isShortcutPressed(e, 'pos_home', 'directCard', 'Alt+2') || (e.altKey && (e.key === '2' || e.code === 'Digit2' || e.code === 'Numpad2'))) {
+            // Direct Card (Alt+2 / Option+2)
+            if (isShortcutPressed(e, 'pos_home', 'directCard', 'Alt+2') || (e.altKey && (e.key === '2' || e.code === 'Digit2' || e.code === 'Numpad2')) || e.key === '™') {
                 e.preventDefault();
                 e.stopPropagation();
                 if (billItems.length > 0 && grandTotal > 0 && !paymentLoading) {
@@ -7773,7 +7784,7 @@ function Home() {
             }
 
             // Grid Card Selection Mode (Modern Themes) or Swap Item (Classic Theme)
-            if (isShortcutPressed(e, 'pos_home', 'selectItem', 'Alt+I')) {
+            if (isShortcutPressed(e, 'pos_home', 'selectItem', 'Alt+I') || (e.altKey && (e.key.toLowerCase() === 'i' || e.code === 'KeyI')) || e.key === 'ˆ') {
                 e.preventDefault();
                 if (theme !== 'legacy') {
                     if (filteredItems.length > 0) {
