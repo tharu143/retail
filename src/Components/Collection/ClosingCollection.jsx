@@ -4,7 +4,7 @@ import {
     Wallet, Building2, Calendar, KeyRound, UserCheck, CreditCard, 
     Landmark, FileText, CheckCircle2, AlertCircle, Printer, RefreshCw, 
     History, ArrowRight, ShieldCheck, DollarSign, X, Check, Search, Receipt,
-    Coins, Banknote, ArrowDownToLine, CheckCheck
+    Coins, Banknote, ArrowDownToLine, CheckCheck, Landmark as BankIcon
 } from 'lucide-react';
 import Swal from 'sweetalert2';
 import DirhamIcon from '../../assets/Currency/DirhamIcon';
@@ -171,19 +171,19 @@ function ClosingCollection() {
         }
 
         const confirm = await Swal.fire({
-            title: 'Confirm Collection?',
+            title: 'Confirm Collection Handover?',
             html: `
-                <div class="text-left py-2 space-y-1.5 text-xs text-slate-700 font-medium">
-                    <p><strong>Branch:</strong> ${selectedBranch}</p>
-                    <p><strong>Date:</strong> ${selectedDate}</p>
-                    <p><strong>Collector:</strong> ${collectorName || 'Manual'}</p>
-                    <p><strong>Amount:</strong> AED ${enteredAmt.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
-                    <p><strong>Mode:</strong> ${collectionType}</p>
+                <div style="text-align: left; font-size: 13px; line-height: 1.6; color: #334155; padding: 6px 0;">
+                    <div><strong>Branch:</strong> ${selectedBranch}</div>
+                    <div><strong>Date:</strong> ${selectedDate}</div>
+                    <div><strong>Collector:</strong> ${collectorName || 'Manual'}</div>
+                    <div><strong>Amount:</strong> AED ${enteredAmt.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
+                    <div><strong>Payment Mode:</strong> ${collectionType}</div>
                 </div>
             `,
             icon: 'question',
             showCancelButton: true,
-            confirmButtonText: 'Yes, Submit & Print',
+            confirmButtonText: 'Yes, Submit & Print Slip',
             cancelButtonText: 'Cancel',
             confirmButtonColor: '#059669'
         });
@@ -220,7 +220,7 @@ function ClosingCollection() {
             if (result.status === 'success') {
                 Swal.fire({
                     icon: 'success',
-                    title: 'Collection Submitted!',
+                    title: 'Collection Recorded!',
                     text: result.message || 'Collection recorded successfully.',
                     timer: 2000,
                     showConfirmButton: false
@@ -325,34 +325,34 @@ function ClosingCollection() {
     }, [balanceData.collections, tableSearch]);
 
     return (
-        <div className="closing-collection-root">
-            <div className="closing-collection-container space-y-5">
+        <div className="bca-page-wrapper">
+            <div className="bca-container">
                 
-                {/* ── 1. CLEAN TOP HEADER (NO REDUNDANT DASHBOARD BUTTON) ── */}
-                <div className="cc-card p-4 md:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div className="flex items-center gap-3">
-                        <div className="w-11 h-11 bg-emerald-600 text-white rounded-xl shadow-md shadow-emerald-200 flex items-center justify-center shrink-0">
-                            <Wallet size={22} />
+                {/* ── 1. CLEAN TOP HEADER BANNER ── */}
+                <div className="bca-header-card">
+                    <div className="bca-header-left">
+                        <div className="bca-header-icon-box">
+                            <Wallet size={24} />
                         </div>
                         <div>
-                            <h1 className="text-xl md:text-2xl font-black text-slate-800 tracking-tight leading-tight">
+                            <h1 className="bca-header-title">
                                 Branch Closing Amount Collection
                             </h1>
-                            <p className="text-xs text-slate-500 font-medium mt-0.5">
-                                Track daily closing balances, collect funds with secret PIN verification & print thermal slips
+                            <p className="bca-header-subtitle">
+                                Track daily closing cash, verify handovers with PIN & generate thermal slips
                             </p>
                         </div>
                     </div>
 
-                    {/* Compact Filter Bar */}
-                    <div className="flex flex-wrap items-center gap-2 self-start md:self-auto">
+                    {/* Header Controls */}
+                    <div className="bca-header-controls">
                         {isAdmin && (
-                            <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 rounded-xl border border-slate-200 text-xs">
-                                <Building2 size={15} className="text-slate-500 shrink-0" />
+                            <div className="bca-control-pill">
+                                <Building2 size={15} className="text-slate-400" />
                                 <select 
                                     value={selectedBranch} 
                                     onChange={(e) => setSelectedBranch(e.target.value)}
-                                    className="bg-transparent font-bold text-slate-700 outline-none cursor-pointer pr-1"
+                                    className="bca-control-select"
                                 >
                                     {branches.map((b) => (
                                         <option key={b.name} value={b.name}>
@@ -363,20 +363,20 @@ function ClosingCollection() {
                             </div>
                         )}
 
-                        <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 rounded-xl border border-slate-200 text-xs">
-                            <Calendar size={15} className="text-slate-500 shrink-0" />
+                        <div className="bca-control-pill">
+                            <Calendar size={15} className="text-slate-400" />
                             <input 
                                 type="date" 
                                 value={selectedDate} 
                                 onChange={(e) => setSelectedDate(e.target.value)}
-                                className="bg-transparent font-bold text-slate-700 outline-none cursor-pointer"
+                                className="bca-control-date"
                             />
                         </div>
 
                         <button 
                             onClick={fetchCollectionData} 
                             disabled={loading}
-                            className="p-2.5 text-slate-600 hover:text-emerald-700 hover:bg-emerald-50 bg-slate-100 rounded-xl border border-slate-200 transition-all cursor-pointer shadow-2xs"
+                            className="bca-refresh-btn"
                             title="Refresh Data"
                         >
                             <RefreshCw size={15} className={loading ? "animate-spin text-emerald-600" : ""} />
@@ -384,71 +384,66 @@ function ClosingCollection() {
                     </div>
                 </div>
 
-                {/* ── 2. 3 ELEVATED METRIC CARDS ── */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                {/* ── 2. 3 ELEVATED KPI METRIC CARDS ── */}
+                <div className="bca-kpi-grid">
                     {/* Total Closing Balance */}
-                    <div className="kpi-metric-card kpi-metric-blue cc-card">
-                        <div className="flex items-center justify-between">
-                            <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-500">Total Closing Balance</span>
-                            <div className="p-2 bg-blue-100 text-blue-700 rounded-xl">
+                    <div className="bca-kpi-card blue">
+                        <div className="bca-kpi-top">
+                            <span className="bca-kpi-label">Total Closing Balance</span>
+                            <div className="bca-kpi-badge-icon">
                                 <Coins size={16} />
                             </div>
                         </div>
-                        <div className="my-2.5">
-                            <div className="text-2xl md:text-3xl font-black text-slate-800 flex items-center gap-1.5">
-                                <DirhamIcon size={20} className="text-slate-700" />
+                        <div className="bca-kpi-value-row">
+                            <DirhamIcon size={20} className="text-slate-700" />
+                            <span className="bca-kpi-value">
                                 {(balanceData.closing_balance || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                            </div>
+                            </span>
                         </div>
-                        <div className="flex items-center gap-1.5 text-[11px] text-slate-500 font-medium">
-                            <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
-                            <span>From POS shift closing / daily sales</span>
+                        <div className="bca-kpi-footer">
+                            <span>From POS Shift Closing / Sales</span>
                         </div>
                     </div>
 
                     {/* Total Collected Today */}
-                    <div className="kpi-metric-card kpi-metric-amber cc-card">
-                        <div className="flex items-center justify-between">
-                            <span className="text-[11px] font-extrabold uppercase tracking-wider text-amber-700">Total Collected Today</span>
-                            <div className="p-2 bg-amber-100 text-amber-700 rounded-xl">
+                    <div className="bca-kpi-card amber">
+                        <div className="bca-kpi-top">
+                            <span className="bca-kpi-label">Total Collected Today</span>
+                            <div className="bca-kpi-badge-icon">
                                 <History size={16} />
                             </div>
                         </div>
-                        <div className="my-2.5">
-                            <div className="text-2xl md:text-3xl font-black text-amber-700 flex items-center gap-1.5">
-                                <DirhamIcon size={20} className="text-amber-700" />
+                        <div className="bca-kpi-value-row">
+                            <DirhamIcon size={20} className="text-amber-600" />
+                            <span className="bca-kpi-value">
                                 {(balanceData.total_collected || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                            </div>
+                            </span>
                         </div>
-                        <div className="flex items-center gap-1.5 text-[11px] text-amber-700 font-semibold">
-                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
-                            <span>{balanceData.collections?.length || 0} handover transaction(s) recorded</span>
+                        <div className="bca-kpi-footer">
+                            <span>{balanceData.collections?.length || 0} handover entry(s) recorded</span>
                         </div>
                     </div>
 
                     {/* Remaining to Collect */}
-                    <div className="kpi-metric-card kpi-metric-emerald cc-card">
-                        <div className="flex items-center justify-between">
-                            <span className="text-[11px] font-extrabold uppercase tracking-wider text-emerald-800">Remaining to Collect</span>
-                            <div className="p-2 bg-emerald-200/80 text-emerald-800 rounded-xl">
+                    <div className="bca-kpi-card emerald">
+                        <div className="bca-kpi-top">
+                            <span className="bca-kpi-label">Remaining to Collect</span>
+                            <div className="bca-kpi-badge-icon">
                                 <CheckCircle2 size={16} />
                             </div>
                         </div>
-                        <div className="my-2.5">
-                            <div className="text-2xl md:text-3xl font-black text-emerald-800 flex items-center gap-1.5">
-                                <DirhamIcon size={20} className="text-emerald-800" />
+                        <div className="bca-kpi-value-row">
+                            <DirhamIcon size={20} className="text-emerald-700" />
+                            <span className="bca-kpi-value">
                                 {(balanceData.remaining_balance || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                            </div>
-                        </div>
-                        <div className="flex items-center justify-between text-[11px]">
-                            <span className="text-emerald-700 font-semibold flex items-center gap-1.5">
-                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                                Pending at branch counter
                             </span>
+                        </div>
+                        <div className="bca-kpi-footer">
+                            <span>Pending at branch counter</span>
                             {balanceData.remaining_balance > 0 && (
                                 <button
                                     onClick={handleFillMaxAmount}
-                                    className="text-[11px] font-extrabold text-emerald-800 underline hover:text-emerald-950 cursor-pointer"
+                                    className="bca-kpi-quick-btn"
                                 >
                                     Quick Fill
                                 </button>
@@ -457,43 +452,43 @@ function ClosingCollection() {
                     </div>
                 </div>
 
-                {/* ── 3. MAIN WORKSPACE GRID: FORM (LEFT) & HISTORY TABLE (RIGHT) ── */}
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+                {/* ── 3. WORKSPACE GRID: FORM & HISTORY TABLE ── */}
+                <div className="bca-workspace-grid">
                     
-                    {/* LEFT: Record New Collection Form (5 Cols) */}
-                    <div className="lg:col-span-5 cc-card p-5 space-y-4">
-                        <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-                            <div className="flex items-center gap-2">
-                                <div className="p-1.5 bg-emerald-50 text-emerald-700 rounded-lg">
-                                    <ArrowDownToLine size={16} />
+                    {/* LEFT PANEL: Record Handover Form */}
+                    <div className="bca-panel">
+                        <div className="bca-panel-header">
+                            <div className="bca-panel-title-wrap">
+                                <div className="bca-panel-icon">
+                                    <ArrowDownToLine size={17} />
                                 </div>
-                                <h2 className="text-sm font-black text-slate-800">
-                                    Record Handover
+                                <h2 className="bca-panel-title">
+                                    Record New Collection
                                 </h2>
                             </div>
-                            <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            <span className="bca-branch-tag" title={selectedBranch}>
                                 {selectedBranch || 'Branch'}
                             </span>
                         </div>
 
-                        <form onSubmit={handleSubmit} className="space-y-3.5">
-                            {/* Collection Amount */}
-                            <div className="cc-form-group">
-                                <div className="flex items-center justify-between">
-                                    <label className="text-xs font-bold text-slate-700">
-                                        Collection Amount (AED) <span className="text-rose-500">*</span>
+                        <form onSubmit={handleSubmit} className="bca-form">
+                            {/* Amount Field */}
+                            <div className="bca-field-group">
+                                <div className="bca-field-label-row">
+                                    <label className="bca-field-label">
+                                        Collection Amount (AED) <span className="bca-field-req">*</span>
                                     </label>
                                     <button 
                                         type="button" 
                                         onClick={handleFillMaxAmount}
-                                        className="text-[11px] font-extrabold text-emerald-700 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 px-2 py-0.5 rounded border border-emerald-200 cursor-pointer transition-all"
+                                        className="bca-field-fill-max"
                                     >
                                         Fill Max ({(balanceData.remaining_balance || 0).toLocaleString()})
                                     </button>
                                 </div>
-                                <div className="cc-input-wrapper">
-                                    <div className="cc-field-icon">
-                                        <DirhamIcon size={15} />
+                                <div className="bca-input-container">
+                                    <div className="bca-input-prefix-icon">
+                                        <DirhamIcon size={16} />
                                     </div>
                                     <input 
                                         type="number"
@@ -502,116 +497,98 @@ function ClosingCollection() {
                                         placeholder="0.00"
                                         value={amount}
                                         onChange={(e) => setAmount(e.target.value)}
-                                        className="cc-custom-input with-icon text-base font-black text-slate-800"
+                                        className="bca-input bca-input-amount"
                                         required
                                     />
                                 </div>
-
-                                {/* Live Impact Preview */}
-                                {amount && parseFloat(amount) > 0 && (
-                                    <div className="mt-1 flex items-center justify-between text-xs bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200">
-                                        <span className="text-slate-500 font-medium">Estimated Remaining:</span>
-                                        <span className={`font-black flex items-center gap-1 ${calculatedLiveRemaining === 0 ? 'text-emerald-600' : 'text-slate-800'}`}>
-                                            <DirhamIcon size={12} />
-                                            {calculatedLiveRemaining.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                        </span>
-                                    </div>
-                                )}
                             </div>
 
-                            {/* Secret Code (Collector Key) */}
-                            <div className="cc-form-group">
-                                <label className="text-xs font-bold text-slate-700">
-                                    Collector Secret Code / PIN <span className="text-rose-500">*</span>
+                            {/* Collector PIN */}
+                            <div className="bca-field-group">
+                                <label className="bca-field-label">
+                                    Collector Secret Code / PIN <span className="bca-field-req">*</span>
                                 </label>
-                                <div className="cc-input-wrapper">
-                                    <div className="cc-field-icon">
-                                        <KeyRound size={15} />
+                                <div className="bca-input-container">
+                                    <div className="bca-input-prefix-icon">
+                                        <KeyRound size={16} />
                                     </div>
                                     <input 
                                         type="password"
                                         placeholder="Enter 4-digit PIN (e.g. 1111)"
                                         value={secretCode}
                                         onChange={handleSecretCodeChange}
-                                        className="cc-custom-input with-icon pr-10 font-mono text-sm"
+                                        className="bca-input bca-input-pin"
                                         required
                                     />
                                     {isVerifyingCode && (
-                                        <span className="absolute right-3 top-1/2 -translate-y-1/2">
-                                            <RefreshCw size={14} className="animate-spin text-slate-400" />
+                                        <span style={{ position: 'absolute', right: 14 }}>
+                                            <RefreshCw size={15} className="animate-spin text-slate-400" />
                                         </span>
                                     )}
                                     {codeVerified && (
-                                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-emerald-600 bg-emerald-50 p-0.5 rounded">
+                                        <span style={{ position: 'absolute', right: 14, color: '#059669', background: '#ecfdf5', padding: 4, borderRadius: 6, display: 'flex' }}>
                                             <CheckCheck size={16} />
                                         </span>
                                     )}
                                 </div>
 
-                                {/* Verified Collector Name Preview */}
+                                {/* Collector Card if verified */}
                                 {collectorName ? (
-                                    <div className="mt-1.5 flex items-center gap-2.5 p-2 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-900">
-                                        <UserCheck size={16} className="text-emerald-600 shrink-0" />
-                                        <div className="text-xs">
-                                            <span className="font-extrabold text-emerald-900">{collectorName}</span>
-                                            <span className="text-[10px] text-emerald-700 font-medium block">Authorized Collector Verified</span>
+                                    <div className="bca-verified-collector-card">
+                                        <UserCheck size={18} className="shrink-0" />
+                                        <div>
+                                            <span className="bca-verified-name">{collectorName}</span>
+                                            <span className="bca-verified-sub">Authorized Collector Verified</span>
                                         </div>
                                     </div>
                                 ) : secretCode && !isVerifyingCode ? (
                                     <input 
                                         type="text"
-                                        placeholder="Or enter Collector / Employee Name manually"
+                                        placeholder="Or enter Collector Name manually"
                                         value={collectorName}
                                         onChange={(e) => setCollectorName(e.target.value)}
-                                        className="mt-1.5 cc-custom-input text-xs"
+                                        className="bca-input"
+                                        style={{ height: 38, fontSize: 12, paddingLeft: 12 }}
                                     />
                                 ) : null}
                             </div>
 
                             {/* Mode of Collection */}
-                            <div className="cc-form-group">
-                                <label className="text-xs font-bold text-slate-700">
+                            <div className="bca-field-group">
+                                <label className="bca-field-label">
                                     Mode of Collection
                                 </label>
-                                <div className="grid grid-cols-2 gap-2">
+                                <div className="bca-mode-selector">
                                     <button
                                         type="button"
                                         onClick={() => setCollectionType('Cash')}
-                                        className={`py-2 px-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
-                                            collectionType === 'Cash'
-                                                ? 'bg-emerald-600 border-emerald-600 text-white shadow-xs'
-                                                : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
-                                        }`}
+                                        className={`bca-mode-tab ${collectionType === 'Cash' ? 'active' : ''}`}
                                     >
-                                        <Banknote size={14} />
-                                        Cash Handover
+                                        <Banknote size={15} />
+                                        <span>Cash Handover</span>
                                     </button>
                                     <button
                                         type="button"
                                         onClick={() => setCollectionType('Bank Transfer')}
-                                        className={`py-2 px-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
-                                            collectionType === 'Bank Transfer'
-                                                ? 'bg-emerald-600 border-emerald-600 text-white shadow-xs'
-                                                : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
-                                        }`}
+                                        className={`bca-mode-tab ${collectionType === 'Bank Transfer' ? 'active' : ''}`}
                                     >
-                                        <Landmark size={14} />
-                                        Bank Transfer
+                                        <BankIcon size={15} />
+                                        <span>Bank Transfer</span>
                                     </button>
                                 </div>
                             </div>
 
-                            {/* If Bank Transfer: Account & Reference */}
+                            {/* Bank Details (Conditional) */}
                             {collectionType === 'Bank Transfer' && (
-                                <div className="p-3 bg-sky-50/70 border border-sky-200 rounded-xl space-y-2.5 animate-in fade-in duration-150">
+                                <div className="bca-bank-box">
                                     <div>
-                                        <label className="block text-[11px] font-bold text-sky-900 mb-1">
+                                        <label className="bca-field-label" style={{ color: '#0369a1', marginBottom: 4 }}>
                                             Destination Bank Account
                                         </label>
                                         <select 
                                             value={bankAccount} 
                                             onChange={(e) => setBankAccount(e.target.value)}
-                                            className="cc-custom-input bg-white text-xs"
+                                            className="bca-bank-select"
                                         >
                                             {(balanceData.bank_accounts || []).map((acc) => (
                                                 <option key={acc.name} value={acc.name}>
@@ -622,32 +599,33 @@ function ClosingCollection() {
                                     </div>
 
                                     <div>
-                                        <label className="block text-[11px] font-bold text-sky-900 mb-1">
-                                            Banking Reference / Voucher No <span className="text-rose-500">*</span>
+                                        <label className="bca-field-label" style={{ color: '#0369a1', marginBottom: 4 }}>
+                                            Banking Reference / Voucher No <span className="bca-field-req">*</span>
                                         </label>
                                         <input 
                                             type="text" 
                                             placeholder="e.g. UTR / Cheque / Ref #20000"
                                             value={bankingReference}
                                             onChange={(e) => setBankingReference(e.target.value)}
-                                            className="cc-custom-input bg-white text-xs"
+                                            className="bca-bank-input"
                                             required={collectionType === 'Bank Transfer'}
                                         />
                                     </div>
                                 </div>
                             )}
 
-                            {/* Remarks / Notes */}
-                            <div className="cc-form-group">
-                                <label className="text-xs font-bold text-slate-700">
+                            {/* Remarks */}
+                            <div className="bca-field-group">
+                                <label className="bca-field-label">
                                     Remarks / Notes (Optional)
                                 </label>
                                 <input 
                                     type="text"
-                                    placeholder="Add any handover notes or remarks"
+                                    placeholder="Add any handover notes"
                                     value={description}
                                     onChange={(e) => setDescription(e.target.value)}
-                                    className="cc-custom-input text-xs"
+                                    className="bca-input"
+                                    style={{ height: 40, fontSize: 13, paddingLeft: 14 }}
                                 />
                             </div>
 
@@ -655,120 +633,118 @@ function ClosingCollection() {
                             <button 
                                 type="submit" 
                                 disabled={submitting || loading}
-                                className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs flex items-center justify-center gap-2 shadow-sm cursor-pointer transition-all disabled:opacity-50 mt-1"
+                                className="bca-submit-btn"
                             >
                                 {submitting ? (
                                     <>
-                                        <RefreshCw size={15} className="animate-spin" />
-                                        Recording Handover...
+                                        <RefreshCw size={16} className="animate-spin" />
+                                        <span>Recording Handover...</span>
                                     </>
                                 ) : (
                                     <>
-                                        <CheckCircle2 size={16} />
-                                        Submit Collection & Generate Slip
+                                        <CheckCircle2 size={17} />
+                                        <span>Submit Collection & Print Slip</span>
                                     </>
                                 )}
                             </button>
                         </form>
                     </div>
 
-                    {/* RIGHT: Collection Breakdown History Table (7 Cols) */}
-                    <div className="lg:col-span-7 cc-card p-5 space-y-3.5">
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
-                            <div className="flex items-center gap-2">
-                                <div className="p-1.5 bg-slate-100 text-slate-700 rounded-lg">
-                                    <History size={16} />
+                    {/* RIGHT PANEL: Handover History ERP Table */}
+                    <div className="bca-panel">
+                        <div className="bca-panel-header">
+                            <div className="bca-panel-title-wrap">
+                                <div className="bca-panel-icon" style={{ background: '#f1f5f9', color: '#475569' }}>
+                                    <History size={17} />
                                 </div>
                                 <div>
-                                    <h2 className="text-sm font-black text-slate-800">
+                                    <h2 className="bca-panel-title">
                                         Handover History ({selectedDate})
                                     </h2>
-                                    <p className="text-[11px] text-slate-400 font-medium">
-                                        Total {balanceData.collections?.length || 0} handover entries recorded
-                                    </p>
+                                    <div style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>
+                                        {balanceData.collections?.length || 0} entries recorded
+                                    </div>
                                 </div>
                             </div>
 
-                            {/* Search Box */}
-                            <div className="relative min-w-[180px]">
-                                <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                            {/* Search Filter */}
+                            <div className="bca-table-search-box">
+                                <Search size={14} style={{ position: 'absolute', left: 10, top: 10, color: '#94a3b8' }} />
                                 <input 
                                     type="text"
-                                    placeholder="Filter history..."
+                                    placeholder="Filter entries..."
                                     value={tableSearch}
                                     onChange={(e) => setTableSearch(e.target.value)}
-                                    className="w-full pl-7 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 outline-none focus:border-emerald-500 transition-all"
+                                    className="bca-table-search-input"
                                 />
                             </div>
                         </div>
 
-                        {/* Table Container */}
-                        <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
-                            <table className="w-full text-left border-collapse text-xs">
+                        {/* Table */}
+                        <div className="bca-table-wrapper">
+                            <table className="bca-table">
                                 <thead>
-                                    <tr className="border-b border-slate-200 bg-slate-50 text-[10.5px] font-black text-slate-600 uppercase tracking-wider">
-                                        <th className="py-2.5 px-3.5">Voucher / Time</th>
-                                        <th className="py-2.5 px-3 text-right">Amount (AED)</th>
-                                        <th className="py-2.5 px-3">Collector PIN</th>
-                                        <th className="py-2.5 px-3">Employee</th>
-                                        <th className="py-2.5 px-3">Mode</th>
-                                        <th className="py-2.5 px-3 text-center">Slip</th>
+                                    <tr>
+                                        <th>VOUCHER / TIME</th>
+                                        <th className="text-right">AMOUNT (AED)</th>
+                                        <th>COLLECTOR PIN</th>
+                                        <th>EMPLOYEE</th>
+                                        <th>PAYMENT MODE</th>
+                                        <th className="text-center">SLIP</th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
-                                    {/* Initial Closing Balance Header */}
-                                    <tr className="bg-slate-50/70 font-bold">
-                                        <td className="py-2.5 px-3.5 text-slate-900 font-black">Initial Closing Balance</td>
-                                        <td className="py-2.5 px-3 text-right font-black text-slate-900 flex items-center justify-end gap-1">
-                                            <DirhamIcon size={12} />
+                                <tbody>
+                                    {/* Row 1: Initial Closing Balance */}
+                                    <tr className="bca-row-summary">
+                                        <td style={{ color: '#0f172a' }}>Initial Closing Balance</td>
+                                        <td className="text-right" style={{ color: '#0f172a' }}>
                                             {(balanceData.closing_balance || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                         </td>
-                                        <td className="py-2.5 px-3 text-slate-400" colSpan={4}></td>
+                                        <td style={{ color: '#94a3b8' }}>—</td>
+                                        <td style={{ color: '#94a3b8' }}>—</td>
+                                        <td style={{ color: '#94a3b8' }}>—</td>
+                                        <td className="text-center" style={{ color: '#94a3b8' }}>—</td>
                                     </tr>
 
-                                    {/* Filtered Collection rows */}
+                                    {/* History Rows */}
                                     {filteredCollections.map((col, index) => (
-                                        <tr key={col.name || index} className="hover:bg-slate-50/80 transition-all">
-                                            <td className="py-3 px-3.5">
-                                                <span className="font-extrabold text-slate-800 font-mono text-[11px]">{col.name}</span>
-                                                <span className="block text-[10px] text-slate-400 font-normal">{col.posting_time || ''}</span>
+                                        <tr key={col.name || index}>
+                                            <td>
+                                                <div style={{ fontWeight: 800, color: '#0f172a', fontFamily: 'monospace' }}>{col.name}</div>
+                                                <div style={{ fontSize: 10, color: '#64748b' }}>{col.posting_time || ''}</div>
                                             </td>
-                                            <td className="py-3 px-3 text-right font-black text-emerald-700 text-sm">
-                                                <div className="flex items-center justify-end gap-1">
-                                                    <DirhamIcon size={12} className="text-emerald-700" />
-                                                    {parseFloat(col.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                                </div>
+                                            <td className="text-right" style={{ fontWeight: 800, color: '#047857', fontSize: 13 }}>
+                                                {parseFloat(col.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                             </td>
-                                            <td className="py-3 px-3">
-                                                <span className="font-mono text-[11px] bg-slate-100 px-2 py-0.5 rounded text-slate-700 font-black border border-slate-200">
+                                            <td>
+                                                <span className="bca-pin-badge">
                                                     {col.secret_code || '-'}
                                                 </span>
                                             </td>
-                                            <td className="py-3 px-3 font-bold text-slate-800">
+                                            <td style={{ fontWeight: 700, color: '#1e293b' }}>
                                                 {col.collector_name || col.employee || '-'}
                                             </td>
-                                            <td className="py-3 px-3 text-[11px]">
+                                            <td>
                                                 {col.collection_type === 'Bank Transfer' ? (
-                                                    <div>
-                                                        <span className="font-extrabold text-sky-700 bg-sky-50 px-1.5 py-0.5 rounded border border-sky-200">
-                                                            {col.banking_reference || 'Bank Ref'}
-                                                        </span>
-                                                        <span className="block text-[9.5px] text-slate-400 mt-0.5">{col.bank_account || ''}</span>
-                                                    </div>
+                                                    <span className="bca-mode-badge-bank">
+                                                        <BankIcon size={12} />
+                                                        <span>{col.banking_reference || 'Bank Transfer'}</span>
+                                                    </span>
                                                 ) : (
-                                                    <span className="text-emerald-700 font-extrabold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                                                        Cash
+                                                    <span className="bca-mode-badge-cash">
+                                                        <Banknote size={12} />
+                                                        <span>Cash</span>
                                                     </span>
                                                 )}
                                             </td>
-                                            <td className="py-3 px-3 text-center">
+                                            <td className="text-center">
                                                 <button 
                                                     onClick={() => {
                                                         setPrintDoc(col);
                                                         setShowPrintModal(true);
                                                     }}
-                                                    className="p-1.5 text-slate-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-all cursor-pointer"
-                                                    title="Reprint Thermal Slip"
+                                                    className="bca-print-icon-btn"
+                                                    title="Reprint Slip"
                                                 >
                                                     <Printer size={15} />
                                                 </button>
@@ -776,22 +752,19 @@ function ClosingCollection() {
                                         </tr>
                                     ))}
 
-                                    {/* Final Summary Row: Remaining Balance */}
-                                    <tr className="bg-emerald-50/50 font-black border-t-2 border-slate-200">
-                                        <td className="py-2.5 px-3.5 text-emerald-950 uppercase tracking-wide">Live Pending Balance</td>
-                                        <td className="py-2.5 px-3 text-right text-emerald-800 text-sm font-black">
-                                            <div className="flex items-center justify-end gap-1">
-                                                <DirhamIcon size={13} className="text-emerald-800" />
-                                                {(balanceData.remaining_balance || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                            </div>
+                                    {/* Final Row: Live Remaining Balance */}
+                                    <tr className="bca-row-live">
+                                        <td style={{ textTransform: 'uppercase' }}>Live Pending Balance</td>
+                                        <td className="text-right" style={{ fontSize: 14 }}>
+                                            {(balanceData.remaining_balance || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                         </td>
-                                        <td className="py-2.5 px-3" colSpan={4}></td>
+                                        <td colSpan={4}></td>
                                     </tr>
 
                                     {filteredCollections.length === 0 && (
                                         <tr>
-                                            <td colSpan={6} className="py-6 text-center text-slate-400 text-xs">
-                                                No collections recorded yet for this date.
+                                            <td colSpan={6} style={{ textAlign: 'center', padding: '32px 16px', color: '#94a3b8', fontWeight: 600 }}>
+                                                No collection handovers recorded yet for this date.
                                             </td>
                                         </tr>
                                     )}
@@ -803,105 +776,105 @@ function ClosingCollection() {
 
                 {/* ── 4. THERMAL PRINT SLIP MODAL (80mm PREVIEW) ── */}
                 {showPrintModal && printDoc && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-                        <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-sm overflow-hidden animate-in fade-in zoom-in-95 duration-150">
-                            <div className="p-3.5 bg-slate-100 flex items-center justify-between border-b border-slate-200">
-                                <h3 className="text-xs font-black text-slate-800 flex items-center gap-2 uppercase tracking-wide">
-                                    <Receipt size={15} className="text-emerald-600" />
-                                    Thermal Slip Preview
-                                </h3>
+                    <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(15, 23, 42, 0.65)', backdropFilter: 'blur(3px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+                        <div style={{ background: '#ffffff', borderRadius: 16, border: '1px solid #e2e8f0', width: '100%', maxWidth: 380, overflow: 'hidden', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)' }}>
+                            <div style={{ padding: '12px 16px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 800, fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.04em', color: '#1e293b' }}>
+                                    <Receipt size={16} style={{ color: '#059669' }} />
+                                    <span>Thermal Slip Preview</span>
+                                </div>
                                 <button 
                                     onClick={() => setShowPrintModal(false)}
-                                    className="p-1 text-slate-400 hover:text-slate-600 rounded-lg cursor-pointer"
+                                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', display: 'flex', padding: 4 }}
                                 >
                                     <X size={16} />
                                 </button>
                             </div>
 
                             {/* Printable Thermal Receipt Area */}
-                            <div className="p-4 overflow-y-auto max-h-[70vh] bg-slate-50">
-                                <div id="thermal-collection-slip" className="font-mono text-xs text-slate-900 space-y-2 text-center bg-white p-3.5 border border-dashed border-slate-300 rounded-xl shadow-2xs">
-                                    <div className="font-black text-sm uppercase tracking-wider">{printDoc.branch || selectedBranch}</div>
-                                    <div className="text-[10px] text-slate-600 font-bold uppercase">Branch Closing Amount Collection</div>
-                                    <div className="text-[10px] text-slate-400">================================</div>
+                            <div style={{ padding: 16, background: '#f1f5f9', maxHeight: '70vh', overflowY: 'auto' }}>
+                                <div id="thermal-collection-slip" style={{ fontFamily: 'monospace', fontSize: 11, color: '#000000', lineHeight: 1.3, background: '#ffffff', padding: 14, border: '1px dashed #cbd5e1', borderRadius: 8 }}>
+                                    <div style={{ fontWeight: 900, fontSize: 13, textTransform: 'uppercase', textAlign: 'center' }}>{printDoc.branch || selectedBranch}</div>
+                                    <div style={{ fontSize: 9.5, fontWeight: 700, textTransform: 'uppercase', textAlign: 'center', color: '#475569', marginTop: 2 }}>Branch Closing Amount Collection</div>
+                                    <div style={{ textAlign: 'center', margin: '6px 0', fontSize: 10 }}>================================</div>
 
-                                    <div className="text-left text-[11px] space-y-1.5 font-medium">
-                                        <div className="flex justify-between">
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 10.5 }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                                             <span>Receipt No:</span>
-                                            <span className="font-bold">{printDoc.name}</span>
+                                            <span style={{ fontWeight: 800 }}>{printDoc.name}</span>
                                         </div>
-                                        <div className="flex justify-between">
+                                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                                             <span>Date & Time:</span>
                                             <span>{printDoc.posting_date} {printDoc.posting_time || ''}</span>
                                         </div>
-                                        <div className="flex justify-between">
+                                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                                             <span>Collector Code:</span>
-                                            <span className="font-bold">{printDoc.secret_code || '-'}</span>
+                                            <span style={{ fontWeight: 800 }}>{printDoc.secret_code || '-'}</span>
                                         </div>
-                                        <div className="flex justify-between">
+                                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                                             <span>Collector Name:</span>
-                                            <span className="font-bold">{printDoc.collector_name || printDoc.employee || '-'}</span>
+                                            <span style={{ fontWeight: 800 }}>{printDoc.collector_name || printDoc.employee || '-'}</span>
                                         </div>
-                                        <div className="flex justify-between">
+                                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                                             <span>Payment Mode:</span>
-                                            <span className="font-bold">{printDoc.collection_type || 'Cash'}</span>
+                                            <span style={{ fontWeight: 800 }}>{printDoc.collection_type || 'Cash'}</span>
                                         </div>
                                         {printDoc.banking_reference && (
-                                            <div className="flex justify-between">
+                                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                                                 <span>Bank Ref:</span>
-                                                <span className="font-bold">{printDoc.banking_reference}</span>
+                                                <span style={{ fontWeight: 800 }}>{printDoc.banking_reference}</span>
                                             </div>
                                         )}
                                     </div>
 
-                                    <div className="text-[10px] text-slate-400">--------------------------------</div>
+                                    <div style={{ textAlign: 'center', margin: '6px 0', fontSize: 10 }}>--------------------------------</div>
 
-                                    <div className="text-left text-[11px] space-y-1.5">
-                                        <div className="flex justify-between font-medium">
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 11 }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                                             <span>Closing Balance:</span>
                                             <span>AED {parseFloat(printDoc.closing_balance || 0).toFixed(2)}</span>
                                         </div>
-                                        <div className="flex justify-between font-black text-sm text-slate-900">
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 900, fontSize: 12 }}>
                                             <span>COLLECTED AMOUNT:</span>
                                             <span>AED {parseFloat(printDoc.amount || 0).toFixed(2)}</span>
                                         </div>
-                                        <div className="flex justify-between font-bold text-emerald-800">
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 800, color: '#047857' }}>
                                             <span>REMAINING BALANCE:</span>
                                             <span>AED {parseFloat(printDoc.remaining_balance || 0).toFixed(2)}</span>
                                         </div>
                                     </div>
 
-                                    <div className="text-[10px] text-slate-400">================================</div>
+                                    <div style={{ textAlign: 'center', margin: '6px 0', fontSize: 10 }}>================================</div>
 
-                                    <div className="pt-5 grid grid-cols-2 text-[9px] text-center gap-4">
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginTop: 24, textAlign: 'center', fontSize: 9 }}>
                                         <div>
-                                            <div className="border-b border-slate-400 pb-1"></div>
-                                            <span className="mt-1 block font-bold text-slate-700">Branch Manager</span>
+                                            <div style={{ borderBottom: '1px solid #000000', marginBottom: 4 }}></div>
+                                            <span style={{ fontWeight: 700 }}>Branch Manager</span>
                                         </div>
                                         <div>
-                                            <div className="border-b border-slate-400 pb-1"></div>
-                                            <span className="mt-1 block font-bold text-slate-700">Collector Signature</span>
+                                            <div style={{ borderBottom: '1px solid #000000', marginBottom: 4 }}></div>
+                                            <span style={{ fontWeight: 700 }}>Collector Signature</span>
                                         </div>
                                     </div>
 
-                                    <div className="text-[8px] text-slate-400 pt-2.5">
+                                    <div style={{ fontSize: 8, color: '#64748b', textAlign: 'center', marginTop: 12 }}>
                                         Generated automatically via Retail-POS
                                     </div>
                                 </div>
                             </div>
 
                             {/* Modal Footer */}
-                            <div className="p-3.5 bg-slate-50 border-t border-slate-200 flex gap-2">
+                            <div style={{ padding: 12, background: '#f8fafc', borderTop: '1px solid #e2e8f0', display: 'flex', gap: 8 }}>
                                 <button 
                                     onClick={handlePrintThermal}
-                                    className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs flex items-center justify-center gap-2 shadow-xs cursor-pointer"
+                                    style={{ flex: 1, height: 38, background: '#059669', color: '#ffffff', border: 'none', borderRadius: 8, fontWeight: 800, fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, cursor: 'pointer' }}
                                 >
                                     <Printer size={15} />
-                                    Print Thermal Slip
+                                    <span>Print Thermal Slip</span>
                                 </button>
                                 <button 
                                     onClick={() => setShowPrintModal(false)}
-                                    className="px-4 py-2 bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 rounded-xl font-bold text-xs cursor-pointer"
+                                    style={{ height: 38, padding: '0 16px', background: '#ffffff', border: '1px solid #cbd5e1', color: '#334155', borderRadius: 8, fontWeight: 700, fontSize: 12, cursor: 'pointer' }}
                                 >
                                     Close
                                 </button>
