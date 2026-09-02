@@ -115,6 +115,13 @@ const POSService = {
         });
     },
 
+    getCashierBySecretKey: async (secretKey, warehouse) => {
+        return await frappeCall({
+            method: 'custom_retailpos.custom_retailpos.retail_api.retail.get_cashier_by_secret_key',
+            args: { secret_key: secretKey, warehouse }
+        });
+    },
+
     getLastOfflineId: async (prefix) => {
         return await frappeCall({
             method: 'kyle_retail.retail_api.api.get_last_offline_id_retail',

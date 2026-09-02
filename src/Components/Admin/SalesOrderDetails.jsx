@@ -19,6 +19,7 @@ import './SalesOrder.css';
 import DirhamIcon from '../../assets/Currency/DirhamIcon';
 import ColumnConfigModal from '../Purchase/ColumnConfigModal';
 import CustomSearchDropdown from '../Purchase/CustomSearchDropdown';
+import QuickItemCreateModal from '../Purchase/QuickItemCreateModal';
 import AttachmentSection from './AttachmentSection';
 import { useCustomShortcuts } from '../../hooks/useCustomShortcuts';
 
@@ -240,6 +241,9 @@ export default function SalesOrderDetails() {
     // Matrix Columns Configuration
     const [soColumns, setSoColumns] = useState(loadColumnConfig);
     const [showColConfig, setShowColConfig] = useState(false);
+    const [showQuickItemModal, setShowQuickItemModal] = useState(false);
+    const [quickItemInitialCode, setQuickItemInitialCode] = useState('');
+    const [quickItemTargetRow, setQuickItemTargetRow] = useState(null);
 
     useEffect(() => {
         const handleClickOutside = (e) => {
@@ -2834,57 +2838,49 @@ export default function SalesOrderDetails() {
                                                                 case 'item_code':
                                                                     return (
                                                                         <td key={col.id}>
-                                                                            <div style={{ position: 'relative' }}>
-                                                                                <input
-                                                                                    className="so-td-input"
-                                                                                    type="text"
-                                                                                    ref={el => itemInputRefs.current[idx] = el}
-                                                                                    value={item.item_code}
-                                                                                    placeholder="SKU or Name..."
-                                                                                    onChange={(e) => {
-                                                                                        const val = e.target.value;
-                                                                                        const itms = [...form.items];
-                                                                                        itms[idx].item_code = val;
-                                                                                        setForm({ ...form, items: itms });
-                                                                                        searchItems(val, idx);
-                                                                                    }}
-                                                                                    onKeyDown={e => {
-                                                                                        if (!showItemDropdowns[idx] || itemsList.length === 0) return;
-                                                                                        const currIndex = highlightedItemIndex[idx] !== undefined ? highlightedItemIndex[idx] : -1;
-                                                                                        if (e.key === 'ArrowDown') {
-                                                                                            e.preventDefault();
-                                                                                            e.stopPropagation();
-                                                                                            setHighlightedItemIndex(prev => ({ ...prev, [idx]: currIndex < itemsList.length - 1 ? currIndex + 1 : currIndex }));
-                                                                                        } else if (e.key === 'ArrowUp') {
-                                                                                            e.preventDefault();
-                                                                                            e.stopPropagation();
-                                                                                            setHighlightedItemIndex(prev => ({ ...prev, [idx]: currIndex > 0 ? currIndex - 1 : currIndex }));
-                                                                                        } else if (e.key === 'Enter') {
-                                                                                            e.preventDefault();
-                                                                                            e.stopPropagation();
-                                                                                            if (currIndex >= 0 && itemsList[currIndex]) {
-                                                                                                selectItem(idx, itemsList[currIndex]);
-                                                                                            } else if (itemsList.length > 0) {
-                                                                                                selectItem(idx, itemsList[0]);
-                                                                                            }
-                                                                                        }
-                                                                                    }}
-                                                                                />
-                                                                                {item.item_name && (
-                                                                                    <div style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 600, marginTop: '4px', paddingLeft: '8px', textAlign: 'left' }}>
-                                                                                        {item.item_name}
-                                                                                    </div>
-                                                                                )}
-                                                                                {showItemDropdowns[idx] && (
-                                                                                    <PortalDropdown
-                                                                                        itemsList={itemsList}
-                                                                                        onSelect={(it) => selectItem(idx, it)}
-                                                                                        targetEl={itemInputRefs.current[idx]}
-                                                                                        onClose={() => setShowItemDropdowns(p => ({ ...p, [idx]: false }))}
-                                                                                        highlightedIndex={highlightedItemIndex[idx]}
-                                                                                    />
-                                                                                )}
-                                                                            </div>
+                                                                            <CustomSearchDropdown
+                                                                                placeholder="Search item..."
+                                                                                value={item.item_code ? { name: item.item_code, item_name: item.item_name } : null}
+                                                                                onSelect={(it) => {
+                                                                                    if (it) selectItem(idx, it);
+                                                                                }}
+                                                                                fetchData={async (q) => {
+                                                                                    const activeWh = form.set_source_warehouse || warehouse || localStorage.getItem('warehouse') || '';
+                                                                                    const res = await axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_items_so', {
+                                                                                        params: { query: q, warehouse: activeWh },
+                                                                                        withCredentials: true
+                                                                                    });
+                                                                                    return res.data?.message || [];
+                                                                                }}
+                                                                                createOption={(query) => {
+                                                                                    setQuickItemInitialCode(query || '');
+                                                                                    setQuickItemTargetRow(idx);
+                                                                                    setShowQuickItemModal(true);
+                                                                                }}
+                                                                                themeColor={themeColor}
+                                                                                optionsLabel="item_name"
+                                                                                globalSearch={true}
+                                                                                onGlobalSearch={async (query) => {
+                                                                                    const res = await axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.find_item_globally_retail', {
+                                                                                        params: { search_term: query },
+                                                                                        withCredentials: true
+                                                                                    });
+                                                                                    return res.data?.message?.data || res.data?.message || [];
+                                                                                }}
+                                                                                onActivate={async (it) => {
+                                                                                    const targetWh = form.set_source_warehouse || warehouse || localStorage.getItem('warehouse');
+                                                                                    const res = await axios.post('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.enable_item_for_branch_retail', {
+                                                                                        item_code: it.name || it.item_code,
+                                                                                        warehouse: targetWh
+                                                                                    }, { withCredentials: true });
+                                                                                    if (res.data?.message?.success || res.data?.success) {
+                                                                                        Swal.fire({ icon: 'success', title: 'Item Linked', text: 'Linked to branch!', timer: 1500, showConfirmButton: false });
+                                                                                        selectItem(idx, it);
+                                                                                        return true;
+                                                                                    }
+                                                                                    return false;
+                                                                                }}
+                                                                            />
                                                                         </td>
                                                                     );
                                                                 case 'custom_ref_sl_no':
@@ -3626,6 +3622,23 @@ export default function SalesOrderDetails() {
                     </div>
                 </div>
             )}
+            {/* Quick Item Creation Modal */}
+            <QuickItemCreateModal
+                isOpen={showQuickItemModal}
+                onClose={() => {
+                    setShowQuickItemModal(false);
+                    setQuickItemInitialCode('');
+                    setQuickItemTargetRow(null);
+                }}
+                initialItemCode={quickItemInitialCode}
+                initialItemName={quickItemInitialCode}
+                warehouse={form.set_source_warehouse || warehouse || localStorage.getItem('warehouse')}
+                onItemCreated={(createdItem) => {
+                    if (quickItemTargetRow !== null && quickItemTargetRow >= 0) {
+                        selectItem(quickItemTargetRow, createdItem);
+                    }
+                }}
+            />
         </div>
     );
 }

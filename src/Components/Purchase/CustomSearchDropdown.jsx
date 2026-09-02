@@ -144,24 +144,32 @@ const CustomSearchDropdown = ({
   }, [query, justCreated, isGlobalView]);
 
   const handleGlobalSearch = async () => {
-    if (!onGlobalSearch) return;
+    console.log('[CustomSearchDropdown] SEARCH OTHER BRANCHES clicked! Query:', query, 'onGlobalSearch prop present?', !!onGlobalSearch);
+    if (!onGlobalSearch) {
+      console.warn('[CustomSearchDropdown] onGlobalSearch prop is missing!');
+      return;
+    }
     setLoading(true);
     try {
       const data = await onGlobalSearch(query);
+      console.log('[CustomSearchDropdown] handleGlobalSearch received data:', data);
       setGlobalResults(data || []);
       setIsGlobalView(true);
+      console.log('[CustomSearchDropdown] Switched isGlobalView to TRUE, count:', (data || []).length);
     } catch (err) {
-      console.error(err);
+      console.error('[CustomSearchDropdown] handleGlobalSearch caught error:', err);
     } finally {
       setLoading(false);
     }
   };
 
   const handleActivate = async (item) => {
+    console.log('[CustomSearchDropdown] ACTIVATE clicked for item:', item, 'onActivate prop present?', !!onActivate);
     if (!onActivate) return;
     try {
       setActivating(item.name || item.item_code);
       const success = await onActivate(item);
+      console.log('[CustomSearchDropdown] onActivate returned:', success);
       if (success) {
         // Refresh local search and select
         const localData = await fetchData(query);
@@ -170,44 +178,29 @@ const CustomSearchDropdown = ({
         handleItemClick(item);
       }
     } catch (err) {
-      console.error(err);
+      console.error('[CustomSearchDropdown] handleActivate caught error:', err);
     } finally {
       setActivating(null);
     }
   };
 
   const handleCreate = async () => {
+    console.log('[CustomSearchDropdown] handleCreate clicked! Query:', query, 'createOption prop:', !!createOption);
     if (!createOption || !query.trim()) return;
 
+    setShow(false); // Close the dropdown so the modal can be cleanly interacted with
     try {
-      setLoading(true);
-      const newItem = await createOption(query.trim());
-
-      if (newItem) {
-        onSelect(newItem);
-        setQuery(newItem.supplier_name || newItem.name || '');
-        setShow(false);
-        setJustCreated(true);
-
-        // THEME-AWARE SUCCESS TOAST
-        const toast = document.createElement('div');
-        toast.className = 'fixed bottom-4 right-4 bg-slate-900 text-white px-6 py-4 rounded-xl shadow-2xl z-50 flex items-center gap-3 animate-fadeIn border-l-4 border-[var(--po-primary)]';
-        toast.innerHTML = `
-        <svg class="w-6 h-6 text-[var(--po-primary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path>
-        </svg>
-        <div>
-          <div class="font-bold">Entry Created!</div>
-          <div class="text-sm opacity-90">${newItem.supplier_name || newItem.name}</div>
-        </div>
-      `;
-        document.body.appendChild(toast);
-        setTimeout(() => toast.remove(), 4000);
+      const res = createOption(query.trim());
+      if (res && typeof res.then === 'function') {
+        const newItem = await res;
+        if (newItem) {
+          onSelect(newItem);
+          setQuery(newItem.supplier_name || newItem.name || '');
+          setJustCreated(true);
+        }
       }
     } catch (err) {
-      console.warn("Handled error:", err);
-    } finally {
-      setLoading(false);
+      console.warn("[CustomSearchDropdown] handleCreate error:", err);
     }
   };
 
@@ -343,11 +336,6 @@ const CustomSearchDropdown = ({
                           Stock: {item.actual_qty}
                         </span>
                       )}
-                      {(item.last_purchase_rate || item.last_buying_rate || item.last_buying_price || item.rate) > 0 && (
-                        <span className="text-[9px] bg-emerald-50 text-emerald-700 border border-emerald-200 font-extrabold px-1.5 py-0.5 rounded tracking-tight shrink-0">
-                          Last Pur: AED {parseFloat(item.last_purchase_rate || item.last_buying_rate || item.last_buying_price || item.rate).toFixed(2)}
-                        </span>
-                      )}
                     </div>
                   </div>
                   {item.supplier_type && (
@@ -383,9 +371,18 @@ const CustomSearchDropdown = ({
                         <span className="text-[10px] text-slate-400 font-semibold tracking-wide font-mono truncate">Available in: {item.active_branches || 'Registry'}</span>
                       </div>
                       <button
-                        onClick={() => handleActivate(item)}
+                        type="button"
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                        }}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          handleActivate(item);
+                        }}
                         disabled={activating === (item.name || item.item_code)}
-                        className="px-3 py-1.5 bg-blue-600 text-white text-[10px] font-black rounded-lg hover:bg-blue-700 disabled:bg-slate-200 disabled:text-slate-400 transition-all shadow-sm shrink-0"
+                        className="px-3 py-1.5 bg-blue-600 text-white text-[10px] font-black rounded-lg hover:bg-blue-700 disabled:bg-slate-200 disabled:text-slate-400 transition-all shadow-sm shrink-0 cursor-pointer"
                       >
                         {activating === (item.name || item.item_code) ? '...' : 'ACTIVATE'}
                       </button>
@@ -393,8 +390,26 @@ const CustomSearchDropdown = ({
                   ))}
                 </div>
               ) : (
-                <div className="p-8 text-center">
-                  <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">No match in other branches</p>
+                <div className="p-4 text-center">
+                  <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">No match in other branches</p>
+                  <p className="text-[10px] text-slate-400 mb-3 font-medium italic">Item does not exist anywhere in catalog</p>
+                  {createOption && (
+                    <button
+                      type="button"
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                      }}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleCreate();
+                      }}
+                      className="w-full text-[11px] bg-emerald-600 text-white font-black py-2 px-3 rounded-lg hover:bg-emerald-700 transition-all shadow-xs flex items-center justify-center gap-1.5 cursor-pointer"
+                    >
+                      <Plus size={13} /> + CREATE NEW ITEM
+                    </button>
+                  )}
                 </div>
               )}
             </div>
@@ -410,8 +425,17 @@ const CustomSearchDropdown = ({
                   <div className="flex flex-col gap-1.5 w-full mt-1">
                     {globalSearch && (
                       <button
-                        onClick={handleGlobalSearch}
-                        className="w-full text-[11px] bg-sky-600 text-white font-black py-2 px-3 rounded-lg hover:bg-sky-700 transition-all shadow-xs flex items-center justify-center gap-1.5"
+                        type="button"
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                        }}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          handleGlobalSearch();
+                        }}
+                        className="w-full text-[11px] bg-sky-600 text-white font-black py-2 px-3 rounded-lg hover:bg-sky-700 transition-all shadow-xs flex items-center justify-center gap-1.5 cursor-pointer"
                       >
                         <Search size={13} /> SEARCH OTHER BRANCHES
                       </button>
@@ -419,8 +443,17 @@ const CustomSearchDropdown = ({
 
                     {createOption && (
                       <button
-                        onClick={handleCreate}
-                        className="w-full text-[11px] bg-emerald-600 text-white font-black py-2 px-3 rounded-lg hover:bg-emerald-700 transition-all shadow-xs flex items-center justify-center gap-1.5"
+                        type="button"
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                        }}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          handleCreate();
+                        }}
+                        className="w-full text-[11px] bg-emerald-600 text-white font-black py-2 px-3 rounded-lg hover:bg-emerald-700 transition-all shadow-xs flex items-center justify-center gap-1.5 cursor-pointer"
                       >
                         <Plus size={13} /> REGISTER NEW RECORD
                       </button>

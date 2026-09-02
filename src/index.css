@@ -20,8 +20,10 @@ body {
 }
 
 .so-input:focus {
-  border-color: #6366f1;
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+  border-color: #0284c7 !important;
+  background-color: #f0f9ff !important;
+  box-shadow: 0 0 0 3.5px rgba(2, 132, 199, 0.3) !important;
+  font-weight: 700 !important;
 }
 
 .so-input:hover:not(:focus) {
@@ -33,6 +35,74 @@ body {
   color: #64748b;
   cursor: not-allowed;
 }
+
+/* ============================================================
+   UNIFIED BOLD HIGH-CONTRAST FOCUS & KEYBOARD NAVIGATION
+   Applies across Home POS, SI, SO, DN, PO, PR, PI in Classic Theme
+   ============================================================ */
+
+/* 1. All Inputs / Selects in Classic Header Forms */
+.classic-header-form input:focus,
+.classic-header-form select:focus,
+.classic-field input:focus,
+.classic-field select:focus,
+.so-customer-search-input:focus,
+.so-bill-qty-input:focus,
+.so-search-input:focus,
+.classic-root input:focus,
+.classic-root select:focus {
+  border-color: #0284c7 !important;
+  background-color: #f0f9ff !important;
+  color: #0369a1 !important;
+  box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.35), inset 0 1px 2px rgba(2, 132, 199, 0.1) !important;
+  font-weight: 800 !important;
+  outline: none !important;
+}
+
+/* 2. Classic Table Cell Inputs & Selects (Tab Navigation in Tables) */
+.classic-table input:focus,
+.classic-table select:focus {
+  background-color: #e0f2fe !important;
+  color: #0369a1 !important;
+  border: 2px solid #0284c7 !important;
+  border-radius: 6px !important;
+  box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.3) !important;
+  font-weight: 800 !important;
+  outline: none !important;
+}
+
+/* 3. Selected / Focused Table Row (Up/Down Arrow Navigation) */
+.classic-table tr:focus-within,
+.classic-table tr.active-row,
+.classic-table tr.selected,
+.classic-table tbody tr.bg-emerald-50\/40,
+.classic-table tbody tr.bg-sky-50\/50,
+.so-bill-item-row.selected,
+.so-bill-item-row:focus-within {
+  background-color: #e0f2fe !important;
+  border-left: 4.5px solid #0284c7 !important;
+  box-shadow: 0 1px 4px rgba(2, 132, 199, 0.15) !important;
+}
+
+.classic-table tr:focus-within td,
+.classic-table tr.active-row td,
+.classic-table tr.selected td {
+  color: #0f172a !important;
+  font-weight: 700 !important;
+}
+
+/* 4. Dropdown List Item Active / Keyboard Highlight */
+.so-dropdown-item.active,
+.so-dropdown-item:hover,
+.so-customer-dropdown-item.active,
+.so-customer-dropdown-item:hover,
+.swal-swap-item-row.active {
+  background-color: #e0f2fe !important;
+  border-left: 4px solid #0284c7 !important;
+  color: #0284c7 !important;
+  font-weight: 800 !important;
+}
+
 .scroll-animate-card {
   opacity: 0;
   transform: translateY(30px);

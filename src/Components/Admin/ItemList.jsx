@@ -751,9 +751,6 @@ export default function ItemList() {
       window.addEventListener('popstate', handlePopState);
       return () => {
         window.removeEventListener('popstate', handlePopState);
-        if (window.history.state?.modal === 'item-details') {
-          window.history.back();
-        }
       };
     }
   }, [showForm]);
@@ -2304,17 +2301,32 @@ export default function ItemList() {
       {showForm && (
         <div className="il-modal-panel anim-in">
           <div className="il-modal-header" style={{ height: 'auto', minHeight: 64, padding: '12px 28px', flexWrap: 'wrap', gap: 20 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 14, minWidth: 'fit-content' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 'fit-content' }}>
               <button
                 type="button"
                 onClick={handleCloseForm}
                 className="il-btn il-btn-secondary"
-                style={{ height: 36, padding: '0 12px', borderRadius: 10, background: '#fff', display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', border: `1.5px solid ${T.border}` }}
-                title="Back to Item List"
+                style={{
+                  height: 36,
+                  padding: '0 12px',
+                  borderRadius: 10,
+                  background: '#f8fafc',
+                  color: '#334155',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  cursor: 'pointer',
+                  border: `1.5px solid ${T.border}`,
+                  fontWeight: 700,
+                  fontSize: 12
+                }}
+                title="Back to Item List Table"
               >
                 <ChevronLeft size={16} />
-                <span style={{ fontSize: 12, fontWeight: 800 }}>Back</span>
+                <span>Item List</span>
               </button>
+
+              <span style={{ color: T.textMuted, fontSize: 16, fontWeight: 300 }}>/</span>
 
               <div style={{ minWidth: 0 }}>
                 <div style={{ fontSize: 16, fontWeight: 800, color: T.text, lineHeight: 1.2 }}>
@@ -2400,7 +2412,15 @@ export default function ItemList() {
                 </div>
               )}
 
-
+              <button
+                type="button"
+                onClick={handleCloseForm}
+                className="il-btn il-btn-secondary"
+                style={{ height: 36, width: 36, padding: 0, borderRadius: 10, background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', border: `1.5px solid ${T.border}` }}
+                title="Close"
+              >
+                <X size={16} />
+              </button>
             </div>
           </div>
 
@@ -2956,39 +2976,57 @@ export default function ItemList() {
             {/* ===== EDIT/CREATE FORM ===== */}
             {!isViewMode && (
               <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 16 }}>
-                {/* Barcodes */}
-                <CardSection title="Barcodes" icon={<Barcode size={14} />}
-                  action={
-                    <div style={{ display: 'flex', gap: 6 }}>
-                      <button className="il-btn il-btn-secondary" style={{ padding: '5px 10px', fontSize: 12 }} onClick={() => setShowCameraScanner(true)}><Camera size={12} />Camera</button>
-                      <button className="il-btn il-btn-secondary" style={{ padding: '5px 10px', fontSize: 12, color: isScanning ? T.blue : T.textSub, borderColor: isScanning ? T.blue : T.border }} onClick={() => setIsScanning(s => !s)}>
-                        {isScanning ? '● Scanning' : 'HW Scan'}
-                      </button>
-                    </div>
-                  }
-                >
-                  <div style={{ padding: '14px 16px' }}>
-                    <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
-                      <input ref={barcodeInputRef} className="il-input" style={{ flex: 1 }} value={barcodeInput} onChange={e => setBarcodeInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && addBarcode(barcodeInput)} placeholder="Type barcode and press Enter..." />
-                      <button className="il-btn il-btn-primary" onClick={() => addBarcode(barcodeInput)}>Add</button>
-                    </div>
-                    {barcodes.length > 0 && (
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                        {barcodes.map((b, i) => (
-                          <span key={i} className="il-chip">
-                            {b.barcode}<span style={{ color: T.textMuted }}>·{b.uom}</span>
-                            <button onClick={() => setBarcodes(p => p.filter((_, idx) => idx !== i))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.red, display: 'flex', padding: 0, marginLeft: 2 }}><X size={11} /></button>
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </CardSection>
-
                 {/* Specifications */}
                 <CardSection title="Specifications" icon={<Package size={14} />}>
                   <div style={{ padding: 20 }}>
                     <div className="il-form-grid">
+                      {/* 1. Barcode */}
+                      <div className="il-form-field">
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 5 }}>
+                          <label className="il-form-label" style={{ margin: 0 }}>Barcode</label>
+                          <div style={{ display: 'flex', gap: 4 }}>
+                            <button type="button" className="il-btn il-btn-secondary" style={{ padding: '2px 7px', fontSize: 11, height: 22 }} onClick={() => setShowCameraScanner(true)} title="Camera Scan">
+                              <Camera size={11} /> Camera
+                            </button>
+                            <button type="button" className="il-btn il-btn-secondary" style={{ padding: '2px 7px', fontSize: 11, height: 22, color: isScanning ? T.blue : T.textSub, borderColor: isScanning ? T.blue : T.border }} onClick={() => setIsScanning(s => !s)} title="Hardware Scan">
+                              {isScanning ? '● Scanning' : 'HW Scan'}
+                            </button>
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          <input
+                            ref={barcodeInputRef}
+                            className="il-input"
+                            style={{ flex: 1 }}
+                            value={barcodeInput}
+                            onChange={e => setBarcodeInput(e.target.value)}
+                            onKeyDown={e => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                addBarcode(barcodeInput);
+                              }
+                            }}
+                            placeholder="Type barcode and press Enter..."
+                          />
+                          <button type="button" className="il-btn il-btn-primary" style={{ padding: '0 12px', fontSize: 12 }} onClick={() => addBarcode(barcodeInput)}>
+                            Add
+                          </button>
+                        </div>
+                        {barcodes.length > 0 && (
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 6 }}>
+                            {barcodes.map((b, i) => (
+                              <span key={i} className="il-chip" style={{ fontSize: 11, padding: '2px 6px' }}>
+                                {b.barcode}<span style={{ color: T.textMuted }}>·{b.uom}</span>
+                                <button type="button" onClick={() => setBarcodes(p => p.filter((_, idx) => idx !== i))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.red, display: 'flex', padding: 0, marginLeft: 3 }}>
+                                  <X size={10} />
+                                </button>
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* 2. Item Code */}
                       <div className="il-form-field">
                         <label className="il-form-label req">Item Code</label>
                         <input
@@ -3048,10 +3086,14 @@ export default function ItemList() {
                           placeholder="e.g. ITM-001"
                         />
                       </div>
+
+                      {/* 3. Item Name */}
                       <div className="il-form-field">
                         <label className="il-form-label req">Item Name</label>
                         <input className="il-input" value={form.item_name} onChange={e => setForm({ ...form, item_name: e.target.value })} placeholder="Full item name" />
                       </div>
+
+                      {/* 4. Main Item Category */}
                       <SearchableSelect
                         label="Main Item Category"
                         value={formMainGroup}
@@ -3063,6 +3105,8 @@ export default function ItemList() {
                         }}
                         onAction={(search) => handleOpenCreateItemGroup('All Item Groups', search)}
                       />
+
+                      {/* 5. Item Subgroup */}
                       <SearchableSelect
                         label="Item Subgroup"
                         value={form.item_group}
@@ -3077,6 +3121,7 @@ export default function ItemList() {
                         onAction={(search) => handleOpenCreateItemGroup(formMainGroup || '', search)}
                       />
 
+                      {/* 6. Brand */}
                       <SearchableSelect
                         label="Brand"
                         value={form.brand}
@@ -3085,6 +3130,8 @@ export default function ItemList() {
                         onChange={val => setForm({ ...form, brand: val })}
                         onAction={handleCreateBrand}
                       />
+
+                      {/* 7. Base UOM */}
                       {!isEditMode && (
                         <SearchableSelect
                           label="Base UOM"
@@ -3096,10 +3143,8 @@ export default function ItemList() {
                           onAction={handleCreateUom}
                         />
                       )}
-                      <div className="il-form-field">
-                        <label className="il-form-label">HSN / SAC Code</label>
-                        <input className="il-input" value={form.hsn_code} onChange={e => setForm({ ...form, hsn_code: e.target.value })} placeholder="For GST mapping" />
-                      </div>
+
+                      {/* 8. Country of Origin */}
                       <div className="il-form-field">
                         <SearchableSelect
                           label="Country of Origin"
@@ -3109,6 +3154,8 @@ export default function ItemList() {
                           onChange={val => setForm({ ...form, country_of_origin: val })}
                         />
                       </div>
+
+                      {/* 9. Pieces Per Box */}
                       <div className="il-form-field">
                         <label className="il-form-label">Pieces Per Box</label>
                         <input type="number" className="il-input" value={form.custom_pieces_per_box} onChange={e => setForm({ ...form, custom_pieces_per_box: e.target.value })} placeholder="Conversion factor" />

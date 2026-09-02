@@ -20,6 +20,7 @@ import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import AttachmentSection from './AttachmentSection';
 import { useCustomShortcuts } from '../../hooks/useCustomShortcuts';
 import CustomSearchDropdown from '../Purchase/CustomSearchDropdown';
+import QuickItemCreateModal from '../Purchase/QuickItemCreateModal';
 
 
 const DEFAULT_DN_COLUMNS = [
@@ -566,6 +567,9 @@ const DeliveryNoteDetails = () => {
     }, [customerQuery, customers]);
     const [warehouses, setWarehouses] = useState([]);
     const [taxTemplates, setTaxTemplates] = useState([]);
+    const [showQuickItemModal, setShowQuickItemModal] = useState(false);
+    const [quickItemInitialCode, setQuickItemInitialCode] = useState('');
+    const [quickItemTargetRow, setQuickItemTargetRow] = useState(null);
 
     const getCurrencySymbol = (currency = 'INR') => {
         switch (currency) {
@@ -2777,35 +2781,50 @@ const DeliveryNoteDetails = () => {
                                                                     case 'item_code':
                                                                         return (
                                                                             <td key={col.id} style={{ padding: '0.5rem 0.75rem' }}>
-                                                                                <div style={{ position: 'relative' }}>
-                                                                                    <input
-                                                                                        ref={el => itemInputRefs.current[idx] = el}
-                                                                                        className="so-td-input"
-                                                                                        style={{ fontWeight: 700, padding: '0.4rem 0.6rem', border: '1px solid #cbd5e1', borderRadius: '0.375rem', width: '100%', outline: 'none' }}
-                                                                                        type="text"
-                                                                                        placeholder="SKU Code / Name..."
-                                                                                        value={item.item_code}
-                                                                                        onFocus={() => {
-                                                                                            setActiveItemRow(idx);
-                                                                                            setItemQueries(prev => ({ ...prev, [idx]: item.item_code || '' }));
-                                                                                        }}
-                                                                                        onChange={e => {
-                                                                                            const val = e.target.value;
-                                                                                            updateItem(idx, 'item_code', val);
-                                                                                            setItemQueries(prev => ({ ...prev, [idx]: val }));
-                                                                                            setActiveItemRow(idx);
-                                                                                        }}
-                                                                                    />
-                                                                                    {activeItemRow === idx && (
-                                                                                        <ItemDropdown
-                                                                                            targetRef={{ current: itemInputRefs.current[idx] }}
-                                                                                            query={itemQueries[idx] ?? item.item_code ?? ''}
-                                                                                            warehouse={form.set_warehouse}
-                                                                                            onSelect={(selected) => selectItem(idx, selected)}
-                                                                                        />
-                                                                                    )}
-                                                                                </div>
-                                                                            </td>
+                                                                                <CustomSearchDropdown
+                                                                                    placeholder="Search item..."
+                                                                                    value={item.item_code ? { name: item.item_code, item_name: item.item_name } : null}
+                                                                                    onSelect={(it) => {
+                                                                                        if (it) selectItem(idx, it);
+                                                                                    }}
+                                                                                    fetchData={async (q) => {
+                                                                                        const activeWh = form.set_warehouse || loggedWarehouse || localStorage.getItem('warehouse') || '';
+                                                                                        const res = await axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_items_so', {
+                                                                                            params: { query: q, warehouse: activeWh },
+                                                                                            withCredentials: true
+                                                                                        });
+                                                                                        return res.data?.message || [];
+                                                                                    }}
+                                                                                    createOption={(query) => {
+                                                                                        setQuickItemInitialCode(query || '');
+                                                                                        setQuickItemTargetRow(idx);
+                                                                                        setShowQuickItemModal(true);
+                                                                                    }}
+                                                                                    themeColor={themeColor}
+                                                                                    optionsLabel="item_name"
+                                                                                    globalSearch={true}
+                                                                                    onGlobalSearch={async (query) => {
+                                                                                        const res = await axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.find_item_globally_retail', {
+                                                                                            params: { search_term: query },
+                                                                                            withCredentials: true
+                                                                                        });
+                                                                                        return res.data?.message?.data || res.data?.message || [];
+                                                                                    }}
+                                                                                    onActivate={async (it) => {
+                                                                                        const targetWh = form.set_warehouse || loggedWarehouse || localStorage.getItem('warehouse');
+                                                                                        const res = await axios.post('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.enable_item_for_branch_retail', {
+                                                                                            item_code: it.name || it.item_code,
+                                                                                            warehouse: targetWh
+                                                                                        }, { withCredentials: true });
+                                                                                        if (res.data?.message?.success || res.data?.success) {
+                                                                                        Swal.fire({ icon: 'success', title: 'Item Linked', text: 'Linked to branch!', timer: 1500, showConfirmButton: false });
+                                                                                        selectItem(idx, it);
+                                                                                        return true;
+                                                                                    }
+                                                                                    return false;
+                                                                                }}
+                                                                            />
+                                                                        </td>
                                                                         );
 
                                                                     case 'item_name':
@@ -3480,6 +3499,24 @@ const DeliveryNoteDetails = () => {
                 }}
                 doctype="Delivery Note"
                 themeColor={themeColor}
+            />
+
+            {/* Quick Item Creation Modal */}
+            <QuickItemCreateModal
+                isOpen={showQuickItemModal}
+                onClose={() => {
+                    setShowQuickItemModal(false);
+                    setQuickItemInitialCode('');
+                    setQuickItemTargetRow(null);
+                }}
+                initialItemCode={quickItemInitialCode}
+                initialItemName={quickItemInitialCode}
+                warehouse={form.set_warehouse || loggedWarehouse || localStorage.getItem('warehouse')}
+                onItemCreated={(createdItem) => {
+                    if (quickItemTargetRow !== null && quickItemTargetRow >= 0) {
+                        selectItem(quickItemTargetRow, createdItem);
+                    }
+                }}
             />
         </div>
     );

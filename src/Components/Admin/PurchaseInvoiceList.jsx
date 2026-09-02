@@ -7,6 +7,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import { toggleTheme } from '../../Redux/Slices/userSlice';
 import axios from 'axios';
 import CustomSearchDropdown from '../Purchase/CustomSearchDropdown';
+import QuickItemCreateModal from '../Purchase/QuickItemCreateModal';
 import ColumnConfigModal from '../Purchase/ColumnConfigModal';
 import { format } from 'date-fns';
 import Swal from 'sweetalert2';
@@ -178,6 +179,9 @@ function PurchaseInvoiceList() {
   const [taxTemplates, setTaxTemplates] = useState([]);
   const [loadingTaxTemplates, setLoadingTaxTemplates] = useState(false);
   const [taxPreview, setTaxPreview] = useState([]);
+  const [showQuickItemModal, setShowQuickItemModal] = useState(false);
+  const [quickItemInitialCode, setQuickItemInitialCode] = useState('');
+  const [quickItemTargetRow, setQuickItemTargetRow] = useState(null);
 
   const handleSupplierCreate = async (name) => {
     try {
@@ -273,29 +277,39 @@ function PurchaseInvoiceList() {
   };
 
   const onGlobalItemSearch = async (query) => {
+    console.log('[PurchaseInvoice] onGlobalItemSearch called with query:', query);
     try {
-      const res = await axios.post('/api/method/kyle_retail.retail_api.api.find_item_globally_retail', {
-        search_term: query
-      }, { withCredentials: true });
-      return res.data.message?.data || [];
+      const res = await axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.find_item_globally_retail', {
+        params: { search_term: query },
+        withCredentials: true
+      });
+      console.log('[PurchaseInvoice] onGlobalItemSearch API response:', res.data);
+      const items = res.data?.message?.data || res.data?.message || [];
+      console.log('[PurchaseInvoice] onGlobalItemSearch returning items:', items);
+      return items;
     } catch (e) {
-      console.error(e);
+      console.error('[PurchaseInvoice] onGlobalItemSearch error:', e);
       return [];
     }
   };
 
   const onActivateItem = async (item) => {
+    console.log('[PurchaseInvoice] onActivateItem called with item:', item);
     try {
-      const res = await axios.post('/api/method/kyle_retail.retail_api.api.enable_item_for_branch_retail', {
+      const targetWh = formData.set_warehouse || warehouse || localStorage.getItem('warehouse');
+      console.log('[PurchaseInvoice] target warehouse for activation:', targetWh);
+      const res = await axios.post('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.enable_item_for_branch_retail', {
         item_code: item.name || item.item_code,
-        warehouse: warehouse
+        warehouse: targetWh
       }, { withCredentials: true });
-      if (res.data.message?.success) {
+      console.log('[PurchaseInvoice] onActivateItem API response:', res.data);
+      if (res.data?.message?.success || res.data?.success) {
         Swal.fire({ icon: 'success', title: 'Item Activated', text: `${item.item_name || item.name} linked to your branch!`, timer: 1500, showConfirmButton: false });
         return true;
       }
       return false;
     } catch (e) {
+      console.error('[PurchaseInvoice] onActivateItem error:', e);
       Swal.fire('Error', e.message, 'error');
       return false;
     }
@@ -2371,45 +2385,42 @@ function PurchaseInvoiceList() {
         }
       }
 
-      // Focus Supplier Search
-      if (isShortcutPressed(e, 'doc_editor', 'customerSupplier', 'F2')) {
+      // Focus Supplier Search (F2)
+      if (isShortcutPressed(e, 'doc_editor', 'customerSupplier', 'F2') || e.key === 'F2') {
         e.preventDefault();
-        const supplierInput = document.querySelector('input[placeholder="Search and select supplier..."]') || document.querySelector('input[placeholder="Search supplier..."]');
+        const supplierInput = supplierRef.current?.querySelector('input') ||
+          document.querySelector('input[placeholder*="supplier" i]') ||
+          document.querySelector('input[placeholder="Search and select supplier..."]') ||
+          document.querySelector('input[placeholder="Search supplier..."]');
         if (supplierInput) {
           supplierInput.focus();
           supplierInput.select?.();
         }
       }
 
-      // Focus Item Search (first row if empty, else last row)
-      if (isShortcutPressed(e, 'doc_editor', 'itemSearch', 'F3')) {
+      // Focus Item Search & Barcode Input (F3 / F4)
+      if (
+        isShortcutPressed(e, 'doc_editor', 'itemSearch', 'F3') || e.key === 'F3' ||
+        isShortcutPressed(e, 'doc_editor', 'barcode', 'F4') || e.key === 'F4'
+      ) {
         e.preventDefault();
-        const itemInputs = document.querySelectorAll('input[placeholder="Search item..."]');
-        if (itemInputs.length > 0) {
-          const firstInput = itemInputs[0];
-          const targetInput = (firstInput && !firstInput.value) ? firstInput : itemInputs[itemInputs.length - 1];
-          if (targetInput) {
-            targetInput.focus();
-            targetInput.select?.();
-          }
+        const itemInputs =
+          document.querySelector('tr.bg-emerald-50\\/40 input') ||
+          document.querySelector('input[placeholder*="BARCODE" i]') ||
+          document.querySelector('input[placeholder*="Search item" i]') ||
+          document.querySelector('input[placeholder="Place cursor here and scan barcode..."]') ||
+          document.querySelector('input[placeholder="Enter Barcode / Scan here..."]');
+        if (itemInputs) {
+          itemInputs.focus();
+          itemInputs.select?.();
         }
       }
 
-      // Focus Barcode/Scan input
-      if (isShortcutPressed(e, 'doc_editor', 'barcode', 'F4')) {
+      // Bulk Quantity Update popup (F6)
+      if (isShortcutPressed(e, 'doc_editor', 'bulkQty', 'F6') || e.key === 'F6') {
         e.preventDefault();
-        const scanInput = document.querySelector('input[placeholder="Place cursor here and scan barcode..."]') || document.querySelector('input[placeholder="Enter Barcode / Scan here..."]');
-        if (scanInput) {
-          scanInput.focus();
-          scanInput.select?.();
-        }
-      }
-
-
-      // Bulk Quantity Update popup
-      if (isShortcutPressed(e, 'doc_editor', 'bulkQty', 'F6')) {
-        e.preventDefault();
-        let rowIndex = inItemsTable ? activeRowIndex : (formData.items.length - 1);
+        const validItems = formData.items.filter(it => it && it.item_code);
+        let rowIndex = inItemsTable && activeRowIndex >= 0 ? activeRowIndex : (validItems.length - 1);
 
         if (rowIndex >= 0 && rowIndex < formData.items.length) {
           const item = formData.items[rowIndex];
@@ -2417,7 +2428,7 @@ function PurchaseInvoiceList() {
             Swal.fire({
               title: 'Bulk Quantity',
               html: `<div style="font-size: 14px; font-weight: 700; color: #475569; margin-bottom: 12px; padding: 10px; background-color: #f1f5f9; border-radius: 8px; border-left: 4px solid #10b981; text-align: left;">
-                ${item.item_name || item.item_code}
+                ${item.item_name || item.item_code} (Row #${rowIndex + 1})
               </div>`,
               input: 'number',
               inputPlaceholder: 'Enter quantity...',
@@ -2440,10 +2451,11 @@ function PurchaseInvoiceList() {
         }
       }
 
-      // Toggle UOM of active row (or last row)
-      if (isShortcutPressed(e, 'doc_editor', 'uom', 'F8')) {
+      // Toggle UOM of active row (F8)
+      if (isShortcutPressed(e, 'doc_editor', 'uom', 'F8') || e.key === 'F8') {
         e.preventDefault();
-        let rowIndex = inItemsTable ? activeRowIndex : (formData.items.length - 1);
+        const validItems = formData.items.filter(it => it && it.item_code);
+        let rowIndex = inItemsTable && activeRowIndex >= 0 ? activeRowIndex : (validItems.length - 1);
 
         if (rowIndex >= 0 && rowIndex < formData.items.length) {
           const item = formData.items[rowIndex];
@@ -2488,25 +2500,42 @@ function PurchaseInvoiceList() {
         }
       }
 
-      // Add Item Row
-      if (isShortcutPressed(e, 'doc_editor', 'addRow', 'F10') || (e.altKey && (e.key === 'a' || e.key === 'A'))) {
+      // Add Item Row / Focus Search (F10 / Alt+A)
+      if (
+        isShortcutPressed(e, 'doc_editor', 'addRow', 'F10') || e.key === 'F10' ||
+        (e.altKey && (e.key === 'a' || e.key === 'A'))
+      ) {
         e.preventDefault();
-        if (formData.docstatus === 0 && !isViewMode) {
+        const searchInput =
+          document.querySelector('tr.bg-emerald-50\\/40 input') ||
+          document.querySelector('input[placeholder*="BARCODE" i]') ||
+          document.querySelector('input[placeholder*="Search item" i]');
+        if (searchInput) {
+          searchInput.focus();
+          searchInput.select?.();
+        } else if (formData.docstatus === 0 && !isViewMode) {
           addItemRow();
         }
       }
 
-      // Focus Target Warehouse Select
-      if (isShortcutPressed(e, 'doc_editor', 'warehouseBranch', 'F9')) {
+      // Focus Target Warehouse Select (F9)
+      if (isShortcutPressed(e, 'doc_editor', 'warehouseBranch', 'F9') || e.key === 'F9') {
         e.preventDefault();
-        const warehouseSelect = document.querySelector('select[name="accepted_warehouse"]') || document.querySelector('select[name="set_warehouse"]') || document.querySelector('select');
+        const warehouseSelect =
+          document.querySelector('select[name="set_warehouse"]') ||
+          document.querySelector('select[name="accepted_warehouse"]') ||
+          document.querySelector('header select') ||
+          document.querySelector('select');
         if (warehouseSelect) {
           warehouseSelect.focus();
         }
       }
 
-      // Submit document
-      if (isShortcutPressed(e, 'doc_editor', 'submit', 'F12') || (e.ctrlKey && e.key === 'Enter')) {
+      // Submit document (F12 / Ctrl+Enter)
+      if (
+        isShortcutPressed(e, 'doc_editor', 'submit', 'F12') || e.key === 'F12' ||
+        (e.ctrlKey && e.key === 'Enter')
+      ) {
         e.preventDefault();
         if (!saving && (formData.docstatus === 0 || formData.docstatus === undefined)) {
           handleDocAction('submit');
@@ -2778,7 +2807,8 @@ function PurchaseInvoiceList() {
   // =========================================================================
   if (isModalOpen) {
     return (
-      <div className="classic-root" style={{ position: 'fixed', inset: 0, zIndex: 10000, display: 'flex', flexDirection: 'column', background: '#f8fafc', overflow: 'hidden' }}>
+      <>
+        <div className="classic-root" style={{ position: 'fixed', inset: 0, zIndex: 10000, display: 'flex', flexDirection: 'column', background: '#f8fafc', overflow: 'hidden' }}>
         {/* CLASSIC NAVBAR */}
         <nav className="classic-nav" style={{ background: '#ffffff', borderBottom: '1px solid #e2e8f0', padding: '0.4rem 1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '52px', flexShrink: 0 }}>
           <div className="flex items-center gap-3">
@@ -2968,28 +2998,32 @@ function PurchaseInvoiceList() {
               <span className="so-shortcut-label" style={{ fontSize: '11px', fontWeight: 900, color: '#0f172a' }}>SUPPLIER</span>
             </div>
             <div className="so-shortcut-badge" style={{ background: '#ffffff', border: '1.5px solid #cbd5e1', borderRadius: '6px', padding: '3px 7px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-              <span className="so-shortcut-key" style={{ background: '#6366f1', color: '#fff', fontSize: '9px', fontWeight: 900, padding: '1px 5px', borderRadius: '4px' }}>F3</span>
-              <span className="so-shortcut-label" style={{ fontSize: '11px', fontWeight: 900, color: '#0f172a' }}>ITEM SEARCH</span>
-            </div>
-            <div className="so-shortcut-badge" style={{ background: '#ffffff', border: '1.5px solid #cbd5e1', borderRadius: '6px', padding: '3px 7px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-              <span className="so-shortcut-key" style={{ background: '#06b6d4', color: '#fff', fontSize: '9px', fontWeight: 900, padding: '1px 5px', borderRadius: '4px' }}>F4</span>
-              <span className="so-shortcut-label" style={{ fontSize: '11px', fontWeight: 900, color: '#0f172a' }}>BARCODE</span>
+              <span className="so-shortcut-key" style={{ background: '#6366f1', color: '#fff', fontSize: '9px', fontWeight: 900, padding: '1px 5px', borderRadius: '4px' }}>F3 / F4</span>
+              <span className="so-shortcut-label" style={{ fontSize: '11px', fontWeight: 900, color: '#0f172a' }}>ITEM / BARCODE</span>
             </div>
             <div className="so-shortcut-badge" style={{ background: '#ffffff', border: '1.5px solid #cbd5e1', borderRadius: '6px', padding: '3px 7px', display: 'flex', alignItems: 'center', gap: '5px' }}>
               <span className="so-shortcut-key" style={{ background: '#d946ef', color: '#fff', fontSize: '9px', fontWeight: 900, padding: '1px 5px', borderRadius: '4px' }}>F6</span>
               <span className="so-shortcut-label" style={{ fontSize: '11px', fontWeight: 900, color: '#0f172a' }}>BULK QTY</span>
             </div>
             <div className="so-shortcut-badge" style={{ background: '#ffffff', border: '1.5px solid #cbd5e1', borderRadius: '6px', padding: '3px 7px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-              <span className="so-shortcut-key" style={{ background: '#f59e0b', color: '#fff', fontSize: '9px', fontWeight: 900, padding: '1px 5px', borderRadius: '4px' }}>Alt+S</span>
+              <span className="so-shortcut-key" style={{ background: '#8b5cf6', color: '#fff', fontSize: '9px', fontWeight: 900, padding: '1px 5px', borderRadius: '4px' }}>F8</span>
+              <span className="so-shortcut-label" style={{ fontSize: '11px', fontWeight: 900, color: '#0f172a' }}>TOGGLE UOM</span>
+            </div>
+            <div className="so-shortcut-badge" style={{ background: '#ffffff', border: '1.5px solid #cbd5e1', borderRadius: '6px', padding: '3px 7px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+              <span className="so-shortcut-key" style={{ background: '#f59e0b', color: '#fff', fontSize: '9px', fontWeight: 900, padding: '1px 5px', borderRadius: '4px' }}>F7 / Alt+S</span>
               <span className="so-shortcut-label" style={{ fontSize: '11px', fontWeight: 900, color: '#0f172a' }}>SAVE DRAFT</span>
             </div>
             <div className="so-shortcut-badge" style={{ background: '#ffffff', border: '1.5px solid #cbd5e1', borderRadius: '6px', padding: '3px 7px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-              <span className="so-shortcut-key" style={{ background: '#0ea5e9', color: '#fff', fontSize: '9px', fontWeight: 900, padding: '1px 5px', borderRadius: '4px' }}>F10</span>
+              <span className="so-shortcut-key" style={{ background: '#0ea5e9', color: '#fff', fontSize: '9px', fontWeight: 900, padding: '1px 5px', borderRadius: '4px' }}>F10 / Alt+A</span>
               <span className="so-shortcut-label" style={{ fontSize: '11px', fontWeight: 900, color: '#0f172a' }}>ADD ROW</span>
             </div>
             <div className="so-shortcut-badge" style={{ background: '#ffffff', border: '1.5px solid #cbd5e1', borderRadius: '6px', padding: '3px 7px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-              <span className="so-shortcut-key" style={{ background: '#10b981', color: '#fff', fontSize: '9px', fontWeight: 900, padding: '1px 5px', borderRadius: '4px' }}>Ctrl+Enter</span>
+              <span className="so-shortcut-key" style={{ background: '#10b981', color: '#fff', fontSize: '9px', fontWeight: 900, padding: '1px 5px', borderRadius: '4px' }}>F12 / Ctrl+Enter</span>
               <span className="so-shortcut-label" style={{ fontSize: '11px', fontWeight: 900, color: '#0f172a' }}>SUBMIT</span>
+            </div>
+            <div className="so-shortcut-badge" style={{ background: '#ffffff', border: '1.5px solid #cbd5e1', borderRadius: '6px', padding: '3px 7px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+              <span className="so-shortcut-key" style={{ background: '#475569', color: '#fff', fontSize: '9px', fontWeight: 900, padding: '1px 5px', borderRadius: '4px' }}>+ / -</span>
+              <span className="so-shortcut-label" style={{ fontSize: '11px', fontWeight: 900, color: '#0f172a' }}>QTY</span>
             </div>
           </div>
         </div>
@@ -3107,7 +3141,7 @@ function PurchaseInvoiceList() {
               />
             </div>
 
-            {/* 6. Inv Date */}
+            {/* 6. Supplier Inv Date */}
             <div
               onClick={(e) => {
                 const inp = e.currentTarget.querySelector('input[type="date"]');
@@ -3119,7 +3153,7 @@ function PurchaseInvoiceList() {
             >
               <span className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500 cursor-pointer">
                 <CalendarDays className="size-3 text-slate-400 group-hover:text-emerald-600 transition-colors" aria-hidden />
-                Inv Date
+                Supplier Inv Date
               </span>
               <input
                 type="date"
@@ -3134,15 +3168,15 @@ function PurchaseInvoiceList() {
                   }));
                 }}
                 className="h-10 w-full min-w-0 rounded-md border border-slate-200 bg-slate-50/50 px-3 text-sm font-semibold text-slate-800 outline-none transition-colors focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 cursor-pointer"
-                aria-label="Invoice date"
+                aria-label="Supplier Invoice date"
               />
             </div>
 
-            {/* 7. Bill Amt */}
+            {/* 7. Supplier Bill Amt */}
             <div className="flex min-w-0 flex-col gap-1.5">
               <span className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
                 <Receipt className="size-3 text-slate-400" aria-hidden />
-                Bill Amt
+                Supplier Bill Amt
               </span>
               <input
                 type="text" inputMode="decimal"
@@ -3152,7 +3186,7 @@ function PurchaseInvoiceList() {
                 disabled={isViewMode}
                 onChange={e => setFormData(prev => ({ ...prev, custom_supplier_invoice_amount: e.target.value }))}
                 className="h-10 w-full min-w-0 rounded-md border border-slate-200 bg-slate-50/50 px-3 text-sm font-bold text-right tabular-nums text-emerald-600 outline-none transition-colors placeholder:font-normal placeholder:text-slate-400 focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-500/20"
-                aria-label="Bill amount"
+                aria-label="Supplier Bill amount"
               />
             </div>
 
@@ -3484,12 +3518,28 @@ function PurchaseInvoiceList() {
                                 value={null}
                                 onSelect={(selectedItem) => {
                                   if (selectedItem) {
+                                    console.log('[PurchaseInvoice inline search] Selected Item:', selectedItem);
                                     selectItem(formData.items.length, selectedItem);
                                   }
                                 }}
                                 fetchData={fetchItemsAPI}
+                                createOption={(query) => {
+                                  console.log('[PurchaseInvoice inline search] createOption query:', query);
+                                  setQuickItemInitialCode(query || '');
+                                  setQuickItemTargetRow(formData.items.length);
+                                  setShowQuickItemModal(true);
+                                }}
                                 optionsLabel="item_name"
                                 globalSearch={true}
+                                onGlobalSearch={onGlobalItemSearch}
+                                onActivate={async (it) => {
+                                  console.log('[PurchaseInvoice inline search] onActivate:', it);
+                                  const ok = await onActivateItem(it);
+                                  if (ok) {
+                                    selectItem(formData.items.length, it);
+                                  }
+                                  return ok;
+                                }}
                                 themeColor="#10b981"
                                 className="w-full h-full font-black italic text-slate-600"
                               />
@@ -3802,6 +3852,25 @@ function PurchaseInvoiceList() {
           doctype="Purchase Invoice"
         />
       </div>
+
+      {/* QUICK ITEM CREATE MODAL — outside classic-root stacking context */}
+      <QuickItemCreateModal
+        isOpen={showQuickItemModal}
+        onClose={() => {
+          setShowQuickItemModal(false);
+          setQuickItemInitialCode('');
+          setQuickItemTargetRow(null);
+        }}
+        initialItemCode={quickItemInitialCode}
+        initialItemName={quickItemInitialCode}
+        warehouse={formData.set_warehouse || warehouse || localStorage.getItem('warehouse')}
+        onItemCreated={(createdItem) => {
+          if (quickItemTargetRow !== null && quickItemTargetRow >= 0) {
+            selectItem(quickItemTargetRow, createdItem);
+          }
+        }}
+      />
+    </>
     );
   }
 
@@ -5073,19 +5142,21 @@ function PurchaseInvoiceList() {
                                             ) : (
                                               <div>
                                                 <CustomSearchDropdown
-                                                  placeholder="Search item..."
-                                                  value={item.item_code ? { name: item.item_code, item_name: item.item_name } : null}
-                                                  onSelect={it => selectItem(i, it)}
-                                                  fetchData={fetchItemsAPI}
-                                                  createOption={(query) => {
-                                                    window.open('#/itemlist?action=new', '_blank');
-                                                  }}
-                                                  optionsLabel="item_name"
-                                                  globalSearch={true}
-                                                  onGlobalSearch={onGlobalItemSearch}
-                                                  onActivate={onActivateItem}
-                                                />
-                                                {item.scanned_barcode && (
+                                                 placeholder="Search item..."
+                                                 value={item.item_code ? { name: item.item_code, item_name: item.item_name } : null}
+                                                 onSelect={it => selectItem(i, it)}
+                                                 fetchData={fetchItemsAPI}
+                                                 createOption={(query) => {
+                                                   setQuickItemInitialCode(query || '');
+                                                   setQuickItemTargetRow(i);
+                                                   setShowQuickItemModal(true);
+                                                 }}
+                                                 optionsLabel="item_name"
+                                                 globalSearch={true}
+                                                 onGlobalSearch={onGlobalItemSearch}
+                                                 onActivate={onActivateItem}
+                                               />
+                                               {item.scanned_barcode && (
                                                   <div className="flex items-center gap-1 mt-1 px-1">
                                                     <span className="text-[9px] font-extrabold text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-200 shadow-xs flex items-center gap-1">
                                                       <Barcode size={11} className="text-indigo-600 shrink-0" />
@@ -5642,6 +5713,24 @@ function PurchaseInvoiceList() {
             doctype="Purchase Invoice"
           />
         )}
+
+        {/* QUICK ITEM CREATE MODAL — outside so-page div, portal renders to document.body */}
+        <QuickItemCreateModal
+          isOpen={showQuickItemModal}
+          onClose={() => {
+            setShowQuickItemModal(false);
+            setQuickItemInitialCode('');
+            setQuickItemTargetRow(null);
+          }}
+          initialItemCode={quickItemInitialCode}
+          initialItemName={quickItemInitialCode}
+          warehouse={formData.set_warehouse || warehouse || localStorage.getItem('warehouse')}
+          onItemCreated={(createdItem) => {
+            if (quickItemTargetRow !== null && quickItemTargetRow >= 0) {
+              selectItem(quickItemTargetRow, createdItem);
+            }
+          }}
+        />
       </>
     );
   }
@@ -5969,6 +6058,24 @@ function PurchaseInvoiceList() {
           doctype="Purchase Invoice"
         />
       )}
+
+      {/* QUICK ITEM CREATE MODAL */}
+      <QuickItemCreateModal
+        isOpen={showQuickItemModal}
+        onClose={() => {
+          setShowQuickItemModal(false);
+          setQuickItemInitialCode('');
+          setQuickItemTargetRow(null);
+        }}
+        initialItemCode={quickItemInitialCode}
+        initialItemName={quickItemInitialCode}
+        warehouse={formData.set_warehouse || warehouse || localStorage.getItem('warehouse')}
+        onItemCreated={(createdItem) => {
+          if (quickItemTargetRow !== null && quickItemTargetRow >= 0) {
+            selectItem(quickItemTargetRow, createdItem);
+          }
+        }}
+      />
     </>
   );
 }

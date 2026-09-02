@@ -5,7 +5,7 @@ import {
     Printer, Eye, Filter, Trash2, ArrowLeft, Smartphone, Palette, Loader2, Link
 } from "lucide-react";
 import { useSelector } from "react-redux";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { db } from '../../db';
 import "../Admin/SalesOrder.css";
 import { useLegacyTheme } from "../../hooks/useLegacyTheme";
@@ -25,6 +25,7 @@ const formatDateToDMY = (dateStr) => {
 
 function InvoiceList() {
     const navigate = useNavigate();
+    const location = useLocation();
     const [customColumns, setCustomColumns] = useState(() => {
         const saved = localStorage.getItem('custom_columns_POS Invoice');
         try {
@@ -39,7 +40,9 @@ function InvoiceList() {
     const [error, setError] = useState("");
 
     // Filter State
-    const [filterId, setFilterId] = useState("");
+    const [filterId, setFilterId] = useState(() => {
+        return location.state?.invoiceId || location.state?.invoice_name || "";
+    });
     const [filterDate, setFilterDate] = useState("");
     const [filterTime, setFilterTime] = useState("");
     const [filterMobile, setFilterMobile] = useState("");

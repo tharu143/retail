@@ -31,7 +31,11 @@ import {
     Gift,
     Star,
     Zap,
-    FileText
+    FileText,
+    Lock,
+    KeyRound,
+    Users,
+    Clock
 } from 'lucide-react';
 import { BrowserMultiFormatReader, BarcodeFormat, DecodeHintType } from '@zxing/library';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
@@ -1428,8 +1432,11 @@ function Home() {
     const [showDropdown, setShowDropdown] = useState(false);
     const [searchLoading, setSearchLoading] = useState(false);
     const [showCreateModal, setShowCreateModal] = useState(false);
+    const [showCreateSecretKey, setShowCreateSecretKey] = useState(false);
     const [createForm, setCreateForm] = useState({
         name: '', phone: '', email: '',
+        customer_group: 'Retail Customer',
+        secret_key: '',
         address_line1: '', address_line2: '', city: '', emirate: '', country: 'United Arab Emirates',
         custom_trn: ''
     });
@@ -1511,6 +1518,59 @@ function Home() {
     const [discountAuthorizedBy, setDiscountAuthorizedBy] = useState("");
     const [loyaltyAuthorizedBy, setLoyaltyAuthorizedBy] = useState("");
 
+    // Real-Time Employee PIN resolution states
+    const [createPinEmployee, setCreatePinEmployee] = useState(null);
+    const [discountPinEmployee, setDiscountPinEmployee] = useState(null);
+    const [loyaltyPinEmployee, setLoyaltyPinEmployee] = useState(null);
+
+    // Debounced lookup for Create Customer PIN
+    useEffect(() => {
+        const pin = (createForm.secret_key || '').trim();
+        if (pin.length >= 3) {
+            const timer = setTimeout(async () => {
+                try {
+                    const res = await POSService.getCashierBySecretKey(pin, warehouse);
+                    if (res && res.status === 'success') {
+                        setCreatePinEmployee(res);
+                    } else {
+                        setCreatePinEmployee({ status: 'invalid' });
+                    }
+                } catch {
+                    setCreatePinEmployee({ status: 'invalid' });
+                }
+            }, 250);
+            return () => clearTimeout(timer);
+        } else {
+            setCreatePinEmployee(null);
+        }
+    }, [createForm.secret_key, warehouse]);
+
+    // Debounced lookup for Modal PINs (Discount & Loyalty)
+    useEffect(() => {
+        const pin = (secretKeyInput || '').trim();
+        if (pin.length >= 3) {
+            const timer = setTimeout(async () => {
+                try {
+                    const res = await POSService.getCashierBySecretKey(pin, warehouse);
+                    if (res && res.status === 'success') {
+                        setDiscountPinEmployee(res);
+                        setLoyaltyPinEmployee(res);
+                    } else {
+                        setDiscountPinEmployee({ status: 'invalid' });
+                        setLoyaltyPinEmployee({ status: 'invalid' });
+                    }
+                } catch {
+                    setDiscountPinEmployee({ status: 'invalid' });
+                    setLoyaltyPinEmployee({ status: 'invalid' });
+                }
+            }, 250);
+            return () => clearTimeout(timer);
+        } else {
+            setDiscountPinEmployee(null);
+            setLoyaltyPinEmployee(null);
+        }
+    }, [secretKeyInput, warehouse]);
+
     // Drafts & Themes
     const [showDraftsModal, setShowDraftsModal] = useState(false);
     const [draftOrders, setDraftOrders] = useState([]);
@@ -1522,6 +1582,8 @@ function Home() {
     const [checkoutMode, setCheckoutMode] = useState('normal'); // 'normal', 'print', 'no-print', 'print-a4'
     const [showItemDetailModal, setShowItemDetailModal] = useState(false);
     const [selectedDetailItem, setSelectedDetailItem] = useState(null);
+    const [itemSalesHistory, setItemSalesHistory] = useState([]);
+    const [itemSalesHistoryLoading, setItemSalesHistoryLoading] = useState(false);
     const [lastInvoiceData, setLastInvoiceData] = useState(null);
     const [selectedPaymentMode, setSelectedPaymentMode] = useState('');
     const [showCardTerminalModal, setShowCardTerminalModal] = useState(false);
@@ -1569,6 +1631,55 @@ function Home() {
         prevDeliveryFeeRef.current = currentDelFee;
         prevServiceFeeRef.current = currentSvcFee;
     }, [deliveryFee, instapayServiceFee]);
+
+    // Fetch last 10 sales transactions for selected item and customer in F5 Modal
+    useEffect(() => {
+        if (!showItemDetailModal || !selectedDetailItem) {
+            setItemSalesHistory([]);
+            return;
+        }
+        const itemCode = selectedDetailItem.name || selectedDetailItem.item_code || selectedDetailItem.id;
+        if (!itemCode) return;
+
+        const custName = selectedCustomer?.name || selectedCustomer?.customer_name || (customerName && customerName !== 'Cash' ? customerName : null);
+        setItemSalesHistoryLoading(true);
+
+        axios.get(`${LEGACY_API}.get_customer_item_sales_history`, {
+            params: {
+                item_code: itemCode,
+                customer: custName || undefined,
+                limit: 10
+            },
+            withCredentials: true
+        }).then(res => {
+            if (res.data?.message && Array.isArray(res.data.message)) {
+                setItemSalesHistory(res.data.message);
+            } else {
+                setItemSalesHistory([]);
+            }
+        }).catch(err => {
+            console.error("Failed to load customer item sales history:", err);
+            setItemSalesHistory([]);
+        }).finally(() => {
+            setItemSalesHistoryLoading(false);
+        });
+    }, [showItemDetailModal, selectedDetailItem, selectedCustomer, customerName]);
+
+    // Universal ESC Key listener to close open modals
+    useEffect(() => {
+        const handleEscClose = (e) => {
+            if (e.key === 'Escape') {
+                if (showItemDetailModal) setShowItemDetailModal(false);
+                if (showPaymentModal) setShowPaymentModal(false);
+                if (showDraftsModal) setShowDraftsModal(false);
+                if (showThemeSidebar) setShowThemeSidebar(false);
+                if (showCardTerminalModal) setShowCardTerminalModal(false);
+                if (showDeliveryFee) setShowDeliveryFee(false);
+            }
+        };
+        window.addEventListener('keydown', handleEscClose);
+        return () => window.removeEventListener('keydown', handleEscClose);
+    }, [showItemDetailModal, showPaymentModal, showDraftsModal, showThemeSidebar, showCardTerminalModal, showDeliveryFee]);
 
     // ---------- CALCULATIONS (Defined before handlers) ----------
     const taxRate = useMemo(() => {
@@ -1926,6 +2037,8 @@ function Home() {
             name: nameVal,
             phone: phoneVal,
             email: '',
+            customer_group: 'Retail Customer',
+            secret_key: '',
             address_line1: '',
             address_line2: '',
             city: '',
@@ -1933,10 +2046,73 @@ function Home() {
             country: 'United Arab Emirates',
             custom_trn: ''
         });
+        setShowCreateSecretKey(false);
         setShowCreateModal(true); setShowDropdown(false);
     };
 
     const promoteCustomerGroup = async (cust, newGroup) => {
+        // Prompt for Secret Key / Security PIN before updating customer group
+        const { value: secretKey } = await Swal.fire({
+            title: 'Authorization Required',
+            text: `Enter Cashier Secret Code to update ${cust.customer_name || 'Customer'} to "${newGroup}":`,
+            input: 'password',
+            inputPlaceholder: 'Enter 4-digit secret key / PIN',
+            inputAttributes: {
+                autocapitalize: 'off',
+                autocorrect: 'off'
+            },
+            showCancelButton: true,
+            confirmButtonText: 'Authorize & Update',
+            confirmButtonColor: '#0284c7',
+            cancelButtonText: 'Cancel',
+            inputValidator: (value) => {
+                if (!value) {
+                    return 'Secret key is required to update customer group!';
+                }
+            }
+        });
+
+        if (!secretKey) return null;
+
+        Swal.showLoading();
+
+        // 1. Verify Secret Key against Employee / User record
+        let isAuthorized = false;
+        try {
+            if (isOffline) {
+                if (secretKey === userSecretKey) {
+                    isAuthorized = true;
+                }
+            } else {
+                const verRes = await POSService.verifyAuthorizationKey(secretKey, 'customer_group_change', warehouse);
+                if (verRes && (verRes.status === 'success' || verRes.message?.includes('Authorized'))) {
+                    isAuthorized = true;
+                } else {
+                    const fallback = await POSService.verifySecretKey(secretKey);
+                    if (fallback && (fallback.status === 'success' || fallback.message === 'Authorized')) {
+                        isAuthorized = true;
+                    } else if (secretKey === userSecretKey) {
+                        isAuthorized = true;
+                    }
+                }
+            }
+        } catch (authErr) {
+            console.warn("Server auth error, falling back to local secret check:", authErr);
+            if (secretKey === userSecretKey) {
+                isAuthorized = true;
+            }
+        }
+
+        if (!isAuthorized) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Unauthorized',
+                text: 'Invalid Secret Key. Customer group update cancelled.',
+                confirmButtonColor: '#e11d48'
+            });
+            return null;
+        }
+
         try {
             const res = await frappeCall({
                 method: 'kyle_retail.retail_api.api.get_or_create_customer_by_mobile',
@@ -1986,7 +2162,6 @@ function Home() {
                 cancelButtonText: 'Cancel'
             });
             if (result.isConfirmed) {
-                Swal.showLoading();
                 const updated = await promoteCustomerGroup(selectedCustomer, 'Credit Customer');
                 if (updated) {
                     setSelectedPaymentMode('Credit');
@@ -2070,7 +2245,6 @@ function Home() {
                     cancelButtonText: 'No'
                 });
                 if (result.isConfirmed) {
-                    Swal.showLoading();
                     const updated = await promoteCustomerGroup(cust, 'Discount Customer');
                     if (updated) {
                         Swal.fire({
@@ -2085,6 +2259,18 @@ function Home() {
         const cleanedName = createForm.name.trim().replace(/[^a-zA-Z0-9\s.\-_/&()#]/g, '');
         if (!cleanedName) {
             Swal.fire('Validation Error', 'Customer name is required and can contain letters, numbers, spaces, and basic symbols.', 'warning');
+            return;
+        }
+
+        const selectedGroup = (createForm.customer_group || '').trim();
+        if (!selectedGroup) {
+            Swal.fire('Validation Error', 'Customer group is mandatory. Please select a customer group.', 'warning');
+            return;
+        }
+
+        const enteredSecretKey = (createForm.secret_key || '').trim();
+        if (!enteredSecretKey) {
+            Swal.fire('Validation Error', 'Cashier Secret Code / PIN is required to create a customer.', 'warning');
             return;
         }
 
@@ -2108,6 +2294,45 @@ function Home() {
             return;
         }
 
+        // ── Verify Secret Key against Employee / User records ─────────────────
+        setCreatingCustomer(true);
+        let isAuthorized = false;
+        try {
+            if (isOffline) {
+                if (enteredSecretKey === userSecretKey) {
+                    isAuthorized = true;
+                }
+            } else {
+                const authRes = await POSService.verifyAuthorizationKey(enteredSecretKey, 'customer_creation', warehouse);
+                if (authRes && (authRes.status === 'success' || authRes.message?.includes('Authorized'))) {
+                    isAuthorized = true;
+                } else {
+                    const fallback = await POSService.verifySecretKey(enteredSecretKey);
+                    if (fallback && (fallback.status === 'success' || fallback.message === 'Authorized')) {
+                        isAuthorized = true;
+                    } else if (enteredSecretKey === userSecretKey) {
+                        isAuthorized = true;
+                    }
+                }
+            }
+        } catch (authErr) {
+            console.warn("Error calling verifyAuthorizationKey, checking cached secret key:", authErr);
+            if (enteredSecretKey === userSecretKey) {
+                isAuthorized = true;
+            }
+        }
+
+        if (!isAuthorized) {
+            setCreatingCustomer(false);
+            Swal.fire({
+                icon: 'error',
+                title: 'Unauthorized',
+                text: 'Invalid Secret Key. Please enter the correct Cashier Secret Code to proceed.',
+                confirmButtonColor: '#e11d48'
+            });
+            return;
+        }
+
         const formattedPhone = `${countryCodePrefix}${strippedNumber}`;
 
         // ── Duplicate mobile number check ──────────────────────────────────────
@@ -2117,6 +2342,7 @@ function Home() {
         ).first();
 
         if (localDup) {
+            setCreatingCustomer(false);
             Swal.fire({
                 icon: 'warning',
                 title: 'Number Already Registered',
@@ -2138,6 +2364,7 @@ function Home() {
             });
             const dupList = dupRes.data?.data || [];
             if (Array.isArray(dupList) && dupList.length > 0) {
+                setCreatingCustomer(false);
                 Swal.fire({
                     icon: 'warning',
                     title: 'Number Already Registered',
@@ -2151,15 +2378,13 @@ function Home() {
         }
         // ──────────────────────────────────────────────────────────────────────
 
-        setCreatingCustomer(true);
-
         const addr_parts = [createForm.address_line1, createForm.address_line2, createForm.city, createForm.emirate, createForm.country];
         const addr_text = addr_parts.filter(Boolean).join(", ");
 
         try {
             const formData = new FormData();
             formData.append("customer_name", createForm.name.trim());
-            formData.append("customer_group", "Retail Customer");
+            formData.append("customer_group", selectedGroup);
             if (formattedPhone) formData.append("phone", formattedPhone);
             if (createForm.email) formData.append("email", createForm.email);
             if (warehouse) formData.append("warehouse", warehouse);
@@ -2197,6 +2422,7 @@ function Home() {
                 const newCust = {
                     name: inner.customer_id || inner.name,
                     customer_name: createForm.name.trim(),
+                    customer_group: selectedGroup,
                     mobile_no: formattedPhone || "",
                     primary_address: addr_text || "",
                     email_id: createForm.email || "",
@@ -2208,6 +2434,8 @@ function Home() {
                 setShowCreateModal(false);
                 setCreateForm({
                     name: '', phone: '', email: '',
+                    customer_group: 'Retail Customer',
+                    secret_key: '',
                     address_line1: '', address_line2: '', city: '', emirate: '', country: 'United Arab Emirates',
                     custom_trn: ''
                 });
@@ -2221,6 +2449,7 @@ function Home() {
                 const offlineCustomer = {
                     name: `OFFLINE-CUST-${Date.now()}`,
                     customer_name: createForm.name.trim(),
+                    customer_group: selectedGroup,
                     mobile_no: formattedPhone || "",
                     primary_address: addr_text || "",
                     email_id: createForm.email || "",
@@ -4640,95 +4869,292 @@ function Home() {
                 }}
             >
                 <div
-                    className="home-modal"
                     onClick={e => e.stopPropagation()}
                     style={{
                         width: '100%',
-                        maxWidth: '550px',
+                        maxWidth: '680px',
                         backgroundColor: '#ffffff',
-                        borderRadius: '32px',
-                        overflow: 'hidden',
-                        boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)',
+                        borderRadius: '16px',
+                        border: '1px solid #e2e8f0',
+                        boxShadow: '0 20px 40px -15px rgba(0, 0, 0, 0.25)',
                         display: 'flex',
                         flexDirection: 'column',
-                        margin: '20px'
+                        overflow: 'hidden'
                     }}
                 >
-                    <div className="home-modal-header bg-slate-50/80 border-b border-slate-100 p-6 flex justify-between items-center">
-                        <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-indigo-600 text-white rounded-xl flex items-center justify-center shadow-lg shadow-indigo-200">
-                                <Info size={20} />
+                    {/* Header */}
+                    <div style={{ padding: '14px 20px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: '#0284c7', color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                <Package size={16} />
                             </div>
                             <div>
-                                <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight m-0">Item Details</h3>
-                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Specifications and stock information</p>
+                                <h3 style={{ margin: 0, fontSize: '14px', fontWeight: 900, color: '#0f172a', textTransform: 'uppercase', letterSpacing: '0.02em' }}>
+                                    {item.item_name || item.name}
+                                </h3>
+                                <span style={{ fontSize: '10px', fontWeight: 800, color: '#64748b', fontFamily: 'monospace' }}>
+                                    CODE: {item.name || item.item_code || item.id} {item.brand ? `· BRAND: ${item.brand}` : ''}
+                                </span>
                             </div>
                         </div>
                         <button
-                            className="w-10 h-10 flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-600 rounded-full transition-all"
+                            type="button"
                             onClick={() => setShowItemDetailModal(false)}
+                            style={{ width: '28px', height: '28px', borderRadius: '6px', border: '1px solid #cbd5e1', background: '#ffffff', color: '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.15s' }}
                         >
-                            <X size={20} />
+                            <X size={15} />
                         </button>
                     </div>
 
-                    <div className="home-modal-body p-8 flex flex-col gap-6 max-h-[60vh] overflow-y-auto">
-                        {/* Item Code & Name Card */}
-                        <div className="bg-gradient-to-br from-indigo-600 to-violet-700 text-white p-6 rounded-3xl shadow-xl relative overflow-hidden">
-                            <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-2xl"></div>
-                            <div className="relative z-10 flex flex-col gap-1">
-                                <span className="text-[10px] font-bold text-indigo-200 uppercase tracking-widest">Item Code: {item.name || item.item_code || item.id}</span>
-                                <h4 className="text-2xl font-black uppercase tracking-tight leading-tight">{item.item_name || item.name}</h4>
+                    {/* Body */}
+                    <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: '14px', maxHeight: '72vh', overflowY: 'auto' }}>
+                        
+                        {/* Quick Metrics Bar */}
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px' }}>
+                            <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '8px 12px' }}>
+                                <div style={{ fontSize: '9px', fontWeight: 800, color: '#64748b', textTransform: 'uppercase' }}>Selected UOM</div>
+                                <div style={{ fontSize: '13px', fontWeight: 900, color: '#0f172a', marginTop: '2px' }}>{item.uom || 'Nos'}</div>
+                            </div>
+                            <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '8px 12px' }}>
+                                <div style={{ fontSize: '9px', fontWeight: 800, color: '#64748b', textTransform: 'uppercase' }}>Cart Qty</div>
+                                <div style={{ fontSize: '13px', fontWeight: 900, color: '#0284c7', marginTop: '2px' }}>{item.qty} {item.uom} <span style={{ fontSize: '10px', color: '#94a3b8' }}>({pcsQty} pcs)</span></div>
+                            </div>
+                            <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '8px 12px' }}>
+                                <div style={{ fontSize: '9px', fontWeight: 800, color: '#64748b', textTransform: 'uppercase' }}>Unit Rate</div>
+                                <div style={{ fontSize: '13px', fontWeight: 900, color: '#0f172a', marginTop: '2px' }}>{effectivePrice?.toFixed(2)} AED</div>
+                            </div>
+                            <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px', padding: '8px 12px' }}>
+                                <div style={{ fontSize: '9px', fontWeight: 800, color: '#166534', textTransform: 'uppercase' }}>Current Branch Stock</div>
+                                <div style={{ fontSize: '13px', fontWeight: 900, color: '#15803d', marginTop: '2px' }}>{item.actual_qty || 0} pcs</div>
                             </div>
                         </div>
 
-                        {/* Detail Specification Grid */}
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex flex-col gap-1">
-                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Selected UOM</span>
-                                <span className="text-lg font-black text-slate-700">{item.uom}</span>
-                            </div>
-                            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex flex-col gap-1">
-                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Quantity in Cart</span>
-                                <span className="text-lg font-black text-slate-700">{item.qty} {item.uom} <span className="text-xs text-slate-400 font-bold">({pcsQty} pcs)</span></span>
-                            </div>
-                            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex flex-col gap-1">
-                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Unit Price</span>
-                                <span className="text-lg font-black text-slate-700">{effectivePrice?.toFixed(2)} AED</span>
-                            </div>
-                            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex flex-col gap-1">
-                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Line Total</span>
-                                <span className="text-lg font-black text-slate-700">{lineTotal?.toFixed(2)} AED</span>
-                            </div>
-                            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex flex-col gap-1">
-                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Pieces per Box</span>
-                                <span className="text-lg font-black text-slate-700">{item.custom_pieces_per_box || item.pcs_per_box || 1}</span>
-                            </div>
-                            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex flex-col gap-1">
-                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">On-Hand Stock</span>
-                                <span className="text-lg font-black text-emerald-600">{item.actual_qty || 0} pcs</span>
-                            </div>
-                        </div>
+                        {/* Branch Stock & Pricing Table */}
+                        {(() => {
+                            const branchDetails = (item.warehouse_details || []).filter(d => {
+                                const whLower = (d.warehouse_name || d.warehouse || "").toLowerCase();
+                                return !["goods in transit", "finished goods", "work in progress", "stores"].some(term => whLower.includes(term));
+                            });
+                            if (branchDetails.length === 0) return null;
 
-                        {/* Branch Breakdown (if available) */}
-                        {item.warehouse_details && item.warehouse_details.length > 0 && (
-                            <div className="flex flex-col gap-3">
-                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Stock across branches</span>
-                                <div className="border border-slate-100 rounded-2xl overflow-hidden divide-y divide-slate-100">
-                                    {item.warehouse_details.map((d, index) => (
-                                        <div key={index} className="flex justify-between items-center p-3 text-xs bg-slate-50/50 hover:bg-slate-50 transition-colors">
-                                            <span className="font-bold text-slate-600">{getBranchName(d.warehouse_name || d.warehouse)}</span>
-                                            <span className="font-black text-slate-800">{d.actual_qty || 0} Units</span>
-                                        </div>
-                                    ))}
+                            const pcsPerBox = item.custom_pieces_per_box || item.pcs_per_box || 1;
+                            const hasBox = pcsPerBox > 1;
+
+                            return (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <span style={{ fontSize: '11px', fontWeight: 900, color: '#334155', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                                            Branch Availability & Pricing
+                                        </span>
+                                        {hasBox && (
+                                            <span style={{ fontSize: '10px', fontWeight: 800, background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', padding: '2px 8px', borderRadius: '4px' }}>
+                                                1 Box = {pcsPerBox} Nos
+                                            </span>
+                                        )}
+                                    </div>
+
+                                    <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', overflow: 'hidden', background: '#ffffff' }}>
+                                        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '11.5px' }}>
+                                            <thead>
+                                                <tr style={{ background: '#f8fafc', borderBottom: '1px solid #cbd5e1', textTransform: 'uppercase', fontSize: '10px', fontWeight: 900, color: '#475569' }}>
+                                                    <th style={{ padding: '8px 12px' }}>Branch</th>
+                                                    <th style={{ padding: '8px 8px', textAlign: 'center' }}>Stock</th>
+                                                    <th style={{ padding: '8px 12px', textAlign: 'right' }}>Buy Price {hasBox ? '(Nos / Box)' : ''}</th>
+                                                    <th style={{ padding: '8px 14px', textAlign: 'right' }}>Sell Price {hasBox ? '(Nos / Box)' : ''}</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {branchDetails.map((d, index) => {
+                                                    const rawWh = d.warehouse_name || d.warehouse || '';
+                                                    const branchName = getBranchName(rawWh);
+                                                    const qty = parseFloat(d.actual_qty || 0);
+                                                    const buyNos = parseFloat(d.buying_price || d.buy_price || 0);
+                                                    const sellNos = parseFloat(d.selling_price || d.sell_price || 0);
+                                                    const buyBox = buyNos * pcsPerBox;
+                                                    const sellBox = sellNos * pcsPerBox;
+                                                    const isCurrentBranch = rawWh === warehouse || (warehouse && rawWh.toLowerCase().includes((warehouse || '').toLowerCase()));
+
+                                                    return (
+                                                        <tr
+                                                            key={index}
+                                                            style={{
+                                                                borderBottom: index !== branchDetails.length - 1 ? '1px solid #f1f5f9' : 'none',
+                                                                background: isCurrentBranch ? '#f0f9ff' : '#ffffff'
+                                                            }}
+                                                        >
+                                                            <td style={{ padding: '8px 12px' }}>
+                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                                    <span style={{ fontWeight: 800, color: isCurrentBranch ? '#0369a1' : '#1e293b' }}>{branchName}</span>
+                                                                    {isCurrentBranch && (
+                                                                        <span style={{ fontSize: '8.5px', fontWeight: 900, background: '#0284c7', color: '#ffffff', padding: '1px 5px', borderRadius: '3px', textTransform: 'uppercase' }}>Current</span>
+                                                                    )}
+                                                                </div>
+                                                            </td>
+                                                            <td style={{ padding: '8px 8px', textAlign: 'center' }}>
+                                                                <span style={{
+                                                                    fontWeight: 800,
+                                                                    fontSize: '11px',
+                                                                    padding: '2px 8px',
+                                                                    borderRadius: '4px',
+                                                                    background: qty > 0 ? '#dcfce7' : '#f1f5f9',
+                                                                    color: qty > 0 ? '#15803d' : '#64748b'
+                                                                }}>
+                                                                    {qty} {item.stock_uom || item.uom || 'Nos'}
+                                                                </span>
+                                                            </td>
+                                                            <td style={{ padding: '8px 12px', textAlign: 'right' }}>
+                                                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+                                                                    <span style={{ fontWeight: 800, color: '#334155' }}>{buyNos > 0 ? buyNos.toFixed(2) : '—'}</span>
+                                                                    {hasBox && buyNos > 0 && (
+                                                                        <span style={{ fontSize: '9px', fontWeight: 700, color: '#94a3b8' }}>Box: {buyBox.toFixed(2)}</span>
+                                                                    )}
+                                                                </div>
+                                                            </td>
+                                                            <td style={{ padding: '8px 14px', textAlign: 'right' }}>
+                                                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+                                                                    <span style={{ fontWeight: 900, color: '#0284c7', fontSize: '12px' }}>{sellNos > 0 ? sellNos.toFixed(2) : '—'}</span>
+                                                                    {hasBox && sellNos > 0 && (
+                                                                        <span style={{ fontSize: '9px', fontWeight: 800, color: '#3b82f6' }}>Box: {sellBox.toFixed(2)}</span>
+                                                                    )}
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                })}
+                                            </tbody>
+                                        </table>
+                                    </div>
                                 </div>
+                            );
+                        })()}
+
+                        {/* Last 10 Sales Transactions for this Item (Customer Based) */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <span style={{ fontSize: '11px', fontWeight: 900, color: '#334155', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                    <Clock size={13} className="text-sky-600" />
+                                    Last 10 Sales History
+                                    <span style={{ fontSize: '9.5px', fontWeight: 700, color: '#64748b', textTransform: 'none', background: '#f1f5f9', padding: '1px 6px', borderRadius: '4px' }}>
+                                        {selectedCustomer?.name || (customerName && customerName !== 'Cash' ? customerName : 'All Customers / Cash')}
+                                    </span>
+                                </span>
+                                <span style={{ fontSize: '9.5px', fontWeight: 700, color: '#94a3b8' }}>
+                                    {itemSalesHistory.length} {itemSalesHistory.length === 1 ? 'sale' : 'sales'} found
+                                </span>
                             </div>
-                        )}
+
+                            <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', overflow: 'hidden', background: '#ffffff' }}>
+                                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '11px' }}>
+                                    <thead>
+                                        <tr style={{ background: '#f8fafc', borderBottom: '1px solid #cbd5e1', textTransform: 'uppercase', fontSize: '9.5px', fontWeight: 900, color: '#475569' }}>
+                                            <th style={{ padding: '7px 10px' }}>Date</th>
+                                            <th style={{ padding: '7px 10px' }}>Invoice No</th>
+                                            {(!selectedCustomer || customerName === 'Cash') && (
+                                                <th style={{ padding: '7px 10px' }}>Customer</th>
+                                            )}
+                                            <th style={{ padding: '7px 8px', textAlign: 'center' }}>Qty</th>
+                                            <th style={{ padding: '7px 10px', textAlign: 'right' }}>Price (AED)</th>
+                                            <th style={{ padding: '7px 12px', textAlign: 'right' }}>Total (AED)</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {itemSalesHistoryLoading ? (
+                                            <tr>
+                                                <td colSpan={6} style={{ padding: '16px', textAlign: 'center', color: '#94a3b8', fontWeight: 700 }}>
+                                                    Loading sales history...
+                                                </td>
+                                            </tr>
+                                        ) : itemSalesHistory.length === 0 ? (
+                                            <tr>
+                                                <td colSpan={6} style={{ padding: '16px', textAlign: 'center', color: '#94a3b8', fontWeight: 700 }}>
+                                                    No prior sales history found for this item
+                                                </td>
+                                            </tr>
+                                        ) : (
+                                            itemSalesHistory.map((s, idx) => (
+                                                <tr
+                                                    key={idx}
+                                                    style={{
+                                                        borderBottom: idx !== itemSalesHistory.length - 1 ? '1px solid #f1f5f9' : 'none',
+                                                        background: idx % 2 === 0 ? '#ffffff' : '#f8fafc'
+                                                    }}
+                                                >
+                                                    <td style={{ padding: '7px 10px', fontWeight: 700, color: '#475569', whiteSpace: 'nowrap' }}>
+                                                        {s.posting_date ? String(s.posting_date).slice(0, 10) : '—'}
+                                                    </td>
+                                                    <td style={{ padding: '7px 10px', fontWeight: 800, color: '#0f172a', fontFamily: 'monospace' }}>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setShowItemDetailModal(false);
+                                                                if (s.doctype === 'Sales Invoice') {
+                                                                    navigate('/salesinvoice', { state: { invoiceId: s.invoice_name, invoice_name: s.invoice_name } });
+                                                                } else {
+                                                                    navigate('/invoicelist', { state: { invoiceId: s.invoice_name, invoice_name: s.invoice_name } });
+                                                                }
+                                                            }}
+                                                            style={{
+                                                                background: 'none',
+                                                                border: 'none',
+                                                                padding: 0,
+                                                                color: '#0284c7',
+                                                                fontWeight: 800,
+                                                                fontFamily: 'monospace',
+                                                                cursor: 'pointer',
+                                                                textDecoration: 'underline',
+                                                                display: 'inline-flex',
+                                                                alignItems: 'center',
+                                                                gap: '4px'
+                                                            }}
+                                                            title={`View Invoice ${s.invoice_name}`}
+                                                        >
+                                                            {s.invoice_name}
+                                                            <ExternalLink size={11} className="text-sky-500" />
+                                                        </button>
+                                                    </td>
+                                                    {(!selectedCustomer || customerName === 'Cash') && (
+                                                        <td style={{ padding: '7px 10px', fontWeight: 700, color: '#64748b', maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                            {s.customer_name || s.customer || 'Cash'}
+                                                        </td>
+                                                    )}
+                                                    <td style={{ padding: '7px 8px', textAlign: 'center' }}>
+                                                        <span style={{ fontWeight: 800, background: '#f1f5f9', color: '#334155', padding: '1.5px 6px', borderRadius: '4px' }}>
+                                                            {s.qty} {s.uom || 'Nos'}
+                                                        </span>
+                                                    </td>
+                                                    <td style={{ padding: '7px 10px', textAlign: 'right', fontWeight: 800, color: '#334155' }}>
+                                                        {parseFloat(s.rate || 0).toFixed(2)}
+                                                    </td>
+                                                    <td style={{ padding: '7px 12px', textAlign: 'right', fontWeight: 900, color: '#0284c7' }}>
+                                                        {parseFloat(s.amount || (s.qty * s.rate) || 0).toFixed(2)}
+                                                    </td>
+                                                </tr>
+                                            ))
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
                     </div>
-                    <div className="home-modal-footer bg-slate-50/80 border-t border-slate-100 p-6 flex justify-end">
+
+                    {/* Footer */}
+                    <div style={{ padding: '10px 20px', background: '#f8fafc', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'flex-end' }}>
                         <button
-                            className="px-6 py-3 bg-slate-800 text-white font-black rounded-xl uppercase tracking-widest text-xs hover:bg-slate-700 transition-colors"
+                            type="button"
                             onClick={() => setShowItemDetailModal(false)}
+                            style={{
+                                padding: '6px 16px',
+                                background: '#1e293b',
+                                color: '#ffffff',
+                                border: 'none',
+                                borderRadius: '6px',
+                                fontSize: '11px',
+                                fontWeight: 800,
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.04em',
+                                cursor: 'pointer',
+                                transition: 'all 0.15s'
+                            }}
                         >
                             Close
                         </button>
@@ -4842,6 +5268,20 @@ function Home() {
                                     onKeyDown={(e) => e.key === 'Enter' && applyDiscountHandler()}
                                 />
                             </div>
+                            {/* Live Employee Name feedback */}
+                            {discountPinEmployee && discountPinEmployee.status === 'success' && (
+                                <div className="px-3 py-1.5 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center gap-1.5 text-xs font-bold text-emerald-700 animate-in fade-in slide-in-from-top-1">
+                                    <ShieldCheck size={14} className="text-emerald-600 shrink-0" />
+                                    <span className="truncate">
+                                        Authorized by: <b>{discountPinEmployee.employee_name}</b> {discountPinEmployee.employee_id ? `(${discountPinEmployee.employee_id})` : ''}
+                                    </span>
+                                </div>
+                            )}
+                            {discountPinEmployee && discountPinEmployee.status === 'invalid' && (
+                                <div className="px-3 py-0.5 text-[11px] font-semibold text-rose-500 animate-in fade-in">
+                                    Invalid PIN / Employee not found
+                                </div>
+                            )}
                         </div>
                     )}
 
@@ -4972,7 +5412,7 @@ function Home() {
                     className="bg-slate-100/60 flex flex-col md:flex-row gap-5 overflow-y-auto"
                     style={{ padding: '20px 24px', flex: '1 1 auto' }}
                 >
-                    {/* Left Column: Primary Details */}
+                    {/* Left Column: Primary & Account Details */}
                     <div
                         className="flex-1 bg-white border border-slate-200 shadow-sm flex flex-col gap-3.5"
                         style={{ padding: '20px', borderRadius: '12px' }}
@@ -5037,6 +5477,69 @@ function Home() {
                         </div>
 
                         <div>
+                            <label className="text-[11px] font-bold text-slate-600 block mb-1">
+                                Customer Group <span className="text-rose-500">*</span>
+                            </label>
+                            <div className="relative">
+                                <select
+                                    value={createForm.customer_group}
+                                    onChange={e => setCreateForm({ ...createForm, customer_group: e.target.value })}
+                                    style={{ borderRadius: '8px', boxShadow: 'none' }}
+                                    className="w-full h-10 px-3 bg-white border border-slate-300 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 text-xs font-bold text-slate-800 outline-none cursor-pointer transition-all appearance-none"
+                                >
+                                    <option value="Retail Customer">Retail Customer</option>
+                                    <option value="Credit Customer">Credit Customer</option>
+                                    <option value="Discount Customer">Discount Customer</option>
+                                    <option value="Commercial Customer">Commercial Customer</option>
+                                    <option value="Individual">Individual</option>
+                                </select>
+                                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                                    <Layers size={14} />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="text-[11px] font-bold text-slate-600 block mb-1">
+                                Cashier Secret Code / PIN <span className="text-rose-500">*</span>
+                            </label>
+                            <div className="relative flex items-center">
+                                <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 flex items-center">
+                                    <Lock size={15} />
+                                </div>
+                                <input
+                                    type={showCreateSecretKey ? "text" : "password"}
+                                    placeholder="Enter employee secret code / PIN"
+                                    value={createForm.secret_key}
+                                    onChange={e => setCreateForm({ ...createForm, secret_key: e.target.value })}
+                                    style={{ borderRadius: '8px', boxShadow: 'none', paddingLeft: '36px', paddingRight: '36px' }}
+                                    className="w-full h-10 bg-white border border-slate-300 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 text-xs font-mono font-bold text-slate-800 outline-none transition-all placeholder:text-slate-400 placeholder:font-normal"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowCreateSecretKey(!showCreateSecretKey)}
+                                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors p-1"
+                                >
+                                    {showCreateSecretKey ? <EyeOff size={15} /> : <Eye size={15} />}
+                                </button>
+                            </div>
+                            {/* Live Employee Name feedback */}
+                            {createPinEmployee && createPinEmployee.status === 'success' && (
+                                <div className="mt-1 px-2.5 py-1 bg-emerald-50 border border-emerald-200 rounded-md flex items-center gap-1.5 text-[11px] font-bold text-emerald-700 animate-in fade-in slide-in-from-top-1">
+                                    <ShieldCheck size={13} className="text-emerald-600 shrink-0" />
+                                    <span className="truncate">
+                                        Authorized by: <b>{createPinEmployee.employee_name}</b> {createPinEmployee.employee_id ? `(${createPinEmployee.employee_id})` : ''}
+                                    </span>
+                                </div>
+                            )}
+                            {createPinEmployee && createPinEmployee.status === 'invalid' && (
+                                <div className="mt-1 px-2 py-0.5 text-[10px] font-semibold text-rose-500 animate-in fade-in">
+                                    Invalid PIN / Employee not found
+                                </div>
+                            )}
+                        </div>
+
+                        <div>
                             <label className="text-[11px] font-bold text-slate-600 block mb-1">Email Address</label>
                             <input
                                 type="email"
@@ -5047,24 +5550,9 @@ function Home() {
                                 className="w-full h-10 px-3 bg-white border border-slate-300 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 text-xs font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 placeholder:font-normal"
                             />
                         </div>
-
-                        <div>
-                            <label className="text-[11px] font-bold text-slate-600 block mb-1">TRN (Tax Registration No.)</label>
-                            <input
-                                type="text"
-                                placeholder="15-digit TRN"
-                                value={createForm.custom_trn}
-                                onChange={e => {
-                                    const val = e.target.value.replace(/\D/g, '').slice(0, 15);
-                                    setCreateForm({ ...createForm, custom_trn: val });
-                                }}
-                                style={{ borderRadius: '8px', boxShadow: 'none' }}
-                                className="w-full h-10 px-3 bg-white border border-slate-300 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 text-xs font-mono font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 placeholder:font-normal"
-                            />
-                        </div>
                     </div>
 
-                    {/* Right Column: Address & Location */}
+                    {/* Right Column: Address & Tax Details */}
                     <div
                         className="flex-1 bg-white border border-slate-200 shadow-sm flex flex-col gap-3.5"
                         style={{ padding: '20px', borderRadius: '12px' }}
@@ -5073,7 +5561,7 @@ function Home() {
                             <div className="w-6 h-6 rounded-md bg-sky-50 text-sky-600 flex items-center justify-center font-bold text-xs">
                                 <MapPin size={13} />
                             </div>
-                            <span className="text-[11px] font-black uppercase tracking-wider text-slate-800">Address & Location</span>
+                            <span className="text-[11px] font-black uppercase tracking-wider text-slate-800">Address & Tax Details</span>
                         </div>
 
                         <div>
@@ -5138,6 +5626,21 @@ function Home() {
                                     className="w-full h-10 px-3 bg-white border border-slate-300 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 text-xs font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 placeholder:font-normal"
                                 />
                             </div>
+                        </div>
+
+                        <div>
+                            <label className="text-[11px] font-bold text-slate-600 block mb-1">TRN (Tax Registration No.)</label>
+                            <input
+                                type="text"
+                                placeholder="15-digit TRN"
+                                value={createForm.custom_trn}
+                                onChange={e => {
+                                    const val = e.target.value.replace(/\D/g, '').slice(0, 15);
+                                    setCreateForm({ ...createForm, custom_trn: val });
+                                }}
+                                style={{ borderRadius: '8px', boxShadow: 'none' }}
+                                className="w-full h-10 px-3 bg-white border border-slate-300 focus:border-sky-500 focus:ring-1 focus:ring-sky-500 text-xs font-mono font-semibold text-slate-800 outline-none transition-all placeholder:text-slate-400 placeholder:font-normal"
+                            />
                         </div>
                     </div>
                 </div>
@@ -5301,6 +5804,20 @@ function Home() {
                                         onKeyDown={(e) => e.key === 'Enter' && applyLoyaltyPoints()}
                                     />
                                 </div>
+                                {/* Live Employee Name feedback */}
+                                {loyaltyPinEmployee && loyaltyPinEmployee.status === 'success' && (
+                                    <div className="px-3 py-1.5 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center gap-1.5 text-xs font-bold text-emerald-700 animate-in fade-in slide-in-from-top-1">
+                                        <ShieldCheck size={14} className="text-emerald-600 shrink-0" />
+                                        <span className="truncate">
+                                            Authorized by: <b>{loyaltyPinEmployee.employee_name}</b> {loyaltyPinEmployee.employee_id ? `(${loyaltyPinEmployee.employee_id})` : ''}
+                                        </span>
+                                    </div>
+                                )}
+                                {loyaltyPinEmployee && loyaltyPinEmployee.status === 'invalid' && (
+                                    <div className="px-3 py-0.5 text-[11px] font-semibold text-rose-500 animate-in fade-in">
+                                        Invalid PIN / Employee not found
+                                    </div>
+                                )}
                             </div>
                         )}
 
@@ -7947,11 +8464,22 @@ function Home() {
                     borderBottom: '1px solid #e2e8f0', background: '#ffffff',
                     position: 'relative', zIndex: 150
                 }}>
-                    {/* ── LEFT: Logo ── */}
+                    {/* ── LEFT: Back to Dashboard & Logo ── */}
                     <div style={{
-                        display: 'flex', alignItems: 'center', gap: '10px',
+                        display: 'flex', alignItems: 'center', gap: '12px',
                         padding: '6px 14px', flexShrink: 0
                     }}>
+                        {/* Back to Dashboard Button */}
+                        <button
+                            onClick={() => navigate('/dashboard')}
+                            className="px-3 py-1.5 bg-slate-100 hover:bg-emerald-50 text-slate-700 hover:text-emerald-700 border border-slate-200 hover:border-emerald-300 rounded-lg font-black text-[11px] uppercase tracking-wider flex items-center gap-1.5 cursor-pointer transition-all shadow-2xs group"
+                            title="Back to Admin Dashboard"
+                        >
+                            <ChevronLeft size={15} className="group-hover:-translate-x-0.5 transition-transform" />
+                            <LayoutDashboard size={13} />
+                            <span>DASHBOARD</span>
+                        </button>
+
                         {/* Kyle Retail Logo */}
                         <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center' }}>
                             <img src={kyleLogo} alt="Kyle Retail Logo" className="h-10 w-auto max-w-[120px] md:max-w-[180px] object-contain mix-blend-multiply transition-opacity duration-300 hover:opacity-90" />
@@ -8886,6 +9414,17 @@ function Home() {
                 {/* CLASSIC NAVBAR */}
                 <nav className="classic-nav">
                     <div className="flex items-center gap-3 pl-2 py-1">
+                        {/* Back to Dashboard Button */}
+                        <button
+                            onClick={() => navigate('/dashboard')}
+                            className="px-3 py-1.5 bg-slate-100 hover:bg-emerald-50 text-slate-700 hover:text-emerald-700 border border-slate-200 hover:border-emerald-300 rounded-lg font-black text-[11px] uppercase tracking-wider flex items-center gap-1.5 cursor-pointer transition-all shadow-2xs group mr-1"
+                            title="Back to Admin Dashboard"
+                        >
+                            <ChevronLeft size={15} className="group-hover:-translate-x-0.5 transition-transform" />
+                            <LayoutDashboard size={13} />
+                            <span>DASHBOARD</span>
+                        </button>
+
                         <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
                             <img src={kyleLogo} alt="Kyle Retail Logo" className="h-9 w-auto max-w-[140px] md:max-w-[180px] object-contain transition-opacity duration-300 hover:opacity-90" />
                             <div className="flex flex-col">
@@ -9279,12 +9818,12 @@ function Home() {
                                             <tr
                                                 key={idx}
                                                 id={`bill-row-${idx}`}
-                                                className={`border-b border-slate-100 transition-all cursor-pointer ${idx === selectedBillIndex ? 'bg-amber-100 border-l-4 border-l-amber-600 shadow-md ring-1 ring-inset ring-amber-200' : 'bg-white hover:bg-amber-50/50'}`}
+                                                className={`border-b border-slate-100 transition-all cursor-pointer ${idx === selectedBillIndex ? 'bg-sky-100/90 border-l-[5px] border-l-sky-600 shadow-md ring-2 ring-inset ring-sky-300 font-black' : 'bg-white hover:bg-sky-50/50'}`}
                                                 onClick={() => setSelectedBillIndex(idx)}
                                             >
-                                                <td className="text-center font-bold text-slate-400 text-[10px]">{idx + 1}</td>
+                                                <td className={`text-center font-black text-[11px] ${idx === selectedBillIndex ? 'text-sky-800' : 'text-slate-400'}`}>{idx + 1}</td>
                                                 {visibleClassicCols.some(c => c.id === 'item_code') && (
-                                                    <td className="px-2 font-bold text-slate-900 text-center">
+                                                    <td className="px-2 font-black text-slate-900 text-center">
                                                         <span className="classic-cell-text" title={item.name || item.item_name || item.item_code || item.id}>{item.name || item.item_name || item.item_code || item.id}</span>
                                                     </td>
                                                 )}
@@ -9302,7 +9841,7 @@ function Home() {
                                                                         else newBill[idx].name = e.target.value;
                                                                         setBillItems(newBill);
                                                                     }}
-                                                                    className="w-full px-1 pr-6 font-black text-slate-700 uppercase bg-transparent border-none outline-none focus:bg-amber-100 placeholder:text-slate-300 text-[11px]"
+                                                                    className="w-full px-1 pr-6 font-black text-slate-900 uppercase bg-transparent border-none outline-none focus:bg-sky-200/70 placeholder:text-slate-300 text-[11px]"
                                                                     placeholder="Description"
                                                                     onKeyDown={e => {
                                                                         if (e.key === 'Enter') {
@@ -9348,7 +9887,7 @@ function Home() {
                                                             value={item.uom || 'Nos'}
                                                             onChange={e => toggleUom(item.id, e.target.value, idx)}
                                                             disabled={item.is_print_job || item.is_bundle || (item.id && (item.id.includes('BUNDLE') || item.id.includes('COMBO'))) || !item.custom_pieces_per_box || item.custom_pieces_per_box <= 1}
-                                                            className="w-full h-full bg-slate-50 font-black text-[12px] text-center text-slate-700 border-none outline-none focus:bg-amber-200 cursor-pointer hover:bg-slate-100 transition-colors disabled:cursor-default"
+                                                            className="w-full h-full bg-slate-50 font-black text-[12px] text-center text-slate-700 border-none outline-none focus:bg-sky-200/70 cursor-pointer hover:bg-slate-100 transition-colors disabled:cursor-default"
                                                         >
                                                             <option value="Nos">Nos</option>
                                                             {item.custom_pieces_per_box > 1 && !(item.is_print_job || item.is_bundle || (item.id && (item.id.includes('BUNDLE') || item.id.includes('COMBO')))) && (
@@ -9378,7 +9917,7 @@ function Home() {
                                                                     updateQuantity(item.id, -1);
                                                                 }
                                                             }}
-                                                            className="w-full h-full text-center px-2 font-black text-sky-600 focus:bg-amber-100 outline-none border-none"
+                                                            className="w-full h-full text-center px-2 font-black text-sky-600 focus:bg-sky-200/70 outline-none border-none"
                                                         />
                                                     </td>
                                                 )}
@@ -9396,7 +9935,7 @@ function Home() {
                                                                 step="0.01"
                                                                 value={item._price_input_val !== undefined ? item._price_input_val : (parseFloat(effectivePrice) || 0).toFixed(2)}
                                                                 onChange={e => setExactPrice(item.id, e.target.value)}
-                                                                className="w-0 flex-1 text-right font-black text-slate-800 focus:bg-amber-100 outline-none border-none bg-transparent h-full text-[11px]"
+                                                                className="w-0 flex-1 text-right font-black text-slate-900 focus:bg-sky-200/70 outline-none border-none bg-transparent h-full text-[11px]"
                                                                 onFocus={e => e.target.select()}
                                                                 onClick={e => e.target.select()}
                                                                 onKeyDown={e => {
