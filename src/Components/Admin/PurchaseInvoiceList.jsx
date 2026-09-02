@@ -324,6 +324,15 @@ function PurchaseInvoiceList() {
   };
 
   const [formData, setFormData] = useState(initialState);
+  const latestItemsRef = useRef([]);
+  useEffect(() => {
+    if (formData && formData.items) {
+      const validItems = formData.items.filter(i => i && i.item_code);
+      if (validItems.length > 0) {
+        latestItemsRef.current = validItems;
+      }
+    }
+  }, [formData.items]);
 
   const isDirty = useMemo(() => {
     if (!docName) return true;
@@ -1208,8 +1217,29 @@ function PurchaseInvoiceList() {
           } catch (e) { console.error("PI Data Enrichment failed", e); }
         }
 
-        setFormData(mapped);
-        setLastSavedData(JSON.stringify(mapped)); // FIX: Set lastSavedData to prevent isDirty from being true on load
+        setFormData(prev => {
+          let enrichedWithRates = mapped.items;
+          const refItems = latestItemsRef.current;
+          if (refItems && refItems.length > 0) {
+            enrichedWithRates = mapped.items.map((mappedItem, idx) => {
+              const prevItem = (refItems[idx] && refItems[idx].item_code === mappedItem.item_code)
+                 ? refItems[idx]
+                 : refItems.find(pi => pi.item_code === mappedItem.item_code);
+                 
+              if (prevItem) {
+                return { 
+                  ...mappedItem, 
+                  last_purchase_rate: prevItem.last_purchase_rate !== undefined ? prevItem.last_purchase_rate : (mappedItem.last_purchase_rate || 0),
+                  last_buying_rate: prevItem.last_buying_rate !== undefined ? prevItem.last_buying_rate : (mappedItem.last_buying_rate || 0)
+                };
+              }
+              return mappedItem;
+            });
+          }
+          const finalMapped = { ...mapped, items: enrichedWithRates };
+          setTimeout(() => setLastSavedData(JSON.stringify(finalMapped)), 0); // FIX: Set lastSavedData safely
+          return finalMapped;
+        });
         setSearchSupplier(d.supplier_name || d.supplier);
         setDocName(d.name);
         setDocStatus(parseInt(d.docstatus) || 0); // Store docstatus

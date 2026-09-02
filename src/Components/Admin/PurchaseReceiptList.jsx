@@ -179,6 +179,15 @@ function PurchaseReceiptList() {
   };
 
   const [formData, setFormData] = useState(initialState);
+  const latestItemsRef = useRef([]);
+  useEffect(() => {
+    if (formData && formData.items) {
+      const validItems = formData.items.filter(i => i && i.item_code);
+      if (validItems.length > 0) {
+        latestItemsRef.current = validItems;
+      }
+    }
+  }, [formData.items]);
 
   const isDirty = useMemo(() => {
     if (!docName) return true; // New docs are always dirty
@@ -1542,14 +1551,35 @@ function PurchaseReceiptList() {
         }
       }
 
-      setFormData(mapped);
+      setFormData(prev => {
+        let enrichedWithRates = mapped.items;
+        const refItems = latestItemsRef.current;
+        if (refItems && refItems.length > 0) {
+          enrichedWithRates = mapped.items.map((mappedItem, idx) => {
+            const prevItem = (refItems[idx] && refItems[idx].item_code === mappedItem.item_code)
+                 ? refItems[idx]
+                 : refItems.find(pi => pi.item_code === mappedItem.item_code);
+                 
+            if (prevItem) {
+              return { 
+                ...mappedItem, 
+                last_purchase_rate: prevItem.last_purchase_rate !== undefined ? prevItem.last_purchase_rate : (mappedItem.last_purchase_rate || 0),
+                last_buying_rate: prevItem.last_buying_rate !== undefined ? prevItem.last_buying_rate : (mappedItem.last_buying_rate || 0)
+              };
+            }
+            return mappedItem;
+          });
+        }
+        const finalMapped = { ...mapped, items: enrichedWithRates };
+        setTimeout(() => setLastSavedData(JSON.stringify(finalMapped)), 0);
+        return finalMapped;
+      });
       setDocName(doc.name);
       setSearchSupplier(doc.supplier_name || '');
       const isDraft = (parseInt(doc.docstatus) || 0) === 0;
       setIsViewMode(!isDraft ? true : false);
       setIsEditMode(isDraft);
       setIsModalOpen(true);
-      setLastSavedData(JSON.stringify(mapped)); // Use mapped object for stable comparison
       if (doc.name) {
         fetchLinkedDocuments(doc.name);
         fetchWorkflowActions(doc.name);
