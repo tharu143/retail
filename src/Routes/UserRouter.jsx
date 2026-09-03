@@ -106,7 +106,8 @@ function UserRouter() {
 
   // Fetch initial notifications list and trigger popup banners for unread items
   const fetchNotifications = useCallback(async () => {
-    if (!user) return;
+    // Only fetch if user is logged in and not on login page
+    if (!user || location.pathname === '/') return;
     try {
       const response = await authFetchBase('kyle_retail.retail_api.api.get_pos_notifications', {
         method: 'POST',
@@ -134,16 +135,17 @@ function UserRouter() {
               btnText = '✅ ACCEPT STOCK';
               btnColor = '#059669';
             } else if (n.notification_type === 'Decision') {
-              titleIcon = '🎉 TRANSFER COMPLETED';
-              btnText = 'VIEW SUMMARY';
-              btnColor = '#059669';
+              const isReject = (n.title || '').includes('REJECT') || (n.message || '').includes('rejected');
+              titleIcon = isReject ? '❌ TRANSFER REJECTED' : '🎉 TRANSFER ACCEPTED';
+              btnText = 'VIEW DETAILS';
+              btnColor = isReject ? '#ef4444' : '#059669';
             }
 
             const targetDoc = n.document_name || n.doc_name || n.name;
             Swal.fire({
               title: titleIcon,
               html: `<div style="font-size:13px; text-align:left; color:#1e293b; margin-top:4px;"><b>${n.title || ''}</b><br/>${n.message || ''}</div>`,
-              icon: n.notification_type === 'Dispatch' ? 'success' : 'info',
+              icon: (n.title || '').includes('REJECT') ? 'error' : n.notification_type === 'Dispatch' ? 'success' : 'info',
               toast: true,
               position: 'top',
               showConfirmButton: true,
@@ -151,8 +153,17 @@ function UserRouter() {
               confirmButtonColor: btnColor,
               timer: 25000,
               timerProgressBar: true
-            }).then((result) => {
+            }).then(async (result) => {
               if (result.isConfirmed && targetDoc) {
+                // Mark as read in backend
+                try {
+                  await authFetchBase('kyle_retail.retail_api.api.mark_notification_as_read', {
+                    method: 'POST',
+                    body: JSON.stringify({ notification_name: n.name })
+                  });
+                } catch (e) {
+                  console.error('Failed to mark read:', e);
+                }
                 navigate(`/interbranchrequest/${targetDoc}`);
               }
             });
@@ -162,20 +173,21 @@ function UserRouter() {
     } catch (error) {
       console.error("[UserRouter] Failed to fetch notifications:", error);
     }
-  }, [user, dispatch, navigate]);
+  }, [user, location.pathname, dispatch, navigate]);
 
   useEffect(() => {
+    if (!user || location.pathname === '/') return;
     fetchNotifications();
-    // Background polling fallback every 6 seconds so notifications pop up without page refresh
+    // Background polling fallback every 8 seconds so notifications pop up without page refresh
     const pollInterval = setInterval(() => {
       fetchNotifications();
-    }, 6000);
+    }, 8000);
     return () => clearInterval(pollInterval);
-  }, [fetchNotifications]);
+  }, [user, location.pathname, fetchNotifications]);
 
   // Global socket listener for real-time stock notifications
   useEffect(() => {
-    if (!socket || !warehouse) return;
+    if (!socket || !warehouse || !user || location.pathname === '/') return;
 
     // Force connection if disconnected (handles case where socket failed to connect initially before login)
     if (!socket.connected) {
@@ -332,6 +344,8 @@ function UserRouter() {
             <Route path='closingentry' element={<ClosingEntryPage />} />
             <Route path='closingcollection' element={<ClosingCollectionPage />} />
             <Route path='closing-collection' element={<ClosingCollectionPage />} />
+            <Route path='cashcollection' element={<ClosingCollectionPage />} />
+            <Route path='cash-collection' element={<ClosingCollectionPage />} />
             <Route path='invoicelist' element={<InvoiceListPage />} />
             <Route path='purchaseorder' element={<PurchaseOrderPage />} />
             <Route path='purchaseorderlist' element={<PurchaseOrderListPage />} />

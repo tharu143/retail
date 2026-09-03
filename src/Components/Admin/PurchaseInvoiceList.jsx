@@ -14,6 +14,7 @@ import Swal from 'sweetalert2';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import '../Admin/SalesOrder.css';
 import DirhamIcon from '../../assets/Currency/DirhamIcon';
+import { promptSecretCode } from '../../utils/secretCodePrompt';
 import AttachmentSection from './AttachmentSection';
 import ListCustomizer from './ListCustomizer';
 import { useCustomShortcuts } from '../../hooks/useCustomShortcuts';
@@ -140,6 +141,41 @@ function PurchaseInvoiceList() {
     return DEFAULT_PI_COLUMNS;
   };
   const [columnConfig, setColumnConfig] = useState(loadColumnConfig);
+  const [resizingCol, setResizingCol] = useState(null);
+
+  const handleResizeMouseDown = (e, colId) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const startX = e.clientX;
+    const targetCol = columnConfig.find(c => c.id === colId);
+    const startWidth = parseInt(targetCol?.width || 100, 10);
+
+    const handleMouseMove = (moveEvent) => {
+      const diff = moveEvent.clientX - startX;
+      const newWidth = Math.max(40, startWidth + diff);
+      setColumnConfig(prev => prev.map(c => c.id === colId ? { ...c, width: newWidth } : c));
+    };
+
+    const handleMouseUp = () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = 'default';
+      document.body.style.userSelect = 'auto';
+      setResizingCol(null);
+      // Persist to localStorage
+      setColumnConfig(currentCols => {
+        localStorage.setItem('pi_column_config', JSON.stringify(currentCols));
+        return currentCols;
+      });
+    };
+
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    setResizingCol(colId);
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+  };
+
   const [showColConfig, setShowColConfig] = useState(false);
 
   const handleColConfigUpdate = (newConfig) => {
@@ -185,20 +221,40 @@ function PurchaseInvoiceList() {
 
   const handleSupplierCreate = async (name) => {
     try {
-      const res = await fetch(`${API_PATH}.create_supplier`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Frappe-SID': localStorage.getItem('session') },
-        credentials: 'include',
-        body: JSON.stringify({ supplier_name: name.trim(), supplier_type: "Company" })
+      const targetWarehouse = formData.set_warehouse || warehouse || localStorage.getItem('warehouse');
+      
+      // Prompt Employee Secret Code
+      const auth = await promptSecretCode({
+        title: 'Register Supplier Authorization',
+        subtitle: `Enter Secret Code to register and link supplier "${name.trim()}"`,
+        warehouse: targetWarehouse
       });
-      const result = await res.json();
-      if (result.message?.status === 'success' && result.message?.message) {
-        const s = result.message.message;
-        return { name: s.name, supplier_name: s.supplier_name || s.name };
-      }
-      throw new Error('Invalid response');
+      if (!auth) return null;
+
+      const res = await axios.post(`${API_PATH}.create_supplier`, {
+        supplier_name: name.trim(),
+        supplier_type: "Company",
+        custom_branch: targetWarehouse,
+        secret_key: auth.secret_key,
+        employee_name: auth.employee_name,
+        employee_id: auth.employee_id
+      }, { withCredentials: true });
+
+      const msg = res.data?.message;
+      const sName = (msg && typeof msg === 'object' && msg.name) || msg?.supplier_name || res.data?.data?.supplier || name.trim();
+
+      Swal.fire({
+        icon: 'success',
+        title: 'Supplier Registered',
+        text: `Supplier "${sName}" authorized by ${auth.employee_name} and linked to your branch!`,
+        timer: 1800,
+        showConfirmButton: false
+      });
+
+      return { name: sName, supplier_name: sName };
     } catch (err) {
-      alert(`Cannot create supplier: ${err.message}`);
+      console.error("Supplier create error:", err);
+      Swal.fire({ icon: 'error', title: 'Registration Error', text: err.response?.data?.message || err.message });
       throw err;
     }
   };
@@ -260,13 +316,33 @@ function PurchaseInvoiceList() {
   const onActivateSupplier = async (supp) => {
     try {
       const sName = supp.name || supp.supplier_name;
+      const targetWarehouse = formData.set_warehouse || warehouse || localStorage.getItem('warehouse');
+
+      // Prompt Employee Secret Code
+      const auth = await promptSecretCode({
+        title: 'Activate Supplier Authorization',
+        subtitle: `Enter Secret Code to sync "${sName}" to ${targetWarehouse}`,
+        warehouse: targetWarehouse
+      });
+      if (!auth) return false;
+
       const res = await axios.post('/api/method/kyle_retail.retail_api.api.enable_supplier_for_branch_retail', {
         supplier: sName,
         supplier_name: sName,
-        warehouse: warehouse
+        warehouse: targetWarehouse,
+        secret_key: auth.secret_key,
+        employee_name: auth.employee_name,
+        employee_id: auth.employee_id
       }, { withCredentials: true });
-      if (res.data.message?.success) {
-        Swal.fire({ icon: 'success', title: 'Supplier Activated', text: `${supp.supplier_name || supp.name} linked to your branch!`, timer: 1500, showConfirmButton: false });
+
+      if (res.data.message?.success || res.data?.success) {
+        Swal.fire({
+          icon: 'success',
+          title: 'Supplier Activated',
+          text: `${supp.supplier_name || supp.name} authorized by ${auth.employee_name} and linked to your branch!`,
+          timer: 1800,
+          showConfirmButton: false
+        });
         return true;
       }
       return false;
@@ -1648,29 +1724,12 @@ function PurchaseInvoiceList() {
 
         // Auto update Box Selling Price if Pieces per box changes
         if (field === 'custom_pieces_per_box') {
-          const sellNos = parseFloat(items[index].custom_selling_price) || 0;
-          if (sellNos > 0 && pcs_per_box > 0) {
-            items[index].custom_box_selling_price = parseFloat((sellNos * pcs_per_box).toFixed(2));
-          }
+          // Keep custom_box_selling_price independent
         }
       } else if (field === 'custom_selling_price') {
         items[index].custom_selling_price = value;
-        const sellNos = parseFloat(value) || 0;
-        const pcs = parseFloat(items[index].custom_pieces_per_box) || 1;
-        if (sellNos > 0 && pcs > 0) {
-          items[index].custom_box_selling_price = parseFloat((sellNos * pcs).toFixed(2));
-        } else if (value === '' || sellNos === 0) {
-          items[index].custom_box_selling_price = '';
-        }
       } else if (field === 'custom_box_selling_price') {
         items[index].custom_box_selling_price = value;
-        const sellBox = parseFloat(value) || 0;
-        const pcs = parseFloat(items[index].custom_pieces_per_box) || 1;
-        if (sellBox > 0 && pcs > 0) {
-          items[index].custom_selling_price = parseFloat((sellBox / pcs).toFixed(4));
-        } else if (value === '' || sellBox === 0) {
-          items[index].custom_selling_price = '';
-        }
       } else {
         items[index][field] = value;
       }
@@ -1891,19 +1950,27 @@ function PurchaseInvoiceList() {
         }
 
         const isBoxUom = isBoxScan || (item.stock_uom || '').toLowerCase() === 'box';
+        const rate = parseFloat(item.rate || item.last_buying_rate || item.last_purchase_rate || 0);
         const lastPurRate = parseFloat(item.last_purchase_rate || item.last_buying_rate || item.rate || 0);
+        const defaultBoxPrice = parseFloat(item.custom_box_price || (rate * pcsPerBox) || 0);
+        const sellNos = parseFloat(item.custom_selling_price || 0);
+        const sellBox = parseFloat(item.custom_box_selling_price || item.custom_selling_price_box || (sellNos * pcsPerBox) || 0);
+        const itemQty = isBoxUom ? Math.round(pcsPerBox) : 1;
+
         items[targetIndex] = {
           item_code: item.item_code,
           item_name: item.item_name,
           uom: isBoxUom ? 'Box' : (item.stock_uom || 'Nos'),
-          qty: isBoxUom ? Math.round(pcsPerBox) : 1,
-          rate: 0,
+          qty: itemQty,
+          rate: rate,
           last_purchase_rate: lastPurRate,
-          amount: 0,
+          amount: (itemQty * rate).toFixed(2),
+          custom_box_price: defaultBoxPrice,
           custom_box_qty: 1,
           custom_pieces_per_box: pcsPerBox,
           default_pieces_per_box: pcsPerBox,
-          custom_selling_price: parseFloat(item.custom_selling_price || 0),
+          custom_selling_price: sellNos,
+          custom_box_selling_price: sellBox,
           custom_supplier_sl_num: item.custom_ref_sl_no || item.custom_supplier_sl_num || item.supplier_part_no || '',
           custom_ref_sl_no: item.custom_ref_sl_no || item.custom_supplier_sl_num || '',
           use_box_entry: isBoxUom
@@ -2073,6 +2140,47 @@ function PurchaseInvoiceList() {
     };
   };
 
+  const checkUnmatchedConfirmation = async (actionLabel = 'Save Draft') => {
+    const suppAmt = parseFloat(formData.custom_supplier_invoice_amount) || 0;
+    const itemsGrandTotal = parseFloat(grandTotal) || 0;
+    const diff = itemsGrandTotal - suppAmt;
+
+    if (suppAmt > 0 && Math.abs(diff) >= 0.01) {
+      const result = await Swal.fire({
+        title: '⚠️ Invoice Amount Mismatch',
+        html: `
+          <div style="text-align: left; font-size: 13px; line-height: 1.6; padding: 6px 4px;">
+            <p style="margin-bottom: 8px; color: #475569;">The entered Supplier Bill Amount does not match the Items Total:</p>
+            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 12px; margin-bottom: 12px;">
+              <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                <span style="color: #64748b; font-weight: 600;">Supplier Bill Amount:</span>
+                <span style="font-weight: 800; color: #0f172a;">AED ${formatPrice(suppAmt)}</span>
+              </div>
+              <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                <span style="color: #64748b; font-weight: 600;">Items Grand Total:</span>
+                <span style="font-weight: 800; color: #059669;">AED ${formatPrice(itemsGrandTotal)}</span>
+              </div>
+              <div style="display: flex; justify-content: space-between; border-top: 1px solid #cbd5e1; padding-top: 4px; margin-top: 4px;">
+                <span style="color: #e11d48; font-weight: 700;">Difference (Unmatched):</span>
+                <span style="font-weight: 900; color: #e11d48;">${diff > 0 ? '+' : ''}AED ${formatPrice(diff)}</span>
+              </div>
+            </div>
+            <p style="color: #64748b; font-size: 12px; margin: 0;">Do you want to proceed with <b>${actionLabel}</b> or go back to review?</p>
+          </div>
+        `,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: `Proceed with ${actionLabel}`,
+        cancelButtonText: 'Go Back & Review',
+        confirmButtonColor: '#f59e0b',
+        cancelButtonColor: '#64748b',
+        reverseButtons: true
+      });
+      return result.isConfirmed;
+    }
+    return true;
+  };
+
   const handleSaveDraft = async () => {
     if (formData.update_stock && !formData.accepted_warehouse) {
       formData.accepted_warehouse = localStorage.getItem('warehouse') || warehouses[0]?.name || '';
@@ -2114,6 +2222,10 @@ function PurchaseInvoiceList() {
       setFormErrors(errors);
       return;
     }
+
+    // Unmatched Confirmation Prompt
+    const proceed = await checkUnmatchedConfirmation('Save Draft');
+    if (!proceed) return;
 
     setSaving(true);
     const payload = await getPayload();
@@ -2195,6 +2307,10 @@ function PurchaseInvoiceList() {
       setFormErrors(errors);
       return;
     }
+
+    // Unmatched Confirmation Prompt
+    const proceed = await checkUnmatchedConfirmation('Submit');
+    if (!proceed) return;
 
     setSaving(true);
     const payload = await getPayload();
@@ -2537,8 +2653,9 @@ function PurchaseInvoiceList() {
         (e.ctrlKey && e.key === 'Enter')
       ) {
         e.preventDefault();
+        e.stopPropagation();
         if (!saving && (formData.docstatus === 0 || formData.docstatus === undefined)) {
-          handleDocAction('submit');
+          handleSubmit();
         }
       }
 
@@ -2988,37 +3105,37 @@ function PurchaseInvoiceList() {
 
         {/* CLASSIC SHORTCUTS GUIDE BAR */}
         <div className="so-shortcut-guide-banner" style={{ background: '#0f172a', borderBottom: '1px solid #1e293b', padding: '6px 14px', display: 'flex', alignItems: 'center', gap: '8px', overflowX: 'auto', flexShrink: 0 }}>
-          <div className="so-shortcut-banner-title" style={{ color: '#94a3b8', fontSize: '9px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.08em', display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}>
-            <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block animate-ping mr-1"></span>
-            SHORTCUTS
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'linear-gradient(135deg, #d97706 0%, #b45309 100%)', color: '#ffffff', padding: '3px 10px', borderRadius: '6px', fontSize: '11px', fontWeight: 900, letterSpacing: '0.04em', textTransform: 'uppercase', boxShadow: '0 2px 4px rgba(217, 119, 6, 0.3)', whiteSpace: 'nowrap', flexShrink: 0 }}>
+            <span className="w-2 h-2 rounded-full bg-white inline-block animate-ping mr-0.5"></span>
+            <span>PURCHASE INVOICE</span>
           </div>
           <div className="so-shortcut-badges-wrapper" style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'nowrap' }}>
             <div className="so-shortcut-badge" style={{ background: '#ffffff', border: '1.5px solid #cbd5e1', borderRadius: '6px', padding: '3px 7px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-              <span className="so-shortcut-key" style={{ background: '#3b82f6', color: '#fff', fontSize: '9px', fontWeight: 900, padding: '1px 5px', borderRadius: '4px' }}>F2</span>
+              <span className="so-shortcut-key" style={{ background: '#3b82f6', color: '#fff', fontSize: '9px', fontWeight: 900, padding: '1px 5px', borderRadius: '4px' }}>{getShortcut('doc_editor', 'customerSupplier', 'F2')}</span>
               <span className="so-shortcut-label" style={{ fontSize: '11px', fontWeight: 900, color: '#0f172a' }}>SUPPLIER</span>
             </div>
             <div className="so-shortcut-badge" style={{ background: '#ffffff', border: '1.5px solid #cbd5e1', borderRadius: '6px', padding: '3px 7px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-              <span className="so-shortcut-key" style={{ background: '#6366f1', color: '#fff', fontSize: '9px', fontWeight: 900, padding: '1px 5px', borderRadius: '4px' }}>F3 / F4</span>
+              <span className="so-shortcut-key" style={{ background: '#6366f1', color: '#fff', fontSize: '9px', fontWeight: 900, padding: '1px 5px', borderRadius: '4px' }}>{getShortcut('doc_editor', 'itemSearch', 'F3')} / {getShortcut('doc_editor', 'barcode', 'F4')}</span>
               <span className="so-shortcut-label" style={{ fontSize: '11px', fontWeight: 900, color: '#0f172a' }}>ITEM / BARCODE</span>
             </div>
             <div className="so-shortcut-badge" style={{ background: '#ffffff', border: '1.5px solid #cbd5e1', borderRadius: '6px', padding: '3px 7px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-              <span className="so-shortcut-key" style={{ background: '#d946ef', color: '#fff', fontSize: '9px', fontWeight: 900, padding: '1px 5px', borderRadius: '4px' }}>F6</span>
+              <span className="so-shortcut-key" style={{ background: '#d946ef', color: '#fff', fontSize: '9px', fontWeight: 900, padding: '1px 5px', borderRadius: '4px' }}>{getShortcut('doc_editor', 'bulkQty', 'F6')}</span>
               <span className="so-shortcut-label" style={{ fontSize: '11px', fontWeight: 900, color: '#0f172a' }}>BULK QTY</span>
             </div>
             <div className="so-shortcut-badge" style={{ background: '#ffffff', border: '1.5px solid #cbd5e1', borderRadius: '6px', padding: '3px 7px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-              <span className="so-shortcut-key" style={{ background: '#8b5cf6', color: '#fff', fontSize: '9px', fontWeight: 900, padding: '1px 5px', borderRadius: '4px' }}>F8</span>
+              <span className="so-shortcut-key" style={{ background: '#8b5cf6', color: '#fff', fontSize: '9px', fontWeight: 900, padding: '1px 5px', borderRadius: '4px' }}>{getShortcut('doc_editor', 'uom', 'F8')}</span>
               <span className="so-shortcut-label" style={{ fontSize: '11px', fontWeight: 900, color: '#0f172a' }}>TOGGLE UOM</span>
             </div>
             <div className="so-shortcut-badge" style={{ background: '#ffffff', border: '1.5px solid #cbd5e1', borderRadius: '6px', padding: '3px 7px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-              <span className="so-shortcut-key" style={{ background: '#f59e0b', color: '#fff', fontSize: '9px', fontWeight: 900, padding: '1px 5px', borderRadius: '4px' }}>F7 / Alt+S</span>
+              <span className="so-shortcut-key" style={{ background: '#f59e0b', color: '#fff', fontSize: '9px', fontWeight: 900, padding: '1px 5px', borderRadius: '4px' }}>{getShortcut('doc_editor', 'saveDraft', 'F7')} / {getShortcut('doc_editor', 'saveDraftAlt', 'Alt+S')}</span>
               <span className="so-shortcut-label" style={{ fontSize: '11px', fontWeight: 900, color: '#0f172a' }}>SAVE DRAFT</span>
             </div>
             <div className="so-shortcut-badge" style={{ background: '#ffffff', border: '1.5px solid #cbd5e1', borderRadius: '6px', padding: '3px 7px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-              <span className="so-shortcut-key" style={{ background: '#0ea5e9', color: '#fff', fontSize: '9px', fontWeight: 900, padding: '1px 5px', borderRadius: '4px' }}>F10 / Alt+A</span>
+              <span className="so-shortcut-key" style={{ background: '#0ea5e9', color: '#fff', fontSize: '9px', fontWeight: 900, padding: '1px 5px', borderRadius: '4px' }}>{getShortcut('doc_editor', 'addRow', 'F10')} / {getShortcut('doc_editor', 'addRowAlt', 'Alt+A')}</span>
               <span className="so-shortcut-label" style={{ fontSize: '11px', fontWeight: 900, color: '#0f172a' }}>ADD ROW</span>
             </div>
             <div className="so-shortcut-badge" style={{ background: '#ffffff', border: '1.5px solid #cbd5e1', borderRadius: '6px', padding: '3px 7px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-              <span className="so-shortcut-key" style={{ background: '#10b981', color: '#fff', fontSize: '9px', fontWeight: 900, padding: '1px 5px', borderRadius: '4px' }}>F12 / Ctrl+Enter</span>
+              <span className="so-shortcut-key" style={{ background: '#10b981', color: '#fff', fontSize: '9px', fontWeight: 900, padding: '1px 5px', borderRadius: '4px' }}>{getShortcut('doc_editor', 'submit', 'F12')} / {getShortcut('doc_editor', 'submitAlt', 'Ctrl+Enter')}</span>
               <span className="so-shortcut-label" style={{ fontSize: '11px', fontWeight: 900, color: '#0f172a' }}>SUBMIT</span>
             </div>
             <div className="so-shortcut-badge" style={{ background: '#ffffff', border: '1.5px solid #cbd5e1', borderRadius: '6px', padding: '3px 7px', display: 'flex', alignItems: 'center', gap: '5px' }}>
@@ -3043,8 +3160,11 @@ function PurchaseInvoiceList() {
                   value={formData.supplier ? { name: formData.supplier, supplier_name: formData.supplier_name } : null}
                   onSelect={(val) => selectSupplier(val)}
                   fetchData={fetchSuppliers}
+                  createOption={handleSupplierCreate}
                   optionsLabel="supplier_name"
                   globalSearch={true}
+                  onGlobalSearch={onGlobalSupplierSearch}
+                  onActivate={onActivateSupplier}
                   themeColor="#10b981"
                   className="h-10 w-full min-w-0 rounded-md border border-slate-200 bg-slate-50/50 px-3 text-sm font-semibold text-slate-800 outline-none transition-colors placeholder:font-normal placeholder:text-slate-400 focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-500/20"
                   disabled={isViewMode || formData.docstatus !== 0}
@@ -3240,6 +3360,7 @@ function PurchaseInvoiceList() {
                     return (
                       <th
                         key={col.id}
+                        className="relative group select-none"
                         style={{
                           width: colW,
                           minWidth: colW,
@@ -3256,7 +3377,13 @@ function PurchaseInvoiceList() {
                           whiteSpace: 'nowrap'
                         }}
                       >
-                        {col.label}
+                        <span className="truncate block pointer-events-none">{col.label}</span>
+                        <div
+                          onMouseDown={(e) => handleResizeMouseDown(e, col.id)}
+                          className={`absolute top-0 right-0 w-2 h-full cursor-col-resize z-20 hover:bg-emerald-500/40 transition-colors ${resizingCol === col.id ? 'bg-emerald-600' : ''}`}
+                          style={{ touchAction: 'none' }}
+                          title="Drag to resize column"
+                        />
                       </th>
                     );
                   })}
@@ -3594,7 +3721,7 @@ function PurchaseInvoiceList() {
                           {saving ? <Loader2 size={15} className="animate-spin text-white" /> : <Save size={15} />}
                           <span>{saving ? 'SAVING...' : 'SAVE DRAFT'}</span>
                         </div>
-                        <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">Alt+S</span>
+                        <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">{getShortcut('doc_editor', 'saveDraftAlt', 'Alt+S')}</span>
                       </button>
                     ) : (
                       (allowedActions.includes('submit') || allowedActions.length === 0) ? (
@@ -3609,7 +3736,7 @@ function PurchaseInvoiceList() {
                             {saving ? <Loader2 size={15} className="animate-spin text-white" /> : <Send size={15} />}
                             <span>{saving ? 'SUBMITTING...' : 'SUBMIT'}</span>
                           </div>
-                          <span className="inline-flex items-center justify-center font-mono text-[10px] font-black px-1.5 py-0.5 rounded bg-white/20 text-white">Ctrl+↵</span>
+                          <span className="inline-flex items-center justify-center font-mono text-[10px] font-black px-1.5 py-0.5 rounded bg-white/20 text-white">{getShortcut('doc_editor', 'submitAlt', 'Ctrl+Enter')}</span>
                         </button>
                       ) : (
                         <div className="h-full bg-slate-100 border-2 border-slate-200 rounded-xl px-3 py-2 flex items-center justify-center text-slate-400 font-black text-[11px] uppercase tracking-wider select-none" style={{ borderRadius: '8px' }}>
@@ -3630,7 +3757,7 @@ function PurchaseInvoiceList() {
                           <X size={15} />
                           <span>CANCEL</span>
                         </div>
-                        <span className="inline-flex items-center justify-center font-mono text-[10px] font-black px-1.5 py-0.5 rounded bg-white/20 text-white">Alt+C</span>
+                        <span className="inline-flex items-center justify-center font-mono text-[10px] font-black px-1.5 py-0.5 rounded bg-white/20 text-white">{getShortcut('doc_editor', 'cancel', 'Alt+C')}</span>
                       </button>
                     ) : (
                       <div className="h-full bg-slate-100 border-2 border-slate-200 rounded-xl px-3 py-2 flex items-center justify-center text-slate-400 font-black text-[11px] uppercase tracking-wider select-none" style={{ borderRadius: '8px' }}>
@@ -3650,7 +3777,7 @@ function PurchaseInvoiceList() {
                           <Plus size={15} />
                           <span>AMEND</span>
                         </div>
-                        <span className="inline-flex items-center justify-center font-mono text-[10px] font-black px-1.5 py-0.5 rounded bg-white/20 text-white">Alt+M</span>
+                        <span className="inline-flex items-center justify-center font-mono text-[10px] font-black px-1.5 py-0.5 rounded bg-white/20 text-white">{getShortcut('doc_editor', 'amend', 'Alt+M')}</span>
                       </button>
                     ) : (
                       <div className="h-full bg-slate-100 border-2 border-slate-200 rounded-xl px-3 py-2 flex items-center justify-center text-slate-400 font-black text-[11px] uppercase tracking-wider select-none" style={{ borderRadius: '8px' }}>
@@ -3706,7 +3833,7 @@ function PurchaseInvoiceList() {
                       <Copy size={15} />
                       <span>DUPLICATE</span>
                     </div>
-                    <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">Alt+D</span>
+                    <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">{getShortcut('doc_editor', 'duplicate', 'Alt+D')}</span>
                   </button>
 
                   {/* Slot 4: PRINT PDF */}
@@ -3721,7 +3848,7 @@ function PurchaseInvoiceList() {
                       <Printer size={15} />
                       <span>PRINT PDF</span>
                     </div>
-                    <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">Space</span>
+                    <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">PDF</span>
                   </button>
 
                   {/* Slot 5: ADD ROW (Draft) / BULK QTY */}
@@ -3737,7 +3864,7 @@ function PurchaseInvoiceList() {
                         <Plus size={15} />
                         <span>ADD ROW</span>
                       </div>
-                      <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">Alt+A</span>
+                      <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">{getShortcut('doc_editor', 'addRowAlt', 'Alt+A')}</span>
                     </button>
                   ) : (
                     <button
@@ -3751,7 +3878,7 @@ function PurchaseInvoiceList() {
                         <LayoutGrid size={15} />
                         <span>BULK QTY</span>
                       </div>
-                      <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">F6</span>
+                      <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">{getShortcut('doc_editor', 'bulkQty', 'F6')}</span>
                     </button>
                   )}
 
@@ -3818,6 +3945,42 @@ function PurchaseInvoiceList() {
                     </span>
                   </div>
                 </div>
+
+                {/* Live Reconciliation Bar */}
+                {(() => {
+                  const suppAmt = parseFloat(formData.custom_supplier_invoice_amount) || 0;
+                  const diff = parseFloat(grandTotal) - suppAmt;
+                  const isMatched = suppAmt > 0 && Math.abs(diff) < 0.01;
+                  const isUnmatched = suppAmt > 0 && Math.abs(diff) >= 0.01;
+
+                  return (
+                    <div className="mt-1 pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-bold uppercase text-slate-500">Bill: AED {formatPrice(suppAmt)}</span>
+                        {suppAmt > 0 && (
+                          <span className={`text-[10px] font-black ${isMatched ? 'text-emerald-600' : 'text-rose-600'}`}>
+                            Diff: {diff > 0 ? '+' : ''}{formatPrice(diff)}
+                          </span>
+                        )}
+                      </div>
+                      <div>
+                        {isMatched ? (
+                          <span className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[10px] font-black tracking-wide flex items-center gap-1">
+                            <CheckCircle size={11} className="text-emerald-600" />
+                            <span>MATCHED</span>
+                          </span>
+                        ) : isUnmatched ? (
+                          <span className="px-2 py-0.5 rounded bg-rose-100 text-rose-800 text-[10px] font-black tracking-wide flex items-center gap-1 animate-pulse">
+                            <AlertTriangle size={11} className="text-rose-600" />
+                            <span>UNMATCHED</span>
+                          </span>
+                        ) : (
+                          <span className="text-[10px] text-slate-400 font-semibold">Bill Amt Not Entered</span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
             </div>
           </div>

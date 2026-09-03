@@ -15,11 +15,12 @@ import { useNavigate } from 'react-router-dom';
 import CustomSearchDropdown from './CustomSearchDropdown';
 import QuickItemCreateModal from './QuickItemCreateModal';
 import ColumnConfigModal from './ColumnConfigModal';
-import DirhamIcon from '../../assets/Currency/DirhamIcon';
+import { promptSecretCode } from '../../utils/secretCodePrompt';
 import './Purchase.css';
 import '../Headers/LegacyPOS.css';
 import AttachmentSection from '../Admin/AttachmentSection';
 import { useCustomShortcuts } from '../../hooks/useCustomShortcuts';
+import DirhamIcon from '../../assets/Currency/DirhamIcon';
 
 const DEFAULT_PO_COLUMNS = [
   { id: 'item_code', label: 'Item Code', visible: true, width: 120 },
@@ -217,9 +218,44 @@ function PurchaseOrder() {
   const [poColumns, setPoColumns] = useState(loadColumnConfig);
   const [showColConfig, setShowColConfig] = useState(false);
 
+  const [resizingCol, setResizingCol] = useState(null);
+
+  const handleResizeMouseDown = (e, colId) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const startX = e.clientX;
+    const targetCol = poColumns.find(c => c.id === colId);
+    const startWidth = parseInt(targetCol?.width || 100, 10);
+
+    const handleMouseMove = (moveEvent) => {
+      const diff = moveEvent.clientX - startX;
+      const newWidth = Math.max(40, startWidth + diff);
+      setPoColumns(prev => prev.map(c => c.id === colId ? { ...c, width: newWidth } : c));
+    };
+
+    const handleMouseUp = () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = 'default';
+      document.body.style.userSelect = 'auto';
+      setResizingCol(null);
+      // Persist to localStorage
+      setPoColumns(currentCols => {
+        localStorage.setItem('purchase_matrix_config', JSON.stringify(currentCols));
+        return currentCols;
+      });
+    };
+
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    setResizingCol(colId);
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+  };
+
   const handleColConfigUpdate = (newConfig) => {
     if (newConfig === null) {
-      setPoColumns(DEFAULT_PO_COLUMNS);
+      setPoColumns([...DEFAULT_PO_COLUMNS]);
       localStorage.removeItem('purchase_matrix_config');
     } else {
       setPoColumns(newConfig);
@@ -1509,22 +1545,8 @@ function PurchaseOrder() {
           item.amount = parseFloat(((parseFloat(item.qty) || 0) * item.rate).toFixed(2));
         } else if (name === 'custom_selling_price') {
           item.custom_selling_price = value;
-          const sellNos = parseFloat(value) || 0;
-          const pcs = parseFloat(item.custom_pieces_per_box) || 1;
-          if (sellNos > 0 && pcs > 0) {
-            item.custom_selling_price_box = parseFloat((sellNos * pcs).toFixed(2));
-          } else if (value === '' || sellNos === 0) {
-            item.custom_selling_price_box = '';
-          }
         } else if (name === 'custom_selling_price_box') {
           item.custom_selling_price_box = value;
-          const sellBox = parseFloat(value) || 0;
-          const pcs = parseFloat(item.custom_pieces_per_box) || 1;
-          if (sellBox > 0 && pcs > 0) {
-            item.custom_selling_price = parseFloat((sellBox / pcs).toFixed(4));
-          } else if (value === '' || sellBox === 0) {
-            item.custom_selling_price = '';
-          }
         } else if (name === 'discount_amount') {
           const discAmt = (value === '' || value === '.') ? 0 : parseFloat(value);
           item.discount_amount = value;
@@ -1884,6 +1906,7 @@ function PurchaseOrder() {
           custom_box_qty: parseFloat(item.custom_box_qty || 0),
           custom_box_price: parseFloat(item.custom_box_price || 0),
           custom_selling_price: parseFloat(item.custom_selling_price || 0),
+          custom_box_selling_price: parseFloat(item.custom_selling_price_box || 0),
           new_selling_price: parseFloat(item.custom_selling_price || 0),
           custom_ref_sl_no: item.custom_ref_sl_no || item.custom_supplier_sl_num || "",
           custom_supplier_sl_num: item.custom_supplier_sl_num || item.custom_ref_sl_no || "",
@@ -2127,26 +2150,41 @@ function PurchaseOrder() {
   const handleSupplierSelect = (supplier) => setFormData(prev => ({ ...prev, supplier }));
 
   const handleSupplierCreate = async (name) => {
-    const typeSelect = document.getElementById('new-supplier-type');
-    const supplier_type = typeSelect ? typeSelect.value : "Company";
-
     try {
-      const OLD_API = '/api/method/custom_retailpos.custom_retailpos.retail_api.retail';
-      const res = await fetch(`${OLD_API}.create_supplier`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Frappe-SID': getSession() },
-        credentials: 'include',
-        body: JSON.stringify({ supplier_name: name.trim(), supplier_type })
+      const targetWarehouse = formData.set_warehouse || warehouse || localStorage.getItem('warehouse');
+      
+      // Prompt Employee Secret Code
+      const auth = await promptSecretCode({
+        title: 'Register Supplier Authorization',
+        subtitle: `Enter Secret Code to register and link supplier "${name.trim()}"`,
+        warehouse: targetWarehouse
       });
-      const result = await res.json();
+      if (!auth) return null;
 
-      if (result.message?.status === 'success' && result.message?.message) {
-        const s = result.message.message;
-        return { name: s.name, supplier_name: s.supplier_name || s.name, supplier_type: s.supplier_type || supplier_type };
-      }
-      throw new Error('Invalid response');
+      const res = await axios.post(`${API_PATH}.create_supplier`, {
+        supplier_name: name.trim(),
+        supplier_type: "Company",
+        custom_branch: targetWarehouse,
+        secret_key: auth.secret_key,
+        employee_name: auth.employee_name,
+        employee_id: auth.employee_id
+      }, { withCredentials: true });
+
+      const msg = res.data?.message;
+      const sName = (msg && typeof msg === 'object' && msg.name) || msg?.supplier_name || res.data?.data?.supplier || name.trim();
+      
+      Swal.fire({
+        icon: 'success',
+        title: 'Supplier Registered',
+        text: `Supplier "${sName}" authorized by ${auth.employee_name} and linked to your branch!`,
+        timer: 1800,
+        showConfirmButton: false
+      });
+
+      return { name: sName, supplier_name: sName };
     } catch (err) {
-      setError(`Cannot create supplier: ${err.message}`);
+      console.error("Supplier create error:", err);
+      Swal.fire({ icon: 'error', title: 'Registration Error', text: err.response?.data?.message || err.message });
       throw err;
     }
   };
@@ -2166,18 +2204,55 @@ function PurchaseOrder() {
   };
 
   const handleGlobalSupplierSearch = async (term) => {
-    const res = await axios.get(`${API_PATH}.find_supplier_globally_retail`, { params: { search_term: term } });
-    return res.data.message.data;
+    try {
+      const res = await axios.get(`${API_PATH}.find_supplier_globally_retail`, {
+        params: { search_term: term },
+        withCredentials: true
+      });
+      return res.data?.message?.data || res.data?.data || [];
+    } catch (e) {
+      console.error("Global supplier search error:", e);
+      return [];
+    }
   };
 
   const handleActivateSupplier = async (item) => {
-    const sName = item.name || item.supplier_name;
-    const res = await axios.post(`${API_PATH}.enable_supplier_for_branch_retail`, {
-      supplier: sName,
-      supplier_name: sName,
-      warehouse: warehouse
-    });
-    return res.data.message.success;
+    try {
+      const sName = item.name || item.supplier_name;
+      const targetWarehouse = formData.set_warehouse || warehouse || localStorage.getItem('warehouse');
+
+      // Prompt Employee Secret Code
+      const auth = await promptSecretCode({
+        title: 'Activate Supplier Authorization',
+        subtitle: `Enter Secret Code to sync "${sName}" to ${targetWarehouse}`,
+        warehouse: targetWarehouse
+      });
+      if (!auth) return false;
+
+      const res = await axios.post(`${API_PATH}.enable_supplier_for_branch_retail`, {
+        supplier: sName,
+        supplier_name: sName,
+        warehouse: targetWarehouse,
+        secret_key: auth.secret_key,
+        employee_name: auth.employee_name,
+        employee_id: auth.employee_id
+      }, { withCredentials: true });
+
+      if (res.data?.message?.success || res.data?.success) {
+        Swal.fire({
+          icon: 'success',
+          title: 'Supplier Activated',
+          text: `${item.supplier_name || item.name} authorized by ${auth.employee_name} and enabled for your branch!`,
+          timer: 1800,
+          showConfirmButton: false
+        });
+        return true;
+      }
+      return false;
+    } catch (e) {
+      console.error("Activate supplier error:", e);
+      return false;
+    }
   };
 
   const handleGlobalItemSearch = async (term) => {
@@ -2236,6 +2311,10 @@ function PurchaseOrder() {
       } else {
         const pPerBox = parseFloat(item.custom_pieces_per_box || 1);
         const uomList = item.uom_list || [];
+        const defaultBoxPrice = parseFloat(item.custom_box_price || (rate * pPerBox) || 0);
+        const sellNos = parseFloat(item.custom_selling_price || item.selling_price || 0);
+        const sellBox = parseFloat(item.custom_selling_price_box || item.custom_box_selling_price || (sellNos * pPerBox) || 0);
+
         items[rowIndex] = {
           ...items[rowIndex],
           item_code: item.item_code,
@@ -2246,17 +2325,18 @@ function PurchaseOrder() {
           use_box_entry: false, // default Nos mode
           rate: rate,
           last_buying_rate: rate,
-          custom_pieces_per_box: 1,
+          custom_pieces_per_box: pPerBox,
           default_pieces_per_box: pPerBox,
           qty: 1,
           amount: rate,
-          custom_box_price: rate,
+          custom_box_price: defaultBoxPrice,
           custom_box_qty: 1,
           temp_barcode: '',
           schedule_date: items[rowIndex].schedule_date || prev.transaction_date,
           custom_supplier_sl_num: item.custom_supplier_sl_num || item.supplier_part_no || '',
           supplier_part_no: item.supplier_part_no || item.custom_supplier_sl_num || '',
-          custom_selling_price: parseFloat(item.selling_price || 0)
+          custom_selling_price: sellNos,
+          custom_selling_price_box: sellBox
         };
 
         // Async fetch UOMs and update row
@@ -2373,37 +2453,37 @@ function PurchaseOrder() {
 
         {/* CLASSIC SHORTCUTS GUIDE BAR */}
         <div className="so-shortcut-guide-banner" style={{ background: '#0f172a', borderBottom: '1px solid #1e293b', padding: '6px 14px', display: 'flex', alignItems: 'center', gap: '8px', overflowX: 'auto', flexShrink: 0 }}>
-          <div className="so-shortcut-banner-title" style={{ color: '#94a3b8', fontSize: '9px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.08em', display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}>
-            <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block animate-ping mr-1"></span>
-            SHORTCUTS
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)', color: '#ffffff', padding: '3px 10px', borderRadius: '6px', fontSize: '11px', fontWeight: 900, letterSpacing: '0.04em', textTransform: 'uppercase', boxShadow: '0 2px 4px rgba(59, 130, 246, 0.3)', whiteSpace: 'nowrap', flexShrink: 0 }}>
+            <span className="w-2 h-2 rounded-full bg-white inline-block animate-ping mr-0.5"></span>
+            <span>PURCHASE ORDER</span>
           </div>
           <div className="so-shortcut-badges-wrapper" style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'nowrap' }}>
             <div className="so-shortcut-badge" style={{ background: '#ffffff', border: '1.5px solid #cbd5e1', borderRadius: '6px', padding: '3px 7px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-              <span className="so-shortcut-key" style={{ background: '#3b82f6', color: '#fff', fontSize: '9px', fontWeight: 900, padding: '1px 5px', borderRadius: '4px' }}>F2</span>
+              <span className="so-shortcut-key" style={{ background: '#3b82f6', color: '#fff', fontSize: '9px', fontWeight: 900, padding: '1px 5px', borderRadius: '4px' }}>{getShortcut('doc_editor', 'customerSupplier', 'F2')}</span>
               <span className="so-shortcut-label" style={{ fontSize: '11px', fontWeight: 900, color: '#0f172a' }}>SUPPLIER</span>
             </div>
             <div className="so-shortcut-badge" style={{ background: '#ffffff', border: '1.5px solid #cbd5e1', borderRadius: '6px', padding: '3px 7px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-              <span className="so-shortcut-key" style={{ background: '#6366f1', color: '#fff', fontSize: '9px', fontWeight: 900, padding: '1px 5px', borderRadius: '4px' }}>F3 / F4</span>
+              <span className="so-shortcut-key" style={{ background: '#6366f1', color: '#fff', fontSize: '9px', fontWeight: 900, padding: '1px 5px', borderRadius: '4px' }}>{getShortcut('doc_editor', 'itemSearch', 'F3')} / {getShortcut('doc_editor', 'barcode', 'F4')}</span>
               <span className="so-shortcut-label" style={{ fontSize: '11px', fontWeight: 900, color: '#0f172a' }}>ITEM / BARCODE</span>
             </div>
             <div className="so-shortcut-badge" style={{ background: '#ffffff', border: '1.5px solid #cbd5e1', borderRadius: '6px', padding: '3px 7px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-              <span className="so-shortcut-key" style={{ background: '#d946ef', color: '#fff', fontSize: '9px', fontWeight: 900, padding: '1px 5px', borderRadius: '4px' }}>F6</span>
+              <span className="so-shortcut-key" style={{ background: '#d946ef', color: '#fff', fontSize: '9px', fontWeight: 900, padding: '1px 5px', borderRadius: '4px' }}>{getShortcut('doc_editor', 'bulkQty', 'F6')}</span>
               <span className="so-shortcut-label" style={{ fontSize: '11px', fontWeight: 900, color: '#0f172a' }}>BULK QTY</span>
             </div>
             <div className="so-shortcut-badge" style={{ background: '#ffffff', border: '1.5px solid #cbd5e1', borderRadius: '6px', padding: '3px 7px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-              <span className="so-shortcut-key" style={{ background: '#8b5cf6', color: '#fff', fontSize: '9px', fontWeight: 900, padding: '1px 5px', borderRadius: '4px' }}>F8</span>
+              <span className="so-shortcut-key" style={{ background: '#8b5cf6', color: '#fff', fontSize: '9px', fontWeight: 900, padding: '1px 5px', borderRadius: '4px' }}>{getShortcut('doc_editor', 'uom', 'F8')}</span>
               <span className="so-shortcut-label" style={{ fontSize: '11px', fontWeight: 900, color: '#0f172a' }}>TOGGLE UOM</span>
             </div>
             <div className="so-shortcut-badge" style={{ background: '#ffffff', border: '1.5px solid #cbd5e1', borderRadius: '6px', padding: '3px 7px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-              <span className="so-shortcut-key" style={{ background: '#f59e0b', color: '#fff', fontSize: '9px', fontWeight: 900, padding: '1px 5px', borderRadius: '4px' }}>F7 / Alt+S</span>
+              <span className="so-shortcut-key" style={{ background: '#f59e0b', color: '#fff', fontSize: '9px', fontWeight: 900, padding: '1px 5px', borderRadius: '4px' }}>{getShortcut('doc_editor', 'saveDraft', 'F7')} / {getShortcut('doc_editor', 'saveDraftAlt', 'Alt+S')}</span>
               <span className="so-shortcut-label" style={{ fontSize: '11px', fontWeight: 900, color: '#0f172a' }}>SAVE DRAFT</span>
             </div>
             <div className="so-shortcut-badge" style={{ background: '#ffffff', border: '1.5px solid #cbd5e1', borderRadius: '6px', padding: '3px 7px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-              <span className="so-shortcut-key" style={{ background: '#0ea5e9', color: '#fff', fontSize: '9px', fontWeight: 900, padding: '1px 5px', borderRadius: '4px' }}>F10 / Alt+A</span>
+              <span className="so-shortcut-key" style={{ background: '#0ea5e9', color: '#fff', fontSize: '9px', fontWeight: 900, padding: '1px 5px', borderRadius: '4px' }}>{getShortcut('doc_editor', 'addRow', 'F10')} / {getShortcut('doc_editor', 'addRowAlt', 'Alt+A')}</span>
               <span className="so-shortcut-label" style={{ fontSize: '11px', fontWeight: 900, color: '#0f172a' }}>ADD ROW</span>
             </div>
             <div className="so-shortcut-badge" style={{ background: '#ffffff', border: '1.5px solid #cbd5e1', borderRadius: '6px', padding: '3px 7px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-              <span className="so-shortcut-key" style={{ background: '#10b981', color: '#fff', fontSize: '9px', fontWeight: 900, padding: '1px 5px', borderRadius: '4px' }}>F12 / Ctrl+Enter</span>
+              <span className="so-shortcut-key" style={{ background: '#10b981', color: '#fff', fontSize: '9px', fontWeight: 900, padding: '1px 5px', borderRadius: '4px' }}>{getShortcut('doc_editor', 'submit', 'F12')} / {getShortcut('doc_editor', 'submitAlt', 'Ctrl+Enter')}</span>
               <span className="so-shortcut-label" style={{ fontSize: '11px', fontWeight: 900, color: '#0f172a' }}>SUBMIT</span>
             </div>
             <div className="so-shortcut-badge" style={{ background: '#ffffff', border: '1.5px solid #cbd5e1', borderRadius: '6px', padding: '3px 7px', display: 'flex', alignItems: 'center', gap: '5px' }}>
@@ -2500,6 +2580,7 @@ function PurchaseOrder() {
                     return (
                       <th
                         key={col.id}
+                        className="relative group select-none"
                         style={{
                           width: colW,
                           minWidth: colW,
@@ -2516,7 +2597,13 @@ function PurchaseOrder() {
                           whiteSpace: 'nowrap'
                         }}
                       >
-                        {col.label}
+                        <span className="truncate block pointer-events-none">{col.label}</span>
+                        <div
+                          onMouseDown={(e) => handleResizeMouseDown(e, col.id)}
+                          className={`absolute top-0 right-0 w-2 h-full cursor-col-resize z-20 hover:bg-emerald-500/40 transition-colors ${resizingCol === col.id ? 'bg-emerald-600' : ''}`}
+                          style={{ touchAction: 'none' }}
+                          title="Drag to resize column"
+                        />
                       </th>
                     );
                   })}
@@ -2816,7 +2903,7 @@ function PurchaseOrder() {
                           <Save size={15} />
                           <span>{saving ? 'SAVING...' : 'SAVE DRAFT'}</span>
                         </div>
-                        <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">Alt+S</span>
+                        <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">{getShortcut('doc_editor', 'saveDraftAlt', 'Alt+S')}</span>
                       </button>
                     ) : (
                       (allowedActions.includes('submit') || allowedActions.length === 0) ? (
@@ -2831,7 +2918,7 @@ function PurchaseOrder() {
                             <Send size={15} />
                             <span>{saving ? 'SUBMITTING...' : 'SUBMIT'}</span>
                           </div>
-                          <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">Ctrl+↵</span>
+                          <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">{getShortcut('doc_editor', 'submitAlt', 'Ctrl+Enter')}</span>
                         </button>
                       ) : (
                         <div className="h-full bg-slate-100 border-2 border-slate-200 rounded-xl px-3 py-2 flex items-center justify-center text-slate-400 font-black text-[11px] uppercase tracking-wider select-none" style={{ borderRadius: '8px' }}>
@@ -2853,7 +2940,7 @@ function PurchaseOrder() {
                           <X size={15} />
                           <span>CANCEL</span>
                         </div>
-                        <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">Alt+X</span>
+                        <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">{getShortcut('doc_editor', 'cancel', 'Alt+C')}</span>
                       </button>
                     ) : (
                       <div className="h-full bg-slate-100 border-2 border-slate-200 rounded-xl px-3 py-2 flex items-center justify-center text-slate-400 font-black text-[11px] uppercase tracking-wider select-none" style={{ borderRadius: '8px' }}>
@@ -2874,7 +2961,7 @@ function PurchaseOrder() {
                           <Edit3 size={15} />
                           <span>AMEND</span>
                         </div>
-                        <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">Alt+M</span>
+                        <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">{getShortcut('doc_editor', 'amend', 'Alt+M')}</span>
                       </button>
                     ) : (
                       <div className="h-full bg-slate-100 border-2 border-slate-200 rounded-xl px-3 py-2 flex items-center justify-center text-slate-400 font-black text-[11px] uppercase tracking-wider select-none" style={{ borderRadius: '8px' }}>
@@ -2942,14 +3029,14 @@ function PurchaseOrder() {
                     type="button"
                     onClick={handleDuplicate}
                     disabled={!formData.name}
-                    className="h-full bg-[#7e22ce] hover:bg-[#6b21a8] text-white border-2 border-[#7e22ce] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-40"
+                    className="h-full bg-[#7c3aed] hover:bg-[#6d28d9] text-white border-2 border-[#7c3aed] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-40"
                     style={{ borderRadius: '8px' }}
                   >
                     <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
                       <Copy size={15} />
                       <span>DUPLICATE</span>
                     </div>
-                    <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">Alt+D</span>
+                    <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">{getShortcut('doc_editor', 'duplicate', 'Alt+D')}</span>
                   </button>
 
                   {/* Slot 4: PRINT PDF */}
@@ -2972,14 +3059,15 @@ function PurchaseOrder() {
                     <button
                       type="button"
                       onClick={addItemRow}
-                      className="h-full bg-[#10b981] hover:bg-[#059669] text-white border-2 border-[#10b981] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer"
+                      disabled={formData.docstatus !== 0 && formData.docstatus !== undefined}
+                      className="h-full bg-[#0284c7] hover:bg-[#0369a1] text-white border-2 border-[#0284c7] rounded-xl px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-xs cursor-pointer disabled:opacity-40"
                       style={{ borderRadius: '8px' }}
                     >
                       <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wider text-white">
                         <Plus size={15} />
                         <span>ADD ROW</span>
                       </div>
-                      <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">F10</span>
+                      <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">{getShortcut('doc_editor', 'addRowAlt', 'Alt+A')}</span>
                     </button>
                   ) : (
                     <button
@@ -2993,7 +3081,7 @@ function PurchaseOrder() {
                         <LayoutGrid size={15} />
                         <span>BULK QTY</span>
                       </div>
-                      <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">F6</span>
+                      <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">{getShortcut('doc_editor', 'bulkQty', 'F6')}</span>
                     </button>
                   )}
 

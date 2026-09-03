@@ -4,7 +4,7 @@ import { useSelector } from 'react-redux';
 import axios from 'axios';
 import {
     Save, CheckCircle2, XCircle, Package, Building2, User,
-    Search, Trash2, Loader2, AlertTriangle, ArrowRight, Info, Plus, Scan, MapPin, X, Copy, Edit3, FileText
+    Search, Trash2, Loader2, AlertTriangle, AlertCircle, ArrowRight, Info, Plus, Scan, MapPin, X, Copy, Edit3, FileText
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { useLegacyTheme } from '../../hooks/useLegacyTheme';
@@ -987,35 +987,67 @@ function InterBranchTransferDetails() {
     };
 
     const handleDecision = async (decision) => {
-        const comment = decision === 'reject' ? prompt("Please enter rejection reason:", "Stock currently unavailable at source.") : null;
-        if (decision === 'reject' && comment === null) return;
-
         if (decision === 'accept') {
             // Open the Accept & Transfer modal instead of just asking for PIN
             setShowAcceptModal(true);
             return;
         }
 
-        // Handle reject
+        // Handle reject with Secret Key + Rejection Reason Modal
+        const { value: formValues } = await Swal.fire({
+            title: 'Reject Stock Request',
+            html: `
+                <div style="text-align: left; font-size: 13px; color: #334155; margin-bottom: 8px;">
+                    <label style="font-weight: 700; display: block; margin-bottom: 4px;">Authorization PIN / Secret Key <span style="color: #ef4444;">*</span></label>
+                    <input id="swal-reject-pin" type="password" class="swal2-input" placeholder="Enter Cashier / Manager PIN" style="margin: 0 0 14px 0; width: 100%; box-sizing: border-box; font-size: 13px;">
+                    
+                    <label style="font-weight: 700; display: block; margin-bottom: 4px;">Rejection Reason <span style="color: #ef4444;">*</span></label>
+                    <textarea id="swal-reject-reason" class="swal2-textarea" placeholder="Enter reason (e.g. Out of stock / Low inventory)" style="margin: 0; width: 100%; height: 75px; box-sizing: border-box; font-size: 13px; resize: none;"></textarea>
+                </div>
+            `,
+            focusConfirm: false,
+            showCancelButton: true,
+            confirmButtonText: 'Confirm Reject',
+            confirmButtonColor: '#ef4444',
+            cancelButtonText: 'Cancel',
+            preConfirm: () => {
+                const pin = document.getElementById('swal-reject-pin').value;
+                const reason = document.getElementById('swal-reject-reason').value;
+                if (!pin) {
+                    Swal.showValidationMessage('Authorization PIN is required');
+                    return false;
+                }
+                if (!reason || !reason.trim()) {
+                    Swal.showValidationMessage('Please enter a rejection reason');
+                    return false;
+                }
+                return { pin, reason };
+            }
+        });
+
+        if (!formValues) return;
+
         try {
             setDecisionLoading(decision);
             const res = await axios.post(`${API_PATH}.handle_inter_branch_decision`, {
                 request_name: name,
-                decision: decision,
-                comment: comment
+                decision: 'reject',
+                comment: formValues.reason,
+                secret_key: formValues.pin
             }, { withCredentials: true, headers: { 'X-Frappe-SID': getSession() } });
 
             if (res.data?.message?.status === 'success') {
-                Swal.fire('Action Complete', res.data.message.message, 'success');
+                Swal.fire('Request Rejected', res.data.message.message, 'success');
                 fetchRequest();
             } else {
                 Swal.fire('Action Failed', res.data?.message?.message || 'Action failed', 'error');
             }
         } catch (err) {
             console.error(err);
-            Swal.fire('Error', err.response?.data?.message || 'Request failed', 'error');
+            Swal.fire('Error', err.response?.data?.message || err.message || 'Request failed', 'error');
+        } finally {
+            setDecisionLoading(null);
         }
-        finally { setDecisionLoading(null); }
     };
 
     // Called from AcceptTransferModal when B confirms with PIN and prices
@@ -1306,7 +1338,7 @@ function InterBranchTransferDetails() {
                                 EMPLOYEE AUTHORIZATION TRAIL
                             </h3>
                         </div>
-                        <div className="po-card-body grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="po-card-body grid grid-cols-1 md:grid-cols-4 gap-4">
                             <div className="p-3 bg-slate-50 rounded-xl border border-slate-150">
                                 <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider block">Requested By</span>
                                 <span className="text-xs font-extrabold text-slate-800 flex items-center gap-1.5 mt-1">
@@ -1328,7 +1360,31 @@ function InterBranchTransferDetails() {
                                     {doc.received_by_employee_name || (doc.status === 'Transferred' ? 'Branch A Staff' : 'Pending Receipt')}
                                 </span>
                             </div>
+                            <div className={`p-3 rounded-xl border ${doc.status === 'Stopped' ? 'bg-rose-50 border-rose-200' : 'bg-slate-50 border-slate-150'}`}>
+                                <span className={`text-[9px] font-black uppercase tracking-wider block ${doc.status === 'Stopped' ? 'text-rose-500' : 'text-slate-400'}`}>Rejected By</span>
+                                <span className={`text-xs font-extrabold flex items-center gap-1.5 mt-1 ${doc.status === 'Stopped' ? 'text-rose-700' : 'text-slate-800'}`}>
+                                    <User size={13} className={doc.status === 'Stopped' ? 'text-rose-500' : 'text-slate-400'} />
+                                    {doc.rejected_by_employee_name || doc.custom_rejected_by || (doc.status === 'Stopped' ? 'Source Branch Staff' : 'N/A')}
+                                </span>
+                            </div>
                         </div>
+
+                        {/* Rejection Reason Banner if stopped */}
+                        {(doc.status === 'Stopped' || doc.custom_rejection_reason) && (
+                            <div className="mx-6 mb-4 p-3 bg-rose-50 border border-rose-200 rounded-xl flex items-start gap-3">
+                                <div className="p-1.5 bg-rose-100 text-rose-600 rounded-lg shrink-0 mt-0.5">
+                                    <AlertCircle size={16} />
+                                </div>
+                                <div className="text-xs">
+                                    <span className="font-extrabold text-rose-900 block uppercase tracking-wide text-[10px]">
+                                        Rejection Reason (Recorded by {doc.rejected_by_employee_name || doc.custom_rejected_by || 'Source Branch'}):
+                                    </span>
+                                    <p className="text-rose-700 font-semibold mt-0.5">
+                                        {doc.custom_rejection_reason || 'Stock currently unavailable at source warehouse.'}
+                                    </p>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 )}
 

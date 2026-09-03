@@ -86,9 +86,53 @@ function OpeningEntry({ company: propCompany, posProfile: propPosProfile, user: 
         const reduxPosProfile = userData?.posProfile || localStorage.getItem('pos_profile') || '';
         const reduxCompany = userData?.company || localStorage.getItem('company') || '';
 
-        setUser(propUser || navUser || reduxUser);
-        setPosProfile(propPosProfile || navPosProfile || reduxPosProfile);
-        setCompany(propCompany || navCompany || reduxCompany);
+        const activeUser = propUser || navUser || reduxUser;
+        const activeProfile = propPosProfile || navPosProfile || reduxPosProfile;
+        const activeCompany = propCompany || navCompany || reduxCompany;
+
+        setUser(activeUser);
+        setPosProfile(activeProfile);
+        setCompany(activeCompany);
+
+        // Fetch previous closing remaining cash
+        const fetchPrevClosing = async () => {
+            try {
+                const session = localStorage.getItem('session') || '';
+                const warehouse = localStorage.getItem('warehouse') || userData?.warehouse;
+                const params = new URLSearchParams();
+                if (activeProfile) params.append('pos_profile', activeProfile);
+                if (warehouse) params.append('warehouse', warehouse);
+                if (activeCompany) params.append('company', activeCompany);
+
+                const res = await fetch(`/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_previous_closing_balance?${params.toString()}`, {
+                    headers: { 'X-Frappe-SID': session },
+                    credentials: 'include'
+                });
+                const json = await res.json();
+                const result = json.message || json;
+                if (result.status === 'success' && result.has_previous) {
+                    const prevCash = parseFloat(result.cash_amount) || 0;
+                    setBalanceDetails([{ mode_of_payment: 'Cash', opening_amount: prevCash.toFixed(2) }]);
+
+                    if (result.denominations && Object.keys(result.denominations).length > 0) {
+                        setDenomCounts(prev => {
+                            const updated = { ...prev };
+                            Object.keys(result.denominations).forEach(k => {
+                                const numKey = parseFloat(k);
+                                updated[numKey] = parseInt(result.denominations[k]) || 0;
+                            });
+                            return updated;
+                        });
+                    }
+                }
+            } catch (e) {
+                console.warn('Could not auto-fetch previous closing cash:', e);
+            }
+        };
+
+        if (!routeId) {
+            fetchPrevClosing();
+        }
     }, [routeId, location.state, userData, propCompany, propPosProfile, propUser]);
 
     const handleAddBalanceDetail = () => {

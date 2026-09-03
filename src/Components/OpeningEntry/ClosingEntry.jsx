@@ -2,13 +2,15 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   AlertCircle, CheckCircle2, Loader2, Receipt, Calendar, CreditCard,
-  TrendingUp, DollarSign, Palette, RefreshCw, FileText, ChevronDown, User, Building2, X
+  TrendingUp, DollarSign, Palette, RefreshCw, FileText, ChevronDown, User, Building2, X, Printer, LogOut,
+  ArrowRightLeft, Truck, AlertTriangle
 } from 'lucide-react';
 import DirhamIcon from '../../assets/Currency/DirhamIcon';
 import { useSelector } from 'react-redux';
 import { db } from '../../db';
 import { frappeCall } from '../../utils/frappe';
 import '../Admin/SalesOrder.css';
+import '../Reports/DailySalesReport.css';
 
 const UAE_DENOMINATIONS = [
   { value: 1000, label: '1000 AED (Note)' },
@@ -49,6 +51,80 @@ function ClosingEntry() {
     UAE_DENOMINATIONS.reduce((acc, d) => ({ ...acc, [d.value]: 0 }), {})
   );
   const [discrepancyReason, setDiscrepancyReason] = useState('');
+
+  // Thermal Slip Modal & Data
+  const [showThermalModal, setShowThermalModal] = useState(false);
+  const [thermalData, setThermalData] = useState(null);
+
+  const handlePrintThermalSlip = () => {
+    const thermalElement = document.getElementById('closing-shift-thermal-slip');
+    if (!thermalElement) return;
+
+    const printWindow = window.open('', '_blank', 'width=380,height=650');
+    if (!printWindow) {
+      alert('Please allow popups to print thermal slip');
+      return;
+    }
+
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>POS Shift Closing Slip</title>
+        <style>
+          @page { margin: 0; size: 80mm auto; }
+          body {
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 12px;
+            color: #000;
+            background: #fff;
+            padding: 10px 8px;
+            margin: 0;
+            line-height: 1.35;
+          }
+          .text-center { text-align: center; }
+          .text-right { text-align: right; }
+          .text-left { text-align: left; }
+          .font-bold { font-weight: bold; }
+          .font-black { font-weight: 900; }
+          .thermal-top-row { display: flex; justify-content: space-between; font-weight: bold; font-size: 13px; margin-bottom: 2px; }
+          .thermal-sub-row { display: flex; justify-content: space-between; align-items: center; font-size: 11px; margin-bottom: 4px; }
+          .thermal-dotted-sep { border-top: 1px dotted #000; margin: 5px 0; }
+          .thermal-line-sep { border-top: 1px solid #000; margin: 5px 0; }
+          .thermal-row-3col { display: flex; align-items: center; justify-content: space-between; margin: 3px 0; font-size: 12px; }
+          .col-title { flex: 2; text-align: left; }
+          .col-qty { flex: 0.8; text-align: right; padding-right: 14px; }
+          .col-val { flex: 1.2; text-align: right; font-weight: 600; }
+          .total-highlight { font-size: 13.5px; font-weight: 900; }
+        </style>
+      </head>
+      <body>
+        ${thermalElement.innerHTML}
+        <script>
+          window.onload = function() {
+            window.focus();
+            window.print();
+            setTimeout(function() { window.close(); }, 500);
+          };
+        </script>
+      </body>
+      </html>
+    `);
+    printWindow.document.close();
+  };
+
+  const handleFinalLogout = async () => {
+    try {
+      await fetch('/api/method/logout', {
+        method: 'POST',
+        credentials: 'include',
+      });
+    } catch (e) {
+      console.warn('Logout request failed:', e);
+    }
+    localStorage.clear();
+    window.location.hash = '/';
+  };
 
   useEffect(() => {
     if (routeId) {
@@ -176,6 +252,43 @@ function ClosingEntry() {
     };
     fetchOpeningEntries();
   }, [company, currentUser, currentPosProfile]);
+
+  // Pending Inter-Branch MR / MT Requests Notification State
+  const [pendingBranchReqs, setPendingBranchReqs] = useState({
+    has_pending: false,
+    pending_mr_count: 0,
+    pending_mt_count: 0,
+    pending_mr: [],
+    pending_mt: []
+  });
+
+  useEffect(() => {
+    const fetchPendingBranchReqs = async () => {
+      try {
+        const session = getSession();
+        const warehouse = localStorage.getItem('warehouse');
+        const posProfile = currentPosProfile || localStorage.getItem('pos_profile');
+        const params = new URLSearchParams();
+        if (warehouse) params.append('warehouse', warehouse);
+        if (posProfile) params.append('pos_profile', posProfile);
+
+        const res = await fetch(`/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_pending_branch_requests?${params.toString()}`, {
+          headers: { 'X-Frappe-SID': session },
+          credentials: 'include'
+        });
+        if (res.ok) {
+          const json = await res.json();
+          const result = json.message || json;
+          if (result.status === 'success') {
+            setPendingBranchReqs(result);
+          }
+        }
+      } catch (e) {
+        console.warn('Could not fetch pending branch requests:', e);
+      }
+    };
+    fetchPendingBranchReqs();
+  }, [currentPosProfile]);
 
   useEffect(() => {
     localStorage.setItem('legacySubTheme', polTheme);
@@ -396,6 +509,13 @@ function ClosingEntry() {
       return;
     }
 
+    if (pendingBranchReqs.has_pending) {
+      const confirmProceed = window.confirm(
+        `⚠️ WARNING: This branch currently has ${pendingBranchReqs.pending_mr_count} pending Material Request(s) (MR) and ${pendingBranchReqs.pending_mt_count} in-transit/draft Stock Transfer(s) (MT).\n\nDo you want to proceed with closing this shift anyway?`
+      );
+      if (!confirmProceed) return;
+    }
+
     const formattedClosingDenoms = Object.keys(denomCounts)
       .filter((k) => (denomCounts[k] || 0) > 0)
       .map((k) => ({
@@ -478,23 +598,47 @@ function ClosingEntry() {
       const name = apiResponse.name || 'Unknown';
       const total = apiResponse.grand_total || invoicesData.grand_total || 0;
 
+      // Extract details for the thermal slip
+      const cashReco = paymentReconciliation.find(p => p.mode_of_payment === 'Cash') || {};
+      const cardReco = paymentReconciliation.find(p => ['card', 'visa', 'master', 'credit card'].includes(p.mode_of_payment.toLowerCase())) || {};
+      const onlineReco = paymentReconciliation.find(p => ['online', 'upi', 'bank transfer'].includes(p.mode_of_payment.toLowerCase())) || {};
+      const instaReco = paymentReconciliation.find(p => p.mode_of_payment.toLowerCase().includes('insta')) || {};
+      const creditReco = paymentReconciliation.find(p => p.mode_of_payment.toLowerCase().includes('credit') && !p.mode_of_payment.toLowerCase().includes('card')) || {};
+
+      const countedCash = Object.keys(denomCounts).reduce((sum, k) => sum + (parseFloat(k) * (denomCounts[k] || 0)), 0) || parseFloat(cashReco.closing_amount || 0);
+
+      const opEntry = openingEntries.find(o => o.name === selectedOpeningEntry);
+
+      setThermalData({
+        name,
+        isDraft,
+        date: postingDate ? postingDate.split('T')[0] : new Date().toISOString().split('T')[0],
+        startTime: opEntry?.period_start_date ? new Date(opEntry.period_start_date).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).toLowerCase() : '9:10am',
+        endTime: new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).toLowerCase(),
+        status: isDraft ? 'Draft Closing' : 'Closed',
+        cashSale: parseFloat(cashReco.expected_amount || 0) - parseFloat(cashReco.opening_amount || 0),
+        cardSale: parseFloat(cardReco.expected_amount || 0),
+        onlinePayment: parseFloat(onlineReco.expected_amount || 0),
+        instaCash: parseFloat(instaReco.expected_amount || 0),
+        creditSale: parseFloat(creditReco.expected_amount || 0),
+        netTotal: total,
+        counterCash: countedCash,
+        openingFloat: parseFloat(cashReco.opening_amount || 0),
+        invoicesCount: invoicesData.invoices?.length || 0,
+        userName: currentUser || localStorage.getItem('user') || 'Cashier',
+        company: company,
+        posProfile: currentPosProfile || localStorage.getItem('pos_profile') || ''
+      });
+
       if (isDraft) {
-        setSuccessMessage("Shift data saved successfully! An Admin will perform the final closing.");
-        alert("Shift data saved successfully! An Admin will perform the final closing. Logging out...");
+        setSuccessMessage("Shift data saved successfully! View/Print the slip below before exiting.");
       } else {
         setSuccessMessage(
           `POS Closing Entry submitted successfully! Name: ${name}, Total: د.إ ${total.toFixed(2)}`
         );
-        alert(`POS Closing Entry submitted successfully! Logging out...`);
       }
 
-      await fetch('/api/method/logout', {
-        method: 'POST',
-        credentials: 'include',
-      });
-
-      localStorage.clear();
-      window.location.hash = '/';
+      setShowThermalModal(true);
 
     } catch (err) {
       let msg = err.message;
@@ -824,6 +968,46 @@ function ClosingEntry() {
               <div className="flex items-center gap-3">
                 <AlertCircle className="w-5 h-5 text-amber-500" />
                 <p className="text-slate-700 font-medium text-sm">{noInvoicesMessage}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Pending Inter-Branch Material Request / Transfer Notification */}
+          {pendingBranchReqs.has_pending && (
+            <div className="mb-6 bg-amber-50/90 border-2 border-amber-300 rounded-xl p-4 shadow-xs">
+              <div className="flex items-start gap-3.5">
+                <div className="w-9 h-9 rounded-lg bg-amber-100 border border-amber-300 flex items-center justify-center text-amber-700 flex-shrink-0 mt-0.5">
+                  <Truck size={20} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="text-amber-950 font-black text-sm uppercase tracking-wide flex items-center gap-1.5">
+                      <AlertTriangle size={15} className="text-amber-600" />
+                      Pending Inter-Branch Stock Transfers / Requests Alert
+                    </h3>
+                    <span className="bg-amber-200/80 text-amber-900 text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider">
+                      Action Required
+                    </span>
+                  </div>
+                  <p className="text-amber-800 text-xs mt-1 font-medium leading-relaxed">
+                    This branch has <strong>{pendingBranchReqs.pending_mr_count} pending Material Request(s) (MR)</strong> and <strong>{pendingBranchReqs.pending_mt_count} in-transit/draft Stock Transfer(s) (MT)</strong>. Please review or complete them before shift handover.
+                  </p>
+
+                  <div className="mt-2.5 flex flex-wrap gap-2">
+                    {pendingBranchReqs.pending_mr.slice(0, 3).map((mr) => (
+                      <span key={mr.name} className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white border border-amber-200 rounded-md text-[11px] font-bold text-slate-700 shadow-2xs">
+                        <ArrowRightLeft size={12} className="text-amber-600" />
+                        MR: {mr.name} <span className="text-amber-600 font-normal">({mr.status})</span>
+                      </span>
+                    ))}
+                    {pendingBranchReqs.pending_mt.slice(0, 3).map((mt) => (
+                      <span key={mt.name} className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white border border-amber-200 rounded-md text-[11px] font-bold text-slate-700 shadow-2xs">
+                        <Truck size={12} className="text-blue-600" />
+                        MT: {mt.name} <span className="text-slate-400 font-normal">({mt.from_warehouse} → {mt.to_warehouse})</span>
+                      </span>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
           )}
@@ -1207,6 +1391,112 @@ function ClosingEntry() {
           <div className="mb-20"></div>
         </div>
       </div>
+
+      {/* ==================== THERMAL DAY SUMMARY PREVIEW MODAL ==================== */}
+      {showThermalModal && thermalData && (
+        <div className="dsr-modal-backdrop" style={{ zIndex: 9999 }} onClick={() => {}}>
+          <div className="dsr-modal-card" style={{ maxWidth: '440px', width: '100%' }} onClick={e => e.stopPropagation()}>
+            <div className="dsr-modal-header" style={{ background: '#f8fafc', padding: '1rem 1.25rem', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Receipt size={20} className="text-emerald-600" />
+                <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 800, color: '#0f172a' }}>POS Shift Closing Slip</h3>
+              </div>
+              <button onClick={handleFinalLogout} className="text-slate-400 hover:text-slate-600 p-1" title="Logout & Exit">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="dsr-modal-body" style={{ maxHeight: '65vh', overflowY: 'auto', padding: '1.25rem', background: '#f1f5f9' }}>
+              <div className="dsr-thermal-slip" id="closing-shift-thermal-slip" style={{ background: '#ffffff', padding: '16px 14px', borderRadius: '8px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', fontFamily: "'Courier New', Courier, monospace", fontSize: '12px', color: '#000000', lineHeight: 1.35 }}>
+                <div style={{ textAlign: 'center', fontWeight: 900, fontSize: '14px', marginBottom: '2px' }}>
+                  {thermalData.company || 'KYLE SOLUTIONS'}
+                </div>
+                <div style={{ textAlign: 'center', fontSize: '11px', color: '#475569', marginBottom: '6px' }}>
+                  {thermalData.posProfile}
+                </div>
+
+                <div className="thermal-top-row" style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '12.5px', marginBottom: '2px' }}>
+                  <span>{new Date(thermalData.date).toLocaleDateString('en-US', { weekday: 'long' })}</span>
+                  <span>{thermalData.date.split('-').reverse().join('/')}</span>
+                </div>
+                <div className="thermal-sub-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', marginBottom: '4px' }}>
+                  <span>{thermalData.startTime}</span>
+                  <span style={{ fontWeight: 'bold', textTransform: 'uppercase' }}>{thermalData.status}</span>
+                  <span>{thermalData.endTime}</span>
+                </div>
+
+                <div className="thermal-dotted-sep" style={{ borderTop: '1px dotted #000', margin: '6px 0' }}></div>
+
+                <div className="thermal-table-body" style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                  <div className="thermal-row-3col" style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span>Cash Sale</span>
+                    <span style={{ fontWeight: 600 }}>{(thermalData.cashSale || 0).toFixed(2)}</span>
+                  </div>
+                  <div className="thermal-row-3col" style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span>Card Sale</span>
+                    <span style={{ fontWeight: 600 }}>{(thermalData.cardSale || 0).toFixed(2)}</span>
+                  </div>
+                  <div className="thermal-row-3col" style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span>Online Payment</span>
+                    <span style={{ fontWeight: 600 }}>{(thermalData.onlinePayment || 0).toFixed(2)}</span>
+                  </div>
+                  <div className="thermal-row-3col" style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span>Ins. Cash</span>
+                    <span style={{ fontWeight: 600 }}>{(thermalData.instaCash || 0).toFixed(2)}</span>
+                  </div>
+                  <div className="thermal-row-3col" style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span>Credit Sale</span>
+                    <span style={{ fontWeight: 600 }}>{(thermalData.creditSale || 0).toFixed(2)}</span>
+                  </div>
+
+                  <div className="thermal-line-sep" style={{ borderTop: '1px solid #000', margin: '6px 0' }}></div>
+
+                  <div className="thermal-row-3col" style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 900, fontSize: '13px' }}>
+                    <span>Total Sales ({thermalData.invoicesCount || 0} Bills)</span>
+                    <span>{(thermalData.netTotal || 0).toFixed(2)}</span>
+                  </div>
+
+                  <div className="thermal-line-sep" style={{ borderTop: '1px solid #000', margin: '6px 0' }}></div>
+
+                  <div className="thermal-row-3col" style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span>Opening Cash</span>
+                    <span style={{ fontWeight: 600 }}>{(thermalData.openingFloat || 0).toFixed(2)}</span>
+                  </div>
+                  <div className="thermal-row-3col" style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 900 }}>
+                    <span>Counter / Closing Cash</span>
+                    <span>{(thermalData.counterCash || 0).toFixed(2)}</span>
+                  </div>
+                </div>
+
+                <div className="thermal-dotted-sep" style={{ borderTop: '1px dotted #000', margin: '6px 0' }}></div>
+                <div style={{ textAlign: 'center', fontSize: '10px', color: '#64748b' }}>
+                  User: {thermalData.userName} | Ref: {thermalData.name}
+                </div>
+              </div>
+            </div>
+
+            <div className="dsr-modal-footer" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem 1.25rem', background: '#f8fafc', borderTop: '1px solid #e2e8f0', gap: '0.75rem' }}>
+              <button
+                type="button"
+                onClick={handlePrintThermalSlip}
+                className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold text-xs transition-colors shadow-sm cursor-pointer"
+              >
+                <Printer size={15} />
+                <span>Print Thermal Slip (80mm)</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleFinalLogout}
+                className="flex items-center gap-2 px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg font-bold text-xs transition-colors shadow-sm cursor-pointer"
+              >
+                <LogOut size={15} />
+                <span>Logout & Exit</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

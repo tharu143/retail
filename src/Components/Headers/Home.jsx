@@ -56,7 +56,8 @@ import { db } from '../../db';
 import Swal from 'sweetalert2';
 import { frappeCall } from '../../utils/frappe';
 import POSService from '../../utils/posService';
-// QuickStockIn removed - using route /quickstockin
+import { GCC_COUNTRIES, OTHER_COUNTRIES, ALL_COUNTRY_CODES, getCountryRule, stripCountryPrefix } from '../../utils/countryCodes';
+import CountryCodeSelector from '../Common/CountryCodeSelector';
 
 const LEGACY_API = '/api/method/custom_retailpos.custom_retailpos.retail_api.retail';
 
@@ -284,7 +285,37 @@ function Home() {
     const branchPrefix = useSelector((state) => state.user.branchPrefix);
     const loading = useSelector((state) => state.user.loading || false);
     const user_roles = useSelector((state) => state.user.user_roles || []);
-    const isMac = useMemo(() => typeof navigator !== 'undefined' && (navigator.platform.toUpperCase().indexOf('MAC') >= 0 || navigator.userAgent.toUpperCase().indexOf('MAC') >= 0), []);
+    const isMac = useMemo(() => {
+        if (typeof navigator === 'undefined') return false;
+        const ua = navigator.userAgent || '';
+        const plat = navigator.platform || '';
+        const uadPlat = navigator.userAgentData?.platform || '';
+        return /Mac|iPhone|iPod|iPad/i.test(plat) || /Macintosh|Mac OS X/i.test(ua) || /macOS/i.test(uadPlat);
+    }, []);
+    const formatKeyLabel = useCallback((keyStr) => {
+        if (!keyStr) return '';
+        if (!isMac) return keyStr;
+        const trimmed = String(keyStr).trim();
+        // Function keys F1-F12 -> fn+F1..F12
+        if (/^F\d{1,2}$/i.test(trimmed)) {
+            return `fn+${trimmed.toUpperCase()}`;
+        }
+        // Alt+Key or Option -> ⌥+Key
+        if (/^alt\s*\+\s*/i.test(trimmed)) {
+            return `⌥+${trimmed.replace(/^alt\s*\+\s*/i, '').toUpperCase()}`;
+        }
+        if (/^⌥\s*\+\s*/i.test(trimmed)) {
+            return `⌥+${trimmed.replace(/^⌥\s*\+\s*/i, '').toUpperCase()}`;
+        }
+        // Ctrl+Key -> ⌘+Key
+        if (/^ctrl\s*\+\s*/i.test(trimmed)) {
+            return `⌘+${trimmed.replace(/^ctrl\s*\+\s*/i, '').toUpperCase()}`;
+        }
+        if (/^⌘\s*\+\s*/i.test(trimmed)) {
+            return `⌘+${trimmed.replace(/^⌘\s*\+\s*/i, '').toUpperCase()}`;
+        }
+        return keyStr;
+    }, [isMac]);
     const isAdmin = user_roles.includes("Administrator") || user_roles.includes("System Manager");
     const isManager = useSelector((state) => state.user.is_manager || false) || isAdmin;
 
@@ -1305,7 +1336,7 @@ function Home() {
     const [isDraggingShortcuts, setIsDraggingShortcuts] = useState(false);
     const [dragOverZone, setDragOverZone] = useState(null); // 'top', 'bottom', 'left', 'right'
     const [showPosDropdown, setShowPosDropdown] = useState(false);
-    const [showAvailableOnly, setShowAvailableOnly] = useState(false);
+    const [stockFilter, setStockFilter] = useState('all'); // 'all', 'in_stock', 'out_of_stock'
     const posDropdownRef = useRef(null);
 
     const handleShortcutsDragStart = (e) => {
@@ -1491,27 +1522,27 @@ function Home() {
     const isShortcutShown = (key) => !hiddenShortcuts.includes(key);
 
     const allShortcutsList = [
-        { key: getShortcut('pos_home', 'discount', 'F1'), label: 'Discount' },
-        { key: getShortcut('pos_home', 'customer', 'F2'), label: 'Customer' },
-        { key: getShortcut('pos_home', 'search', 'F3'), label: 'Search' },
-        { key: getShortcut('pos_home', 'countryCode', 'F4'), label: 'Country Code (CC)' },
-        { key: getShortcut('pos_home', 'itemDetail', 'F5'), label: 'Item Detail' },
-        { key: getShortcut('pos_home', 'bulkQty', 'F6'), label: 'Bulk Qty' },
-        { key: getShortcut('pos_home', 'stock', 'F7'), label: 'Stock' },
-        { key: getShortcut('pos_home', 'uom', 'F8'), label: 'UOM Toggle' },
-        { key: getShortcut('pos_home', 'orders', 'F9'), label: 'Orders' },
-        { key: getShortcut('pos_home', 'printBill', 'F10'), label: 'Print Last Bill' },
-        { key: getShortcut('pos_home', 'priceUpdate', 'F11'), label: 'Price Update' },
-        { key: getShortcut('pos_home', 'loyalty', 'Alt+L'), label: 'Loyalty' },
+        { key: formatKeyLabel(getShortcut('pos_home', 'discount', 'F1')), label: 'Discount' },
+        { key: formatKeyLabel(getShortcut('pos_home', 'customer', 'F2')), label: 'Customer' },
+        { key: formatKeyLabel(getShortcut('pos_home', 'search', 'F3')), label: 'Search' },
+        { key: formatKeyLabel(getShortcut('pos_home', 'countryCode', 'F4')), label: 'Country Code (CC)' },
+        { key: formatKeyLabel(getShortcut('pos_home', 'itemDetail', 'F5')), label: 'Item Detail' },
+        { key: formatKeyLabel(getShortcut('pos_home', 'bulkQty', 'F6')), label: 'Bulk Qty' },
+        { key: formatKeyLabel(getShortcut('pos_home', 'stock', 'F7')), label: 'Stock' },
+        { key: formatKeyLabel(getShortcut('pos_home', 'uom', 'F8')), label: 'UOM Toggle' },
+        { key: formatKeyLabel(getShortcut('pos_home', 'orders', 'F9')), label: 'Orders' },
+        { key: formatKeyLabel(getShortcut('pos_home', 'printBill', 'F10')), label: 'Print Last Bill' },
+        { key: formatKeyLabel(getShortcut('pos_home', 'priceUpdate', 'F11')), label: 'Price Update' },
+        { key: formatKeyLabel(getShortcut('pos_home', 'loyalty', 'Alt+L')), label: 'Loyalty' },
         { key: getShortcut('pos_home', 'pay', 'Space'), label: 'Pay & Print' },
-        { key: 'Alt+N', label: 'Pay No Print' },
-        { key: 'Alt+A', label: 'Pay A4 Print' },
-        { key: getShortcut('pos_home', 'directCash', 'Alt+1'), label: 'Direct Cash' },
-        { key: getShortcut('pos_home', 'directBank', 'Ctrl+V'), label: 'Direct Bank' },
-        { key: getShortcut('pos_home', 'directCard', 'Alt+2'), label: 'Direct Card' },
-        { key: getShortcut('pos_home', 'clearBill', 'Alt+C'), label: 'Clear' },
-        { key: getShortcut('pos_home', 'saveDraft', 'Alt+S'), label: 'Save Draft' },
-        { key: getShortcut('pos_home', 'selectItem', 'Alt+I'), label: 'Select / Swap Item' },
+        { key: formatKeyLabel('Alt+N'), label: 'Pay No Print' },
+        { key: formatKeyLabel('Alt+A'), label: 'Pay A4 Print' },
+        { key: formatKeyLabel(getShortcut('pos_home', 'directCash', 'Alt+1')), label: 'Direct Cash' },
+        { key: formatKeyLabel(getShortcut('pos_home', 'directBank', 'Ctrl+V')), label: 'Direct Bank' },
+        { key: formatKeyLabel(getShortcut('pos_home', 'directCard', 'Alt+2')), label: 'Direct Card' },
+        { key: formatKeyLabel(getShortcut('pos_home', 'clearBill', 'Alt+C')), label: 'Clear' },
+        { key: formatKeyLabel(getShortcut('pos_home', 'saveDraft', 'Alt+S')), label: 'Save Draft' },
+        { key: formatKeyLabel(getShortcut('pos_home', 'selectItem', 'Alt+I')), label: 'Select / Swap Item' },
         { key: '↑↓', label: 'Navigate' },
         { key: '+/-', label: 'Adjust Qty' },
         { key: '←→', label: 'Tax Toggle' }
@@ -1606,8 +1637,11 @@ function Home() {
     const [selectedDetailItem, setSelectedDetailItem] = useState(null);
     const [itemSalesHistory, setItemSalesHistory] = useState([]);
     const [itemSalesHistoryLoading, setItemSalesHistoryLoading] = useState(false);
+    const [nearbyBranches, setNearbyBranches] = useState([]);
+    const [nearbyBranchesLoading, setNearbyBranchesLoading] = useState(false);
     const [lastInvoiceData, setLastInvoiceData] = useState(null);
     const [selectedPaymentMode, setSelectedPaymentMode] = useState('');
+    const [paymentReferenceNo, setPaymentReferenceNo] = useState('');
     const [showCardTerminalModal, setShowCardTerminalModal] = useState(false);
     const [cardTerminalAmount, setCardTerminalAmount] = useState(0);
     const [tenderedAmount, setTenderedAmount] = useState('');
@@ -1654,15 +1688,17 @@ function Home() {
         prevServiceFeeRef.current = currentSvcFee;
     }, [deliveryFee, instapayServiceFee]);
 
-    // Fetch last 10 sales transactions for selected item and customer in F5 Modal
+    // Fetch last 10 sales transactions and nearest branch stock for selected item in F5 Modal
     useEffect(() => {
         if (!showItemDetailModal || !selectedDetailItem) {
             setItemSalesHistory([]);
+            setNearbyBranches([]);
             return;
         }
         const itemCode = selectedDetailItem.name || selectedDetailItem.item_code || selectedDetailItem.id;
         if (!itemCode) return;
 
+        // 1. Fetch Sales History
         const custName = selectedCustomer?.name || selectedCustomer?.customer_name || (customerName && customerName !== 'Cash' ? customerName : null);
         setItemSalesHistoryLoading(true);
 
@@ -1685,7 +1721,29 @@ function Home() {
         }).finally(() => {
             setItemSalesHistoryLoading(false);
         });
-    }, [showItemDetailModal, selectedDetailItem, selectedCustomer, customerName]);
+
+        // 2. Fetch all nearest branches stock for F5 modal
+        setNearbyBranchesLoading(true);
+        frappeCall({
+            method: 'kyle_retail.retail_api.api.find_nearest_stock',
+            args: { item_code: itemCode, current_warehouse: warehouse }
+        }).then(results => {
+            if (results && Array.isArray(results)) {
+                const filtered = results.filter(res => {
+                    const whLower = (res.warehouse || "").toLowerCase();
+                    return !["goods in transit", "finished goods", "work in progress", "stores"].some(term => whLower.includes(term));
+                });
+                setNearbyBranches(filtered);
+            } else {
+                setNearbyBranches([]);
+            }
+        }).catch(err => {
+            console.error("Failed to load nearest stock for F5 modal:", err);
+            setNearbyBranches([]);
+        }).finally(() => {
+            setNearbyBranchesLoading(false);
+        });
+    }, [showItemDetailModal, selectedDetailItem, selectedCustomer, customerName, warehouse]);
 
     // Universal ESC Key listener to close open modals
     useEffect(() => {
@@ -1783,11 +1841,13 @@ function Home() {
         if (!selectedPaymentMode || amt <= 0) return;
         const newPayment = {
             mode_of_payment: selectedPaymentMode,
-            amount: round2(amt)
+            amount: round2(amt),
+            reference_no: paymentReferenceNo ? paymentReferenceNo.trim() : ''
         };
         setPayments([...payments, newPayment]);
         setSelectedPaymentMode('');
         setTenderedAmount('');
+        setPaymentReferenceNo('');
     };
 
     const handleTerminalSuccess = (txnData) => {
@@ -2038,20 +2098,14 @@ function Home() {
         const isNumeric = /^\d+$/.test(searchVal.replace(/\+/g, '').replace(/\D/g, ''));
 
         if (isNumeric) {
-            phoneVal = searchVal
-                .replace(/^\+?(971|91)/, '')   // remove UAE (+971) or India (+91) prefix
-                .replace(/\D/g, '');            // remove any remaining non-digits
+            phoneVal = stripCountryPrefix(searchVal);
         } else {
             nameVal = searchVal.replace(/[^a-zA-Z0-9\s.\-_/&()#]/g, '');
             // Also check if customerMobile is numeric to prefill phoneVal
             if (customerMobile && /^\d+$/.test(customerMobile.replace(/\+/g, '').replace(/\D/g, ''))) {
-                phoneVal = customerMobile
-                    .replace(/^\+?(971|91)/, '')
-                    .replace(/\D/g, '');
+                phoneVal = stripCountryPrefix(customerMobile);
             } else if (phoneNumber) {
-                phoneVal = phoneNumber
-                    .replace(/^\+?(971|91)/, '')
-                    .replace(/\D/g, '');
+                phoneVal = stripCountryPrefix(phoneNumber);
             }
         }
 
@@ -2302,12 +2356,10 @@ function Home() {
             return;
         }
 
-        if (countryCodePrefix === '+971' && strippedNumber.length !== 9) {
-            Swal.fire('Validation Error', 'UAE mobile number must be exactly 9 digits.', 'warning');
-            return;
-        }
-        if (countryCodePrefix === '+91' && strippedNumber.length !== 10) {
-            Swal.fire('Validation Error', 'India mobile number must be exactly 10 digits.', 'warning');
+        const rule = getCountryRule(countryCodePrefix);
+        if (strippedNumber.length < rule.minLen || strippedNumber.length > rule.maxLen) {
+            const rangeStr = rule.minLen === rule.maxLen ? `${rule.minLen}` : `${rule.minLen}-${rule.maxLen}`;
+            Swal.fire('Validation Error', `${rule.country} (${countryCodePrefix}) mobile number must be ${rangeStr} digits.`, 'warning');
             return;
         }
 
@@ -2561,13 +2613,10 @@ function Home() {
         let name = val;
         let phone = "";
         if (/^\d+$/.test(val)) {
-            if (countryCodePrefix === '+971' && val.length !== 9) {
-                Swal.fire('Validation Error', 'UAE mobile number must be exactly 9 digits.', 'warning');
-                setCreatingDiscountCust(false);
-                return;
-            }
-            if (countryCodePrefix === '+91' && val.length !== 10) {
-                Swal.fire('Validation Error', 'India mobile number must be exactly 10 digits.', 'warning');
+            const rule = getCountryRule(countryCodePrefix);
+            if (val.length < rule.minLen || val.length > rule.maxLen) {
+                const rangeStr = rule.minLen === rule.maxLen ? `${rule.minLen}` : `${rule.minLen}-${rule.maxLen}`;
+                Swal.fire('Validation Error', `${rule.country} (${countryCodePrefix}) mobile number must be ${rangeStr} digits.`, 'warning');
                 setCreatingDiscountCust(false);
                 return;
             }
@@ -2844,8 +2893,10 @@ function Home() {
             ? Items
             : Items.filter(i => (i.group || '').toLowerCase() === selectedCategory.toLowerCase());
 
-        if (showAvailableOnly) {
+        if (stockFilter === 'in_stock') {
             filtered = filtered.filter(i => (i.local_qty !== undefined ? i.local_qty : 0) > 0);
+        } else if (stockFilter === 'out_of_stock') {
+            filtered = filtered.filter(i => (i.local_qty !== undefined ? i.local_qty : 0) <= 0);
         }
 
         // Filter by barcodeInput (main search)
@@ -2877,7 +2928,7 @@ function Home() {
         }
 
         setFilteredItems(filtered);
-    }, [selectedCategory, Items, barcodeInput, groupSearch, showAvailableOnly]);
+    }, [selectedCategory, Items, barcodeInput, groupSearch, stockFilter]);
 
     const handleOutOfStockAlert = async (item) => {
         const result = await Swal.fire({
@@ -3305,8 +3356,9 @@ function Home() {
     };
 
     const onBarcodeKeyDown = (e) => {
-        if (e.altKey) {
-            e.preventDefault();
+        // Let global shortcuts pass through (Alt keys, Function keys, Ctrl keys)
+        if (e.altKey || (e.key && e.key.startsWith('F')) || e.ctrlKey || e.metaKey) {
+            return;
         }
         if (e.key === 'ArrowDown') {
             if (showItemDropdown) {
@@ -4244,15 +4296,33 @@ function Home() {
     }, [showPaymentModal]);
 
     // ---------- COMPLETE PAYMENT ----------
-    const completePayment = async (directMode = null) => {
+    const completePayment = async (directMode = null, directRefNo = '') => {
         if (typeof directMode !== 'string') directMode = null;
         if (paymentLoading) return;
+
+        // Prompt for Reference No for Direct Bank
+        if (directMode === 'Bank' && !directRefNo) {
+            const { value: refInput, isDismissed } = await Swal.fire({
+                title: 'Bank Reference / Txn ID',
+                input: 'text',
+                inputLabel: 'Enter Bank Reference / Transaction ID / Slip No:',
+                inputPlaceholder: 'e.g. UTR / Auth / Ref No (Optional)',
+                showCancelButton: true,
+                confirmButtonText: 'Confirm & Pay',
+                cancelButtonText: 'Cancel',
+                confirmButtonColor: '#0ea5e9'
+            });
+            if (isDismissed) return;
+            directRefNo = refInput ? refInput.trim() : '';
+        }
+
         let finalPayments = [];
 
         if (directMode) {
             finalPayments.push({
                 mode_of_payment: directMode,
-                amount: round2(grandTotal)
+                amount: round2(grandTotal),
+                reference_no: directRefNo || ''
             });
         } else {
             finalPayments = [...payments];
@@ -4261,7 +4331,8 @@ function Home() {
             if (selectedPaymentMode && amt > 0) {
                 finalPayments.push({
                     mode_of_payment: selectedPaymentMode,
-                    amount: round2(amt)
+                    amount: round2(amt),
+                    reference_no: paymentReferenceNo ? paymentReferenceNo.trim() : ''
                 });
             }
         }
@@ -4375,7 +4446,8 @@ function Home() {
             pos_opening_entry: posOpeningEntry,
             payments: finalPayments.map(p => ({
                 mode_of_payment: p.mode_of_payment,
-                amount: parseFloat(p.amount.toFixed(2))
+                amount: parseFloat(p.amount.toFixed(2)),
+                reference_no: p.reference_no || ''
             })),
             discount_amount: discountAmount,
             apply_discount_on: "Net Total",
@@ -4787,18 +4859,16 @@ function Home() {
             const rawTerm = (customerMobile || customerName).trim();
             if (!rawTerm || rawTerm === 'Cash') return;
 
-            // Strip country code prefix (+971, +91, 971, 91) to get bare local number
-            const strippedNumber = rawTerm
-                .replace(/^\+?(971|91)/, '')   // remove UAE (+971) or India (+91) prefix
-                .replace(/\D/g, '');            // remove any remaining non-digits
+            // Strip any country code prefix to get bare local number
+            const strippedNumber = stripCountryPrefix(rawTerm);
 
             // The lookup term: use stripped if it's a valid number, otherwise use raw
-            const searchTerm = /^\d{7,}$/.test(strippedNumber) ? strippedNumber : rawTerm;
+            const searchTerm = /^\d{6,}$/.test(strippedNumber) ? strippedNumber : rawTerm;
 
             // 1. Check for exact match in suggestions
             const exactMatch = searchResults.find(c =>
                 c.customer_name.toLowerCase() === rawTerm.toLowerCase() ||
-                (c.mobile_no && c.mobile_no.replace(/\D/g, '') === strippedNumber)
+                (c.mobile_no && c.mobile_no.replace(/\D/g, '').endsWith(strippedNumber))
             );
             if (exactMatch) {
                 pickCustomer(exactMatch);
@@ -4810,14 +4880,12 @@ function Home() {
             }
 
             // 2. If it looks like a mobile number, use speed checkout logic
-            if (/^\d{7,}$/.test(strippedNumber) || /^\d{7,}$/.test(rawTerm)) {
+            if (/^\d{6,}$/.test(strippedNumber) || /^\d{6,}$/.test(rawTerm.replace(/\D/g, ''))) {
                 const fullMobile = strippedNumber || rawTerm.replace(/\D/g, '');
-                if (countryCodePrefix === '+971' && fullMobile.length !== 9) {
-                    Swal.fire('Validation Error', 'UAE mobile number must be exactly 9 digits.', 'warning');
-                    return;
-                }
-                if (countryCodePrefix === '+91' && fullMobile.length !== 10) {
-                    Swal.fire('Validation Error', 'India mobile number must be exactly 10 digits.', 'warning');
+                const rule = getCountryRule(countryCodePrefix);
+                if (fullMobile.length < rule.minLen || fullMobile.length > rule.maxLen) {
+                    const rangeStr = rule.minLen === rule.maxLen ? `${rule.minLen}` : `${rule.minLen}-${rule.maxLen}`;
+                    Swal.fire('Validation Error', `${rule.country} (${countryCodePrefix}) mobile number must be ${rangeStr} digits.`, 'warning');
                     return;
                 }
 
@@ -4906,7 +4974,7 @@ function Home() {
                     onClick={e => e.stopPropagation()}
                     style={{
                         width: '100%',
-                        maxWidth: '680px',
+                        maxWidth: '780px',
                         backgroundColor: '#ffffff',
                         borderRadius: '16px',
                         border: '1px solid #e2e8f0',
@@ -4963,22 +5031,80 @@ function Home() {
                             </div>
                         </div>
 
-                        {/* Branch Stock & Pricing Table */}
+                        {/* Branch Stock & Pricing Table (Nearest Branch Locations) */}
                         {(() => {
-                            const branchDetails = (item.warehouse_details || []).filter(d => {
-                                const whLower = (d.warehouse_name || d.warehouse || "").toLowerCase();
-                                return !["goods in transit", "finished goods", "work in progress", "stores"].some(term => whLower.includes(term));
-                            });
-                            if (branchDetails.length === 0) return null;
-
                             const pcsPerBox = item.custom_pieces_per_box || item.pcs_per_box || 1;
                             const hasBox = pcsPerBox > 1;
+
+                            // Build full list of branches by combining live nearbyBranches API results with item.warehouse_details
+                            let combinedBranches = [];
+                            if (nearbyBranches && nearbyBranches.length > 0) {
+                                combinedBranches = nearbyBranches.map(nb => {
+                                    const wh = nb.warehouse;
+                                    const existingWh = (item.warehouse_details || []).find(w => (w.warehouse_name || w.warehouse) === wh);
+                                    return {
+                                        warehouse: wh,
+                                        warehouse_name: wh,
+                                        actual_qty: nb.qty !== undefined ? nb.qty : (existingWh?.actual_qty || 0),
+                                        distance: nb.distance,
+                                        buying_price: existingWh?.buying_price || existingWh?.buy_price || 0,
+                                        selling_price: existingWh?.selling_price || existingWh?.sell_price || nb.price || effectivePrice || 0
+                                    };
+                                });
+                            } else if (item.warehouse_details && item.warehouse_details.length > 0) {
+                                combinedBranches = (item.warehouse_details || []).filter(d => {
+                                    const whLower = (d.warehouse_name || d.warehouse || "").toLowerCase();
+                                    return !["goods in transit", "finished goods", "work in progress", "stores"].some(term => whLower.includes(term));
+                                });
+                            }
+
+                            // Always include current warehouse if not present
+                            if (warehouse && !combinedBranches.some(b => (b.warehouse_name || b.warehouse) === warehouse)) {
+                                combinedBranches.unshift({
+                                    warehouse: warehouse,
+                                    warehouse_name: warehouse,
+                                    actual_qty: item.actual_qty || 0,
+                                    distance: 0,
+                                    buying_price: item.buying_price || 0,
+                                    selling_price: effectivePrice || 0
+                                });
+                            }
+
+                            // User Requirement:
+                            // 1. Current Branch at top
+                            // 2. Other branches: First Priority = Stock > 0 (descending stock), Next Priority = Nearest distance (ascending distance)
+                            combinedBranches.sort((a, b) => {
+                                const aWh = a.warehouse_name || a.warehouse || '';
+                                const bWh = b.warehouse_name || b.warehouse || '';
+                                const aIsCurrent = aWh === warehouse || (warehouse && aWh.toLowerCase().includes((warehouse || '').toLowerCase()));
+                                const bIsCurrent = bWh === warehouse || (warehouse && bWh.toLowerCase().includes((warehouse || '').toLowerCase()));
+                                if (aIsCurrent) return -1;
+                                if (bIsCurrent) return 1;
+
+                                const aQty = parseFloat(a.actual_qty || 0);
+                                const bQty = parseFloat(b.actual_qty || 0);
+
+                                // Stock available branches first
+                                if (aQty > 0 && bQty <= 0) return -1;
+                                if (bQty > 0 && aQty <= 0) return 1;
+
+                                // If both have stock, sort by distance nearest first
+                                const aDist = a.distance !== undefined && a.distance !== null ? parseFloat(a.distance) : 99999;
+                                const bDist = b.distance !== undefined && b.distance !== null ? parseFloat(b.distance) : 99999;
+                                return aDist - bDist;
+                            });
 
                             return (
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                        <span style={{ fontSize: '11px', fontWeight: 900, color: '#334155', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                                            Branch Availability & Pricing
+                                        <span style={{ fontSize: '11px', fontWeight: 900, color: '#334155', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                            <Package size={13} className="text-amber-500" />
+                                            Nearest Stock Locations & Availability
+                                            {nearbyBranchesLoading && (
+                                                <span style={{ fontSize: '9px', color: '#f59e0b', fontWeight: 700 }}>
+                                                    (Updating...)
+                                                </span>
+                                            )}
                                         </span>
                                         {hasBox && (
                                             <span style={{ fontSize: '10px', fontWeight: 800, background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', padding: '2px 8px', borderRadius: '4px' }}>
@@ -4995,66 +5121,116 @@ function Home() {
                                                     <th style={{ padding: '8px 8px', textAlign: 'center' }}>Stock</th>
                                                     <th style={{ padding: '8px 12px', textAlign: 'right' }}>Buy Price {hasBox ? '(Nos / Box)' : ''}</th>
                                                     <th style={{ padding: '8px 14px', textAlign: 'right' }}>Sell Price {hasBox ? '(Nos / Box)' : ''}</th>
+                                                    <th style={{ padding: '8px 12px', textAlign: 'center' }}>Action</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                {branchDetails.map((d, index) => {
-                                                    const rawWh = d.warehouse_name || d.warehouse || '';
-                                                    const branchName = getBranchName(rawWh);
-                                                    const qty = parseFloat(d.actual_qty || 0);
-                                                    const buyNos = parseFloat(d.buying_price || d.buy_price || 0);
-                                                    const sellNos = parseFloat(d.selling_price || d.sell_price || 0);
-                                                    const buyBox = buyNos * pcsPerBox;
-                                                    const sellBox = sellNos * pcsPerBox;
-                                                    const isCurrentBranch = rawWh === warehouse || (warehouse && rawWh.toLowerCase().includes((warehouse || '').toLowerCase()));
+                                                {combinedBranches.length === 0 ? (
+                                                    <tr>
+                                                        <td colSpan={5} style={{ padding: '16px', textAlign: 'center', color: '#94a3b8', fontWeight: 700 }}>
+                                                            {nearbyBranchesLoading ? 'Checking branch stock...' : 'No branch details available.'}
+                                                        </td>
+                                                    </tr>
+                                                ) : (
+                                                    combinedBranches.map((d, index) => {
+                                                        const rawWh = d.warehouse_name || d.warehouse || '';
+                                                        const branchName = getBranchName(rawWh);
+                                                        const qty = parseFloat(d.actual_qty || 0);
+                                                        const buyNos = parseFloat(d.buying_price || d.buy_price || 0);
+                                                        const sellNos = parseFloat(d.selling_price || d.sell_price || 0);
+                                                        const buyBox = buyNos * pcsPerBox;
+                                                        const sellBox = sellNos * pcsPerBox;
+                                                        const isCurrentBranch = rawWh === warehouse || (warehouse && rawWh.toLowerCase().includes((warehouse || '').toLowerCase()));
+                                                        const canRequest = !isCurrentBranch && qty > 0;
 
-                                                    return (
-                                                        <tr
-                                                            key={index}
-                                                            style={{
-                                                                borderBottom: index !== branchDetails.length - 1 ? '1px solid #f1f5f9' : 'none',
-                                                                background: isCurrentBranch ? '#f0f9ff' : '#ffffff'
-                                                            }}
-                                                        >
-                                                            <td style={{ padding: '8px 12px' }}>
-                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                                                    <span style={{ fontWeight: 800, color: isCurrentBranch ? '#0369a1' : '#1e293b' }}>{branchName}</span>
-                                                                    {isCurrentBranch && (
-                                                                        <span style={{ fontSize: '8.5px', fontWeight: 900, background: '#0284c7', color: '#ffffff', padding: '1px 5px', borderRadius: '3px', textTransform: 'uppercase' }}>Current</span>
+                                                        return (
+                                                            <tr
+                                                                key={index}
+                                                                style={{
+                                                                    borderBottom: index !== combinedBranches.length - 1 ? '1px solid #f1f5f9' : 'none',
+                                                                    background: isCurrentBranch ? '#f0f9ff' : '#ffffff'
+                                                                }}
+                                                            >
+                                                                <td style={{ padding: '8px 12px' }}>
+                                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                                                            <span style={{ fontWeight: 800, color: isCurrentBranch ? '#0369a1' : '#1e293b' }}>{branchName}</span>
+                                                                            {d.distance !== undefined && d.distance !== null && !isCurrentBranch && (
+                                                                                <span style={{ fontSize: '9px', color: '#94a3b8', fontWeight: 700 }}>
+                                                                                    {d.distance} km away
+                                                                                </span>
+                                                                            )}
+                                                                        </div>
+                                                                        {isCurrentBranch && (
+                                                                            <span style={{ fontSize: '8.5px', fontWeight: 900, background: '#0284c7', color: '#ffffff', padding: '1px 5px', borderRadius: '3px', textTransform: 'uppercase' }}>Current</span>
+                                                                        )}
+                                                                    </div>
+                                                                </td>
+                                                                <td style={{ padding: '8px 8px', textAlign: 'center' }}>
+                                                                    <span style={{
+                                                                        fontWeight: 800,
+                                                                        fontSize: '11px',
+                                                                        padding: '2px 8px',
+                                                                        borderRadius: '4px',
+                                                                        background: qty > 0 ? '#dcfce7' : '#f1f5f9',
+                                                                        color: qty > 0 ? '#15803d' : '#64748b'
+                                                                    }}>
+                                                                        {qty} {item.stock_uom || item.uom || 'Nos'}
+                                                                    </span>
+                                                                </td>
+                                                                <td style={{ padding: '8px 12px', textAlign: 'right' }}>
+                                                                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+                                                                        <span style={{ fontWeight: 800, color: '#334155' }}>{buyNos > 0 ? buyNos.toFixed(2) : '—'}</span>
+                                                                        {hasBox && buyNos > 0 && (
+                                                                            <span style={{ fontSize: '9px', fontWeight: 700, color: '#94a3b8' }}>Box: {buyBox.toFixed(2)}</span>
+                                                                        )}
+                                                                    </div>
+                                                                </td>
+                                                                <td style={{ padding: '8px 14px', textAlign: 'right' }}>
+                                                                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+                                                                        <span style={{ fontWeight: 900, color: '#0284c7', fontSize: '12px' }}>{sellNos > 0 ? sellNos.toFixed(2) : '—'}</span>
+                                                                        {hasBox && sellNos > 0 && (
+                                                                            <span style={{ fontSize: '9px', fontWeight: 800, color: '#3b82f6' }}>Box: {sellBox.toFixed(2)}</span>
+                                                                        )}
+                                                                    </div>
+                                                                </td>
+                                                                <td style={{ padding: '6px 12px', textAlign: 'center' }}>
+                                                                    {canRequest ? (
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => {
+                                                                                setShowItemDetailModal(false);
+                                                                                handleRequestStock(item, rawWh);
+                                                                            }}
+                                                                            style={{
+                                                                                background: '#2563eb',
+                                                                                color: '#ffffff',
+                                                                                border: 'none',
+                                                                                padding: '4px 10px',
+                                                                                borderRadius: '6px',
+                                                                                fontSize: '10.5px',
+                                                                                fontWeight: 800,
+                                                                                cursor: 'pointer',
+                                                                                boxShadow: '0 2px 4px rgba(37, 99, 235, 0.25)',
+                                                                                display: 'inline-flex',
+                                                                                alignItems: 'center',
+                                                                                gap: '4px',
+                                                                                transition: 'all 0.15s ease'
+                                                                            }}
+                                                                            onMouseEnter={e => e.currentTarget.style.background = '#1d4ed8'}
+                                                                            onMouseLeave={e => e.currentTarget.style.background = '#2563eb'}
+                                                                            title={`Request Stock from ${branchName}`}
+                                                                        >
+                                                                        <span>Request</span>
+                                                                        </button>
+                                                                    ) : (
+                                                                        <span style={{ fontSize: '10px', color: '#cbd5e1', fontWeight: 700 }}>—</span>
                                                                     )}
-                                                                </div>
-                                                            </td>
-                                                            <td style={{ padding: '8px 8px', textAlign: 'center' }}>
-                                                                <span style={{
-                                                                    fontWeight: 800,
-                                                                    fontSize: '11px',
-                                                                    padding: '2px 8px',
-                                                                    borderRadius: '4px',
-                                                                    background: qty > 0 ? '#dcfce7' : '#f1f5f9',
-                                                                    color: qty > 0 ? '#15803d' : '#64748b'
-                                                                }}>
-                                                                    {qty} {item.stock_uom || item.uom || 'Nos'}
-                                                                </span>
-                                                            </td>
-                                                            <td style={{ padding: '8px 12px', textAlign: 'right' }}>
-                                                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
-                                                                    <span style={{ fontWeight: 800, color: '#334155' }}>{buyNos > 0 ? buyNos.toFixed(2) : '—'}</span>
-                                                                    {hasBox && buyNos > 0 && (
-                                                                        <span style={{ fontSize: '9px', fontWeight: 700, color: '#94a3b8' }}>Box: {buyBox.toFixed(2)}</span>
-                                                                    )}
-                                                                </div>
-                                                            </td>
-                                                            <td style={{ padding: '8px 14px', textAlign: 'right' }}>
-                                                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
-                                                                    <span style={{ fontWeight: 900, color: '#0284c7', fontSize: '12px' }}>{sellNos > 0 ? sellNos.toFixed(2) : '—'}</span>
-                                                                    {hasBox && sellNos > 0 && (
-                                                                        <span style={{ fontSize: '9px', fontWeight: 800, color: '#3b82f6' }}>Box: {sellBox.toFixed(2)}</span>
-                                                                    )}
-                                                                </div>
-                                                            </td>
-                                                        </tr>
-                                                    );
-                                                })}
+                                                                </td>
+                                                            </tr>
+                                                        );
+                                                    })
+                                                )}
                                             </tbody>
                                         </table>
                                     </div>
@@ -5476,31 +5652,26 @@ function Home() {
                         <div>
                             <label className="text-[11px] font-bold text-slate-600 block mb-1">Phone Number <span className="text-rose-500">*</span></label>
                             <div className="flex gap-2">
-                                <select
+                                <CountryCodeSelector
                                     value={countryCodePrefix}
-                                    onChange={e => {
-                                        const newPrefix = e.target.value;
+                                    variant="modal"
+                                    onChange={newPrefix => {
                                         setCountryCodePrefix(newPrefix);
                                         localStorage.setItem('pos_country_code', newPrefix);
-                                        const limit = newPrefix === '+971' ? 9 : 10;
-                                        if (createForm.phone.length > limit) {
-                                            setCreateForm(prev => ({ ...prev, phone: prev.phone.slice(0, limit) }));
+                                        const rule = getCountryRule(newPrefix);
+                                        if (createForm.phone.length > rule.maxLen) {
+                                            setCreateForm(prev => ({ ...prev, phone: prev.phone.slice(0, rule.maxLen) }));
                                         }
                                     }}
-                                    style={{ borderRadius: '8px', boxShadow: 'none', width: '90px' }}
-                                    className="h-10 px-2 bg-slate-50 border border-slate-300 focus:border-emerald-500 text-xs font-bold text-slate-800 outline-none cursor-pointer transition-all shrink-0"
-                                >
-                                    <option value="+971">🇦🇪 +971</option>
-                                    <option value="+91">🇮🇳 +91</option>
-                                </select>
+                                />
                                 <input
                                     type="tel"
-                                    placeholder={`${countryCodePrefix === '+971' ? '9-digit' : '10-digit'} mobile number`}
+                                    placeholder={`${getCountryRule(countryCodePrefix).maxLen}-digit mobile number`}
                                     value={createForm.phone}
                                     onChange={e => {
                                         const val = e.target.value.replace(/\D/g, '');
-                                        const limit = countryCodePrefix === '+971' ? 9 : 10;
-                                        if (val.length <= limit) {
+                                        const rule = getCountryRule(countryCodePrefix);
+                                        if (val.length <= rule.maxLen) {
                                             setCreateForm({ ...createForm, phone: val });
                                         }
                                     }}
@@ -5989,7 +6160,12 @@ function Home() {
                                             <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${p.mode_of_payment.includes('Cash') ? 'bg-emerald-100 text-emerald-600' : 'bg-sky-100 text-sky-600'}`}>
                                                 {p.mode_of_payment.includes('Cash') ? <Banknote size={16} /> : <CreditCard size={16} />}
                                             </div>
-                                            <span className="text-sm font-bold text-slate-700">{p.mode_of_payment}</span>
+                                            <div className="flex flex-col">
+                                                <span className="text-sm font-bold text-slate-700">{p.mode_of_payment}</span>
+                                                {p.reference_no && (
+                                                    <span className="text-[10px] font-mono text-slate-400">Ref: {p.reference_no}</span>
+                                                )}
+                                            </div>
                                         </div>
                                         <div className="flex items-center gap-4">
                                             <span className="text-sm font-black text-slate-900 flex items-center gap-1"><DirhamIcon size={11} /> {p.amount.toFixed(2)}</span>
@@ -6071,7 +6247,7 @@ function Home() {
                                         <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{selectedPaymentMode} Amount</span>
                                         <button onClick={() => setSelectedPaymentMode('')} className="text-[10px] font-black text-sky-600 hover:underline uppercase">Change Mode</button>
                                     </div>
-                                    <div className="mb-4 relative flex items-center bg-white border-2 border-sky-500 rounded-xl overflow-hidden shadow-sm focus-within:ring-4 focus-within:ring-sky-100 transition-all">
+                                    <div className="mb-3 relative flex items-center bg-white border-2 border-sky-500 rounded-xl overflow-hidden shadow-sm focus-within:ring-4 focus-within:ring-sky-100 transition-all">
                                         <span className="absolute left-4 pointer-events-none text-slate-400 flex items-center justify-center"><DirhamIcon size={16} /></span>
                                         <input
                                             id="payment-tendered-amount"
@@ -6086,6 +6262,18 @@ function Home() {
                                             style={{ paddingLeft: '44px' }}
                                         />
                                     </div>
+                                    {(selectedPaymentMode === 'Bank' || selectedPaymentMode === 'Card' || selectedPaymentMode === 'InstaPay') && (
+                                        <div className="mb-3 relative flex items-center bg-white border border-slate-300 rounded-xl overflow-hidden shadow-sm focus-within:border-sky-500 focus-within:ring-2 focus-within:ring-sky-100 transition-all">
+                                            <input
+                                                type="text"
+                                                placeholder={selectedPaymentMode === 'Bank' ? 'Bank Ref / Txn ID (Optional)' : 'Auth Code / Slip Ref No (Optional)'}
+                                                value={paymentReferenceNo}
+                                                onChange={e => setPaymentReferenceNo(e.target.value)}
+                                                className="w-full px-4 py-2.5 bg-transparent text-xs font-bold text-slate-800 outline-none placeholder:text-slate-400"
+                                                onKeyDown={(e) => e.key === 'Enter' && addPayment()}
+                                            />
+                                        </div>
+                                    )}
                                     <button
                                         onClick={addPayment}
                                         className="w-full py-4 bg-sky-600 text-white rounded-xl font-black uppercase tracking-[0.2em] shadow-xl shadow-sky-200 hover:bg-sky-700 active:scale-95 transition-all text-xs"
@@ -7320,7 +7508,13 @@ function Home() {
 
             // 1. GLOBAL HID SCANNER LISTENER (Intercepts rapid digits)
             const now = Date.now();
-            const isInputFocused = ['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName);
+            const activeEl = document.activeElement;
+            const isInputFocused = activeEl && ['INPUT', 'TEXTAREA'].includes(activeEl.tagName);
+            const isLegacyTableInput = (el) => {
+                if (!el) return false;
+                const id = el.id || '';
+                return id === 'legacy-inline-search' || id.startsWith('desc-input-') || id.startsWith('qty-input-') || id.startsWith('price-input-');
+            };
 
             // If user is not typing in a specific input, or if it's very fast (typical of hardware scanners)
             if (now - lastKeyTime.current > 150) {
@@ -7452,12 +7646,14 @@ function Home() {
             // Discount Modal Toggle
             if (isShortcutPressed(e, 'pos_home', 'discount', 'F1') || (e.key.toLowerCase() === 'd' && e.altKey)) {
                 e.preventDefault();
+                e.stopPropagation();
                 setShowDiscountModal(prev => !prev);
             }
 
-            // Loyalty Modal Toggle (Only outside payment modal)
-            if (!showPaymentModal && isShortcutPressed(e, 'pos_home', 'loyalty', 'Alt+L')) {
+            // Loyalty Modal Toggle (Only outside payment modal) (Alt+L / Option+L / dead ¬)
+            if (!showPaymentModal && (isShortcutPressed(e, 'pos_home', 'loyalty', 'Alt+L') || (e.altKey && (e.key.toLowerCase() === 'l' || e.code === 'KeyL')) || e.key === '¬')) {
                 e.preventDefault();
+                e.stopPropagation();
                 if (showLoyaltyModal) {
                     setShowLoyaltyModal(false);
                 } else {
@@ -7477,16 +7673,20 @@ function Home() {
                 barcodeInputRef.current?.focus();
             }
 
-            // Toggle Country Code Prefix (+971 <-> +91)
+            // Cycle Country Code Prefix (GCC -> India -> Next)
             if (isShortcutPressed(e, 'pos_home', 'countryCode', 'F4')) {
                 e.preventDefault();
                 setCountryCodePrefix(prev => {
-                    const next = prev === '+971' ? '+91' : '+971';
+                    const gccAndPopular = [...GCC_COUNTRIES, ...OTHER_COUNTRIES.slice(0, 4)];
+                    const currentIndex = gccAndPopular.findIndex(c => c.code === prev);
+                    const nextItem = gccAndPopular[(currentIndex + 1) % gccAndPopular.length];
+                    const next = nextItem ? nextItem.code : '+971';
+                    const countryName = nextItem ? `${nextItem.flag} ${nextItem.country} (${nextItem.code})` : next;
                     localStorage.setItem('pos_country_code', next);
                     const Toast = Swal.mixin({
-                        toast: true, position: 'top-end', showConfirmButton: false, timer: 1000, timerProgressBar: false,
+                        toast: true, position: 'top-end', showConfirmButton: false, timer: 1200, timerProgressBar: false,
                     });
-                    Toast.fire({ icon: 'success', title: `Country Code: ${next}` });
+                    Toast.fire({ icon: 'success', title: `Country: ${countryName}` });
                     return next;
                 });
             }
@@ -7577,9 +7777,10 @@ function Home() {
                 }
             }
 
-            // Save Draft
-            if (isShortcutPressed(e, 'pos_home', 'saveDraft', 'Alt+S')) {
+            // Save Draft (Alt+S / Option+S / dead ß)
+            if (isShortcutPressed(e, 'pos_home', 'saveDraft', 'Alt+S') || (e.altKey && (e.key.toLowerCase() === 's' || e.code === 'KeyS')) || e.key === 'ß') {
                 e.preventDefault();
+                e.stopPropagation();
                 handleSaveDraft();
             }
 
@@ -7670,66 +7871,68 @@ function Home() {
                 }
             }
 
+            // Pay & Print (Space) - triggers checkout even if table input is focused (as long as input isn't pure text editing like customer notes or discount modal)
             if (isShortcutPressed(e, 'pos_home', 'pay', 'Space')) {
-                if (document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
-                    if (billItems.length > 0 && !showPaymentModal && !showOpeningModal) {
-                        e.preventDefault();
-                        handleCheckoutWithMode('print');
-                    }
+                const isTableInput = isLegacyTableInput(activeEl);
+                if ((!isInputFocused || isTableInput) && billItems.length > 0 && !showPaymentModal && !showOpeningModal) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleCheckoutWithMode('print');
                 }
             }
 
             // Fast Checkout: Print Slip (Alt+P / Option+P)
             if ((e.altKey && (e.key.toLowerCase() === 'p' || e.code === 'KeyP')) || e.key === 'π' || e.key === '∏') {
-                if (document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
-                    if (billItems.length > 0 && !showPaymentModal && !showOpeningModal) {
-                        e.preventDefault();
-                        handleCheckoutWithMode('print');
-                    }
+                e.preventDefault();
+                e.stopPropagation();
+                if (billItems.length > 0 && !showPaymentModal && !showOpeningModal) {
+                    handleCheckoutWithMode('print');
                 }
             }
 
             // Fast Checkout: No Print (Alt+N / Option+N / dead ~)
             if ((e.altKey && (e.key.toLowerCase() === 'n' || e.code === 'KeyN')) || e.key === '˜' || e.key === '~') {
-                if (document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
-                    if (billItems.length > 0 && !showPaymentModal && !showOpeningModal) {
-                        e.preventDefault();
-                        handleCheckoutWithMode('no-print');
-                    }
+                e.preventDefault();
+                e.stopPropagation();
+                if (billItems.length > 0 && !showPaymentModal && !showOpeningModal) {
+                    handleCheckoutWithMode('no-print');
                 }
             }
 
             // Fast Checkout: A4 Print (Alt+A / Option+A)
             if ((e.altKey && (e.key.toLowerCase() === 'a' || e.code === 'KeyA')) || e.key === 'Å' || e.key === 'å') {
-                if (document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
-                    if (billItems.length > 0 && !showPaymentModal && !showOpeningModal) {
-                        e.preventDefault();
-                        handleCheckoutWithMode('print-a4');
-                    }
+                e.preventDefault();
+                e.stopPropagation();
+                if (billItems.length > 0 && !showPaymentModal && !showOpeningModal) {
+                    handleCheckoutWithMode('print-a4');
                 }
             }
 
             // Create Customer Modal Toggle (Alt+K / Option+K / dead ˚)
             if ((e.altKey && (e.key.toLowerCase() === 'k' || e.code === 'KeyK')) || e.key === '˚' || e.key === '°') {
                 e.preventDefault();
+                e.stopPropagation();
                 openCreateCustomerModal();
             }
 
             // Active Orders Toggle
             if (isShortcutPressed(e, 'pos_home', 'orders', 'F9')) {
                 e.preventDefault();
+                e.stopPropagation();
                 setShowDraftsModal(prev => !prev);
             }
 
             // Print Job Modal Shortcut (Alt+J / Option+J / Alt+P)
             if ((e.altKey && e.shiftKey && (e.key.toLowerCase() === 'p' || e.code === 'KeyP')) || (e.altKey && (e.key.toLowerCase() === 'j' || e.code === 'KeyJ')) || e.key === '∆') {
                 e.preventDefault();
+                e.stopPropagation();
                 setShowPrintJobModal(prev => !prev);
             }
 
             // Fast Print Modal Shortcut (Alt+F / Option+F)
             if ((e.altKey && (e.key.toLowerCase() === 'f' || e.code === 'KeyF')) || e.key === 'ƒ' || e.key === 'Ï') {
                 e.preventDefault();
+                e.stopPropagation();
                 setShowFastPrintModal(prev => !prev);
             }
 
@@ -7748,9 +7951,10 @@ function Home() {
                 }
             }
 
-            // Clear Bill
+            // Clear Bill (Alt+C / Option+C)
             if (isShortcutPressed(e, 'pos_home', 'clearBill', 'Alt+C') || (e.altKey && (e.key.toLowerCase() === 'c' || e.code === 'KeyC')) || e.key === 'ç' || e.key === 'Ç') {
                 e.preventDefault();
+                e.stopPropagation();
                 if (billItems.length > 0) {
                     clearBillHandler();
                 }
@@ -7767,7 +7971,9 @@ function Home() {
 
             // Direct Bank (Ctrl+V / Cmd+V / Direct Bank shortcut)
             if (isShortcutPressed(e, 'pos_home', 'directBank', 'Ctrl+V') || ((e.ctrlKey || e.metaKey) && (e.key.toLowerCase() === 'v' || e.code === 'KeyV'))) {
-                if (billItems.length > 0 && !isInputFocused) {
+                // If focused on an input and has selected text or pasting into search, let native paste happen unless altKey is also pressed or it's not a text paste
+                const isTableInput = isLegacyTableInput(activeEl);
+                if (billItems.length > 0 && (!isInputFocused || (isTableInput && !activeEl.value))) {
                     e.preventDefault();
                     e.stopPropagation();
                     completePayment('Bank');
@@ -7921,12 +8127,16 @@ function Home() {
             {
                 key: getShortcut('pos_home', 'countryCode', 'F4'), label: `CC (${countryCodePrefix})`, colorClass: 'cyan', action: () => {
                     setCountryCodePrefix(prev => {
-                        const next = prev === '+971' ? '+91' : '+971';
+                        const gccAndPopular = [...GCC_COUNTRIES, ...OTHER_COUNTRIES.slice(0, 4)];
+                        const currentIndex = gccAndPopular.findIndex(c => c.code === prev);
+                        const nextItem = gccAndPopular[(currentIndex + 1) % gccAndPopular.length];
+                        const next = nextItem ? nextItem.code : '+971';
+                        const countryName = nextItem ? `${nextItem.flag} ${nextItem.country} (${nextItem.code})` : next;
                         localStorage.setItem('pos_country_code', next);
                         const Toast = Swal.mixin({
-                            toast: true, position: 'top-end', showConfirmButton: false, timer: 1000, timerProgressBar: false,
+                            toast: true, position: 'top-end', showConfirmButton: false, timer: 1200, timerProgressBar: false,
                         });
-                        Toast.fire({ icon: 'success', title: `Country Code: ${next}` });
+                        Toast.fire({ icon: 'success', title: `Country: ${countryName}` });
                         return next;
                     });
                 }
@@ -7996,7 +8206,7 @@ function Home() {
                         style={getBadgeStyle(s.colorClass)}
                         onClick={s.action}
                     >
-                        <span className="so-shortcut-key">{s.key}</span>
+                        <span className="so-shortcut-key">{formatKeyLabel(s.key)}</span>
                         <span className="so-shortcut-label" style={getLabelStyle()}>{s.label}</span>
                         {s.action && (
                             <span
@@ -8430,7 +8640,7 @@ function Home() {
                             fontWeight: 900
                         }}
                     >
-                        {s.key}
+                        {formatKeyLabel(s.key)}
                     </span>
                 </div>
             </div>
@@ -8893,16 +9103,104 @@ function Home() {
                                         </button>
                                     )}
 
-                                    {/* Premium In Stock Only Toggle */}
-                                    <div
-                                        onClick={() => setShowAvailableOnly(!showAvailableOnly)}
-                                        className="flex items-center gap-2.5 cursor-pointer select-none bg-slate-50 hover:bg-slate-100 border border-slate-200 px-3 py-1.5 rounded-xl transition-all ml-auto"
-                                        style={{ height: '36px' }}
+                                    {/* Premium Stock Filter Tabs (All / In Stock / Out of Stock) */}
+                                    <div 
+                                        style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '3px',
+                                            backgroundColor: '#f1f5f9',
+                                            padding: '3px',
+                                            borderRadius: '12px',
+                                            border: '1px solid #e2e8f0',
+                                            marginLeft: 'auto',
+                                            height: '36px',
+                                            boxSizing: 'border-box',
+                                            flexShrink: 0
+                                        }}
                                     >
-                                        <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">In Stock Only</span>
-                                        <div className={`w-8 h-4.5 rounded-full p-0.5 transition-colors duration-200 ease-in-out ${showAvailableOnly ? 'bg-emerald-500' : 'bg-slate-200'}`} style={{ width: '2rem', height: '1.125rem', borderRadius: '9999px', padding: '2px', display: 'flex', alignItems: 'center' }}>
-                                            <div className={`w-3.5 h-3.5 rounded-full bg-white shadow-md transform transition-transform duration-200 ease-in-out ${showAvailableOnly ? 'translate-x-3.5' : 'translate-x-0'}`} style={{ width: '0.875rem', height: '0.875rem', borderRadius: '9999px', backgroundColor: '#ffffff', boxShadow: '0 2px 4px rgba(0,0,0,0.2)' }} />
-                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => setStockFilter('all')}
+                                            style={{
+                                                padding: '4px 10px',
+                                                borderRadius: '9px',
+                                                fontSize: '11px',
+                                                fontWeight: 800,
+                                                letterSpacing: '0.02em',
+                                                border: stockFilter === 'all' ? '1px solid #cbd5e1' : '1px solid transparent',
+                                                backgroundColor: stockFilter === 'all' ? '#ffffff' : 'transparent',
+                                                color: stockFilter === 'all' ? '#0f172a' : '#64748b',
+                                                cursor: 'pointer',
+                                                boxShadow: stockFilter === 'all' ? '0 1px 3px rgba(0,0,0,0.06)' : 'none',
+                                                transition: 'all 0.15s ease',
+                                                lineHeight: '1.2'
+                                            }}
+                                        >
+                                            All
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setStockFilter(stockFilter === 'in_stock' ? 'all' : 'in_stock')}
+                                            style={{
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '5px',
+                                                padding: '4px 10px',
+                                                borderRadius: '9px',
+                                                fontSize: '11px',
+                                                fontWeight: 800,
+                                                letterSpacing: '0.02em',
+                                                border: stockFilter === 'in_stock' ? '1px solid #059669' : '1px solid transparent',
+                                                backgroundColor: stockFilter === 'in_stock' ? '#10b981' : 'transparent',
+                                                color: stockFilter === 'in_stock' ? '#ffffff' : '#047857',
+                                                cursor: 'pointer',
+                                                boxShadow: stockFilter === 'in_stock' ? '0 2px 4px rgba(16, 185, 129, 0.25)' : 'none',
+                                                transition: 'all 0.15s ease',
+                                                lineHeight: '1.2'
+                                            }}
+                                        >
+                                            <span 
+                                                style={{
+                                                    width: '6px',
+                                                    height: '6px',
+                                                    borderRadius: '50%',
+                                                    backgroundColor: stockFilter === 'in_stock' ? '#ffffff' : '#10b981'
+                                                }}
+                                            />
+                                            In Stock
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setStockFilter(stockFilter === 'out_of_stock' ? 'all' : 'out_of_stock')}
+                                            style={{
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '5px',
+                                                padding: '4px 10px',
+                                                borderRadius: '9px',
+                                                fontSize: '11px',
+                                                fontWeight: 800,
+                                                letterSpacing: '0.02em',
+                                                border: stockFilter === 'out_of_stock' ? '1px solid #e11d48' : '1px solid transparent',
+                                                backgroundColor: stockFilter === 'out_of_stock' ? '#f43f5e' : 'transparent',
+                                                color: stockFilter === 'out_of_stock' ? '#ffffff' : '#be123c',
+                                                cursor: 'pointer',
+                                                boxShadow: stockFilter === 'out_of_stock' ? '0 2px 4px rgba(244, 63, 94, 0.25)' : 'none',
+                                                transition: 'all 0.15s ease',
+                                                lineHeight: '1.2'
+                                            }}
+                                        >
+                                            <span 
+                                                style={{
+                                                    width: '6px',
+                                                    height: '6px',
+                                                    borderRadius: '50%',
+                                                    backgroundColor: stockFilter === 'out_of_stock' ? '#ffffff' : '#f43f5e'
+                                                }}
+                                            />
+                                            Out of Stock
+                                        </button>
                                     </div>
                                 </div>
 
@@ -9034,16 +9332,13 @@ function Home() {
                             <div className="so-bill-header flex flex-col gap-3">
                                 <div className="relative group">
                                     <div className="flex items-center border border-slate-200 rounded-xl overflow-hidden bg-white focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/20 transition-all" style={{ height: '42px' }}>
-                                        <select
+                                        <CountryCodeSelector
                                             value={countryCodePrefix}
-                                            onChange={e => { setCountryCodePrefix(e.target.value); localStorage.setItem('pos_country_code', e.target.value); }}
-                                            className="h-full px-3 bg-slate-50/85 border-r border-slate-200 text-[11px] font-bold text-slate-700 outline-none cursor-pointer hover:bg-slate-100 transition-colors"
-                                            style={{ minWidth: '80px' }}
-                                            title="Country Code (Press F4 to toggle)"
-                                        >
-                                            <option value="+971">🇦🇪 +971</option>
-                                            <option value="+91">🇮🇳 +91</option>
-                                        </select>
+                                            onChange={newVal => {
+                                                setCountryCodePrefix(newVal);
+                                                localStorage.setItem('pos_country_code', newVal);
+                                            }}
+                                        />
                                         <div className="relative flex-1 h-full flex items-center">
                                             <div className="absolute inset-y-0 left-0 flex items-center pointer-events-none" style={{ paddingLeft: '14px' }}>
                                                 <UserPlus size={14} className="text-slate-400 transition-colors group-focus-within:text-emerald-500" />
@@ -9061,8 +9356,8 @@ function Home() {
                                                     let val = e.target.value;
                                                     if (/^[\d+]*$/.test(val)) {
                                                         const cleaned = val.replace(/\D/g, '');
-                                                        const limit = countryCodePrefix === '+971' ? 9 : 10;
-                                                        val = cleaned.slice(0, limit);
+                                                        const rule = getCountryRule(countryCodePrefix);
+                                                        val = cleaned.slice(0, rule.maxLen);
                                                         setCustomerMobile(val);
                                                         setCustomerName(val);
                                                     } else {
@@ -9262,7 +9557,7 @@ function Home() {
                                             style={discountAmount > 0 ? { color: 'var(--so-danger)', borderColor: '#fee2e2', backgroundColor: '#fef2f2', height: '32px', borderRadius: '0.5rem' } : { color: '#6366f1', borderColor: '#e0e7ff', backgroundColor: '#f5f3ff', height: '32px', borderRadius: '0.5rem' }}
                                         >
                                             <span className="flex items-center gap-1.5 font-bold uppercase tracking-wider"><Palette size={11} /> Discount</span>
-                                            <span className="btn-shortcut-key">F1</span>
+                                            <span className="btn-shortcut-key">{formatKeyLabel(getShortcut('pos_home', 'discount', 'F1'))}</span>
                                         </button>
                                         <button
                                             onClick={handleLoyaltyPointsClick}
@@ -9270,7 +9565,7 @@ function Home() {
                                             style={loyaltyAmount > 0 ? { color: '#10b981', borderColor: '#d1fae5', backgroundColor: '#ecfdf5', height: '32px', borderRadius: '0.5rem' } : { color: '#10b981', borderColor: '#ecfdf5', backgroundColor: '#f0fdf4', height: '32px', borderRadius: '0.5rem' }}
                                         >
                                             <span className="flex items-center gap-1.5 font-bold uppercase tracking-wider"><Award size={11} /> Loyalty</span>
-                                            <span className="btn-shortcut-key">{getShortcut('pos_home', 'loyalty', 'Alt+L')}</span>
+                                            <span className="btn-shortcut-key">{formatKeyLabel(getShortcut('pos_home', 'loyalty', 'Alt+L'))}</span>
                                         </button>
                                         <button
                                             onClick={handleSaveDraft}
@@ -9279,7 +9574,7 @@ function Home() {
                                             disabled={billItems.length === 0}
                                         >
                                             <span className="flex items-center gap-1.5 font-bold uppercase tracking-wider"><Package size={11} /> Save Draft</span>
-                                            <span className="btn-shortcut-key">{getShortcut('pos_home', 'saveDraft', 'Alt+S')}</span>
+                                            <span className="btn-shortcut-key">{formatKeyLabel(getShortcut('pos_home', 'saveDraft', 'Alt+S'))}</span>
                                         </button>
                                         <button
                                             onClick={clearBillHandler}
@@ -9287,7 +9582,7 @@ function Home() {
                                             style={{ color: 'var(--so-danger)', borderColor: '#fecaca', backgroundColor: '#fef2f2', height: '32px', borderRadius: '0.5rem' }}
                                         >
                                             <span className="flex items-center gap-1.5 font-bold uppercase tracking-wider"><Trash2 size={11} /> Reset</span>
-                                            <span className="btn-shortcut-key">{getShortcut('pos_home', 'clearBill', 'Alt+C')}</span>
+                                            <span className="btn-shortcut-key">{formatKeyLabel(getShortcut('pos_home', 'clearBill', 'Alt+C'))}</span>
                                         </button>
                                     </div>
 
@@ -9330,7 +9625,7 @@ function Home() {
                                         style={{ height: '36px', borderRadius: '0.625rem', color: '#10b981', borderColor: '#a7f3d0', backgroundColor: '#f0fdf4', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '6px' }}
                                         disabled={grandTotal <= 0 || paymentLoading}
                                     >
-                                        <span>Cash</span> <span className="btn-shortcut-key" style={{ margin: 0 }}>{getShortcut('pos_home', 'directCash', 'Alt+1')}</span>
+                                        <span>Cash</span> <span className="btn-shortcut-key" style={{ margin: 0 }}>{formatKeyLabel(getShortcut('pos_home', 'directCash', 'Alt+1'))}</span>
                                     </button>
                                     <button
                                         onClick={() => { if (billItems.length > 0) completePayment('Bank'); }}
@@ -9338,7 +9633,7 @@ function Home() {
                                         style={{ height: '36px', borderRadius: '0.625rem', color: '#0ea5e9', borderColor: '#bae6fd', backgroundColor: '#f0f9ff', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '6px' }}
                                         disabled={grandTotal <= 0 || paymentLoading}
                                     >
-                                        <span>Bank</span> <span className="btn-shortcut-key" style={{ margin: 0 }}>Ctrl+V</span>
+                                        <span>Bank</span> <span className="btn-shortcut-key" style={{ margin: 0 }}>{formatKeyLabel(getShortcut('pos_home', 'directBank', 'Ctrl+V'))}</span>
                                     </button>
                                     <button
                                         onClick={() => { if (billItems.length > 0) { setSelectedPaymentMode('Card'); setShowCardTerminalModal(true); } }}
@@ -9346,7 +9641,7 @@ function Home() {
                                         style={{ height: '36px', borderRadius: '0.625rem', color: '#6366f1', borderColor: '#c7d2fe', backgroundColor: '#e0e7ff', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '6px' }}
                                         disabled={grandTotal <= 0 || paymentLoading}
                                     >
-                                        <span>Card</span> <span className="btn-shortcut-key" style={{ margin: 0 }}>{getShortcut('pos_home', 'directCard', 'Alt+2')}</span>
+                                        <span>Card</span> <span className="btn-shortcut-key" style={{ margin: 0 }}>{formatKeyLabel(getShortcut('pos_home', 'directCard', 'Alt+2'))}</span>
                                     </button>
                                 </div>
 
@@ -9407,7 +9702,7 @@ function Home() {
                                             <span className="flex items-center gap-1.5 uppercase tracking-wide">
                                                 <CreditCard size={12} /> Pay No Print
                                             </span>
-                                            <span className="btn-shortcut-key" style={{ fontSize: '7.5px', padding: '1.5px 4.5px', margin: 0 }}>Alt+N</span>
+                                            <span className="btn-shortcut-key" style={{ fontSize: '7.5px', padding: '1.5px 4.5px', margin: 0 }}>{formatKeyLabel('Alt+N')}</span>
                                         </button>
                                         <button
                                             className="so-btn-pay flex items-center justify-between transition-all hover:brightness-105 active:scale-[0.98]"
@@ -9431,7 +9726,7 @@ function Home() {
                                             <span className="flex items-center gap-1.5 uppercase tracking-wide">
                                                 <Printer size={12} /> Pay A4 Print
                                             </span>
-                                            <span className="btn-shortcut-key" style={{ fontSize: '7.5px', padding: '1.5px 4.5px', margin: 0 }}>Alt+A</span>
+                                            <span className="btn-shortcut-key" style={{ fontSize: '7.5px', padding: '1.5px 4.5px', margin: 0 }}>{formatKeyLabel('Alt+A')}</span>
                                         </button>
                                     </div>
                                 )}
@@ -9702,19 +9997,14 @@ function Home() {
                                 ? 'border-emerald-200 focus-within:border-emerald-500 bg-emerald-50/10'
                                 : 'border-slate-200 focus-within:border-sky-500 bg-slate-50/50'
                                 }`}>
-                                <select
+                                <CountryCodeSelector
                                     value={countryCodePrefix}
-                                    onChange={e => { setCountryCodePrefix(e.target.value); localStorage.setItem('pos_country_code', e.target.value); }}
-                                    className={`h-full px-2.5 border-r-2 text-xs font-black outline-none cursor-pointer transition-all ${selectedCustomer && selectedCustomer.name !== 'Cash'
-                                        ? 'bg-emerald-50 border-emerald-100 text-emerald-800'
-                                        : 'bg-slate-100 border-slate-200 text-slate-700'
-                                        }`}
-                                    style={{ minWidth: '65px' }}
-                                    title="Country Code (Press F4 to toggle)"
-                                >
-                                    <option value="+971">🇦🇪 +971</option>
-                                    <option value="+91">🇮🇳 +91</option>
-                                </select>
+                                    variant="classic"
+                                    onChange={newVal => {
+                                        setCountryCodePrefix(newVal);
+                                        localStorage.setItem('pos_country_code', newVal);
+                                    }}
+                                />
                                 <input
                                     ref={mobileInputRef}
                                     value={customerMobile || (selectedCustomer && selectedCustomer.name !== 'Cash' ? (selectedCustomer.mobile_no || selectedCustomer.name) : customerName)}
@@ -9724,8 +10014,8 @@ function Home() {
                                         const val = e.target.value;
                                         if (/^[\d+]*$/.test(val)) {
                                             const cleaned = val.replace(/\D/g, '');
-                                            const limit = countryCodePrefix === '+971' ? 9 : 10;
-                                            const restricted = cleaned.slice(0, limit);
+                                            const rule = getCountryRule(countryCodePrefix);
+                                            const restricted = cleaned.slice(0, rule.maxLen);
                                             setCustomerMobile(restricted);
                                             setCustomerName('');
                                         } else {
@@ -9896,6 +10186,9 @@ function Home() {
                                                                     className="w-full px-1 pr-6 font-black text-slate-900 uppercase bg-transparent border-none outline-none focus:bg-sky-200/70 placeholder:text-slate-300 text-[11px]"
                                                                     placeholder="Description"
                                                                     onKeyDown={e => {
+                                                                        if (e.altKey || (e.key && e.key.startsWith('F')) || e.ctrlKey || e.metaKey) {
+                                                                            return;
+                                                                        }
                                                                         if (e.key === 'Enter') {
                                                                             e.preventDefault();
                                                                             document.getElementById(`qty-input-${idx}`)?.focus();
@@ -9958,6 +10251,9 @@ function Home() {
                                                             onFocus={e => e.target.select()}
                                                             onClick={e => e.target.select()}
                                                             onKeyDown={e => {
+                                                                if (e.altKey || (e.key && e.key.startsWith('F')) || e.ctrlKey || e.metaKey) {
+                                                                    return;
+                                                                }
                                                                 if (e.key === 'Enter') {
                                                                     e.preventDefault();
                                                                     document.getElementById(`price-input-${idx}`)?.focus();
@@ -9991,6 +10287,9 @@ function Home() {
                                                                 onFocus={e => e.target.select()}
                                                                 onClick={e => e.target.select()}
                                                                 onKeyDown={e => {
+                                                                    if (e.altKey || (e.key && e.key.startsWith('F')) || e.ctrlKey || e.metaKey) {
+                                                                        return;
+                                                                    }
                                                                     if (e.key === 'Enter' || (e.key === 'Tab' && !e.shiftKey)) {
                                                                         e.preventDefault();
                                                                         if (idx === billItems.length - 1) {
@@ -10176,7 +10475,7 @@ function Home() {
                                                     <Banknote size={15} />
                                                     <span>CASH</span>
                                                 </div>
-                                                <span className="inline-flex items-center justify-center font-mono text-[9px] font-extrabold px-2 py-0.5 rounded-md bg-slate-900 text-white shadow-sm">{isMac ? '⌥ + I' : 'ALT+1'}</span>
+                                                <span className="inline-flex items-center justify-center font-mono text-[9px] font-extrabold px-2 py-0.5 rounded-md bg-slate-900 text-white shadow-sm">{formatKeyLabel(getShortcut('pos_home', 'directCash', 'Alt+1'))}</span>
                                             </button>
 
                                             {/* BANK */}
@@ -10190,7 +10489,7 @@ function Home() {
                                                     <Building2 size={15} />
                                                     <span>BANK</span>
                                                 </div>
-                                                <span className="inline-flex items-center justify-center font-mono text-[9px] font-extrabold px-2 py-0.5 rounded-md bg-slate-900 text-white shadow-sm">{isMac ? '⌘ + V' : 'CTRL+V'}</span>
+                                                <span className="inline-flex items-center justify-center font-mono text-[9px] font-extrabold px-2 py-0.5 rounded-md bg-slate-900 text-white shadow-sm">{formatKeyLabel(getShortcut('pos_home', 'directBank', 'Ctrl+V'))}</span>
                                             </button>
 
                                             {/* CARD */}
@@ -10204,7 +10503,7 @@ function Home() {
                                                     <CreditCard size={15} />
                                                     <span>CARD</span>
                                                 </div>
-                                                <span className="inline-flex items-center justify-center font-mono text-[9px] font-extrabold px-2 py-0.5 rounded-md bg-slate-900 text-white shadow-sm">{isMac ? '⌥ + K' : 'ALT+2'}</span>
+                                                <span className="inline-flex items-center justify-center font-mono text-[9px] font-extrabold px-2 py-0.5 rounded-md bg-slate-900 text-white shadow-sm">{formatKeyLabel(getShortcut('pos_home', 'directCard', 'Alt+2'))}</span>
                                             </button>
 
                                             {/* PRINT / LOADING CONTROL IN ROW 1 OR FULL SPAN */}
@@ -10244,7 +10543,7 @@ function Home() {
                                                             <Zap size={15} />
                                                             <span>DIRECT</span>
                                                         </div>
-                                                        <span className="inline-flex items-center justify-center font-mono text-[9px] font-extrabold px-2 py-0.5 rounded-md bg-slate-900 text-white shadow-sm">{isMac ? '⌥ + N' : 'ALT+N'}</span>
+                                                        <span className="inline-flex items-center justify-center font-mono text-[9px] font-extrabold px-2 py-0.5 rounded-md bg-slate-900 text-white shadow-sm">{formatKeyLabel('Alt+N')}</span>
                                                     </button>
                                                 </>
                                             )}
@@ -10260,7 +10559,7 @@ function Home() {
                                                     <Percent size={15} className="text-slate-700" />
                                                     <span>DISCOUNT</span>
                                                 </div>
-                                                <span className="inline-flex items-center justify-center font-mono text-[9px] font-extrabold px-2 py-0.5 rounded-md bg-slate-900 text-white shadow-sm">F1</span>
+                                                <span className="inline-flex items-center justify-center font-mono text-[9px] font-extrabold px-2 py-0.5 rounded-md bg-slate-900 text-white shadow-sm">{formatKeyLabel(getShortcut('pos_home', 'discount', 'F1'))}</span>
                                             </button>
 
                                             {/* LOYALTY */}
@@ -10273,7 +10572,7 @@ function Home() {
                                                     <Gift size={15} className="text-slate-700" />
                                                     <span>LOYALTY</span>
                                                 </div>
-                                                <span className="inline-flex items-center justify-center font-mono text-[9px] font-extrabold px-2 py-0.5 rounded-md bg-slate-900 text-white shadow-sm">{isMac ? '⌥ + L' : 'ALT+L'}</span>
+                                                <span className="inline-flex items-center justify-center font-mono text-[9px] font-extrabold px-2 py-0.5 rounded-md bg-slate-900 text-white shadow-sm">{formatKeyLabel(getShortcut('pos_home', 'loyalty', 'Alt+L'))}</span>
                                             </button>
 
                                             {/* SAVE DRAFT */}
@@ -10286,7 +10585,7 @@ function Home() {
                                                     <Upload size={15} />
                                                     <span>SAVE DRAFT</span>
                                                 </div>
-                                                <span className="inline-flex items-center justify-center font-mono text-[9px] font-extrabold px-2 py-0.5 rounded-md bg-slate-900 text-white shadow-sm">{isMac ? '⌥ + S' : 'ALT+S'}</span>
+                                                <span className="inline-flex items-center justify-center font-mono text-[9px] font-extrabold px-2 py-0.5 rounded-md bg-slate-900 text-white shadow-sm">{formatKeyLabel(getShortcut('pos_home', 'saveDraft', 'Alt+S'))}</span>
                                             </button>
 
                                             {/* A4 */}
@@ -10300,7 +10599,7 @@ function Home() {
                                                     <FileText size={15} />
                                                     <span>A4</span>
                                                 </div>
-                                                <span className="inline-flex items-center justify-center font-mono text-[9px] font-extrabold px-2 py-0.5 rounded-md bg-slate-900 text-white shadow-sm">{isMac ? '⌥ + A' : 'ALT+A'}</span>
+                                                <span className="inline-flex items-center justify-center font-mono text-[9px] font-extrabold px-2 py-0.5 rounded-md bg-slate-900 text-white shadow-sm">{formatKeyLabel('Alt+A')}</span>
                                             </button>
 
                                             {/* CLEAR BILL */}
@@ -10313,7 +10612,7 @@ function Home() {
                                                     <Trash2 size={15} />
                                                     <span>RESET</span>
                                                 </div>
-                                                <span className="inline-flex items-center justify-center font-mono text-[9px] font-extrabold px-2 py-0.5 rounded-md bg-slate-900 text-white shadow-sm">{isMac ? '⌥ + C' : 'ALT+C'}</span>
+                                                <span className="inline-flex items-center justify-center font-mono text-[9px] font-extrabold px-2 py-0.5 rounded-md bg-slate-900 text-white shadow-sm">{formatKeyLabel(getShortcut('pos_home', 'clearBill', 'Alt+C'))}</span>
                                             </button>
                                         </div>
                                     </div>
@@ -10334,7 +10633,7 @@ function Home() {
                                                 <span className="truncate">Active Orders</span>
                                             </div>
                                             <div className="flex items-center gap-1 flex-shrink-0">
-                                                <span className="inline-flex items-center justify-center font-mono text-[8px] font-bold bg-emerald-200 text-emerald-800 px-1.5 py-0.5" style={{ borderRadius: '9999px' }}>F9</span>
+                                                <span className="inline-flex items-center justify-center font-mono text-[8px] font-bold bg-emerald-200 text-emerald-800 px-1.5 py-0.5" style={{ borderRadius: '9999px' }}>{formatKeyLabel(getShortcut('pos_home', 'orders', 'F9'))}</span>
                                                 {pendingSyncCount > 0 && (
                                                     <span className="bg-rose-500 text-white text-[9px] px-1.5 py-0.5 font-bold" style={{ borderRadius: '9999px' }}>
                                                         {pendingSyncCount}
@@ -10352,7 +10651,7 @@ function Home() {
                                                 <Printer size={13} className="flex-shrink-0" />
                                                 <span className="truncate">Print Bill</span>
                                             </div>
-                                            <span className="inline-flex items-center justify-center font-mono text-[8px] font-bold bg-indigo-200 text-indigo-800 px-1.5 py-0.5 flex-shrink-0" style={{ borderRadius: '9999px' }}>F10</span>
+                                            <span className="inline-flex items-center justify-center font-mono text-[8px] font-bold bg-indigo-200 text-indigo-800 px-1.5 py-0.5 flex-shrink-0" style={{ borderRadius: '9999px' }}>{formatKeyLabel(getShortcut('pos_home', 'printBill', 'F10'))}</span>
                                         </button>
                                         <button
                                             onClick={() => setShowPrintJobModal(true)}
@@ -10635,20 +10934,13 @@ function Home() {
                                         background: 'linear-gradient(to right, #e1f4ff, #ffffff)',
                                         border: '2px solid #3b82f6', borderRadius: '12px',
                                     }}>
-                                        <select
+                                        <CountryCodeSelector
                                             value={countryCodePrefix}
-                                            onChange={e => { setCountryCodePrefix(e.target.value); localStorage.setItem('pos_country_code', e.target.value); }}
-                                            style={{
-                                                height: '100%', padding: '0 8px',
-                                                background: '#dbeafe', border: 'none', borderRight: '2px solid #93c5fd',
-                                                fontSize: '12px', fontWeight: 900, color: '#1e40af',
-                                                outline: 'none', cursor: 'pointer', flexShrink: 0
+                                            onChange={newVal => {
+                                                setCountryCodePrefix(newVal);
+                                                localStorage.setItem('pos_country_code', newVal);
                                             }}
-                                            title="Country Code (Press F4 to toggle)"
-                                        >
-                                            <option value="+971">🇦🇪 +971</option>
-                                            <option value="+91">🇮🇳 +91</option>
-                                        </select>
+                                        />
                                         <input
                                             ref={mobileInputRef}
                                             type="tel"
@@ -10656,8 +10948,8 @@ function Home() {
                                             value={customerMobile}
                                             onChange={(e) => {
                                                 const cleaned = e.target.value.replace(/\D/g, '');
-                                                const limit = countryCodePrefix === '+971' ? 9 : 10;
-                                                setCustomerMobile(cleaned.slice(0, limit));
+                                                const rule = getCountryRule(countryCodePrefix);
+                                                setCustomerMobile(cleaned.slice(0, rule.maxLen));
                                             }}
                                             onKeyDown={handleMobileEnter}
                                             style={{
@@ -10782,8 +11074,8 @@ function Home() {
                                 </div>
                                 <input type="tel" placeholder="Phone Number" value={phoneNumber} onChange={e => {
                                     const cleaned = e.target.value.replace(/\D/g, '');
-                                    const limit = countryCodePrefix === '+971' ? 9 : 10;
-                                    setPhoneNumber(cleaned.slice(0, limit));
+                                    const rule = getCountryRule(countryCodePrefix);
+                                    setPhoneNumber(cleaned.slice(0, rule.maxLen));
                                 }} className="home-customer-input" />
 
                                 {/* Bill Items */}

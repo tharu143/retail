@@ -12,11 +12,12 @@ import { format } from 'date-fns';
 import '../Admin/SalesOrder.css';
 import CustomSearchDropdown from '../Purchase/CustomSearchDropdown';
 import QuickItemCreateModal from '../Purchase/QuickItemCreateModal';
-import ColumnConfigModal from '../Purchase/ColumnConfigModal';
-import DirhamIcon from '../../assets/Currency/DirhamIcon';
+import { promptSecretCode } from '../../utils/secretCodePrompt';
 import AttachmentSection from './AttachmentSection';
 import ListCustomizer from './ListCustomizer';
 import { useCustomShortcuts } from '../../hooks/useCustomShortcuts';
+import DirhamIcon from '../../assets/Currency/DirhamIcon';
+import ColumnConfigModal from '../Purchase/ColumnConfigModal';
 
 // Custom APIs (moved to standardized path)
 const API_PATH = '/api/method/kyle_retail.retail_api.api';
@@ -102,7 +103,43 @@ function PurchaseReceiptList() {
     } catch (e) { /* ignore */ }
     return DEFAULT_PR_COLUMNS;
   };
+
   const [columnConfig, setColumnConfig] = useState(loadColumnConfig);
+  const [resizingCol, setResizingCol] = useState(null);
+
+  const handleResizeMouseDown = (e, colId) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const startX = e.clientX;
+    const targetCol = columnConfig.find(c => c.id === colId);
+    const startWidth = parseInt(targetCol?.width || 100, 10);
+
+    const handleMouseMove = (moveEvent) => {
+      const diff = moveEvent.clientX - startX;
+      const newWidth = Math.max(40, startWidth + diff);
+      setColumnConfig(prev => prev.map(c => c.id === colId ? { ...c, width: newWidth } : c));
+    };
+
+    const handleMouseUp = () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = 'default';
+      document.body.style.userSelect = 'auto';
+      setResizingCol(null);
+      // Persist to localStorage
+      setColumnConfig(currentCols => {
+        localStorage.setItem('pr_column_config_v2', JSON.stringify(currentCols));
+        return currentCols;
+      });
+    };
+
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    setResizingCol(colId);
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+  };
+
   const [showColConfig, setShowColConfig] = useState(false);
 
   const handleColConfigUpdate = (newConfig) => {
@@ -924,22 +961,8 @@ function PurchaseReceiptList() {
         }
       } else if (field === 'custom_selling_price') {
         items[index].custom_selling_price = value;
-        const sellNos = parseFloat(value) || 0;
-        const pcs = parseFloat(items[index].custom_pieces_per_box) || 1;
-        if (sellNos > 0 && pcs > 0) {
-          items[index].custom_box_selling_price = parseFloat((sellNos * pcs).toFixed(2));
-        } else if (value === '' || sellNos === 0) {
-          items[index].custom_box_selling_price = '';
-        }
       } else if (field === 'custom_box_selling_price') {
         items[index].custom_box_selling_price = value;
-        const sellBox = parseFloat(value) || 0;
-        const pcs = parseFloat(items[index].custom_pieces_per_box) || 1;
-        if (sellBox > 0 && pcs > 0) {
-          items[index].custom_selling_price = parseFloat((sellBox / pcs).toFixed(4));
-        } else if (value === '' || sellBox === 0) {
-          items[index].custom_selling_price = '';
-        }
       } else if (field === 'discount_amount') {
         const discAmt = value === '' ? '' : parseFloat(value);
         items[index].discount_amount = discAmt;
@@ -1102,10 +1125,12 @@ function PurchaseReceiptList() {
         targetIndex = existingIdx;
       } else {
         const isBoxUom = isBoxScan || (item.stock_uom || '').toLowerCase() === 'box';
-        const sellNos = parseFloat(item.custom_selling_price || 0);
-        const sellBox = parseFloat(item.custom_box_selling_price || 0) || (sellNos * pcsPerBox);
+        const rate = parseFloat(item.rate || item.last_buying_rate || item.last_purchase_rate || 0);
         const lastPurRate = parseFloat(item.last_purchase_rate || item.last_buying_rate || item.rate || 0);
-        const initialBoxPrice = isBoxUom ? (lastPurRate * pcsPerBox) : 0;
+        const defaultBoxPrice = parseFloat(item.custom_box_price || (rate * pcsPerBox) || 0);
+        const sellNos = parseFloat(item.custom_selling_price || 0);
+        const sellBox = parseFloat(item.custom_box_selling_price || item.custom_selling_price_box || (sellNos * pcsPerBox) || 0);
+        const itemQty = isBoxUom ? Math.round(pcsPerBox) : 1;
 
         // First find if there is an existing empty row (without item_code)
         const emptyRowIdx = items.findIndex(it => !it.item_code);
@@ -1115,13 +1140,13 @@ function PurchaseReceiptList() {
           item_code: item.item_code,
           item_name: item.item_name,
           uom: isBoxUom ? 'Box' : (item.stock_uom || 'Nos'),
-          accepted_qty: isBoxUom ? Math.round(pcsPerBox) : 1,
-          received_qty: isBoxUom ? Math.round(pcsPerBox) : 1,
+          accepted_qty: itemQty,
+          received_qty: itemQty,
           rejected_qty: 0,
-          qty: isBoxUom ? Math.round(pcsPerBox) : 1,
-          rate: lastPurRate,
+          qty: itemQty,
+          rate: rate,
           last_purchase_rate: lastPurRate,
-          custom_box_price: initialBoxPrice,
+          custom_box_price: defaultBoxPrice,
           custom_box_qty: 1,
           custom_pieces_per_box: pcsPerBox,
           default_pieces_per_box: pcsPerBox,
@@ -1130,7 +1155,7 @@ function PurchaseReceiptList() {
           custom_supplier_sl_num: item.custom_ref_sl_no || item.custom_supplier_sl_num || item.supplier_part_no || '',
           custom_ref_sl_no: item.custom_ref_sl_no || item.custom_supplier_sl_num || '',
           use_box_entry: isBoxUom,
-          amount: ((isBoxUom ? Math.round(pcsPerBox) : 1) * lastPurRate).toFixed(2)
+          amount: (itemQty * rate).toFixed(2)
         };
 
         if (emptyRowIdx !== -1) {
@@ -1185,20 +1210,40 @@ function PurchaseReceiptList() {
   };
   const handleSupplierCreate = async (name) => {
     try {
-      const res = await fetch(`${API_PATH}.create_supplier`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Frappe-SID': localStorage.getItem('session') },
-        credentials: 'include',
-        body: JSON.stringify({ supplier_name: name.trim(), supplier_type: "Company" })
+      const targetWarehouse = formData.set_warehouse || warehouse || localStorage.getItem('warehouse');
+
+      // Prompt Employee Secret Code
+      const auth = await promptSecretCode({
+        title: 'Register Supplier Authorization',
+        subtitle: `Enter Secret Code to register and link supplier "${name.trim()}"`,
+        warehouse: targetWarehouse
       });
-      const result = await res.json();
-      if (result.message?.status === 'success' && result.message?.message) {
-        const s = result.message.message;
-        return { name: s.name, supplier_name: s.supplier_name || s.name };
-      }
-      throw new Error('Invalid response');
+      if (!auth) return null;
+
+      const res = await axios.post(`${API_PATH}.create_supplier`, {
+        supplier_name: name.trim(),
+        supplier_type: "Company",
+        custom_branch: targetWarehouse,
+        secret_key: auth.secret_key,
+        employee_name: auth.employee_name,
+        employee_id: auth.employee_id
+      }, { withCredentials: true });
+
+      const msg = res.data?.message;
+      const sName = (msg && typeof msg === 'object' && msg.name) || msg?.supplier_name || res.data?.data?.supplier || name.trim();
+
+      Swal.fire({
+        icon: 'success',
+        title: 'Supplier Registered',
+        text: `Supplier "${sName}" authorized by ${auth.employee_name} and linked to your branch!`,
+        timer: 1800,
+        showConfirmButton: false
+      });
+
+      return { name: sName, supplier_name: sName };
     } catch (err) {
-      alert(`Cannot create supplier: ${err.message}`);
+      console.error("Supplier create error:", err);
+      Swal.fire({ icon: 'error', title: 'Registration Error', text: err.response?.data?.message || err.message });
       throw err;
     }
   };
@@ -2654,37 +2699,37 @@ function PurchaseReceiptList() {
 
         {/* CLASSIC SHORTCUTS GUIDE BAR */}
         <div className="so-shortcut-guide-banner" style={{ background: '#0f172a', borderBottom: '1px solid #1e293b', padding: '6px 14px', display: 'flex', alignItems: 'center', gap: '8px', overflowX: 'auto', flexShrink: 0 }}>
-          <div className="so-shortcut-banner-title" style={{ color: '#94a3b8', fontSize: '9px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.08em', display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}>
-            <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block animate-ping mr-1"></span>
-            SHORTCUTS
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'linear-gradient(135deg, #059669 0%, #047857 100%)', color: '#ffffff', padding: '3px 10px', borderRadius: '6px', fontSize: '11px', fontWeight: 900, letterSpacing: '0.04em', textTransform: 'uppercase', boxShadow: '0 2px 4px rgba(5, 150, 105, 0.3)', whiteSpace: 'nowrap', flexShrink: 0 }}>
+            <span className="w-2 h-2 rounded-full bg-white inline-block animate-ping mr-0.5"></span>
+            <span>PURCHASE RECEIPT</span>
           </div>
           <div className="so-shortcut-badges-wrapper" style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'nowrap' }}>
             <div className="so-shortcut-badge" style={{ background: '#ffffff', border: '1.5px solid #cbd5e1', borderRadius: '6px', padding: '3px 7px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-              <span className="so-shortcut-key" style={{ background: '#3b82f6', color: '#fff', fontSize: '9px', fontWeight: 900, padding: '1px 5px', borderRadius: '4px' }}>F2</span>
+              <span className="so-shortcut-key" style={{ background: '#3b82f6', color: '#fff', fontSize: '9px', fontWeight: 900, padding: '1px 5px', borderRadius: '4px' }}>{getShortcut('doc_editor', 'customerSupplier', 'F2')}</span>
               <span className="so-shortcut-label" style={{ fontSize: '11px', fontWeight: 900, color: '#0f172a' }}>SUPPLIER</span>
             </div>
             <div className="so-shortcut-badge" style={{ background: '#ffffff', border: '1.5px solid #cbd5e1', borderRadius: '6px', padding: '3px 7px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-              <span className="so-shortcut-key" style={{ background: '#6366f1', color: '#fff', fontSize: '9px', fontWeight: 900, padding: '1px 5px', borderRadius: '4px' }}>F3 / F4</span>
+              <span className="so-shortcut-key" style={{ background: '#6366f1', color: '#fff', fontSize: '9px', fontWeight: 900, padding: '1px 5px', borderRadius: '4px' }}>{getShortcut('doc_editor', 'itemSearch', 'F3')} / {getShortcut('doc_editor', 'barcode', 'F4')}</span>
               <span className="so-shortcut-label" style={{ fontSize: '11px', fontWeight: 900, color: '#0f172a' }}>ITEM / BARCODE</span>
             </div>
             <div className="so-shortcut-badge" style={{ background: '#ffffff', border: '1.5px solid #cbd5e1', borderRadius: '6px', padding: '3px 7px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-              <span className="so-shortcut-key" style={{ background: '#d946ef', color: '#fff', fontSize: '9px', fontWeight: 900, padding: '1px 5px', borderRadius: '4px' }}>F6</span>
+              <span className="so-shortcut-key" style={{ background: '#d946ef', color: '#fff', fontSize: '9px', fontWeight: 900, padding: '1px 5px', borderRadius: '4px' }}>{getShortcut('doc_editor', 'bulkQty', 'F6')}</span>
               <span className="so-shortcut-label" style={{ fontSize: '11px', fontWeight: 900, color: '#0f172a' }}>BULK QTY</span>
             </div>
             <div className="so-shortcut-badge" style={{ background: '#ffffff', border: '1.5px solid #cbd5e1', borderRadius: '6px', padding: '3px 7px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-              <span className="so-shortcut-key" style={{ background: '#8b5cf6', color: '#fff', fontSize: '9px', fontWeight: 900, padding: '1px 5px', borderRadius: '4px' }}>F8</span>
+              <span className="so-shortcut-key" style={{ background: '#8b5cf6', color: '#fff', fontSize: '9px', fontWeight: 900, padding: '1px 5px', borderRadius: '4px' }}>{getShortcut('doc_editor', 'uom', 'F8')}</span>
               <span className="so-shortcut-label" style={{ fontSize: '11px', fontWeight: 900, color: '#0f172a' }}>TOGGLE UOM</span>
             </div>
             <div className="so-shortcut-badge" style={{ background: '#ffffff', border: '1.5px solid #cbd5e1', borderRadius: '6px', padding: '3px 7px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-              <span className="so-shortcut-key" style={{ background: '#f59e0b', color: '#fff', fontSize: '9px', fontWeight: 900, padding: '1px 5px', borderRadius: '4px' }}>F7 / Alt+S</span>
+              <span className="so-shortcut-key" style={{ background: '#f59e0b', color: '#fff', fontSize: '9px', fontWeight: 900, padding: '1px 5px', borderRadius: '4px' }}>{getShortcut('doc_editor', 'saveDraft', 'F7')} / {getShortcut('doc_editor', 'saveDraftAlt', 'Alt+S')}</span>
               <span className="so-shortcut-label" style={{ fontSize: '11px', fontWeight: 900, color: '#0f172a' }}>SAVE DRAFT</span>
             </div>
             <div className="so-shortcut-badge" style={{ background: '#ffffff', border: '1.5px solid #cbd5e1', borderRadius: '6px', padding: '3px 7px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-              <span className="so-shortcut-key" style={{ background: '#0ea5e9', color: '#fff', fontSize: '9px', fontWeight: 900, padding: '1px 5px', borderRadius: '4px' }}>F10 / Alt+A</span>
+              <span className="so-shortcut-key" style={{ background: '#0ea5e9', color: '#fff', fontSize: '9px', fontWeight: 900, padding: '1px 5px', borderRadius: '4px' }}>{getShortcut('doc_editor', 'addRow', 'F10')} / {getShortcut('doc_editor', 'addRowAlt', 'Alt+A')}</span>
               <span className="so-shortcut-label" style={{ fontSize: '11px', fontWeight: 900, color: '#0f172a' }}>ADD ROW</span>
             </div>
             <div className="so-shortcut-badge" style={{ background: '#ffffff', border: '1.5px solid #cbd5e1', borderRadius: '6px', padding: '3px 7px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-              <span className="so-shortcut-key" style={{ background: '#10b981', color: '#fff', fontSize: '9px', fontWeight: 900, padding: '1px 5px', borderRadius: '4px' }}>F12 / Ctrl+Enter</span>
+              <span className="so-shortcut-key" style={{ background: '#10b981', color: '#fff', fontSize: '9px', fontWeight: 900, padding: '1px 5px', borderRadius: '4px' }}>{getShortcut('doc_editor', 'submit', 'F12')} / {getShortcut('doc_editor', 'submitAlt', 'Ctrl+Enter')}</span>
               <span className="so-shortcut-label" style={{ fontSize: '11px', fontWeight: 900, color: '#0f172a' }}>SUBMIT</span>
             </div>
             <div className="so-shortcut-badge" style={{ background: '#ffffff', border: '1.5px solid #cbd5e1', borderRadius: '6px', padding: '3px 7px', display: 'flex', alignItems: 'center', gap: '5px' }}>
@@ -2812,6 +2857,7 @@ function PurchaseReceiptList() {
                     return (
                       <th
                         key={col.id}
+                        className="relative group select-none"
                         style={{
                           width: colW,
                           minWidth: colW,
@@ -2828,7 +2874,13 @@ function PurchaseReceiptList() {
                           whiteSpace: 'nowrap'
                         }}
                       >
-                        {col.label}
+                        <span className="truncate block pointer-events-none">{col.label}</span>
+                        <div
+                          onMouseDown={(e) => handleResizeMouseDown(e, col.id)}
+                          className={`absolute top-0 right-0 w-2 h-full cursor-col-resize z-20 hover:bg-emerald-500/40 transition-colors ${resizingCol === col.id ? 'bg-emerald-600' : ''}`}
+                          style={{ touchAction: 'none' }}
+                          title="Drag to resize column"
+                        />
                       </th>
                     );
                   })}
@@ -3270,7 +3322,7 @@ function PurchaseReceiptList() {
                       <Copy size={15} />
                       <span>DUPLICATE</span>
                     </div>
-                    <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">Alt+D</span>
+                    <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">{getShortcut('doc_editor', 'duplicate', 'Alt+D')}</span>
                   </button>
 
                   {/* Slot 4: PRINT PDF */}
@@ -3301,7 +3353,7 @@ function PurchaseReceiptList() {
                         <Plus size={15} />
                         <span>ADD ROW</span>
                       </div>
-                      <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">F10</span>
+                      <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">{getShortcut('doc_editor', 'addRowAlt', 'Alt+A')}</span>
                     </button>
                   ) : (
                     <button
@@ -3315,7 +3367,7 @@ function PurchaseReceiptList() {
                         <LayoutGrid size={15} />
                         <span>BULK QTY</span>
                       </div>
-                      <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">F6</span>
+                      <span className="inline-flex items-center justify-center font-mono text-[11px] font-black px-2 py-0.5 rounded bg-white/20 text-white">{getShortcut('doc_editor', 'bulkQty', 'F6')}</span>
                     </button>
                   )}
 
@@ -4111,6 +4163,7 @@ function PurchaseReceiptList() {
                               value={formData.supplier ? { name: formData.supplier, supplier_name: formData.supplier_name } : null}
                               onSelect={selectSupplier}
                               fetchData={fetchSuppliers}
+                              createOption={handleSupplierCreate}
                               optionsLabel="supplier_name"
                               globalSearch={true}
                               onGlobalSearch={async (query) => {
@@ -4119,9 +4172,32 @@ function PurchaseReceiptList() {
                               }}
                               onActivate={async (supp) => {
                                 const sName = supp.name || supp.supplier_name;
-                                const res = await axios.post('/api/method/kyle_retail.retail_api.api.enable_supplier_for_branch_retail', { supplier: sName, supplier_name: sName, warehouse: localStorage.getItem('warehouse') }, { withCredentials: true });
-                                if (res.data.message?.success) {
-                                  Swal.fire({ icon: 'success', title: 'Supplier Linked', text: 'Linked to your branch!', timer: 1500, showConfirmButton: false });
+                                const targetWh = formData.set_warehouse || warehouse || localStorage.getItem('warehouse');
+
+                                const auth = await promptSecretCode({
+                                  title: 'Activate Supplier Authorization',
+                                  subtitle: `Enter Secret Code to sync "${sName}" to ${targetWh}`,
+                                  warehouse: targetWh
+                                });
+                                if (!auth) return false;
+
+                                const res = await axios.post('/api/method/kyle_retail.retail_api.api.enable_supplier_for_branch_retail', {
+                                  supplier: sName,
+                                  supplier_name: sName,
+                                  warehouse: targetWh,
+                                  secret_key: auth.secret_key,
+                                  employee_name: auth.employee_name,
+                                  employee_id: auth.employee_id
+                                }, { withCredentials: true });
+
+                                if (res.data.message?.success || res.data?.success) {
+                                  Swal.fire({
+                                    icon: 'success',
+                                    title: 'Supplier Linked',
+                                    text: `${supp.supplier_name || supp.name} authorized by ${auth.employee_name} and linked to your branch!`,
+                                    timer: 1800,
+                                    showConfirmButton: false
+                                  });
                                   return true;
                                 }
                                 return false;

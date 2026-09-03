@@ -161,24 +161,15 @@ function ClosingCollection() {
             return;
         }
 
-        if (collectionType === 'Bank Transfer' && !bankingReference) {
-            Swal.fire({
-                icon: 'warning',
-                title: 'Reference Required',
-                text: 'Please enter the Banking Reference / Voucher number for Bank Transfer.'
-            });
-            return;
-        }
-
         const confirm = await Swal.fire({
-            title: 'Confirm Collection Handover?',
+            title: 'Confirm Cash Handover?',
             html: `
                 <div style="text-align: left; font-size: 13px; line-height: 1.6; color: #334155; padding: 6px 0;">
                     <div><strong>Branch:</strong> ${selectedBranch}</div>
                     <div><strong>Date:</strong> ${selectedDate}</div>
                     <div><strong>Collector:</strong> ${collectorName || 'Manual'}</div>
                     <div><strong>Amount:</strong> AED ${enteredAmt.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
-                    <div><strong>Payment Mode:</strong> ${collectionType}</div>
+                    <div><strong>Mode:</strong> Cash Handover</div>
                 </div>
             `,
             icon: 'question',
@@ -196,11 +187,9 @@ function ClosingCollection() {
                 branch: selectedBranch,
                 posting_date: selectedDate,
                 amount: enteredAmt,
-                collection_type: collectionType,
+                collection_type: 'Cash',
                 secret_code: secretCode,
                 collector_name: collectorName,
-                bank_account: collectionType === 'Bank Transfer' ? bankAccount : null,
-                banking_reference: collectionType === 'Bank Transfer' ? bankingReference : null,
                 description: description
             };
 
@@ -336,10 +325,10 @@ function ClosingCollection() {
                         </div>
                         <div>
                             <h1 className="bca-header-title">
-                                Branch Closing Amount Collection
+                                Cash Collection
                             </h1>
                             <p className="bca-header-subtitle">
-                                Track daily closing cash, verify handovers with PIN & generate thermal slips
+                                Track total counter cash (Opening Float + Cash Sales), verify handovers with PIN & generate thermal slips
                             </p>
                         </div>
                     </div>
@@ -355,9 +344,9 @@ function ClosingCollection() {
                                     className="bca-control-select"
                                 >
                                     {branches.map((b) => (
-                                        <option key={b.name} value={b.name}>
-                                            {b.warehouse_name || b.name}
-                                        </option>
+                                         <option key={b.name} value={b.name}>
+                                             {b.warehouse_name || b.name}
+                                         </option>
                                     ))}
                                 </select>
                             </div>
@@ -386,10 +375,10 @@ function ClosingCollection() {
 
                 {/* ── 2. 3 ELEVATED KPI METRIC CARDS ── */}
                 <div className="bca-kpi-grid">
-                    {/* Total Closing Balance */}
+                    {/* Total Cash Balance */}
                     <div className="bca-kpi-card blue">
                         <div className="bca-kpi-top">
-                            <span className="bca-kpi-label">Total Closing Balance</span>
+                            <span className="bca-kpi-label">Total Cash Collection</span>
                             <div className="bca-kpi-badge-icon">
                                 <Coins size={16} />
                             </div>
@@ -400,8 +389,13 @@ function ClosingCollection() {
                                 {(balanceData.closing_balance || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </span>
                         </div>
-                        <div className="bca-kpi-footer">
-                            <span>From POS Shift Closing / Sales</span>
+                        <div className="bca-kpi-footer" style={{ display: 'flex', flexWrap: 'wrap', gap: 6, fontSize: 10.5 }}>
+                            <span className="px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 font-bold">
+                                Opening: AED {(balanceData.opening_cash || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                            </span>
+                            <span className="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 font-bold">
+                                Sales: AED {(balanceData.sales_cash || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                            </span>
                         </div>
                     </div>
 
@@ -553,66 +547,18 @@ function ClosingCollection() {
                                 ) : null}
                             </div>
 
-                            {/* Mode of Collection */}
+                            {/* Mode of Collection - Cash Only */}
                             <div className="bca-field-group">
                                 <label className="bca-field-label">
                                     Mode of Collection
                                 </label>
                                 <div className="bca-mode-selector">
-                                    <button
-                                        type="button"
-                                        onClick={() => setCollectionType('Cash')}
-                                        className={`bca-mode-tab ${collectionType === 'Cash' ? 'active' : ''}`}
-                                    >
+                                    <div className="bca-mode-tab active" style={{ cursor: 'default' }}>
                                         <Banknote size={15} />
                                         <span>Cash Handover</span>
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => setCollectionType('Bank Transfer')}
-                                        className={`bca-mode-tab ${collectionType === 'Bank Transfer' ? 'active' : ''}`}
-                                    >
-                                        <BankIcon size={15} />
-                                        <span>Bank Transfer</span>
-                                    </button>
+                                    </div>
                                 </div>
                             </div>
-
-                            {/* Bank Details (Conditional) */}
-                            {collectionType === 'Bank Transfer' && (
-                                <div className="bca-bank-box">
-                                    <div>
-                                        <label className="bca-field-label" style={{ color: '#0369a1', marginBottom: 4 }}>
-                                            Destination Bank Account
-                                        </label>
-                                        <select 
-                                            value={bankAccount} 
-                                            onChange={(e) => setBankAccount(e.target.value)}
-                                            className="bca-bank-select"
-                                        >
-                                            {(balanceData.bank_accounts || []).map((acc) => (
-                                                <option key={acc.name} value={acc.name}>
-                                                    {acc.account_name || acc.name}
-                                                </option>
-                                            ))}
-                                        </select>
-                                    </div>
-
-                                    <div>
-                                        <label className="bca-field-label" style={{ color: '#0369a1', marginBottom: 4 }}>
-                                            Banking Reference / Voucher No <span className="bca-field-req">*</span>
-                                        </label>
-                                        <input 
-                                            type="text" 
-                                            placeholder="e.g. UTR / Cheque / Ref #20000"
-                                            value={bankingReference}
-                                            onChange={(e) => setBankingReference(e.target.value)}
-                                            className="bca-bank-input"
-                                            required={collectionType === 'Bank Transfer'}
-                                        />
-                                    </div>
-                                </div>
-                            )}
 
                             {/* Remarks */}
                             <div className="bca-field-group">
@@ -620,7 +566,7 @@ function ClosingCollection() {
                                     Remarks / Notes (Optional)
                                 </label>
                                 <input 
-                                    type="text"
+                                    type="text" 
                                     placeholder="Add any handover notes"
                                     value={description}
                                     onChange={(e) => setDescription(e.target.value)}
@@ -687,20 +633,18 @@ function ClosingCollection() {
                                     <tr>
                                         <th>VOUCHER / TIME</th>
                                         <th className="text-right">AMOUNT (AED)</th>
-                                        <th>COLLECTOR PIN</th>
-                                        <th>EMPLOYEE</th>
-                                        <th>PAYMENT MODE</th>
+                                        <th>COLLECTOR / EMPLOYEE</th>
+                                        <th>REMARKS</th>
                                         <th className="text-center">SLIP</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {/* Row 1: Initial Closing Balance */}
+                                    {/* Row 1: Total Cash to Collect */}
                                     <tr className="bca-row-summary">
-                                        <td style={{ color: '#0f172a' }}>Initial Closing Balance</td>
+                                        <td style={{ color: '#0f172a' }}>Total Cash to Collect</td>
                                         <td className="text-right" style={{ color: '#0f172a' }}>
                                             {(balanceData.closing_balance || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                         </td>
-                                        <td style={{ color: '#94a3b8' }}>—</td>
                                         <td style={{ color: '#94a3b8' }}>—</td>
                                         <td style={{ color: '#94a3b8' }}>—</td>
                                         <td className="text-center" style={{ color: '#94a3b8' }}>—</td>
@@ -716,26 +660,11 @@ function ClosingCollection() {
                                             <td className="text-right" style={{ fontWeight: 800, color: '#047857', fontSize: 13 }}>
                                                 {parseFloat(col.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                             </td>
-                                            <td>
-                                                <span className="bca-pin-badge">
-                                                    {col.secret_code || '-'}
-                                                </span>
-                                            </td>
                                             <td style={{ fontWeight: 700, color: '#1e293b' }}>
                                                 {col.collector_name || col.employee || '-'}
                                             </td>
-                                            <td>
-                                                {col.collection_type === 'Bank Transfer' ? (
-                                                    <span className="bca-mode-badge-bank">
-                                                        <BankIcon size={12} />
-                                                        <span>{col.banking_reference || 'Bank Transfer'}</span>
-                                                    </span>
-                                                ) : (
-                                                    <span className="bca-mode-badge-cash">
-                                                        <Banknote size={12} />
-                                                        <span>Cash</span>
-                                                    </span>
-                                                )}
+                                            <td style={{ fontSize: 11, color: '#64748b' }}>
+                                                {col.description || 'Cash Handover'}
                                             </td>
                                             <td className="text-center">
                                                 <button 
@@ -758,12 +687,12 @@ function ClosingCollection() {
                                         <td className="text-right" style={{ fontSize: 14 }}>
                                             {(balanceData.remaining_balance || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                         </td>
-                                        <td colSpan={4}></td>
+                                        <td colSpan={3}></td>
                                     </tr>
 
                                     {filteredCollections.length === 0 && (
                                         <tr>
-                                            <td colSpan={6} style={{ textAlign: 'center', padding: '32px 16px', color: '#94a3b8', fontWeight: 600 }}>
+                                            <td colSpan={5} style={{ textAlign: 'center', padding: '32px 16px', color: '#94a3b8', fontWeight: 600 }}>
                                                 No collection handovers recorded yet for this date.
                                             </td>
                                         </tr>
@@ -795,7 +724,7 @@ function ClosingCollection() {
                             <div style={{ padding: 16, background: '#f1f5f9', maxHeight: '70vh', overflowY: 'auto' }}>
                                 <div id="thermal-collection-slip" style={{ fontFamily: 'monospace', fontSize: 11, color: '#000000', lineHeight: 1.3, background: '#ffffff', padding: 14, border: '1px dashed #cbd5e1', borderRadius: 8 }}>
                                     <div style={{ fontWeight: 900, fontSize: 13, textTransform: 'uppercase', textAlign: 'center' }}>{printDoc.branch || selectedBranch}</div>
-                                    <div style={{ fontSize: 9.5, fontWeight: 700, textTransform: 'uppercase', textAlign: 'center', color: '#475569', marginTop: 2 }}>Branch Closing Amount Collection</div>
+                                    <div style={{ fontSize: 9.5, fontWeight: 700, textTransform: 'uppercase', textAlign: 'center', color: '#475569', marginTop: 2 }}>Cash Collection Handover</div>
                                     <div style={{ textAlign: 'center', margin: '6px 0', fontSize: 10 }}>================================</div>
 
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 10.5 }}>
@@ -808,11 +737,7 @@ function ClosingCollection() {
                                             <span>{printDoc.posting_date} {printDoc.posting_time || ''}</span>
                                         </div>
                                         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                            <span>Collector Code:</span>
-                                            <span style={{ fontWeight: 800 }}>{printDoc.secret_code || '-'}</span>
-                                        </div>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                            <span>Collector Name:</span>
+                                            <span>Employee / Collector:</span>
                                             <span style={{ fontWeight: 800 }}>{printDoc.collector_name || printDoc.employee || '-'}</span>
                                         </div>
                                         <div style={{ display: 'flex', justifyContent: 'space-between' }}>

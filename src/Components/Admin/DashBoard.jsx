@@ -347,6 +347,7 @@ function Dashboard() {
       case 'New Closing Entry':
         return <ClosingEntry />;
       case 'Closing Collection':
+      case 'Cash Collection':
         return <ClosingCollection />;
       case 'POS Invoices':
         return <InvoiceList />;

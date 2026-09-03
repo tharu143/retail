@@ -65,7 +65,7 @@ const routeMap = {
   'Opening Entry': { icon: Lock },
   'Closing Entry List': { icon: FileText },
   'New Closing Entry': { icon: Monitor },
-  'Closing Collection': { icon: Wallet },
+  'Cash Collection': { icon: Wallet },
   'POS Invoices': { icon: Receipt },
 
   'Inter-Branch Requests': { icon: ArrowRightLeft },
@@ -112,7 +112,7 @@ const sections = [
     icon: Monitor,
     colorClass: 'icon-pos',
     cardClass: 'card-pos',
-    items: ['POS Profile', 'Opening Entry', 'Closing Entry List', 'Closing Collection'],
+    items: ['POS Profile', 'Opening Entry', 'Closing Entry List', 'Cash Collection'],
   },
   {
     title: 'Reports',
@@ -175,7 +175,7 @@ function Sidebar({ activeItem: propsActiveItem, setActiveItem: propsSetActiveIte
     if (pathname === '/posprofilelist') return 'POS Profile';
     if (pathname === '/posopeningentrylist') return 'Opening Entry';
     if (pathname === '/posclosingentrylist' || pathname === '/closingentry') return 'Closing Entry List';
-    if (pathname === '/closingcollection' || pathname === '/closing-collection') return 'Closing Collection';
+    if (pathname === '/closingcollection' || pathname === '/closing-collection' || pathname === '/cashcollection' || pathname === '/cash-collection') return 'Cash Collection';
 
     if (pathname.includes('/interbranchrequest') && !pathname.includes('new')) return 'Inter-Branch Requests';
     if (pathname === '/newinterbranchrequest') return 'New Transfer Request';

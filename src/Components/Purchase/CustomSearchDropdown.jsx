@@ -241,8 +241,6 @@ const CustomSearchDropdown = ({
       if (displayResults.length > 0) {
         const idxToSelect = selectedIndex >= 0 ? selectedIndex : 0;
         handleItemClick(displayResults[idxToSelect]);
-      } else if (query.trim() && createOption) {
-        handleCreate();
       }
     } else if (e.key === 'Escape') {
       e.preventDefault();

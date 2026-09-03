@@ -1441,9 +1441,9 @@ export default function SalesOrderDetails() {
 
                 {/* 1. CLASSIC SHORTCUTS GUIDE BAR */}
                 <div className="so-shortcut-guide-banner" style={{ background: '#0f172a', borderBottom: '1px solid #1e293b', padding: '6px 14px', display: 'flex', alignItems: 'center', gap: '8px', overflowX: 'auto', flexShrink: 0 }}>
-                    <div className="so-shortcut-banner-title" style={{ color: '#94a3b8', fontSize: '9px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.08em', display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}>
-                        <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block animate-ping mr-1"></span>
-                        SHORTCUTS
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)', color: '#ffffff', padding: '3px 10px', borderRadius: '6px', fontSize: '11px', fontWeight: 900, letterSpacing: '0.04em', textTransform: 'uppercase', boxShadow: '0 2px 4px rgba(99, 102, 241, 0.3)', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                        <span className="w-2 h-2 rounded-full bg-white inline-block animate-ping mr-0.5"></span>
+                        <span>SALES ORDER</span>
                     </div>
                     <div className="so-shortcut-badges-wrapper" style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'nowrap' }}>
                         <div className="so-shortcut-badge" style={{ background: '#ffffff', border: '1.5px solid #cbd5e1', borderRadius: '6px', padding: '3px 7px', display: 'flex', alignItems: 'center', gap: '5px' }}>
