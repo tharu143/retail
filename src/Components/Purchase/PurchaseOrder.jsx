@@ -2153,31 +2153,127 @@ function PurchaseOrder() {
     try {
       const targetWarehouse = formData.set_warehouse || warehouse || localStorage.getItem('warehouse');
       
-      // Prompt Employee Secret Code
+      // Fetch dynamic Supplier Groups from API
+      let supplierGroups = ['All Supplier Groups', 'Local', 'Distributor', 'Services'];
+      try {
+        const groupRes = await axios.get('/api/resource/Supplier Group?fields=["name"]&limit=100', { withCredentials: true });
+        if (groupRes.data?.data && Array.isArray(groupRes.data.data)) {
+          supplierGroups = groupRes.data.data.map(g => g.name);
+        }
+      } catch (e) {
+        console.warn("Using fallback supplier groups", e);
+      }
+
+      const groupOptionsHtml = supplierGroups.map(g => `<option value="${g}">${g}</option>`).join('');
+
+      // Step 1: Clean Supplier Details Popup
+      const { value: formValues } = await Swal.fire({
+        title: '<div class="text-left font-black text-slate-800 text-lg flex items-center gap-2"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block"></span> Create New Supplier</div>',
+        html: `
+          <div style="text-align: left; display: flex; flex-direction: column; gap: 12px; font-size: 12px; margin-top: 8px;">
+            <div>
+              <label style="font-weight: 800; color: #334155; font-size: 11px; display: block; margin-bottom: 4px;">SUPPLIER NAME <span style="color:#ef4444">*</span></label>
+              <input id="swal_po_supp_name" class="swal2-input !h-10 !m-0 !w-full !text-xs !font-bold !rounded-xl" value="${(name || '').trim()}" placeholder="Enter Supplier Legal / Trade Name" />
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+              <div>
+                <label style="font-weight: 800; color: #334155; font-size: 11px; display: block; margin-bottom: 4px;">MOBILE NO</label>
+                <input id="swal_po_supp_mobile" class="swal2-input !h-10 !m-0 !w-full !text-xs !rounded-xl" placeholder="e.g. 0501234567" />
+              </div>
+              <div>
+                <label style="font-weight: 800; color: #334155; font-size: 11px; display: block; margin-bottom: 4px;">EMAIL</label>
+                <input id="swal_po_supp_email" type="email" class="swal2-input !h-10 !m-0 !w-full !text-xs !rounded-xl" placeholder="supplier@example.com" />
+              </div>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+              <div>
+                <label style="font-weight: 800; color: #334155; font-size: 11px; display: block; margin-bottom: 4px;">TAX ID / TRN (15 DIGITS)</label>
+                <input id="swal_po_supp_tax" maxlength="15" class="swal2-input !h-10 !m-0 !w-full !text-xs !rounded-xl !font-mono" placeholder="100XXXXXXXXX003" />
+              </div>
+              <div>
+                <label style="font-weight: 800; color: #334155; font-size: 11px; display: block; margin-bottom: 4px;">SUPPLIER GROUP</label>
+                <select id="swal_po_supp_group" class="swal2-input !h-10 !m-0 !w-full !text-xs !bg-white !rounded-xl">
+                  ${groupOptionsHtml}
+                </select>
+              </div>
+            </div>
+          </div>
+        `,
+        focusConfirm: false,
+        showCancelButton: true,
+        confirmButtonText: 'Next: Authorize →',
+        confirmButtonColor: '#10b981',
+        cancelButtonColor: '#64748b',
+        customClass: { popup: '!rounded-2xl !p-6' },
+        didOpen: () => {
+          const taxInput = document.getElementById('swal_po_supp_tax');
+          if (taxInput) {
+            taxInput.addEventListener('input', (e) => {
+              e.target.value = e.target.value.replace(/[^0-9]/g, '').slice(0, 15);
+            });
+          }
+        },
+        preConfirm: () => {
+          const suppName = document.getElementById('swal_po_supp_name')?.value?.trim();
+          const mobile = document.getElementById('swal_po_supp_mobile')?.value?.trim();
+          const email = document.getElementById('swal_po_supp_email')?.value?.trim();
+          const taxId = document.getElementById('swal_po_supp_tax')?.value?.trim();
+          const suppGroup = document.getElementById('swal_po_supp_group')?.value;
+
+          if (!suppName) {
+            Swal.showValidationMessage('Supplier Name is required');
+            return false;
+          }
+          if (taxId && taxId.length !== 15) {
+            Swal.showValidationMessage('TAX ID / TRN must be exactly 15 digits');
+            return false;
+          }
+          return { suppName, mobile, email, taxId, suppGroup };
+        }
+      });
+
+      if (!formValues) return null;
+
+      // Step 2: Mandatory Employee Secret Code Prompt
       const auth = await promptSecretCode({
-        title: 'Register Supplier Authorization',
-        subtitle: `Enter Secret Code to register and link supplier "${name.trim()}"`,
+        title: 'Authorize Supplier Creation',
+        subtitle: `Enter Employee Secret Code to register "${formValues.suppName}"`,
         warehouse: targetWarehouse
       });
-      if (!auth) return null;
+      if (!auth || !auth.secret_key) return null;
+
+      Swal.fire({
+        title: 'Creating & Linking...',
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading()
+      });
 
       const res = await axios.post(`${API_PATH}.create_supplier`, {
-        supplier_name: name.trim(),
+        supplier_name: formValues.suppName,
         supplier_type: "Company",
+        supplier_group: formValues.suppGroup || "All Supplier Groups",
         custom_branch: targetWarehouse,
         secret_key: auth.secret_key,
         employee_name: auth.employee_name,
-        employee_id: auth.employee_id
+        employee_id: auth.employee_id,
+        mobile_no: formValues.mobile,
+        email_id: formValues.email,
+        tax_id: formValues.taxId
       }, { withCredentials: true });
 
+      if (res.data?.status === 'error' || res.data?.message?.status === 'error') {
+        throw new Error(res.data?.message?.message || res.data?.message || 'Creation failed');
+      }
+
       const msg = res.data?.message;
-      const sName = (msg && typeof msg === 'object' && msg.name) || msg?.supplier_name || res.data?.data?.supplier || name.trim();
-      
+      const sName = (msg && typeof msg === 'object' && msg.name) || msg?.supplier_name || res.data?.data?.supplier || formValues.suppName;
+      const authEmp = auth.employee_name || res.data?.data?.employee_name || 'Authorized Staff';
+
       Swal.fire({
         icon: 'success',
-        title: 'Supplier Registered',
-        text: `Supplier "${sName}" authorized by ${auth.employee_name} and linked to your branch!`,
-        timer: 1800,
+        title: 'Supplier Created',
+        text: `Supplier "${sName}" successfully registered by ${authEmp}!`,
+        timer: 2000,
         showConfirmButton: false
       });
 

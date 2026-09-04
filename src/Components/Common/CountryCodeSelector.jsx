@@ -159,31 +159,31 @@ const CountryCodeSelector = ({
         ref={buttonRef}
         type="button"
         onClick={handleToggle}
-        className={`h-full flex items-center justify-between gap-1.5 px-3 outline-none transition-all cursor-pointer select-none font-bold text-xs shrink-0 ${
+        className={`flex items-center justify-between gap-1.5 px-2.5 outline-none transition-all cursor-pointer select-none font-bold text-xs shrink-0 ${
           variant === 'classic'
-            ? 'bg-slate-100 hover:bg-slate-200 text-slate-800 border-r-2 border-slate-200'
+            ? 'h-full bg-slate-100 hover:bg-slate-200 text-slate-800 border-r-2 border-slate-200'
             : variant === 'modal'
-            ? 'bg-slate-50 hover:bg-slate-100 text-slate-800 border border-slate-300 rounded-lg'
-            : 'bg-slate-50/90 hover:bg-slate-100 text-slate-700 border-r border-slate-200'
+            ? 'h-10 bg-slate-50/80 hover:bg-slate-100 text-slate-800 border border-slate-300 rounded-lg shadow-2xs'
+            : 'h-full bg-slate-50/90 hover:bg-slate-100 text-slate-700 border-r border-slate-200'
         } ${className}`}
         style={{
-          minWidth: '86px',
-          width: '86px',
-          height: '100%',
+          minWidth: '98px',
+          width: '98px',
+          height: variant === 'modal' ? '40px' : '100%',
           ...style,
         }}
         title={`Country Code: ${selectedCountry.country} (${selectedCountry.code}) - Press F4 to toggle`}
       >
         <div className="flex items-center gap-1.5 min-w-0">
-          <span className="text-base leading-none drop-shadow-sm">{selectedCountry.flag || '🌐'}</span>
-          <span className="font-black text-xs text-slate-900 tracking-tight">
+          <span className="text-base leading-none drop-shadow-xs">{selectedCountry.flag || '🌐'}</span>
+          <span className="font-mono font-black text-[12.5px] text-slate-800 tracking-tight">
             {selectedCountry.code}
           </span>
         </div>
         <ChevronDown
-          size={13}
+          size={14}
           className={`text-slate-400 transition-transform duration-200 flex-shrink-0 ${
-            isOpen ? 'rotate-180 text-sky-600' : ''
+            isOpen ? 'rotate-180 text-emerald-600' : ''
           }`}
         />
       </button>

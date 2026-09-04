@@ -35,7 +35,8 @@ import {
     Lock,
     KeyRound,
     Users,
-    Clock
+    Clock,
+    Edit
 } from 'lucide-react';
 import { BrowserMultiFormatReader, BarcodeFormat, DecodeHintType } from '@zxing/library';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
@@ -1463,6 +1464,8 @@ function Home() {
     const [showDropdown, setShowDropdown] = useState(false);
     const [searchLoading, setSearchLoading] = useState(false);
     const [showCreateModal, setShowCreateModal] = useState(false);
+    const [isEditingCustomer, setIsEditingCustomer] = useState(false);
+    const [editingCustomerId, setEditingCustomerId] = useState(null);
     const [showCreateSecretKey, setShowCreateSecretKey] = useState(false);
     const [customerGroups, setCustomerGroups] = useState([]);
     const [createForm, setCreateForm] = useState({
@@ -2109,6 +2112,8 @@ function Home() {
             }
         }
 
+        setIsEditingCustomer(false);
+        setEditingCustomerId(null);
         setCreateForm({
             name: nameVal,
             phone: phoneVal,
@@ -2124,6 +2129,72 @@ function Home() {
         });
         setShowCreateSecretKey(false);
         setShowCreateModal(true); setShowDropdown(false);
+    };
+
+    const openEditCustomer = async (cust) => {
+        if (!cust || cust.name === 'Cash') return;
+
+        let fullCust = cust;
+        let addrLine1 = cust.address_line1 || '';
+        let addrLine2 = cust.address_line2 || '';
+        let cityVal = cust.city || '';
+        let emirateVal = cust.emirate || cust.state || '';
+        let countryVal = cust.country || 'United Arab Emirates';
+
+        // Fetch full customer doc and linked address if available online
+        if (!isOffline && cust.name) {
+            try {
+                const fetched = await frappeCall({
+                    method: 'frappe.client.get',
+                    args: { doctype: 'Customer', name: cust.name }
+                });
+                if (fetched) {
+                    fullCust = { ...cust, ...fetched };
+                }
+
+                // Fetch linked address if available
+                const addrRes = await axios.get('/api/resource/Address', {
+                    params: {
+                        filters: JSON.stringify([['Dynamic Link', 'link_doctype', '=', 'Customer'], ['Dynamic Link', 'link_name', '=', cust.name]]),
+                        fields: JSON.stringify(['name', 'address_line1', 'address_line2', 'city', 'state', 'country']),
+                        limit: 1
+                    },
+                    withCredentials: true
+                });
+                const addrList = addrRes.data?.data || [];
+                if (addrList.length > 0) {
+                    addrLine1 = addrList[0].address_line1 || '';
+                    addrLine2 = addrList[0].address_line2 || '';
+                    cityVal = addrList[0].city || '';
+                    emirateVal = addrList[0].state || '';
+                    countryVal = addrList[0].country || 'United Arab Emirates';
+                }
+            } catch (fetchErr) {
+                console.warn("Could not fetch full customer address details for edit:", fetchErr);
+            }
+        }
+
+        const rawPhone = fullCust.mobile_no || fullCust.phone || '';
+        const phoneWithoutPrefix = stripCountryPrefix(rawPhone);
+
+        setIsEditingCustomer(true);
+        setEditingCustomerId(fullCust.name);
+        setCreateForm({
+            name: fullCust.customer_name || fullCust.name || '',
+            phone: phoneWithoutPrefix,
+            email: fullCust.email_id || fullCust.email || '',
+            customer_group: fullCust.customer_group || 'Retail Customer',
+            secret_key: '',
+            address_line1: addrLine1,
+            address_line2: addrLine2,
+            city: cityVal,
+            emirate: emirateVal,
+            country: countryVal,
+            custom_trn: fullCust.custom_trn || ''
+        });
+        setShowCreateSecretKey(false);
+        setShowCreateModal(true);
+        setShowDropdown(false);
     };
 
     const promoteCustomerGroup = async (cust, newGroup) => {
@@ -2331,7 +2402,80 @@ function Home() {
                 }
             }, 100);
         }
-    }; const createCustomer = async () => {
+    };
+
+    const handleCreateCustomerGroup = async () => {
+        const { value: formValues } = await Swal.fire({
+            title: '<div class="text-left font-black text-slate-800 text-base flex items-center gap-2"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block"></span> Create Customer Group</div>',
+            html: `
+                <div style="text-align: left; display: flex; flex-direction: column; gap: 10px; font-size: 12px; margin-top: 8px;">
+                    <div>
+                        <label style="font-weight: 800; color: #334155; font-size: 11px; display: block; margin-bottom: 4px;">CUSTOMER GROUP NAME <span style="color:#ef4444">*</span></label>
+                        <input id="swal_cust_group_name" class="swal2-input !h-10 !m-0 !w-full !text-xs !font-bold !rounded-xl" placeholder="e.g. VIP Customer / Wholesaler" />
+                    </div>
+                    <div>
+                        <label style="font-weight: 800; color: #334155; font-size: 11px; display: block; margin-bottom: 4px;">PARENT CUSTOMER GROUP</label>
+                        <input id="swal_cust_group_parent" class="swal2-input !h-10 !m-0 !w-full !text-xs !rounded-xl !bg-slate-50" value="All Customer Groups" readonly />
+                    </div>
+                </div>
+            `,
+            focusConfirm: false,
+            showCancelButton: true,
+            confirmButtonText: 'Create Group',
+            confirmButtonColor: '#10b981',
+            cancelButtonColor: '#64748b',
+            customClass: { popup: '!rounded-2xl !p-5' },
+            preConfirm: () => {
+                const groupName = document.getElementById('swal_cust_group_name')?.value?.trim();
+                if (!groupName) {
+                    Swal.showValidationMessage('Customer Group Name is required');
+                    return false;
+                }
+                return groupName;
+            }
+        });
+
+        if (!formValues) return;
+
+        try {
+            Swal.fire({
+                title: 'Creating Group...',
+                allowOutsideClick: false,
+                didOpen: () => Swal.showLoading()
+            });
+
+            const res = await axios.post('/api/method/kyle_retail.retail_api.api.create_customer_group', {
+                customer_group_name: formValues,
+                parent_customer_group: 'All Customer Groups'
+            }, { withCredentials: true });
+
+            const newGroupName = res.data?.message?.name || res.data?.name || formValues;
+            
+            // Add to dropdown list and auto-select
+            setCustomerGroups(prev => {
+                const existing = Array.isArray(prev) ? prev : [];
+                return existing.includes(newGroupName) ? existing : [...existing, newGroupName];
+            });
+            setCreateForm(prev => ({ ...prev, customer_group: newGroupName }));
+
+            Swal.fire({
+                icon: 'success',
+                title: 'Group Created',
+                text: `Customer Group "${newGroupName}" created and selected!`,
+                timer: 1800,
+                showConfirmButton: false
+            });
+        } catch (err) {
+            console.error("Create customer group error:", err);
+            Swal.fire({
+                icon: 'error',
+                title: 'Error Creating Group',
+                text: err.response?.data?.message || err.message || 'Could not create Customer Group'
+            });
+        }
+    };
+
+    const createCustomer = async () => {
         const cleanedName = createForm.name.trim().replace(/[^a-zA-Z0-9\s.\-_/&()#]/g, '');
         if (!cleanedName) {
             Swal.fire('Validation Error', 'Customer name is required and can contain letters, numbers, spaces, and basic symbols.', 'warning');
@@ -2410,9 +2554,11 @@ function Home() {
         const formattedPhone = `${countryCodePrefix}${strippedNumber}`;
 
         // ── Duplicate mobile number check ──────────────────────────────────────
+        // If editing and mobile is unchanged, skip duplicate check
         // 1. Check local IndexedDB cache first (fast)
         const localDup = await db.customers.filter(c =>
-            c.mobile_no && c.mobile_no.replace(/\D/g, '') === strippedNumber
+            c.mobile_no && c.mobile_no.replace(/\D/g, '') === strippedNumber &&
+            (!isEditingCustomer || c.name !== editingCustomerId)
         ).first();
 
         if (localDup) {
@@ -2432,12 +2578,13 @@ function Home() {
                 params: {
                     filters: JSON.stringify([['mobile_no', '=', formattedPhone]]),
                     fields: JSON.stringify(['name', 'mobile_no']),
-                    limit: 1
+                    limit: 5
                 },
                 withCredentials: true
             });
             const dupList = dupRes.data?.data || [];
-            if (Array.isArray(dupList) && dupList.length > 0) {
+            // If editing, check if contact belongs to a different customer
+            if (Array.isArray(dupList) && dupList.length > 0 && !isEditingCustomer) {
                 setCreatingCustomer(false);
                 Swal.fire({
                     icon: 'warning',
@@ -2457,8 +2604,12 @@ function Home() {
 
         try {
             const formData = new FormData();
+            if (isEditingCustomer && editingCustomerId) {
+                formData.append("customer_id", editingCustomerId);
+            }
             formData.append("customer_name", createForm.name.trim());
             formData.append("customer_group", selectedGroup);
+            if (enteredSecretKey) formData.append("secret_key", enteredSecretKey);
             if (formattedPhone) formData.append("phone", formattedPhone);
             if (createForm.email) formData.append("email", createForm.email);
             if (warehouse) formData.append("warehouse", warehouse);
@@ -2486,15 +2637,16 @@ function Home() {
             const inner = result.message || result;
 
             if (inner.status === "success" || inner.name) {
+                const actionText = isEditingCustomer ? 'Updated' : 'Created';
                 Swal.fire({
                     icon: 'success',
-                    title: 'Customer Created',
-                    text: `"${createForm.name}" has been saved to ERPNext.`,
+                    title: `Customer ${actionText}`,
+                    text: `"${createForm.name}" has been ${actionText.toLowerCase()} in ERPNext.`,
                     timer: 2000,
                     showConfirmButton: false
                 });
                 const newCust = {
-                    name: inner.customer_id || inner.name,
+                    name: inner.customer_id || inner.name || editingCustomerId,
                     customer_name: createForm.name.trim(),
                     customer_group: selectedGroup,
                     mobile_no: formattedPhone || "",
@@ -2506,6 +2658,8 @@ function Home() {
                 await db.customers.put(newCust); // Keep local searchable copy
                 pickCustomer(newCust);
                 setShowCreateModal(false);
+                setIsEditingCustomer(false);
+                setEditingCustomerId(null);
                 setCreateForm({
                     name: '', phone: '', email: '',
                     customer_group: 'Retail Customer',
@@ -2514,14 +2668,14 @@ function Home() {
                     custom_trn: ''
                 });
             } else {
-                Swal.fire('Error', inner.message || "Failed to create customer", 'error');
+                Swal.fire('Error', inner.message || `Failed to ${isEditingCustomer ? 'update' : 'create'} customer`, 'error');
             }
         } catch (err) {
             console.error(err);
             if (isOffline) {
                 // Save to local cache for offline usage
                 const offlineCustomer = {
-                    name: `OFFLINE-CUST-${Date.now()}`,
+                    name: isEditingCustomer && editingCustomerId ? editingCustomerId : `OFFLINE-CUST-${Date.now()}`,
                     customer_name: createForm.name.trim(),
                     customer_group: selectedGroup,
                     mobile_no: formattedPhone || "",
@@ -2534,9 +2688,11 @@ function Home() {
                 await db.customers.put(offlineCustomer);
                 pickCustomer(offlineCustomer);
                 setShowCreateModal(false);
+                setIsEditingCustomer(false);
+                setEditingCustomerId(null);
                 Swal.fire('Offline Save', 'Customer saved locally. Will sync when online.', 'info');
             } else {
-                Swal.fire('Error', "Network error while creating customer", 'error');
+                Swal.fire('Error', `Network error while ${isEditingCustomer ? 'updating' : 'creating'} customer`, 'error');
             }
         } finally {
             setCreatingCustomer(false);  // ← Loading ends (always!)
@@ -3025,16 +3181,10 @@ function Home() {
                 };
                 handleAddToBill(printJobItem, 'Nos', jobResult.total_qty);
                 setBarcodeInput('');
-                if (theme === 'legacy') {
-                    setTimeout(() => {
-                        const itemIndex = billItems.findIndex(i => i.id === printJobItem.id && i.uom === 'Nos');
-                        const finalIndex = itemIndex !== -1 ? itemIndex : billItems.length;
-                        const targetInput = document.getElementById(`desc-input-${finalIndex}`) || document.getElementById(`qty-input-${finalIndex}`);
-                        if (targetInput) {
-                            targetInput.focus();
-                            targetInput.select();
-                        }
-                    }, 50);
+                const inlineSearchEl = document.getElementById('legacy-inline-search');
+                if (inlineSearchEl) {
+                    inlineSearchEl.focus();
+                    inlineSearchEl.select?.();
                 } else {
                     barcodeInputRef.current?.focus();
                 }
@@ -3094,16 +3244,10 @@ function Home() {
 
                 handleAddToBill(itemToBill, scannedUom);
                 setBarcodeInput('');
-                if (theme === 'legacy') {
-                    setTimeout(() => {
-                        const itemIndex = billItems.findIndex(i => i.id === itemToBill.id && i.uom === scannedUom);
-                        const finalIndex = itemIndex !== -1 ? itemIndex : billItems.length;
-                        const targetInput = document.getElementById(`desc-input-${finalIndex}`) || document.getElementById(`qty-input-${finalIndex}`);
-                        if (targetInput) {
-                            targetInput.focus();
-                            targetInput.select();
-                        }
-                    }, 50);
+                const inlineSearchEl = document.getElementById('legacy-inline-search');
+                if (inlineSearchEl) {
+                    inlineSearchEl.focus();
+                    inlineSearchEl.select?.();
                 } else {
                     barcodeInputRef.current?.focus();
                 }
@@ -3401,17 +3545,10 @@ function Home() {
                 setBarcodeInput('');
                 setShowItemDropdown(false);
                 setActiveItemIndex(-1);
-                if (theme === 'legacy') {
-                    setTimeout(() => {
-                        const uom = selectedItem.uom_conversions?.Nos ? 'Nos' : (selectedItem.uom_conversions?.Piece ? 'Piece' : 'Nos');
-                        const itemIndex = billItems.findIndex(i => i.id === selectedItem.id && i.uom === uom);
-                        const finalIndex = itemIndex !== -1 ? itemIndex : billItems.length;
-                        const targetInput = document.getElementById(`desc-input-${finalIndex}`) || document.getElementById(`qty-input-${finalIndex}`);
-                        if (targetInput) {
-                            targetInput.focus();
-                            targetInput.select();
-                        }
-                    }, 50);
+                const inlineSearchEl = document.getElementById('legacy-inline-search');
+                if (inlineSearchEl) {
+                    inlineSearchEl.focus();
+                    inlineSearchEl.select?.();
                 } else {
                     barcodeInputRef.current?.focus();
                 }
@@ -5599,14 +5736,20 @@ function Home() {
                 >
                     <div className="flex items-center gap-3">
                         <div className="w-9 h-9 rounded-lg bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0">
-                            <UserPlus size={18} />
+                            {isEditingCustomer ? <Edit size={18} /> : <UserPlus size={18} />}
                         </div>
                         <div>
                             <div className="flex items-center gap-2">
-                                <h3 className="text-sm font-bold text-white tracking-wide uppercase m-0">Register New Customer</h3>
-                                <span className="text-[9px] font-bold uppercase tracking-wider text-emerald-400 bg-emerald-950 border border-emerald-800 px-2 py-0.5 rounded">Directory</span>
+                                <h3 className="text-sm font-bold text-white tracking-wide uppercase m-0">
+                                    {isEditingCustomer ? 'Edit Customer Details' : 'Register New Customer'}
+                                </h3>
+                                <span className="text-[9px] font-bold uppercase tracking-wider text-emerald-400 bg-emerald-950 border border-emerald-800 px-2 py-0.5 rounded">
+                                    {isEditingCustomer ? 'Edit Mode' : 'Directory'}
+                                </span>
                             </div>
-                            <p className="text-[11px] text-slate-400 m-0">Quickly add customer details to your directory</p>
+                            <p className="text-[11px] text-slate-400 m-0">
+                                {isEditingCustomer ? 'Update customer information & address' : 'Quickly add customer details to your directory'}
+                            </p>
                         </div>
                     </div>
                     <button
@@ -5682,9 +5825,18 @@ function Home() {
                         </div>
 
                         <div>
-                            <label className="text-[11px] font-bold text-slate-600 block mb-1">
-                                Customer Group <span className="text-rose-500">*</span>
-                            </label>
+                            <div className="flex items-center justify-between mb-1">
+                                <label className="text-[11px] font-bold text-slate-600 block">
+                                    Customer Group <span className="text-rose-500">*</span>
+                                </label>
+                                <button
+                                    type="button"
+                                    onClick={handleCreateCustomerGroup}
+                                    className="text-[10px] font-black text-emerald-600 hover:text-emerald-700 uppercase tracking-tight flex items-center gap-1 hover:underline cursor-pointer"
+                                >
+                                    + New Group
+                                </button>
+                            </div>
                             <div className="relative">
                                 <select
                                     value={createForm.customer_group}
@@ -5881,12 +6033,12 @@ function Home() {
                             {creatingCustomer ? (
                                 <>
                                     <Loader2 size={14} className="animate-spin" />
-                                    <span>Creating...</span>
+                                    <span>{isEditingCustomer ? 'Updating...' : 'Creating...'}</span>
                                 </>
                             ) : (
                                 <>
-                                    <UserPlus size={15} />
-                                    <span>Create Customer</span>
+                                    {isEditingCustomer ? <Edit size={15} /> : <UserPlus size={15} />}
+                                    <span>{isEditingCustomer ? 'Update Customer' : 'Create Customer'}</span>
                                 </>
                             )}
                         </button>
@@ -9989,109 +10141,127 @@ function Home() {
 
                 {/* CLASSIC HEADER FORM */}
                 <div className="classic-header-form">
-                    <div className="classic-field flex items-center gap-3 relative flex-1">
-                        <label className="uppercase font-black text-[11px] text-slate-500 tracking-tight whitespace-nowrap">CUSTOMER</label>
-                        <div className="relative group flex-1" ref={dropdownRef}>
-                            {/* Country code + mobile input wrapper */}
-                            <div className={`flex items-center h-11 border-2 rounded-xl overflow-hidden transition-all w-full ${selectedCustomer && selectedCustomer.name !== 'Cash'
-                                ? 'border-emerald-200 focus-within:border-emerald-500 bg-emerald-50/10'
-                                : 'border-slate-200 focus-within:border-sky-500 bg-slate-50/50'
-                                }`}>
-                                <CountryCodeSelector
-                                    value={countryCodePrefix}
-                                    variant="classic"
-                                    onChange={newVal => {
-                                        setCountryCodePrefix(newVal);
-                                        localStorage.setItem('pos_country_code', newVal);
-                                    }}
-                                />
-                                <input
-                                    ref={mobileInputRef}
-                                    value={customerMobile || (selectedCustomer && selectedCustomer.name !== 'Cash' ? (selectedCustomer.mobile_no || selectedCustomer.name) : customerName)}
-                                    onChange={e => {
-                                        justSelectedCustomerRef.current = false;
-                                        setActiveCustomerIndex(-1);
-                                        const val = e.target.value;
-                                        if (/^[\d+]*$/.test(val)) {
-                                            const cleaned = val.replace(/\D/g, '');
-                                            const rule = getCountryRule(countryCodePrefix);
-                                            const restricted = cleaned.slice(0, rule.maxLen);
-                                            setCustomerMobile(restricted);
-                                            setCustomerName('');
-                                        } else {
-                                            setCustomerName(val);
-                                            setCustomerMobile('');
-                                        }
-                                        if (selectedCustomer) setSelectedCustomer(null);
-                                    }}
-                                    onFocus={() => { setSearchContext('customer'); if (!selectedCustomer && !justSelectedCustomerRef.current && (customerMobile || customerName).trim().length >= 1) setShowDropdown(true); setShowSettingsMenu(false); }}
-                                    onClick={() => { setSearchContext('customer'); if (!selectedCustomer && !justSelectedCustomerRef.current && (customerMobile || customerName).trim().length >= 1) setShowDropdown(true); setShowSettingsMenu(false); }}
-                                    onBlur={() => setTimeout(() => setShowDropdown(false), 300)}
-                                    onKeyDown={handleMobileEnter}
-                                    className={`flex-1 h-full px-3 text-base font-black outline-none bg-transparent ${selectedCustomer && selectedCustomer.name !== 'Cash'
-                                        ? 'text-emerald-950 font-black'
-                                        : 'text-slate-900'
-                                        }`}
-                                    placeholder="Mobile or Name..."
-                                    style={{ minWidth: '110px' }}
-                                />
+                    <div className="classic-field flex items-center gap-2.5 relative flex-1 min-w-0">
+                        <label className="uppercase font-black text-[11px] text-slate-500 tracking-tight whitespace-nowrap shrink-0">CUSTOMER</label>
+                        
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                            {/* 1. Mobile / Search Box (Equal Proportion flex-1) */}
+                            <div className="relative group flex-1 min-w-[200px]" ref={dropdownRef}>
+                                <div className={`flex items-center h-11 border-2 rounded-xl overflow-hidden transition-all w-full shadow-xs ${selectedCustomer && selectedCustomer.name !== 'Cash'
+                                    ? 'border-emerald-300 focus-within:border-emerald-500 bg-emerald-50/20'
+                                    : 'border-slate-200 focus-within:border-sky-500 bg-white'
+                                    }`}>
+                                    <CountryCodeSelector
+                                        value={countryCodePrefix}
+                                        variant="classic"
+                                        onChange={newVal => {
+                                            setCountryCodePrefix(newVal);
+                                            localStorage.setItem('pos_country_code', newVal);
+                                        }}
+                                    />
+                                    <input
+                                        ref={mobileInputRef}
+                                        value={customerMobile || (selectedCustomer && selectedCustomer.name !== 'Cash' ? (selectedCustomer.mobile_no || selectedCustomer.name) : customerName)}
+                                        onChange={e => {
+                                            justSelectedCustomerRef.current = false;
+                                            setActiveCustomerIndex(-1);
+                                            const val = e.target.value;
+                                            if (/^[\d+]*$/.test(val)) {
+                                                const cleaned = val.replace(/\D/g, '');
+                                                const rule = getCountryRule(countryCodePrefix);
+                                                const restricted = cleaned.slice(0, rule.maxLen);
+                                                setCustomerMobile(restricted);
+                                                setCustomerName('');
+                                            } else {
+                                                setCustomerName(val);
+                                                setCustomerMobile('');
+                                            }
+                                            if (selectedCustomer) setSelectedCustomer(null);
+                                        }}
+                                        onFocus={() => { setSearchContext('customer'); if (!selectedCustomer && !justSelectedCustomerRef.current && (customerMobile || customerName).trim().length >= 1) setShowDropdown(true); setShowSettingsMenu(false); }}
+                                        onClick={() => { setSearchContext('customer'); if (!selectedCustomer && !justSelectedCustomerRef.current && (customerMobile || customerName).trim().length >= 1) setShowDropdown(true); setShowSettingsMenu(false); }}
+                                        onBlur={() => setTimeout(() => setShowDropdown(false), 300)}
+                                        onKeyDown={handleMobileEnter}
+                                        className={`flex-1 h-full px-3 text-xs font-black outline-none bg-transparent ${selectedCustomer && selectedCustomer.name !== 'Cash'
+                                            ? 'text-emerald-950 font-black'
+                                            : 'text-slate-900'
+                                            }`}
+                                        placeholder="Search Mobile or Name..."
+                                        style={{ minWidth: '100px' }}
+                                    />
 
-                                {customerLoading && (
-                                    <div className="pr-2 flex items-center">
-                                        <div className="w-3 h-3 border-2 border-sky-500 border-t-transparent rounded-full animate-spin" />
-                                    </div>
-                                )}
-                            </div>
-                            {showDropdown && (
-                                <div className="absolute top-full left-0 w-full bg-white border border-slate-200 rounded-xl shadow-lg z-[9999] max-h-48 overflow-y-auto mt-1 py-1">
-                                    {searchResults.length === 0 ? (
-                                        <div style={{ padding: '12px 14px', color: '#64748b', textAlign: 'center', fontSize: '12px', fontWeight: 'bold' }}>
-                                            {(customerMobile || customerName).trim().length < 2 ? 'Type 2+ chars' : 'No customers found'}
-                                        </div>
-                                    ) : searchResults.map((c, idx) => {
-                                        const isSelected = idx === activeCustomerIndex;
-                                        return (
-                                            <div
-                                                key={c.name}
-                                                id={`cust-item-1-${idx}`}
-                                                className={`cursor-pointer text-xs transition-colors ${isSelected ? 'bg-sky-100 text-sky-950 font-black' : 'hover:bg-slate-50 text-slate-700 font-semibold'}`}
-                                                style={{ padding: '8px 14px', borderBottom: '1px solid #f1f5f9' }}
-                                                onMouseDown={(e) => { e.preventDefault(); pickCustomer(c); setActiveCustomerIndex(-1); }}
-                                            >
-                                                <div className="flex items-center justify-between gap-2">
-                                                    <span className="truncate">{c.customer_name}</span>
-                                                    {c.mobile_no && (
-                                                        <span className="text-[10px] opacity-60 font-mono bg-slate-100 px-1.5 py-0.5 rounded flex-shrink-0 text-slate-700">{c.mobile_no}</span>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-                                    {searchResults.every(c => c.customer_name.toLowerCase() !== (customerMobile || customerName).trim().toLowerCase()) && (customerMobile || customerName).trim() && (
-                                        <div
-                                            onMouseDown={(e) => { e.preventDefault(); openCreate((customerMobile || customerName).trim()); }}
-                                            className="bg-sky-50 text-sky-600 font-black text-[10px] uppercase tracking-wider cursor-pointer hover:bg-sky-100 text-center border-t border-sky-100 transition-colors"
-                                            style={{ padding: '10px 14px' }}
-                                        >
-                                            + Register New Customer
+                                    {customerLoading && (
+                                        <div className="pr-3 flex items-center">
+                                            <div className="w-3.5 h-3.5 border-2 border-sky-500 border-t-transparent rounded-full animate-spin" />
                                         </div>
                                     )}
                                 </div>
-                            )}
-                        </div>
-                        {selectedCustomer && selectedCustomer.name !== 'Cash' && selectedCustomer.customer_name && (
-                            <div className="h-11 px-3 flex items-center gap-1.5 bg-emerald-50 border-2 border-emerald-200 text-emerald-700 rounded-xl text-xs font-black uppercase tracking-wider shadow-sm shrink-0 animate-in slide-in-from-left-2 duration-200">
-                                <User size={13} className="text-emerald-600" />
-                                <span>{selectedCustomer.customer_name}</span>
-                            </div>
-                        )}
 
-                        <div className={`h-11 px-3 flex items-center border-2 rounded-xl text-xs font-black uppercase tracking-wider shadow-sm shrink-0 gap-1.5 transition-all ${selectedCustomer && selectedCustomer.name !== 'Cash'
-                            ? 'bg-sky-50 border-sky-200 text-sky-700'
-                            : 'bg-slate-100 border-slate-200 text-slate-700'
-                            }`}>
-                            <Layers size={13} className={selectedCustomer && selectedCustomer.name !== 'Cash' ? 'text-sky-500' : 'text-slate-500'} />
-                            <span>{selectedCustomer ? (selectedCustomer.customer_group || 'Retail Customer') : 'Retail Customer'}</span>
+                                {showDropdown && (
+                                    <div className="absolute top-full left-0 w-full bg-white border border-slate-200 rounded-xl shadow-xl z-[9999] max-h-56 overflow-y-auto mt-1 py-1">
+                                        {searchResults.length === 0 ? (
+                                            <div style={{ padding: '12px 14px', color: '#64748b', textAlign: 'center', fontSize: '12px', fontWeight: 'bold' }}>
+                                                {(customerMobile || customerName).trim().length < 2 ? 'Type 2+ chars' : 'No customers found'}
+                                            </div>
+                                        ) : searchResults.map((c, idx) => {
+                                            const isSelected = idx === activeCustomerIndex;
+                                            return (
+                                                <div
+                                                    key={c.name}
+                                                    id={`cust-item-1-${idx}`}
+                                                    className={`cursor-pointer text-xs transition-colors ${isSelected ? 'bg-sky-100 text-sky-950 font-black' : 'hover:bg-slate-50 text-slate-700 font-semibold'}`}
+                                                    style={{ padding: '8px 14px', borderBottom: '1px solid #f1f5f9' }}
+                                                    onMouseDown={(e) => { e.preventDefault(); pickCustomer(c); setActiveCustomerIndex(-1); }}
+                                                >
+                                                    <div className="flex items-center justify-between gap-2">
+                                                        <span className="truncate">{c.customer_name}</span>
+                                                        {c.mobile_no && (
+                                                            <span className="text-[10px] opacity-60 font-mono bg-slate-100 px-1.5 py-0.5 rounded flex-shrink-0 text-slate-700">{c.mobile_no}</span>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                        {searchResults.every(c => c.customer_name.toLowerCase() !== (customerMobile || customerName).trim().toLowerCase()) && (customerMobile || customerName).trim() && (
+                                            <div
+                                                onMouseDown={(e) => { e.preventDefault(); openCreate((customerMobile || customerName).trim()); }}
+                                                className="bg-sky-50 text-sky-600 font-black text-[10px] uppercase tracking-wider cursor-pointer hover:bg-sky-100 text-center border-t border-sky-100 transition-colors"
+                                                style={{ padding: '10px 14px' }}
+                                            >
+                                                + Register New Customer
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* 2. Customer Name + Edit Box (Equal Proportion flex-1) */}
+                            {selectedCustomer && selectedCustomer.name !== 'Cash' && selectedCustomer.customer_name && (
+                                <div className="h-11 flex-1 min-w-[200px] flex items-center justify-between bg-emerald-50 border-2 border-emerald-300 rounded-xl overflow-hidden shadow-xs animate-in slide-in-from-left-2 duration-200">
+                                    <div className="px-3.5 h-full flex items-center gap-2 text-emerald-950 text-xs font-black uppercase tracking-tight min-w-0 flex-1">
+                                        <User size={15} className="text-emerald-600 shrink-0" />
+                                        <span className="truncate text-[12.5px]" title={selectedCustomer.customer_name}>{selectedCustomer.customer_name}</span>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => openEditCustomer(selectedCustomer)}
+                                        className="h-full px-4 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white flex items-center gap-1.5 text-xs font-black uppercase tracking-wider transition-all cursor-pointer border-none shrink-0"
+                                        title="Edit Customer Details"
+                                    >
+                                        <Edit size={13} />
+                                        <span>Edit</span>
+                                    </button>
+                                </div>
+                            )}
+
+                            {/* 3. Customer Group Badge (Equal Proportion flex-1 or solid min-w) */}
+                            <div className={`h-11 px-4 flex items-center justify-center border-2 rounded-xl text-xs font-black uppercase tracking-tight shadow-xs shrink-0 gap-2 transition-all ${selectedCustomer && selectedCustomer.name !== 'Cash'
+                                ? 'bg-sky-50 border-sky-200 text-sky-700 flex-1 min-w-[170px]'
+                                : 'bg-slate-50 border-slate-200 text-slate-600 min-w-[160px]'
+                                }`}>
+                                <Layers size={15} className={selectedCustomer && selectedCustomer.name !== 'Cash' ? 'text-sky-500 shrink-0' : 'text-slate-400 shrink-0'} />
+                                <span className="truncate text-[12px]">{selectedCustomer ? (selectedCustomer.customer_group || 'Retail Customer') : 'Retail Customer'}</span>
+                            </div>
                         </div>
                     </div>
 
@@ -10402,16 +10572,13 @@ function Home() {
                                                                     handleAddToBill(it);
                                                                     setBarcodeInput('');
                                                                     setShowItemDropdown(false);
-                                                                    setTimeout(() => {
-                                                                        const uom = it.uom_conversions?.Nos ? 'Nos' : (it.uom_conversions?.Piece ? 'Piece' : 'Nos');
-                                                                        const itemIndex = billItems.findIndex(bi => bi.id === it.id && bi.uom === uom);
-                                                                        const finalIndex = itemIndex !== -1 ? itemIndex : billItems.length;
-                                                                        const targetInput = document.getElementById(`desc-input-${finalIndex}`) || document.getElementById(`qty-input-${finalIndex}`);
-                                                                        if (targetInput) {
-                                                                            targetInput.focus();
-                                                                            targetInput.select();
-                                                                        }
-                                                                    }, 50);
+                                                                    const inlineSearchEl = document.getElementById('legacy-inline-search');
+                                                                    if (inlineSearchEl) {
+                                                                        inlineSearchEl.focus();
+                                                                        inlineSearchEl.select?.();
+                                                                    } else {
+                                                                        barcodeInputRef.current?.focus();
+                                                                    }
                                                                 }}
                                                                 onMouseEnter={() => setActiveItemIndex(i)}
                                                             >
@@ -10462,51 +10629,44 @@ function Home() {
                                 {/* 2. ACTION BUTTON GRID (LEFT SIDE - ~55% width) */}
                                 <div className="xl:col-span-7 flex">
                                     <div className="w-full bg-white p-3 border border-slate-200 shadow-sm" style={{ borderRadius: '26px' }}>
-                                        <div className="grid grid-cols-5 grid-rows-2 gap-2.5 w-full h-full">
-                                            {/* ROW 1: CASH, BANK, CARD, PRINT, DIRECT */}
-                                            {/* CASH */}
+                                        <div className="grid grid-cols-4 grid-rows-2 gap-2.5 w-full h-full">
+                                            {/* ROW 1: ACTIVE ORDERS, PRINT BILL, PAY & PRINT, PAY NO PRINT */}
+                                            {/* ACTIVE ORDERS */}
                                             <button
-                                                onClick={() => { setShowSettingsMenu(false); if (billItems.length > 0) { completePayment('Cash'); } else { Swal.fire('Info', 'No items in bill', 'info'); } }}
-                                                disabled={paymentLoading}
-                                                className="h-14 bg-[#047857] hover:bg-[#065f46] disabled:opacity-50 text-white px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-sm cursor-pointer border-none"
+                                                onClick={() => { setShowSettingsMenu(false); setShowDraftsModal(true); }}
+                                                className="h-14 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-sm cursor-pointer"
                                                 style={{ borderRadius: '18px' }}
+                                                title="View Active Saved Orders (Drafts) (Press F9)"
                                             >
-                                                <div className="flex items-center gap-1.5 text-[11px] font-extrabold uppercase tracking-wider text-white">
-                                                    <Banknote size={15} />
-                                                    <span>CASH</span>
+                                                <div className="flex items-center gap-1.5 text-[11px] font-extrabold uppercase tracking-wider text-emerald-900">
+                                                    <Package size={15} className="text-emerald-700" />
+                                                    <span className="truncate">Active Orders</span>
                                                 </div>
-                                                <span className="inline-flex items-center justify-center font-mono text-[9px] font-extrabold px-2 py-0.5 rounded-md bg-slate-900 text-white shadow-sm">{formatKeyLabel(getShortcut('pos_home', 'directCash', 'Alt+1'))}</span>
+                                                <div className="flex items-center gap-1">
+                                                    <span className="inline-flex items-center justify-center font-mono text-[9px] font-extrabold px-2 py-0.5 rounded-md bg-emerald-200 text-emerald-900 shadow-sm">{formatKeyLabel(getShortcut('pos_home', 'orders', 'F9'))}</span>
+                                                    {pendingSyncCount > 0 && (
+                                                        <span className="bg-rose-500 text-white text-[9px] px-1.5 py-0.5 font-bold rounded-full">
+                                                            {pendingSyncCount}
+                                                        </span>
+                                                    )}
+                                                </div>
                                             </button>
 
-                                            {/* BANK */}
+                                            {/* PRINT BILL */}
                                             <button
-                                                onClick={() => { setShowSettingsMenu(false); if (billItems.length > 0) { completePayment('Bank'); } else { Swal.fire('Info', 'No items in bill', 'info'); } }}
-                                                disabled={paymentLoading}
-                                                className="h-14 bg-[#1d4ed8] hover:bg-[#1e40af] disabled:opacity-50 text-white px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-sm cursor-pointer border-none"
+                                                onClick={() => { setShowSettingsMenu(false); handleShowRecentInvoicesPrint(); }}
+                                                className="h-14 bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border border-indigo-300 px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-sm cursor-pointer"
                                                 style={{ borderRadius: '18px' }}
+                                                title="Print Recent Bill (Press F10)"
                                             >
-                                                <div className="flex items-center gap-1.5 text-[11px] font-extrabold uppercase tracking-wider text-white">
-                                                    <Building2 size={15} />
-                                                    <span>BANK</span>
+                                                <div className="flex items-center gap-1.5 text-[11px] font-extrabold uppercase tracking-wider text-indigo-900">
+                                                    <Printer size={15} className="text-indigo-700" />
+                                                    <span className="truncate">Print Bill</span>
                                                 </div>
-                                                <span className="inline-flex items-center justify-center font-mono text-[9px] font-extrabold px-2 py-0.5 rounded-md bg-slate-900 text-white shadow-sm">{formatKeyLabel(getShortcut('pos_home', 'directBank', 'Ctrl+V'))}</span>
+                                                <span className="inline-flex items-center justify-center font-mono text-[9px] font-extrabold px-2 py-0.5 rounded-md bg-indigo-200 text-indigo-900 shadow-sm">{formatKeyLabel(getShortcut('pos_home', 'printBill', 'F10'))}</span>
                                             </button>
 
-                                            {/* CARD */}
-                                            <button
-                                                onClick={() => { setShowSettingsMenu(false); if (billItems.length > 0) { setSelectedPaymentMode('Card'); setShowCardTerminalModal(true); } else { Swal.fire('Info', 'No items in bill', 'info'); } }}
-                                                disabled={paymentLoading}
-                                                className="h-14 bg-[#7e22ce] hover:bg-[#6b21a8] disabled:opacity-50 text-white px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-sm cursor-pointer border-none"
-                                                style={{ borderRadius: '18px' }}
-                                            >
-                                                <div className="flex items-center gap-1.5 text-[11px] font-extrabold uppercase tracking-wider text-white">
-                                                    <CreditCard size={15} />
-                                                    <span>CARD</span>
-                                                </div>
-                                                <span className="inline-flex items-center justify-center font-mono text-[9px] font-extrabold px-2 py-0.5 rounded-md bg-slate-900 text-white shadow-sm">{formatKeyLabel(getShortcut('pos_home', 'directCard', 'Alt+2'))}</span>
-                                            </button>
-
-                                            {/* PRINT / LOADING CONTROL IN ROW 1 OR FULL SPAN */}
+                                            {/* PRINT / LOADING CONTROL IN ROW 1 */}
                                             {paymentLoading ? (
                                                 <button
                                                     className="col-span-2 h-14 bg-slate-100 text-slate-500 border border-slate-200 p-2 flex items-center justify-center gap-2 opacity-80 cursor-not-allowed font-bold text-[11px] uppercase"
@@ -10518,7 +10678,7 @@ function Home() {
                                                 </button>
                                             ) : (
                                                 <>
-                                                    {/* PRINT */}
+                                                    {/* PAY & PRINT */}
                                                     <button
                                                         onClick={() => { setShowSettingsMenu(false); handleCheckoutWithMode('print'); }}
                                                         disabled={paymentLoading}
@@ -10532,7 +10692,7 @@ function Home() {
                                                         <span className="inline-flex items-center justify-center font-mono text-[9px] font-extrabold px-2 py-0.5 rounded-md bg-slate-900 text-white shadow-sm">SPACE</span>
                                                     </button>
 
-                                                    {/* DIRECT */}
+                                                    {/* PAY NO PRINT */}
                                                     <button
                                                         onClick={() => { setShowSettingsMenu(false); handleCheckoutWithMode('no-print'); }}
                                                         disabled={paymentLoading}
@@ -10541,14 +10701,14 @@ function Home() {
                                                     >
                                                         <div className="flex items-center gap-1.5 text-[11px] font-extrabold uppercase tracking-wider text-white">
                                                             <Zap size={15} />
-                                                            <span>DIRECT</span>
+                                                            <span>PAY NO PRINT</span>
                                                         </div>
                                                         <span className="inline-flex items-center justify-center font-mono text-[9px] font-extrabold px-2 py-0.5 rounded-md bg-slate-900 text-white shadow-sm">{formatKeyLabel('Alt+N')}</span>
                                                     </button>
                                                 </>
                                             )}
 
-                                            {/* ROW 2: DISCOUNT, LOYALTY, SAVE DRAFT, A4, CLEAR BILL */}
+                                            {/* ROW 2: DISCOUNT, LOYALTY, SAVE DRAFT, A4, RESET (5 buttons across or neatly organized) */}
                                             {/* DISCOUNT */}
                                             <button
                                                 onClick={() => { setShowSettingsMenu(false); setShowDiscountModal(true); }}
@@ -10588,21 +10748,7 @@ function Home() {
                                                 <span className="inline-flex items-center justify-center font-mono text-[9px] font-extrabold px-2 py-0.5 rounded-md bg-slate-900 text-white shadow-sm">{formatKeyLabel(getShortcut('pos_home', 'saveDraft', 'Alt+S'))}</span>
                                             </button>
 
-                                            {/* A4 */}
-                                            <button
-                                                onClick={() => { setShowSettingsMenu(false); handleCheckoutWithMode('print-a4'); }}
-                                                disabled={paymentLoading}
-                                                className="h-14 bg-[#7e22ce] hover:bg-[#6b21a8] disabled:opacity-50 text-white px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-sm cursor-pointer border-none"
-                                                style={{ borderRadius: '18px' }}
-                                            >
-                                                <div className="flex items-center gap-1.5 text-[11px] font-extrabold uppercase tracking-wider text-white">
-                                                    <FileText size={15} />
-                                                    <span>A4</span>
-                                                </div>
-                                                <span className="inline-flex items-center justify-center font-mono text-[9px] font-extrabold px-2 py-0.5 rounded-md bg-slate-900 text-white shadow-sm">{formatKeyLabel('Alt+A')}</span>
-                                            </button>
-
-                                            {/* CLEAR BILL */}
+                                            {/* RESET */}
                                             <button
                                                 onClick={() => { setShowSettingsMenu(false); clearBillHandler(); }}
                                                 className="h-14 bg-[#dc2626] hover:bg-[#b91c1c] text-white px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-sm cursor-pointer border-none"
@@ -10620,50 +10766,51 @@ function Home() {
 
                                 {/* 1. TOTALS CARD (RIGHT SIDE - ~45% width) */}
                                 <div className="xl:col-span-5 bg-white border border-slate-200 p-3 shadow-sm flex flex-col justify-between gap-3" style={{ borderRadius: '26px' }}>
-                                    {/* TOP ROW: 3 BUTTONS — EQUAL FULL WIDTH STRETCH WITH SPACING */}
-                                    <div className="grid grid-cols-3 gap-2 w-full">
+                                    {/* TOP ROW: CASH, CARD, BANK — MATCHING LEFT GRID STYLE (H-14, ROUNDED-18px) */}
+                                    <div className="grid grid-cols-3 gap-2.5 w-full">
+                                        {/* CASH */}
                                         <button
-                                            onClick={() => { setShowSettingsMenu(false); setShowDraftsModal(true); }}
-                                            className="w-full px-3 py-1.5 flex items-center justify-between gap-1.5 border transition-all font-extrabold text-[10px] uppercase tracking-wider select-none bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100 cursor-pointer"
-                                            style={{ borderRadius: '9999px' }}
-                                            title="View Active Saved Orders (Drafts) (Press F9)"
+                                            onClick={() => { setShowSettingsMenu(false); if (billItems.length > 0) { completePayment('Cash'); } else { Swal.fire('Info', 'No items in bill', 'info'); } }}
+                                            disabled={paymentLoading}
+                                            className="h-14 bg-[#047857] hover:bg-[#065f46] disabled:opacity-50 text-white px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-sm cursor-pointer border-none"
+                                            style={{ borderRadius: '18px' }}
+                                            title="Direct Cash Payment (Press Alt+1)"
                                         >
-                                            <div className="flex items-center gap-1 min-w-0 overflow-hidden">
-                                                <Package size={13} className="flex-shrink-0" />
-                                                <span className="truncate">Active Orders</span>
+                                            <div className="flex items-center gap-1.5 text-[11px] font-extrabold uppercase tracking-wider text-white">
+                                                <Banknote size={15} />
+                                                <span>CASH</span>
                                             </div>
-                                            <div className="flex items-center gap-1 flex-shrink-0">
-                                                <span className="inline-flex items-center justify-center font-mono text-[8px] font-bold bg-emerald-200 text-emerald-800 px-1.5 py-0.5" style={{ borderRadius: '9999px' }}>{formatKeyLabel(getShortcut('pos_home', 'orders', 'F9'))}</span>
-                                                {pendingSyncCount > 0 && (
-                                                    <span className="bg-rose-500 text-white text-[9px] px-1.5 py-0.5 font-bold" style={{ borderRadius: '9999px' }}>
-                                                        {pendingSyncCount}
-                                                    </span>
-                                                )}
-                                            </div>
+                                            <span className="inline-flex items-center justify-center font-mono text-[9px] font-extrabold px-2 py-0.5 rounded-md bg-slate-900 text-white shadow-sm">{formatKeyLabel(getShortcut('pos_home', 'directCash', 'Alt+1'))}</span>
                                         </button>
+
+                                        {/* CARD */}
                                         <button
-                                            onClick={() => { setShowSettingsMenu(false); handleShowRecentInvoicesPrint(); }}
-                                            className="w-full px-3 py-1.5 flex items-center justify-between gap-1.5 bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100 transition-all font-extrabold text-[10px] uppercase tracking-wider select-none cursor-pointer"
-                                            style={{ borderRadius: '9999px' }}
-                                            title="Print Recent Bill (Press F10)"
+                                            onClick={() => { setShowSettingsMenu(false); if (billItems.length > 0) { setSelectedPaymentMode('Card'); setShowCardTerminalModal(true); } else { Swal.fire('Info', 'No items in bill', 'info'); } }}
+                                            disabled={paymentLoading}
+                                            className="h-14 bg-[#7e22ce] hover:bg-[#6b21a8] disabled:opacity-50 text-white px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-sm cursor-pointer border-none"
+                                            style={{ borderRadius: '18px' }}
+                                            title="Direct Card Payment (Press Alt+2)"
                                         >
-                                            <div className="flex items-center gap-1 min-w-0 overflow-hidden">
-                                                <Printer size={13} className="flex-shrink-0" />
-                                                <span className="truncate">Print Bill</span>
+                                            <div className="flex items-center gap-1.5 text-[11px] font-extrabold uppercase tracking-wider text-white">
+                                                <CreditCard size={15} />
+                                                <span>CARD</span>
                                             </div>
-                                            <span className="inline-flex items-center justify-center font-mono text-[8px] font-bold bg-indigo-200 text-indigo-800 px-1.5 py-0.5 flex-shrink-0" style={{ borderRadius: '9999px' }}>{formatKeyLabel(getShortcut('pos_home', 'printBill', 'F10'))}</span>
+                                            <span className="inline-flex items-center justify-center font-mono text-[9px] font-extrabold px-2 py-0.5 rounded-md bg-slate-900 text-white shadow-sm">{formatKeyLabel(getShortcut('pos_home', 'directCard', 'Alt+2'))}</span>
                                         </button>
+
+                                        {/* BANK */}
                                         <button
-                                            onClick={() => setShowPrintJobModal(true)}
-                                            className="w-full px-3 py-1.5 flex items-center justify-between gap-1.5 bg-sky-50 text-sky-700 border border-sky-200 hover:bg-sky-100 transition-all font-extrabold text-[10px] uppercase tracking-wider select-none cursor-pointer"
-                                            style={{ borderRadius: '9999px' }}
-                                            title="Print Job Calculator"
+                                            onClick={() => { setShowSettingsMenu(false); if (billItems.length > 0) { completePayment('Bank'); } else { Swal.fire('Info', 'No items in bill', 'info'); } }}
+                                            disabled={paymentLoading}
+                                            className="h-14 bg-[#1d4ed8] hover:bg-[#1e40af] disabled:opacity-50 text-white px-3 py-2 flex items-center justify-between transition-all active:scale-95 shadow-sm cursor-pointer border-none"
+                                            style={{ borderRadius: '18px' }}
+                                            title="Direct Bank Payment (Press Ctrl+V)"
                                         >
-                                            <div className="flex items-center gap-1 min-w-0 overflow-hidden">
-                                                <Printer size={13} className="text-sky-600 flex-shrink-0" />
-                                                <span className="truncate">PRINT JOB</span>
+                                            <div className="flex items-center gap-1.5 text-[11px] font-extrabold uppercase tracking-wider text-white">
+                                                <Building2 size={15} />
+                                                <span>BANK</span>
                                             </div>
-                                            <span className="inline-flex items-center justify-center font-mono text-[8px] font-bold bg-sky-200 text-sky-800 px-1.5 py-0.5 flex-shrink-0" style={{ borderRadius: '9999px' }}>⇧P</span>
+                                            <span className="inline-flex items-center justify-center font-mono text-[9px] font-extrabold px-2 py-0.5 rounded-md bg-slate-900 text-white shadow-sm">{formatKeyLabel(getShortcut('pos_home', 'directBank', 'Ctrl+V'))}</span>
                                         </button>
                                     </div>
 
