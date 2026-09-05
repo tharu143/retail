@@ -7917,7 +7917,7 @@ function Home() {
                 handleBulkQtyUpdate();
             }
 
-            // Toggle UOM of active cart item
+            // Toggle UOM of active cart item (F8)
             if (isShortcutPressed(e, 'pos_home', 'uom', 'F8')) {
                 e.preventDefault();
                 if (selectedBillIndex !== -1) {
@@ -7926,6 +7926,27 @@ function Home() {
                     toggleUom(item.id, newUom);
                 } else {
                     Swal.fire('Info', 'Select an item in cart first', 'info');
+                }
+            }
+
+            // Set Box UOM Directly / Toggle Box (Ctrl+B / Cmd+B / Option+B)
+            const isCtrlOrCmdB = (e.ctrlKey || e.metaKey || (isMac && e.altKey)) && (e.key.toLowerCase() === 'b' || e.code === 'KeyB');
+            if (isShortcutPressed(e, 'pos_home', 'boxUom', 'Ctrl+B') || isCtrlOrCmdB || e.key === '∫') {
+                e.preventDefault();
+                e.stopPropagation();
+                if (selectedBillIndex !== -1) {
+                    const item = billItems[selectedBillIndex];
+                    if (item.custom_pieces_per_box && item.custom_pieces_per_box > 1) {
+                        const targetUom = item.uom === 'Box' ? (item.stock_uom || (item.uom_conversions?.Nos ? 'Nos' : 'Piece') || 'Piece') : 'Box';
+                        toggleUom(item.id, targetUom);
+                        const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 1200 });
+                        Toast.fire({ icon: 'success', title: `UOM: ${targetUom} (${targetUom === 'Box' ? `${item.custom_pieces_per_box} Pcs` : '1 Pc'})` });
+                    } else {
+                        const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 1500 });
+                        Toast.fire({ icon: 'warning', title: `Box packaging not configured for this item` });
+                    }
+                } else {
+                    Swal.fire('Info', 'Select an item in cart first (Press ↑ / ↓)', 'info');
                 }
             }
 
@@ -8316,6 +8337,21 @@ function Home() {
                         const item = billItems[selectedBillIndex];
                         const newUom = item.uom === 'Box' ? (item.uom_conversions?.Nos ? 'Nos' : 'Piece') : 'Box';
                         toggleUom(item.id, newUom);
+                    } else {
+                        Swal.fire('Info', 'Select an item in cart first', 'info');
+                    }
+                }
+            },
+            {
+                key: getShortcut('pos_home', 'boxUom', isMac ? '⌘B' : 'Ctrl+B'), label: 'Box UOM', colorClass: 'violet', action: () => {
+                    if (selectedBillIndex !== -1) {
+                        const item = billItems[selectedBillIndex];
+                        if (item.custom_pieces_per_box && item.custom_pieces_per_box > 1) {
+                            const targetUom = item.uom === 'Box' ? (item.stock_uom || (item.uom_conversions?.Nos ? 'Nos' : 'Piece') || 'Piece') : 'Box';
+                            toggleUom(item.id, targetUom);
+                        } else {
+                            Swal.fire('Info', 'Box packaging not configured for this item', 'info');
+                        }
                     } else {
                         Swal.fire('Info', 'Select an item in cart first', 'info');
                     }
@@ -8727,6 +8763,21 @@ function Home() {
                         const item = billItems[selectedBillIndex];
                         const newUom = item.uom === 'Box' ? (item.uom_conversions?.Nos ? 'Nos' : 'Piece') : 'Box';
                         toggleUom(item.id, newUom);
+                    } else {
+                        Swal.fire('Info', 'Select an item in cart first', 'info');
+                    }
+                }
+            },
+            {
+                key: getShortcut('pos_home', 'boxUom', isMac ? '⌘B' : 'Ctrl+B'), label: 'Box UOM', color: '#8b5cf6', icon: <Package size={12} />, action: () => {
+                    if (selectedBillIndex !== -1) {
+                        const item = billItems[selectedBillIndex];
+                        if (item.custom_pieces_per_box && item.custom_pieces_per_box > 1) {
+                            const targetUom = item.uom === 'Box' ? (item.stock_uom || (item.uom_conversions?.Nos ? 'Nos' : 'Piece') || 'Piece') : 'Box';
+                            toggleUom(item.id, targetUom);
+                        } else {
+                            Swal.fire('Info', 'Box packaging not configured for this item', 'info');
+                        }
                     } else {
                         Swal.fire('Info', 'Select an item in cart first', 'info');
                     }

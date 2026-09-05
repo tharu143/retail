@@ -14,7 +14,8 @@ const CustomSearchDropdown = ({
   themeColor = "#10b981", // Default to green
   globalSearch = false,
   onGlobalSearch, // (query) => Promise<results>
-  onActivate // (item) => Promise<success>
+  onActivate, // (item) => Promise<success>
+  clearOnSelect = false
 }) => {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
@@ -217,7 +218,8 @@ const CustomSearchDropdown = ({
 
   const handleItemClick = (item) => {
     onSelect(item);
-    const label = item[optionsLabel] || item.item_name || item.name || item.item_code || '';
+    const shouldClear = clearOnSelect || value === null;
+    const label = shouldClear ? '' : (item[optionsLabel] || item.item_name || item.name || item.item_code || '');
     setQuery(label);
     setShow(false);
     setJustCreated(false);
@@ -301,14 +303,14 @@ const CustomSearchDropdown = ({
       {show && createPortal(
         <div
           ref={dropdownContainerRef}
-          className="custom-dropdown-portal fixed z-[9999] bg-white border border-slate-200 rounded-2xl shadow-[0_12px_48px_-12px_rgba(0,0,0,0.15)] overflow-auto animate-fadeIn py-2"
+          className="custom-dropdown-portal fixed bg-white border border-slate-200 rounded-2xl shadow-[0_16px_48px_-12px_rgba(0,0,0,0.25)] overflow-auto animate-fadeIn py-2"
           style={{
             top: position.top,
             left: position.left,
             width: Math.max(position.width, 320),
             minWidth: Math.max(position.width, 320),
             maxHeight: position.maxHeight || 360,
-            zIndex: 20000, // CRITICAL: Focus above modal overlay (10500 z-index)
+            zIndex: 9999999, // CRITICAL: Focus above any modal overlay (z-index 99999)
             '--po-primary': themeColor || '#6366f1',
             '--po-primary-light': themeColor && themeColor.startsWith('var(')
               ? `${themeColor.slice(0, -1)}-light)`

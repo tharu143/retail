@@ -177,12 +177,18 @@ function UserRouter() {
 
   useEffect(() => {
     if (!user || location.pathname === '/') return;
+    // Initial fetch on login / navigation
     fetchNotifications();
-    // Background polling fallback every 8 seconds so notifications pop up without page refresh
-    const pollInterval = setInterval(() => {
+
+    // Fetch when user returns/focuses the window/tab
+    const onWindowFocus = () => {
       fetchNotifications();
-    }, 8000);
-    return () => clearInterval(pollInterval);
+    };
+    window.addEventListener('focus', onWindowFocus);
+
+    return () => {
+      window.removeEventListener('focus', onWindowFocus);
+    };
   }, [user, location.pathname, fetchNotifications]);
 
   // Global socket listener for real-time stock notifications
@@ -197,6 +203,7 @@ function UserRouter() {
 
     const onConnect = () => {
       console.log("[Socket] Connected successfully to server. Socket ID:", socket.id);
+      fetchNotifications();
     };
 
     const onConnectError = (err) => {

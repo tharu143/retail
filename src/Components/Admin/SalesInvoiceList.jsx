@@ -16,6 +16,35 @@ import { useCustomShortcuts } from '../../hooks/useCustomShortcuts';
 import { frappeCall } from '../../utils/frappe';
 import CustomSearchDropdown from '../Purchase/CustomSearchDropdown';
 
+const DEFAULT_SI_COLUMNS = [
+  { id: 'item_details', label: 'Item Details', visible: true, width: 220 },
+  { id: 'custom_box_qty', label: 'Box Qty', visible: true, width: 90 },
+  { id: 'uom', label: 'UOM', visible: true, width: 90 },
+  { id: 'custom_pieces_per_box', label: 'Pcs/Box', visible: true, width: 80 },
+  { id: 'custom_box_price', label: 'Box Price', visible: true, width: 100 },
+  { id: 'rate', label: 'Rate (Nos)', visible: true, width: 100 },
+  { id: 'qty', label: 'Total Qty', visible: true, width: 90 },
+  { id: 'is_tax_inclusive', label: 'Tax', visible: true, width: 100 },
+  { id: 'amount', label: 'Amount', visible: true, width: 130 }
+];
+
+const loadSIColumnConfig = () => {
+  try {
+    const saved = localStorage.getItem('si_modal_matrix_config');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      const defaultIds = DEFAULT_SI_COLUMNS.map(c => c.id);
+      const savedIds = parsed.map(c => c.id);
+      const existing = parsed.filter(c => defaultIds.includes(c.id));
+      const missing = DEFAULT_SI_COLUMNS.filter(c => !savedIds.includes(c.id));
+      return [...existing, ...missing];
+    }
+  } catch (e) {
+    console.error("SI Matrix Config Error:", e);
+  }
+  return DEFAULT_SI_COLUMNS;
+};
+
 const SalesInvoiceList = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -31,6 +60,95 @@ const SalesInvoiceList = () => {
       return [];
     }
   });
+
+  const [siColumns, setSiColumns] = useState(loadSIColumnConfig);
+  const [resizingCol, setResizingCol] = useState(null);
+
+  const handleResizeMouseDown = (e, colId) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const startX = e.clientX;
+    const targetCol = siColumns.find(c => c.id === colId);
+    const startWidth = parseInt(targetCol?.width || 100, 10);
+
+    const handleMouseMove = (moveEvent) => {
+      const diff = moveEvent.clientX - startX;
+      const newWidth = Math.max(40, startWidth + diff);
+      setSiColumns(prev => prev.map(c => c.id === colId ? { ...c, width: newWidth } : c));
+    };
+
+    const handleMouseUp = () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = 'default';
+      document.body.style.userSelect = 'auto';
+      setResizingCol(null);
+      setSiColumns(currentCols => {
+        localStorage.setItem('si_modal_matrix_config', JSON.stringify(currentCols));
+        return currentCols;
+      });
+    };
+
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    setResizingCol(colId);
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+  };
+
+  // Direct Column Drag & Drop Reordering on Table Header
+  const [draggedColId, setDraggedColId] = useState(null);
+  const [dragOverColId, setDragOverColId] = useState(null);
+
+  const handleColumnDragStart = (e, colId) => {
+    if (resizingCol) {
+      e.preventDefault();
+      return;
+    }
+    setDraggedColId(colId);
+    e.dataTransfer.setData('text/plain', colId);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleColumnDragOver = (e, colId) => {
+    e.preventDefault();
+    if (draggedColId && draggedColId !== colId) {
+      setDragOverColId(colId);
+      e.dataTransfer.dropEffect = 'move';
+    }
+  };
+
+  const handleColumnDragLeave = (e, colId) => {
+    if (dragOverColId === colId) {
+      setDragOverColId(null);
+    }
+  };
+
+  const handleColumnDrop = (e, targetColId) => {
+    e.preventDefault();
+    const sourceColId = draggedColId || e.dataTransfer.getData('text/plain');
+    if (sourceColId && targetColId && sourceColId !== targetColId) {
+      setSiColumns(prevCols => {
+        const fromIndex = prevCols.findIndex(c => c.id === sourceColId);
+        const toIndex = prevCols.findIndex(c => c.id === targetColId);
+        if (fromIndex !== -1 && toIndex !== -1) {
+          const newCols = [...prevCols];
+          const [moved] = newCols.splice(fromIndex, 1);
+          newCols.splice(toIndex, 0, moved);
+          localStorage.setItem('si_modal_matrix_config', JSON.stringify(newCols));
+          return newCols;
+        }
+        return prevCols;
+      });
+    }
+    setDraggedColId(null);
+    setDragOverColId(null);
+  };
+
+  const handleColumnDragEnd = () => {
+    setDraggedColId(null);
+    setDragOverColId(null);
+  };
   const [invoices, setInvoices] = useState([]);
   const [filteredInvoices, setFilteredInvoices] = useState([]);
   const [showModal, setShowModal] = useState(false);
@@ -2221,30 +2339,66 @@ const SalesInvoiceList = () => {
                 {/* Dynamic Items Table */}
                 {(() => {
                   const hasAnyBox = form.items?.some(it => it.use_box_entry);
+                  const activeCols = siColumns.filter(c => {
+                    if (!c.visible) return false;
+                    if (!hasAnyBox && ['custom_pieces_per_box', 'custom_box_price', 'qty'].includes(c.id)) return false;
+                    return true;
+                  });
+
                   return (
                     <table className="classic-table" style={{ width: 'max-content', minWidth: '100%', borderCollapse: 'collapse', background: '#ffffff', tableLayout: 'fixed' }}>
                       <thead>
                         <tr style={{ background: '#f8fafc', borderBottom: '1.5px solid #cbd5e1' }}>
                           <th style={{ width: '40px', minWidth: '40px', maxWidth: '40px', textAlign: 'center', padding: '10px 4px', fontSize: '11px', fontWeight: 900, color: '#475569', textTransform: 'uppercase', borderRight: '1px solid #e2e8f0' }}>#</th>
-                          <th style={{ width: '220px', minWidth: '220px', textAlign: 'left', padding: '10px 8px', fontSize: '11px', fontWeight: 900, color: '#475569', textTransform: 'uppercase', borderRight: '1px solid #e2e8f0' }}>Item Details</th>
-                          {hasAnyBox ? (
-                            <>
-                              <th style={{ width: '90px', minWidth: '90px', textAlign: 'center', padding: '10px 4px', fontSize: '11px', fontWeight: 900, color: '#475569', textTransform: 'uppercase', borderRight: '1px solid #e2e8f0' }}>Box Qty</th>
-                              <th style={{ width: '90px', minWidth: '90px', textAlign: 'left', padding: '10px 4px', fontSize: '11px', fontWeight: 900, color: '#475569', textTransform: 'uppercase', borderRight: '1px solid #e2e8f0' }}>UOM</th>
-                              <th style={{ width: '80px', minWidth: '80px', textAlign: 'center', padding: '10px 4px', fontSize: '11px', fontWeight: 900, color: '#475569', textTransform: 'uppercase', borderRight: '1px solid #e2e8f0' }}>Pcs/Box</th>
-                              <th style={{ width: '100px', minWidth: '100px', textAlign: 'right', padding: '10px 4px', fontSize: '11px', fontWeight: 900, color: '#475569', textTransform: 'uppercase', borderRight: '1px solid #e2e8f0' }}>Box Price</th>
-                              <th style={{ width: '100px', minWidth: '100px', textAlign: 'right', padding: '10px 4px', fontSize: '11px', fontWeight: 900, color: '#475569', textTransform: 'uppercase', borderRight: '1px solid #e2e8f0' }}>Rate (Nos)</th>
-                              <th style={{ width: '90px', minWidth: '90px', textAlign: 'center', padding: '10px 4px', fontSize: '11px', fontWeight: 900, color: '#475569', textTransform: 'uppercase', borderRight: '1px solid #e2e8f0' }}>Total Qty</th>
-                            </>
-                          ) : (
-                            <>
-                              <th style={{ width: '100px', minWidth: '100px', textAlign: 'center', padding: '10px 4px', fontSize: '11px', fontWeight: 900, color: '#475569', textTransform: 'uppercase', borderRight: '1px solid #e2e8f0' }}>Qty</th>
-                              <th style={{ width: '90px', minWidth: '90px', textAlign: 'center', padding: '10px 4px', fontSize: '11px', fontWeight: 900, color: '#475569', textTransform: 'uppercase', borderRight: '1px solid #e2e8f0' }}>UOM</th>
-                              <th style={{ width: '140px', minWidth: '140px', textAlign: 'right', padding: '10px 4px', fontSize: '11px', fontWeight: 900, color: '#475569', textTransform: 'uppercase', borderRight: '1px solid #e2e8f0' }}>Rate</th>
-                            </>
-                          )}
-                          <th style={{ width: '100px', minWidth: '100px', textAlign: 'center', padding: '10px 4px', fontSize: '11px', fontWeight: 900, color: '#475569', textTransform: 'uppercase', borderRight: '1px solid #e2e8f0' }}>Tax</th>
-                          <th style={{ width: '130px', minWidth: '130px', textAlign: 'right', padding: '10px 8px', fontSize: '11px', fontWeight: 900, color: '#475569', textTransform: 'uppercase', borderRight: '1px solid #e2e8f0' }}>Amount</th>
+                          {activeCols.map(col => {
+                            let finalLabel = col.label;
+                            if (!hasAnyBox) {
+                              if (col.id === 'custom_box_qty') finalLabel = 'Qty';
+                              if (col.id === 'rate') finalLabel = 'Rate';
+                            }
+                            const colW = col.width ? (typeof col.width === 'number' || !col.width.includes('px') ? `${parseInt(col.width)}px` : col.width) : '100px';
+                            const isDraggingThis = draggedColId === col.id;
+                            const isDragOverThis = dragOverColId === col.id;
+                            const align = col.id === 'item_details' ? 'left' : (['custom_box_price', 'rate', 'amount'].includes(col.id) ? 'right' : 'center');
+
+                            return (
+                              <th
+                                key={col.id}
+                                draggable={!resizingCol}
+                                onDragStart={(e) => handleColumnDragStart(e, col.id)}
+                                onDragOver={(e) => handleColumnDragOver(e, col.id)}
+                                onDragLeave={(e) => handleColumnDragLeave(e, col.id)}
+                                onDrop={(e) => handleColumnDrop(e, col.id)}
+                                onDragEnd={handleColumnDragEnd}
+                                className={`relative group select-none cursor-grab active:cursor-grabbing transition-colors ${
+                                  isDragOverThis ? 'border-l-2 border-emerald-500 bg-emerald-50' : ''
+                                } ${isDraggingThis ? 'opacity-40 bg-slate-200' : ''}`}
+                                style={{
+                                  width: colW,
+                                  minWidth: colW,
+                                  maxWidth: colW,
+                                  textAlign: align,
+                                  padding: '10px 8px',
+                                  fontSize: '11px',
+                                  fontWeight: 900,
+                                  color: '#475569',
+                                  textTransform: 'uppercase',
+                                  borderRight: '1px solid #e2e8f0',
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                  whiteSpace: 'nowrap'
+                                }}
+                              >
+                                <span className="truncate block pointer-events-none">{finalLabel}</span>
+                                <div
+                                  onMouseDown={(e) => handleResizeMouseDown(e, col.id)}
+                                  className={`absolute top-0 right-0 w-2 h-full cursor-col-resize z-20 hover:bg-emerald-500/40 transition-colors ${resizingCol === col.id ? 'bg-emerald-600' : ''}`}
+                                  style={{ touchAction: 'none' }}
+                                  title="Drag to resize column"
+                                />
+                              </th>
+                            );
+                          })}
                           <th style={{ width: '40px', minWidth: '40px', textAlign: 'center', padding: '10px 4px' }}></th>
                         </tr>
                       </thead>
@@ -2252,218 +2406,228 @@ const SalesInvoiceList = () => {
                         {form.items.map((item, i) => (
                           <tr key={i} className="border-b border-slate-100 hover:bg-emerald-50/30 transition-colors">
                             <td className="text-center font-bold text-slate-400 text-xs py-2 border-r border-slate-100">{i + 1}</td>
-                            <td className="px-2 py-1 border-r border-slate-100 align-middle">
-                              {!isViewOnly && !isReturnMode ? (
-                                <div className="relative group">
-                                  <input
-                                    type="text"
-                                    value={itemQueries[i] || ''}
-                                    onChange={(e) => {
-                                      const q = e.target.value;
-                                      setItemQueries(prev => ({ ...prev, [i]: q }));
-                                      if (q.length >= 2) searchItems(q);
-                                    }}
-                                    onFocus={(e) => {
-                                      const input = e.target;
-                                      const rect = input.getBoundingClientRect();
-                                      setDropdownPosition({
-                                        top: rect.bottom + window.scrollY + 8,
-                                        left: rect.left + window.scrollX,
-                                        width: rect.width
-                                      });
-                                      setActiveItemRow(i);
-                                    }}
-                                    placeholder="Search item..."
-                                    className="h-8 px-2 bg-slate-50 border border-slate-200 rounded-md text-xs font-bold text-slate-800 outline-none w-full focus:bg-white focus:border-emerald-500"
-                                  />
-                                  {activeItemRow === i && dropdownPosition && itemQueries[i] && allItems.length > 0 && createPortal(
-                                    <div
-                                      className="so-dropdown"
-                                      style={{
-                                        position: 'fixed',
-                                        top: dropdownPosition.top + 'px',
-                                        left: dropdownPosition.left + 'px',
-                                        width: dropdownPosition.width + 'px',
-                                        zIndex: 9999
-                                      }}
-                                    >
-                                      {allItems
-                                        .filter(it =>
-                                          it.item_name?.toLowerCase().includes((itemQueries[i] || '').toLowerCase()) ||
-                                          it.item_code?.toLowerCase().includes((itemQueries[i] || '').toLowerCase())
-                                        )
-                                        .slice(0, 20)
-                                        .map(it => (
+                            {activeCols.map(col => {
+                              if (col.id === 'item_details') {
+                                return (
+                                  <td key={col.id} className="px-2 py-1 border-r border-slate-100 align-middle">
+                                    {!isViewOnly && !isReturnMode ? (
+                                      <div className="relative group">
+                                        <input
+                                          type="text"
+                                          value={itemQueries[i] || ''}
+                                          onChange={(e) => {
+                                            const q = e.target.value;
+                                            setItemQueries(prev => ({ ...prev, [i]: q }));
+                                            if (q.length >= 2) searchItems(q);
+                                          }}
+                                          onFocus={(e) => {
+                                            const input = e.target;
+                                            const rect = input.getBoundingClientRect();
+                                            setDropdownPosition({
+                                              top: rect.bottom + window.scrollY + 8,
+                                              left: rect.left + window.scrollX,
+                                              width: rect.width
+                                            });
+                                            setActiveItemRow(i);
+                                          }}
+                                          placeholder="Search item..."
+                                          className="h-8 px-2 bg-slate-50 border border-slate-200 rounded-md text-xs font-bold text-slate-800 outline-none w-full focus:bg-white focus:border-emerald-500"
+                                        />
+                                        {activeItemRow === i && dropdownPosition && itemQueries[i] && allItems.length > 0 && createPortal(
                                           <div
-                                            key={it.item_code}
-                                            onClick={() => {
-                                              selectItem(i, it);
-                                              setDropdownPosition(null);
+                                            className="so-dropdown"
+                                            style={{
+                                              position: 'fixed',
+                                              top: dropdownPosition.top + 'px',
+                                              left: dropdownPosition.left + 'px',
+                                              width: dropdownPosition.width + 'px',
+                                              zIndex: 9999
                                             }}
-                                            className="so-dropdown-item"
                                           >
-                                            <div style={{ fontWeight: 700 }}>{it.item_name}</div>
-                                            <div style={{ fontSize: '0.65rem', opacity: 0.6 }}>{it.item_code}</div>
-                                          </div>
-                                        ))}
-                                    </div>,
-                                    document.body
-                                  )}
-                                </div>
-                              ) : (
-                                <div>
-                                  <span className="font-black text-slate-900 text-xs leading-tight">{item.item_name}</span>
-                                  <span className="block font-bold text-[9px] text-emerald-600 uppercase tracking-widest mt-0.5">{item.item_code}</span>
-                                </div>
-                              )}
-                            </td>
-                            {hasAnyBox ? (
-                              <>
-                                {/* Box Qty Input */}
-                                <td className="px-2 py-1 text-center border-r border-slate-100 align-middle">
-                                  <input
-                                    type="number"
-                                    name={item.use_box_entry ? "custom_box_qty" : "qty"}
-                                    value={item.use_box_entry ? (item.custom_box_qty || '') : (item.qty || '')}
-                                    onChange={(e) => handleInputChangeDetails(e, i)}
-                                    disabled={isViewOnly || isReturnMode}
-                                    className="w-full h-8 px-2 text-center font-black text-xs text-slate-800 bg-transparent border-none outline-none focus:bg-emerald-50/40"
-                                  />
-                                </td>
-                                {/* UOM Select */}
-                                <td className="px-2 py-1 text-center border-r border-slate-100 align-middle">
-                                  <select
-                                    value={item.uom || 'Nos'}
-                                    onChange={(e) => handleUOMChangeDetails(e.target.value, i)}
-                                    disabled={isViewOnly || isReturnMode}
-                                    className="w-full h-8 px-1 text-center font-black text-xs text-slate-800 bg-transparent border-none outline-none cursor-pointer focus:bg-emerald-50/40"
-                                  >
-                                    {(() => {
-                                      const uniqueUoms = [];
-                                      const seen = new Set();
-                                      const candidates = [];
-                                      if (item.uom_list && Array.isArray(item.uom_list)) {
-                                        item.uom_list.forEach(u => { if (u && u.uom) candidates.push(u.uom); });
-                                      }
-                                      candidates.push(item.stock_uom || 'Nos');
-                                      candidates.push(item.uom || 'Nos');
-                                      candidates.push('Nos');
-                                      candidates.push('Box');
-
-                                      candidates.forEach(u => {
-                                        const norm = u.trim().toLowerCase();
-                                        let display = u.trim();
-                                        if (display === 'box' || display === 'BOX') display = 'Box';
-                                        else if (display === 'nos' || display === 'NOS') display = 'Nos';
-                                        if (!seen.has(norm)) {
-                                          seen.add(norm);
-                                          uniqueUoms.push(display);
-                                        }
-                                      });
-                                      return uniqueUoms.map(uomVal => (
-                                        <option key={uomVal} value={uomVal}>{uomVal}</option>
-                                      ));
-                                    })()}
-                                  </select>
-                                </td>
-                                {/* Pcs/Box */}
-                                <td className="px-2 py-1 text-center border-r border-slate-100 align-middle">
-                                  {item.use_box_entry ? (
+                                            {allItems
+                                              .filter(it =>
+                                                it.item_name?.toLowerCase().includes((itemQueries[i] || '').toLowerCase()) ||
+                                                it.item_code?.toLowerCase().includes((itemQueries[i] || '').toLowerCase())
+                                              )
+                                              .slice(0, 20)
+                                              .map(it => (
+                                                <div
+                                                  key={it.item_code}
+                                                  onClick={() => {
+                                                    selectItem(i, it);
+                                                    setDropdownPosition(null);
+                                                  }}
+                                                  className="so-dropdown-item"
+                                                >
+                                                  <div style={{ fontWeight: 700 }}>{it.item_name}</div>
+                                                  <div style={{ fontSize: '0.65rem', opacity: 0.6 }}>{it.item_code}</div>
+                                                </div>
+                                              ))}
+                                          </div>,
+                                          document.body
+                                        )}
+                                      </div>
+                                    ) : (
+                                      <div>
+                                        <span className="font-black text-slate-900 text-xs leading-tight">{item.item_name}</span>
+                                        <span className="block font-bold text-[9px] text-emerald-600 uppercase tracking-widest mt-0.5">{item.item_code}</span>
+                                      </div>
+                                    )}
+                                  </td>
+                                );
+                              }
+                              if (col.id === 'custom_box_qty') {
+                                return (
+                                  <td key={col.id} className="px-2 py-1 text-center border-r border-slate-100 align-middle">
                                     <input
                                       type="number"
-                                      name="custom_pieces_per_box"
-                                      value={item.custom_pieces_per_box || ''}
-                                      onChange={(e) => handleInputChangeDetails(e, i)}
+                                      name={item.use_box_entry ? "custom_box_qty" : "qty"}
+                                      value={item.use_box_entry ? (item.custom_box_qty || '') : (item.qty || '')}
+                                      onChange={(e) => {
+                                        if (hasAnyBox) handleInputChangeDetails(e, i);
+                                        else updateItem(i, 'qty', parseFloat(e.target.value) || 0);
+                                      }}
                                       disabled={isViewOnly || isReturnMode}
                                       className="w-full h-8 px-2 text-center font-black text-xs text-slate-800 bg-transparent border-none outline-none focus:bg-emerald-50/40"
                                     />
-                                  ) : (
-                                    <span className="text-slate-300">—</span>
-                                  )}
-                                </td>
-                                {/* Box Price */}
-                                <td className="px-2 py-1 text-right border-r border-slate-100 align-middle">
-                                  {item.use_box_entry ? (
+                                  </td>
+                                );
+                              }
+                              if (col.id === 'uom') {
+                                return (
+                                  <td key={col.id} className="px-2 py-1 text-center border-r border-slate-100 align-middle">
+                                    {hasAnyBox ? (
+                                      <select
+                                        value={item.uom || 'Nos'}
+                                        onChange={(e) => handleUOMChangeDetails(e.target.value, i)}
+                                        disabled={isViewOnly || isReturnMode}
+                                        className="w-full h-8 px-1 text-center font-black text-xs text-slate-800 bg-transparent border-none outline-none cursor-pointer focus:bg-emerald-50/40"
+                                      >
+                                        {(() => {
+                                          const uniqueUoms = [];
+                                          const seen = new Set();
+                                          const candidates = [];
+                                          if (item.uom_list && Array.isArray(item.uom_list)) {
+                                            item.uom_list.forEach(u => { if (u && u.uom) candidates.push(u.uom); });
+                                          }
+                                          candidates.push(item.stock_uom || 'Nos');
+                                          candidates.push(item.uom || 'Nos');
+                                          candidates.push('Nos');
+                                          candidates.push('Box');
+
+                                          candidates.forEach(u => {
+                                            const norm = u.trim().toLowerCase();
+                                            let display = u.trim();
+                                            if (display === 'box' || display === 'BOX') display = 'Box';
+                                            else if (display === 'nos' || display === 'NOS') display = 'Nos';
+                                            if (!seen.has(norm)) {
+                                              seen.add(norm);
+                                              uniqueUoms.push(display);
+                                            }
+                                          });
+                                          return uniqueUoms.map(uomVal => (
+                                            <option key={uomVal} value={uomVal}>{uomVal}</option>
+                                          ));
+                                        })()}
+                                      </select>
+                                    ) : (
+                                      <span className="text-xs font-black text-slate-500">{item.uom || 'Nos'}</span>
+                                    )}
+                                  </td>
+                                );
+                              }
+                              if (col.id === 'custom_pieces_per_box') {
+                                return (
+                                  <td key={col.id} className="px-2 py-1 text-center border-r border-slate-100 align-middle">
+                                    {item.use_box_entry ? (
+                                      <input
+                                        type="number"
+                                        name="custom_pieces_per_box"
+                                        value={item.custom_pieces_per_box || ''}
+                                        onChange={(e) => handleInputChangeDetails(e, i)}
+                                        disabled={isViewOnly || isReturnMode}
+                                        className="w-full h-8 px-2 text-center font-black text-xs text-slate-800 bg-transparent border-none outline-none focus:bg-emerald-50/40"
+                                      />
+                                    ) : (
+                                      <span className="text-slate-300">—</span>
+                                    )}
+                                  </td>
+                                );
+                              }
+                              if (col.id === 'custom_box_price') {
+                                return (
+                                  <td key={col.id} className="px-2 py-1 text-right border-r border-slate-100 align-middle">
+                                    {item.use_box_entry ? (
+                                      <input
+                                        type="number"
+                                        name="custom_box_price"
+                                        value={item.custom_box_price || ''}
+                                        onChange={(e) => handleInputChangeDetails(e, i)}
+                                        disabled={isViewOnly || isReturnMode}
+                                        className="w-full h-8 px-2 text-right font-black text-xs text-slate-800 bg-transparent border-none outline-none focus:bg-emerald-50/40"
+                                      />
+                                    ) : (
+                                      <span className="text-slate-300 pr-2">—</span>
+                                    )}
+                                  </td>
+                                );
+                              }
+                              if (col.id === 'rate') {
+                                return (
+                                  <td key={col.id} className="px-2 py-1 text-right border-r border-slate-100 align-middle">
                                     <input
                                       type="number"
-                                      name="custom_box_price"
-                                      value={item.custom_box_price || ''}
-                                      onChange={(e) => handleInputChangeDetails(e, i)}
+                                      name="rate"
+                                      value={item.rate || ''}
+                                      onChange={(e) => {
+                                        if (hasAnyBox) handleInputChangeDetails(e, i);
+                                        else updateItem(i, 'rate', parseFloat(e.target.value) || 0);
+                                      }}
                                       disabled={isViewOnly || isReturnMode}
                                       className="w-full h-8 px-2 text-right font-black text-xs text-slate-800 bg-transparent border-none outline-none focus:bg-emerald-50/40"
                                     />
-                                  ) : (
-                                    <span className="text-slate-300 pr-2">—</span>
-                                  )}
-                                </td>
-                                {/* Rate */}
-                                <td className="px-2 py-1 text-right border-r border-slate-100 align-middle">
-                                  <input
-                                    type="number"
-                                    name="rate"
-                                    value={item.rate || ''}
-                                    onChange={(e) => handleInputChangeDetails(e, i)}
-                                    disabled={isViewOnly || isReturnMode}
-                                    className="w-full h-8 px-2 text-right font-black text-xs text-slate-800 bg-transparent border-none outline-none focus:bg-emerald-50/40"
-                                  />
-                                </td>
-                                {/* Total Qty (Nos) */}
-                                <td className="px-2 py-1 text-center border-r border-slate-100 align-middle text-xs font-black text-slate-500">
-                                  {item.qty || 0}
-                                </td>
-                              </>
-                            ) : (
-                              <>
-                                {/* Qty Input */}
-                                <td className="px-2 py-1 text-center border-r border-slate-100 align-middle">
-                                  <input
-                                    type="number"
-                                    value={item.qty || ''}
-                                    onChange={e => updateItem(i, 'qty', parseFloat(e.target.value) || 0)}
-                                    disabled={isViewOnly || isReturnMode}
-                                    className="w-full h-8 px-2 text-center font-black text-xs text-slate-800 bg-transparent border-none outline-none focus:bg-emerald-50/40"
-                                  />
-                                </td>
-                                {/* UOM */}
-                                <td className="px-2 py-1 text-center border-r border-slate-100 align-middle text-xs font-black text-slate-500">
-                                  {item.uom || 'Nos'}
-                                </td>
-                                {/* Rate */}
-                                <td className="px-2 py-1 text-right border-r border-slate-100 align-middle">
-                                  <input
-                                    type="number"
-                                    value={item.rate || ''}
-                                    onChange={e => updateItem(i, 'rate', parseFloat(e.target.value) || 0)}
-                                    disabled={isViewOnly || isReturnMode}
-                                    className="w-full h-8 px-2 text-right font-black text-xs text-slate-800 bg-transparent border-none outline-none focus:bg-emerald-50/40"
-                                  />
-                                </td>
-                              </>
-                            )}
-                            {/* Tax Select */}
-                            <td className="px-2 py-1 text-center border-r border-slate-100 align-middle">
-                              <select
-                                value={item.is_tax_inclusive !== false ? 'Inclusive' : 'Exclusive'}
-                                onChange={e => {
-                                  const val = e.target.value === 'Inclusive';
-                                  setForm(prev => {
-                                    const items = [...(prev.items || [])];
-                                    items[i] = { ...items[i], is_tax_inclusive: val };
-                                    return { ...prev, items };
-                                  });
-                                  setTimeout(() => calculateTotals(), 50);
-                                }}
-                                disabled={isViewOnly || isReturnMode}
-                                className="w-full h-8 px-1 text-center font-black text-xs text-slate-800 bg-transparent border-none outline-none cursor-pointer focus:bg-emerald-50/40"
-                              >
-                                <option value="Inclusive">Inclusive</option>
-                                <option value="Exclusive">Exclusive</option>
-                              </select>
-                            </td>
-                            {/* Amount */}
-                            <td className="text-right px-2 py-1.5 border-r border-slate-100 align-middle text-xs font-black text-slate-900 pr-3">
-                              {((item.qty || 0) * (item.rate || 0)).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                            </td>
+                                  </td>
+                                );
+                              }
+                              if (col.id === 'qty') {
+                                return (
+                                  <td key={col.id} className="px-2 py-1 text-center border-r border-slate-100 align-middle text-xs font-black text-slate-500">
+                                    {item.qty || 0}
+                                  </td>
+                                );
+                              }
+                              if (col.id === 'is_tax_inclusive') {
+                                return (
+                                  <td key={col.id} className="px-2 py-1 text-center border-r border-slate-100 align-middle">
+                                    <select
+                                      value={item.is_tax_inclusive !== false ? 'Inclusive' : 'Exclusive'}
+                                      onChange={e => {
+                                        const val = e.target.value === 'Inclusive';
+                                        setForm(prev => {
+                                          const items = [...(prev.items || [])];
+                                          items[i] = { ...items[i], is_tax_inclusive: val };
+                                          return { ...prev, items };
+                                        });
+                                        setTimeout(() => calculateTotals(), 50);
+                                      }}
+                                      disabled={isViewOnly || isReturnMode}
+                                      className="w-full h-8 px-1 text-center font-black text-xs text-slate-800 bg-transparent border-none outline-none cursor-pointer focus:bg-emerald-50/40"
+                                    >
+                                      <option value="Inclusive">Inclusive</option>
+                                      <option value="Exclusive">Exclusive</option>
+                                    </select>
+                                  </td>
+                                );
+                              }
+                              if (col.id === 'amount') {
+                                return (
+                                  <td key={col.id} className="text-right px-2 py-1.5 border-r border-slate-100 align-middle text-xs font-black text-slate-900 pr-3">
+                                    {((item.qty || 0) * (item.rate || 0)).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                  </td>
+                                );
+                              }
+                              return null;
+                            })}
                             <td className="text-center px-1">
                               {!isViewOnly && !isReturnMode && (
                                 <button

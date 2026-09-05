@@ -140,6 +140,60 @@ function PurchaseReceiptList() {
     document.addEventListener('mouseup', handleMouseUp);
   };
 
+  // Direct Column Drag & Drop Reordering on Table Header
+  const [draggedColId, setDraggedColId] = useState(null);
+  const [dragOverColId, setDragOverColId] = useState(null);
+
+  const handleColumnDragStart = (e, colId) => {
+    if (resizingCol) {
+      e.preventDefault();
+      return;
+    }
+    setDraggedColId(colId);
+    e.dataTransfer.setData('text/plain', colId);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleColumnDragOver = (e, colId) => {
+    e.preventDefault();
+    if (draggedColId && draggedColId !== colId) {
+      setDragOverColId(colId);
+      e.dataTransfer.dropEffect = 'move';
+    }
+  };
+
+  const handleColumnDragLeave = (e, colId) => {
+    if (dragOverColId === colId) {
+      setDragOverColId(null);
+    }
+  };
+
+  const handleColumnDrop = (e, targetColId) => {
+    e.preventDefault();
+    const sourceColId = draggedColId || e.dataTransfer.getData('text/plain');
+    if (sourceColId && targetColId && sourceColId !== targetColId) {
+      setColumnConfig(prevCols => {
+        const fromIndex = prevCols.findIndex(c => c.id === sourceColId);
+        const toIndex = prevCols.findIndex(c => c.id === targetColId);
+        if (fromIndex !== -1 && toIndex !== -1) {
+          const newCols = [...prevCols];
+          const [moved] = newCols.splice(fromIndex, 1);
+          newCols.splice(toIndex, 0, moved);
+          localStorage.setItem('pr_column_config_v2', JSON.stringify(newCols));
+          return newCols;
+        }
+        return prevCols;
+      });
+    }
+    setDraggedColId(null);
+    setDragOverColId(null);
+  };
+
+  const handleColumnDragEnd = () => {
+    setDraggedColId(null);
+    setDragOverColId(null);
+  };
+
   const [showColConfig, setShowColConfig] = useState(false);
 
   const handleColConfigUpdate = (newConfig) => {
@@ -2401,15 +2455,62 @@ function PurchaseReceiptList() {
         }
       }
 
-      // Save Draft / Update Draft (F7 / Alt+S / Ctrl+S)
-      if (
-        isShortcutPressed(e, 'doc_editor', 'saveDraft', 'F7') || e.key === 'F7' ||
+      // Unified Save / Submit / Action Shortcut (Alt+S, Ctrl+S, F7, F12, Ctrl+Enter)
+      const isSaveDraftShortcut =
+        (e.altKey && (e.key.toLowerCase() === 's' || e.code === 'KeyS')) ||
         (e.ctrlKey && (e.key.toLowerCase() === 's' || e.code === 'KeyS')) ||
-        (e.altKey && (e.key === 's' || e.key === 'S'))
-      ) {
+        e.key === 'F7' ||
+        isShortcutPressed(e, 'doc_editor', 'saveDraft', 'F7') ||
+        isShortcutPressed(e, 'doc_editor', 'saveDraftAlt', 'Alt+S');
+
+      const isSubmitShortcut =
+        isShortcutPressed(e, 'doc_editor', 'submit', 'F12') ||
+        isShortcutPressed(e, 'doc_editor', 'submitAlt', 'Ctrl+Enter') ||
+        e.key === 'F12' ||
+        (e.ctrlKey && e.key === 'Enter');
+
+      if (isSaveDraftShortcut || isSubmitShortcut) {
         e.preventDefault();
-        if (!saving && (formData.docstatus === 0 || formData.docstatus === undefined)) {
-          handleDocAction('save');
+        e.stopPropagation();
+
+        if (!saving) {
+          if (formData.docstatus === 0 || formData.docstatus === undefined) {
+            // If dirty or new document -> Save Draft
+            if (isDirty || !docName) {
+              handleDocAction('save');
+            } else {
+              // If already saved clean draft -> Submit
+              if (allowedActions.includes('submit') || allowedActions.length === 0) {
+                handleDocAction('submit');
+              } else {
+                handleDocAction('save');
+              }
+            }
+          }
+        }
+      }
+
+      // Action Cancel Shortcut (Alt+C)
+      if (
+        (e.altKey && (e.key.toLowerCase() === 'c' || e.code === 'KeyC')) ||
+        isShortcutPressed(e, 'doc_editor', 'cancel', 'Alt+C')
+      ) {
+        if (formData.docstatus === 1 && !saving && (allowedActions.includes('cancel') || allowedActions.length === 0)) {
+          e.preventDefault();
+          e.stopPropagation();
+          handleDocAction('cancel');
+        }
+      }
+
+      // Action Amend Shortcut (Alt+M)
+      if (
+        (e.altKey && (e.key.toLowerCase() === 'm' || e.code === 'KeyM')) ||
+        isShortcutPressed(e, 'doc_editor', 'amend', 'Alt+M')
+      ) {
+        if (formData.docstatus === 2 && !saving && (allowedActions.includes('amend') || allowedActions.length === 0)) {
+          e.preventDefault();
+          e.stopPropagation();
+          handleDocAction('amend');
         }
       }
 
@@ -2431,17 +2532,6 @@ function PurchaseReceiptList() {
           } else {
             addItemRow();
           }
-        }
-      }
-
-      // Submit document (F12 / Ctrl+Enter)
-      if (
-        isShortcutPressed(e, 'doc_editor', 'submit', 'F12') || e.key === 'F12' ||
-        (e.ctrlKey && e.key === 'Enter')
-      ) {
-        e.preventDefault();
-        if (!saving && (formData.docstatus === 0 || formData.docstatus === undefined)) {
-          handleDocAction('submit');
         }
       }
 
@@ -2703,7 +2793,7 @@ function PurchaseReceiptList() {
 
     window.addEventListener('keydown', handleGlobalShortcuts);
     return () => window.removeEventListener('keydown', handleGlobalShortcuts);
-  }, [isModalOpen, formData, allowedActions, isViewMode, saving, taxesTemplates]);
+  }, [isModalOpen, formData, allowedActions, isViewMode, saving, taxesTemplates, isDirty, docName]);
 
 
 
@@ -2985,10 +3075,20 @@ function PurchaseReceiptList() {
                   <th style={{ width: '40px', minWidth: '40px', maxWidth: '40px', textAlign: 'center', padding: '8px 4px', fontSize: '11px', fontWeight: 900, color: '#475569', textTransform: 'uppercase', borderRight: '1px solid #e2e8f0' }}>#</th>
                   {columnConfig.filter(c => c.visible).map(col => {
                     const colW = col.width ? (typeof col.width === 'number' || !col.width.includes('px') ? `${parseInt(col.width)}px` : col.width) : '100px';
+                    const isDraggingThis = draggedColId === col.id;
+                    const isDragOverThis = dragOverColId === col.id;
                     return (
                       <th
                         key={col.id}
-                        className="relative group select-none"
+                        draggable={!resizingCol}
+                        onDragStart={(e) => handleColumnDragStart(e, col.id)}
+                        onDragOver={(e) => handleColumnDragOver(e, col.id)}
+                        onDragLeave={(e) => handleColumnDragLeave(e, col.id)}
+                        onDrop={(e) => handleColumnDrop(e, col.id)}
+                        onDragEnd={handleColumnDragEnd}
+                        className={`relative group select-none cursor-grab active:cursor-grabbing transition-colors ${
+                          isDragOverThis ? 'border-l-2 border-emerald-500 bg-emerald-50' : ''
+                        } ${isDraggingThis ? 'opacity-40 bg-slate-200' : ''}`}
                         style={{
                           width: colW,
                           minWidth: colW,

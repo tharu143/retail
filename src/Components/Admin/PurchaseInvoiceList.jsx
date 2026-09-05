@@ -176,6 +176,60 @@ function PurchaseInvoiceList() {
     document.addEventListener('mouseup', handleMouseUp);
   };
 
+  // Direct Column Drag & Drop Reordering on Table Header
+  const [draggedColId, setDraggedColId] = useState(null);
+  const [dragOverColId, setDragOverColId] = useState(null);
+
+  const handleColumnDragStart = (e, colId) => {
+    if (resizingCol) {
+      e.preventDefault();
+      return;
+    }
+    setDraggedColId(colId);
+    e.dataTransfer.setData('text/plain', colId);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleColumnDragOver = (e, colId) => {
+    e.preventDefault();
+    if (draggedColId && draggedColId !== colId) {
+      setDragOverColId(colId);
+      e.dataTransfer.dropEffect = 'move';
+    }
+  };
+
+  const handleColumnDragLeave = (e, colId) => {
+    if (dragOverColId === colId) {
+      setDragOverColId(null);
+    }
+  };
+
+  const handleColumnDrop = (e, targetColId) => {
+    e.preventDefault();
+    const sourceColId = draggedColId || e.dataTransfer.getData('text/plain');
+    if (sourceColId && targetColId && sourceColId !== targetColId) {
+      setColumnConfig(prevCols => {
+        const fromIndex = prevCols.findIndex(c => c.id === sourceColId);
+        const toIndex = prevCols.findIndex(c => c.id === targetColId);
+        if (fromIndex !== -1 && toIndex !== -1) {
+          const newCols = [...prevCols];
+          const [moved] = newCols.splice(fromIndex, 1);
+          newCols.splice(toIndex, 0, moved);
+          localStorage.setItem('pi_column_config', JSON.stringify(newCols));
+          return newCols;
+        }
+        return prevCols;
+      });
+    }
+    setDraggedColId(null);
+    setDragOverColId(null);
+  };
+
+  const handleColumnDragEnd = () => {
+    setDraggedColId(null);
+    setDragOverColId(null);
+  };
+
   const [showColConfig, setShowColConfig] = useState(false);
 
   const handleColConfigUpdate = (newConfig) => {
@@ -2242,6 +2296,7 @@ function PurchaseInvoiceList() {
     const diff = itemsGrandTotal - suppAmt;
 
     if (suppAmt > 0 && Math.abs(diff) >= 0.01) {
+      const isSubmitAction = actionLabel.toLowerCase().includes('submit');
       const result = await Swal.fire({
         title: '⚠️ Invoice Amount Mismatch',
         html: `
@@ -2261,20 +2316,38 @@ function PurchaseInvoiceList() {
                 <span style="font-weight: 900; color: #e11d48;">${diff > 0 ? '+' : ''}AED ${formatPrice(diff)}</span>
               </div>
             </div>
-            <p style="color: #64748b; font-size: 12px; margin: 0;">Do you want to proceed with <b>${actionLabel}</b> or go back to review?</p>
+            <p style="color: #64748b; font-size: 12px; margin: 0;">
+              ${isSubmitAction
+                ? '<span style="color: #dc2626; font-weight: 700;">Employee Secret Code authorization is MANDATORY</span> to submit this mismatched invoice.'
+                : `Do you want to proceed with <b>${actionLabel}</b> or go back to review?`}
+            </p>
           </div>
         `,
         icon: 'warning',
         showCancelButton: true,
-        confirmButtonText: `Proceed with ${actionLabel}`,
+        confirmButtonText: isSubmitAction ? 'Authorize with Secret Code' : `Proceed with ${actionLabel}`,
         cancelButtonText: 'Go Back & Review',
-        confirmButtonColor: '#f59e0b',
+        confirmButtonColor: isSubmitAction ? '#059669' : '#f59e0b',
         cancelButtonColor: '#64748b',
         reverseButtons: true
       });
-      return result.isConfirmed;
+
+      if (!result.isConfirmed) return false;
+
+      // If SUBMIT, prompt mandatory Employee Secret Code
+      if (isSubmitAction) {
+        const auth = await promptSecretCode({
+          title: 'Authorize Mismatch Submission',
+          subtitle: `Enter Employee Secret Code to authorize submit with AED ${diff > 0 ? '+' : ''}${formatPrice(diff)} mismatch`,
+          warehouse: formData.accepted_warehouse || localStorage.getItem('warehouse') || ''
+        });
+        if (!auth || !auth.secret_key) return false;
+        return { authorized: true, authData: auth, suppAmt, itemsGrandTotal, diff };
+      }
+
+      return { authorized: true };
     }
-    return true;
+    return { authorized: true };
   };
 
   const handleSaveDraft = async () => {
@@ -2320,8 +2393,8 @@ function PurchaseInvoiceList() {
     }
 
     // Unmatched Confirmation Prompt
-    const proceed = await checkUnmatchedConfirmation('Save Draft');
-    if (!proceed) return;
+    const confirmRes = await checkUnmatchedConfirmation('Save Draft');
+    if (!confirmRes || !confirmRes.authorized) return;
 
     setSaving(true);
     const payload = await getPayload();
@@ -2404,9 +2477,9 @@ function PurchaseInvoiceList() {
       return;
     }
 
-    // Unmatched Confirmation Prompt
-    const proceed = await checkUnmatchedConfirmation('Submit');
-    if (!proceed) return;
+    // Unmatched Confirmation Prompt (Mandates Secret Code if Mismatch)
+    const confirmRes = await checkUnmatchedConfirmation('Submit');
+    if (!confirmRes || !confirmRes.authorized) return;
 
     setSaving(true);
     const payload = await getPayload();
@@ -2433,6 +2506,24 @@ function PurchaseInvoiceList() {
       const subMsg = subRes.data?.message || subRes.data;
       if (subMsg?.status === 'error') {
         throw new Error(subMsg?.message || 'Submit failed');
+      }
+
+      // If mismatch was authorized via secret code, log audit Activity Log and timeline comment in ERPNext
+      if (confirmRes.authData) {
+        try {
+          await axios.post('/api/method/kyle_retail.retail_api.api.log_purchase_invoice_mismatch_approval', {
+            docname: name,
+            supplier_amount: confirmRes.suppAmt,
+            items_grand_total: confirmRes.itemsGrandTotal,
+            difference: confirmRes.diff,
+            secret_key: confirmRes.authData.secret_key,
+            employee_name: confirmRes.authData.employee_name,
+            employee_id: confirmRes.authData.employee_id,
+            warehouse: formData.accepted_warehouse || localStorage.getItem('warehouse') || ''
+          }, { withCredentials: true });
+        } catch (auditErr) {
+          console.error("Failed to log mismatch audit trail:", auditErr);
+        }
       }
 
       Swal.fire({
@@ -2698,17 +2789,62 @@ function PurchaseInvoiceList() {
         }
       }
 
-      // Save Draft / Update Draft (Alt+S, Ctrl+S, F7)
-      if (
+      // Unified Save / Submit / Action Shortcut (Alt+S, Ctrl+S, F7, F12, Ctrl+Enter)
+      const isSaveDraftShortcut =
         (e.altKey && (e.key.toLowerCase() === 's' || e.code === 'KeyS')) ||
         (e.ctrlKey && (e.key.toLowerCase() === 's' || e.code === 'KeyS')) ||
         e.key === 'F7' ||
-        isShortcutPressed(e, 'doc_editor', 'saveDraft', 'F7')
-      ) {
+        isShortcutPressed(e, 'doc_editor', 'saveDraft', 'F7') ||
+        isShortcutPressed(e, 'doc_editor', 'saveDraftAlt', 'Alt+S');
+
+      const isSubmitShortcut =
+        isShortcutPressed(e, 'doc_editor', 'submit', 'F12') ||
+        isShortcutPressed(e, 'doc_editor', 'submitAlt', 'Ctrl+Enter') ||
+        e.key === 'F12' ||
+        (e.ctrlKey && e.key === 'Enter');
+
+      if (isSaveDraftShortcut || isSubmitShortcut) {
         e.preventDefault();
         e.stopPropagation();
-        if (!saving && (formData.docstatus === 0 || formData.docstatus === undefined)) {
-          handleSaveDraft();
+
+        if (!saving) {
+          if (formData.docstatus === 0 || formData.docstatus === undefined) {
+            // If dirty or new document -> Save Draft
+            if (isDirty || !docName) {
+              handleSaveDraft();
+            } else {
+              // If already saved clean draft -> Submit
+              if (allowedActions.includes('submit') || allowedActions.length === 0) {
+                handleSubmit();
+              } else {
+                handleSaveDraft();
+              }
+            }
+          }
+        }
+      }
+
+      // Action Cancel Shortcut (Alt+C)
+      if (
+        (e.altKey && (e.key.toLowerCase() === 'c' || e.code === 'KeyC')) ||
+        isShortcutPressed(e, 'doc_editor', 'cancel', 'Alt+C')
+      ) {
+        if (formData.docstatus === 1 && !saving && (allowedActions.includes('cancel') || allowedActions.length === 0)) {
+          e.preventDefault();
+          e.stopPropagation();
+          handleDocAction('cancel');
+        }
+      }
+
+      // Action Amend Shortcut (Alt+M)
+      if (
+        (e.altKey && (e.key.toLowerCase() === 'm' || e.code === 'KeyM')) ||
+        isShortcutPressed(e, 'doc_editor', 'amend', 'Alt+M')
+      ) {
+        if (formData.docstatus === 2 && !saving && (allowedActions.includes('amend') || allowedActions.length === 0)) {
+          e.preventDefault();
+          e.stopPropagation();
+          handleDocAction('amend');
         }
       }
 
@@ -2740,18 +2876,6 @@ function PurchaseInvoiceList() {
           document.querySelector('select');
         if (warehouseSelect) {
           warehouseSelect.focus();
-        }
-      }
-
-      // Submit document (F12 / Ctrl+Enter)
-      if (
-        isShortcutPressed(e, 'doc_editor', 'submit', 'F12') || e.key === 'F12' ||
-        (e.ctrlKey && e.key === 'Enter')
-      ) {
-        e.preventDefault();
-        e.stopPropagation();
-        if (!saving && (formData.docstatus === 0 || formData.docstatus === undefined)) {
-          handleSubmit();
         }
       }
 
@@ -3453,10 +3577,20 @@ function PurchaseInvoiceList() {
                   <th style={{ width: '40px', minWidth: '40px', maxWidth: '40px', textAlign: 'center', padding: '8px 4px', fontSize: '11px', fontWeight: 900, color: '#475569', textTransform: 'uppercase', borderRight: '1px solid #e2e8f0' }}>#</th>
                   {columnConfig.filter(c => c.visible).map(col => {
                     const colW = col.width ? (typeof col.width === 'number' || !col.width.includes('px') ? `${parseInt(col.width)}px` : col.width) : '100px';
+                    const isDraggingThis = draggedColId === col.id;
+                    const isDragOverThis = dragOverColId === col.id;
                     return (
                       <th
                         key={col.id}
-                        className="relative group select-none"
+                        draggable={!resizingCol}
+                        onDragStart={(e) => handleColumnDragStart(e, col.id)}
+                        onDragOver={(e) => handleColumnDragOver(e, col.id)}
+                        onDragLeave={(e) => handleColumnDragLeave(e, col.id)}
+                        onDrop={(e) => handleColumnDrop(e, col.id)}
+                        onDragEnd={handleColumnDragEnd}
+                        className={`relative group select-none cursor-grab active:cursor-grabbing transition-colors ${
+                          isDragOverThis ? 'border-l-2 border-emerald-500 bg-emerald-50' : ''
+                        } ${isDraggingThis ? 'opacity-40 bg-slate-200' : ''}`}
                         style={{
                           width: colW,
                           minWidth: colW,
@@ -3739,6 +3873,7 @@ function PurchaseInvoiceList() {
                               <CustomSearchDropdown
                                 placeholder="SCAN BARCODE OR TYPE ITEM NAME HERE TO ADD..."
                                 value={null}
+                                clearOnSelect={true}
                                 onSelect={(selectedItem) => {
                                   if (selectedItem) {
                                     console.log('[PurchaseInvoice inline search] Selected Item:', selectedItem);

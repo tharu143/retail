@@ -10,6 +10,23 @@ import { logout } from './Redux/Slices/userSlice';
 
 // === GLOBAL API AND AUTHENTICATION CONFIGURATION ===
 
+// 0. Globally Disable Mouse Wheel / Scroll Value Changes on ALL Number Inputs Across the Entire App
+if (typeof window !== 'undefined') {
+  document.addEventListener(
+    'wheel',
+    function (e) {
+      if (
+        document.activeElement &&
+        document.activeElement.tagName === 'INPUT' &&
+        document.activeElement.type === 'number'
+      ) {
+        document.activeElement.blur();
+      }
+    },
+    { passive: true }
+  );
+}
+
 // 1. Global Axios Configuration
 const BACKEND_URL = 'http://75.119.130.59:8089';
 const IS_ELECTRON = window.location.protocol === 'file:';

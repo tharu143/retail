@@ -3,7 +3,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Plus, Search, X, Save, Upload, Package, Camera, ChevronLeft,
   Users, AlertCircle, Trash2, ChevronDown, Palette, Loader2, ChevronRight,
-  Edit2, ShoppingCart, Barcode, Tag, Box, Info, ShieldCheck, Scale, MapPin, Activity, FileText, Calendar,
+  Edit2, ShoppingCart, Barcode, Tag, Box, Boxes, Info, ShieldCheck, Scale, MapPin, Activity, FileText, Calendar,
   LayoutGrid, List, TrendingUp, Warehouse, DollarSign, BarChart2, RefreshCw, Zap, Layers
 } from 'lucide-react';
 import axios from 'axios';
@@ -499,7 +499,7 @@ const defaultForm = () => ({
   attributes: [],
   opening_stock: 0, valuation_rate: 0, standard_selling_rate: 0, brand: '',
   default_uom: 'Nos', description: '', image: null, imagePreview: null,
-  uoms: [], hsn_code: '', country_of_origin: '', custom_loyalty_eligible: 0, custom_allow_discount: 1,
+  uoms: [{ uom: 'Nos', conversion_factor: 1 }], hsn_code: '', country_of_origin: '', custom_loyalty_eligible: 0, custom_allow_discount: 1,
   is_stock_item: 1, is_sales_item: 1, is_purchase_item: 1, supplier_items: [],
   branch_availability: [], custom_pieces_per_box: 0
 });
@@ -675,6 +675,8 @@ export default function ItemList() {
   const [loadingValuation, setLoadingValuation] = useState(false);
   const [templateVariants, setTemplateVariants] = useState([]);
   const [loadingTemplateVariants, setLoadingTemplateVariants] = useState(false);
+  const [productBundleData, setProductBundleData] = useState(null);
+  const [loadingProductBundle, setLoadingProductBundle] = useState(false);
 
   // ── Branch Sync Selection ──
   const [selectedItems, setSelectedItems] = useState([]);
@@ -850,6 +852,27 @@ export default function ItemList() {
             }
           } else {
             setTemplateVariants([]);
+          }
+
+          // Check and fetch Product Bundle data if this item is a bundle
+          setLoadingProductBundle(true);
+          try {
+            const bundleRes = await axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_item_product_bundle', {
+              params: { item_code: code, warehouse: localStorage.getItem('warehouse') || warehouse },
+              withCredentials: true
+            });
+            if (bundleRes.data?.message?.status === 'success' && bundleRes.data.message.is_bundle) {
+              setProductBundleData(bundleRes.data.message.bundle);
+            } else if (bundleRes.data?.status === 'success' && bundleRes.data?.is_bundle) {
+              setProductBundleData(bundleRes.data.bundle);
+            } else {
+              setProductBundleData(null);
+            }
+          } catch (bErr) {
+            console.warn('Error fetching bundle:', bErr);
+            setProductBundleData(null);
+          } finally {
+            setLoadingProductBundle(false);
           }
         }
       } catch (errDoc) {
@@ -1160,11 +1183,14 @@ export default function ItemList() {
     if (!name) return;
 
     try {
-      const res = await axios.post('/api/resource/Brand', { brand: name.trim() }, { withCredentials: true });
-      if (res.data.data || res.status === 200) {
+      const res = await axios.post('/api/method/kyle_retail.retail_api.api.create_brand', { brand_name: name.trim() }, { withCredentials: true });
+      const resData = res.data?.message || res.data;
+      if (resData?.status === 'success' || resData?.name || res.status === 200) {
         await fetchBrands();
         setForm(p => ({ ...p, brand: name.trim() }));
         Swal.fire({ icon: 'success', title: 'Created!', text: `Brand "${name.trim()}" created successfully.`, timer: 1800, showConfirmButton: false });
+      } else {
+        Swal.fire({ icon: 'error', title: 'Error', text: resData?.message || 'Failed to create brand' });
       }
     } catch (e) {
       Swal.fire({ icon: 'error', title: 'Error', text: e.response?.data?.message || e.message || 'Failed to create brand' });
@@ -1189,11 +1215,14 @@ export default function ItemList() {
     if (!name) return;
 
     try {
-      const res = await axios.post('/api/resource/UOM', { uom_name: name.trim() }, { withCredentials: true });
-      if (res.data.data || res.status === 200) {
+      const res = await axios.post('/api/method/kyle_retail.retail_api.api.create_uom', { uom_name: name.trim() }, { withCredentials: true });
+      const resData = res.data?.message || res.data;
+      if (resData?.status === 'success' || resData?.name || res.status === 200) {
         await fetchUoms();
         setForm(p => ({ ...p, default_uom: name.trim() }));
         Swal.fire({ icon: 'success', title: 'Created!', text: `UOM "${name.trim()}" created successfully.`, timer: 1800, showConfirmButton: false });
+      } else {
+        Swal.fire({ icon: 'error', title: 'Error', text: resData?.message || 'Failed to create UOM' });
       }
     } catch (e) {
       Swal.fire({ icon: 'error', title: 'Error', text: e.response?.data?.message || e.message || 'Failed to create UOM' });
@@ -1303,6 +1332,50 @@ export default function ItemList() {
     } catch { }
     setBarcodes(p => [...p, { barcode: code, uom: form.default_uom || 'Nos' }]);
     setBarcodeInput(''); setIsScanning(false);
+  };
+
+  const handlePiecesPerBoxChange = (val) => {
+    const pcs = parseFloat(val) || 0;
+    const baseUom = form.default_uom || 'Nos';
+    
+    // Auto rebuild UOM table: base uom (factor 1) + Box (factor pcs if pcs > 1)
+    let newUoms = [{ uom: baseUom, conversion_factor: 1 }];
+    if (pcs > 1) {
+      newUoms.push({ uom: 'Box', conversion_factor: pcs });
+    }
+    
+    // Preserve any custom non-box/non-base UOMs added previously
+    (form.uoms || []).forEach(existing => {
+      if (existing.uom && existing.uom !== baseUom && existing.uom !== 'Box') {
+        newUoms.push(existing);
+      }
+    });
+
+    setForm(prev => ({
+      ...prev,
+      custom_pieces_per_box: val,
+      uoms: newUoms
+    }));
+  };
+
+  const handleDefaultUomChange = (val) => {
+    const baseUom = val || 'Nos';
+    const pcs = parseFloat(form.custom_pieces_per_box) || 0;
+    let newUoms = [{ uom: baseUom, conversion_factor: 1 }];
+    if (pcs > 1) {
+      newUoms.push({ uom: 'Box', conversion_factor: pcs });
+    }
+    (form.uoms || []).forEach(existing => {
+      if (existing.uom && existing.uom !== baseUom && existing.uom !== 'Box') {
+        newUoms.push(existing);
+      }
+    });
+
+    setForm(prev => ({
+      ...prev,
+      default_uom: baseUom,
+      uoms: newUoms
+    }));
   };
 
   const addUomRow = () => setForm(p => ({ ...p, uoms: [...p.uoms, { uom: '', conversion_factor: 1 }] }));
@@ -1626,10 +1699,33 @@ export default function ItemList() {
       custom_pieces_per_box: item.custom_pieces_per_box || 0,
       branch_availability: []
     });
-    setBarcodes([]); setShowForm(true); setActiveTab('General'); setDashboardData(null); setConnectionActiveTab(null);
+    setBarcodes([]); setShowForm(true); setActiveTab('General'); setDashboardData(null); setConnectionActiveTab(null); setProductBundleData(null);
     fetchPriceList(item.item_code);
     fetchItemDashboardDetails(item.item_code);
     fetchItemValuation(item.item_code);
+    fetchProductBundle(item.item_code);
+  };
+
+  const fetchProductBundle = async (code) => {
+    try {
+      setLoadingProductBundle(true);
+      const bundleRes = await axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_item_product_bundle', {
+        params: { item_code: code, warehouse: localStorage.getItem('warehouse') || warehouse },
+        withCredentials: true
+      });
+      if (bundleRes.data?.message?.status === 'success' && bundleRes.data.message.is_bundle) {
+        setProductBundleData(bundleRes.data.message.bundle);
+      } else if (bundleRes.data?.status === 'success' && bundleRes.data?.is_bundle) {
+        setProductBundleData(bundleRes.data.bundle);
+      } else {
+        setProductBundleData(null);
+      }
+    } catch (bErr) {
+      console.warn('Error fetching bundle:', bErr);
+      setProductBundleData(null);
+    } finally {
+      setLoadingProductBundle(false);
+    }
   };
 
   const resetForm = () => { 
@@ -1639,6 +1735,7 @@ export default function ItemList() {
     setIsViewMode(false); 
     setEditingItemCode(null); 
     setValuationData(null); 
+    setProductBundleData(null); 
     setVariantForm({
       create_first_variant: true,
       initial_variants: [
@@ -2349,6 +2446,12 @@ export default function ItemList() {
                         <span style={{ fontSize: 10, fontWeight: 800, color: T.textSub }}>DEACTIVATE</span>
                       </label>
                     </div>
+                    {productBundleData && (
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 9px', borderRadius: 20, background: '#ecfdf5', border: '1px solid #a7f3d0', color: '#065f46', fontSize: 10, fontWeight: 800 }}>
+                        <Boxes size={12} style={{ color: '#059669' }} />
+                        <span>PRODUCT BUNDLE ({productBundleData.items?.length || 0})</span>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -2441,6 +2544,109 @@ export default function ItemList() {
                       <StatCard label="Total Stock" value={`${valuationData?.stock_qty || priceData.metrics?.total_stock || 0} ${form.default_uom}`} accent={T.purple} />
                       <StatCard label="Stock Value" value={<span className="flex items-center gap-1"><DirhamIcon size={20} /> {Number(valuationData?.stock_value || priceData.metrics?.stock_value || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>} accent={T.green} />
                     </div>
+
+                    {/* Product Bundle Package Components Section - Top Highlight */}
+                    {productBundleData && (
+                      <div style={{ width: '100%' }}>
+                        <CardSection
+                          title={`Product Bundle Package Components (${productBundleData.items?.length || 0})`}
+                          icon={<Boxes size={16} style={{ color: '#059669' }} />}
+                          action={
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                              <span style={{ fontSize: 11, fontWeight: 800, color: '#065f46', background: '#ecfdf5', border: '1px solid #a7f3d0', padding: '3px 10px', borderRadius: 20 }}>
+                                Available Sets: {productBundleData.available_bundle_qty || 0}
+                              </span>
+                              <span style={{ fontSize: 11, fontWeight: 800, color: '#334155', background: '#f1f5f9', padding: '3px 10px', borderRadius: 20 }}>
+                                Calculated Value: AED {Number(productBundleData.calculated_price || 0).toFixed(2)}
+                              </span>
+                            </div>
+                          }
+                        >
+                          <div style={{ padding: 0 }}>
+                            <div style={{ overflowX: 'auto' }}>
+                              <table className="il-table" style={{ border: 'none', width: '100%' }}>
+                                <thead>
+                                  <tr style={{ background: '#f8fafc' }}>
+                                    <th style={{ paddingLeft: 20, width: 45, textAlign: 'center' }}>#</th>
+                                    <th>Child Item Code</th>
+                                    <th>Item Name</th>
+                                    <th style={{ textAlign: 'center' }}>Qty</th>
+                                    <th style={{ textAlign: 'center' }}>UOM</th>
+                                    <th style={{ textAlign: 'right' }}>Unit Rate</th>
+                                    <th style={{ textAlign: 'right' }}>Total Amount</th>
+                                    <th style={{ textAlign: 'center' }}>Stock</th>
+                                    <th style={{ textAlign: 'right', paddingRight: 20 }}>Action</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {(productBundleData.items || []).map((child, idx) => (
+                                    <tr key={idx} style={{ cursor: 'default' }}>
+                                      <td style={{ paddingLeft: 20, textAlign: 'center', fontWeight: 800, color: '#94a3b8' }}>
+                                        {idx + 1}
+                                      </td>
+                                      <td>
+                                        <div style={{ fontWeight: 700, color: '#059669', fontSize: 13, fontFamily: "'DM Mono', monospace" }}>
+                                          {child.item_code}
+                                        </div>
+                                      </td>
+                                      <td>
+                                        <div style={{ fontWeight: 700, color: '#1e293b', fontSize: 13 }}>
+                                          {child.item_name}
+                                        </div>
+                                      </td>
+                                      <td style={{ textAlign: 'center' }}>
+                                        <span style={{ padding: '2px 8px', background: '#ecfdf5', color: '#059669', borderRadius: 6, border: '1px solid #a7f3d0', fontWeight: 800, fontSize: 12 }}>
+                                          {child.qty}
+                                        </span>
+                                      </td>
+                                      <td style={{ textAlign: 'center', color: '#64748b', fontWeight: 600, fontSize: 12 }}>
+                                        {child.uom}
+                                      </td>
+                                      <td style={{ textAlign: 'right', fontWeight: 700, fontSize: 13 }}>
+                                        AED {Number(child.rate || 0).toFixed(2)}
+                                      </td>
+                                      <td style={{ textAlign: 'right', fontWeight: 800, color: '#059669', fontSize: 13 }}>
+                                        AED {Number(child.amount || (child.qty * child.rate) || 0).toFixed(2)}
+                                      </td>
+                                      <td style={{ textAlign: 'center' }}>
+                                        <span style={{
+                                          padding: '2px 8px',
+                                          borderRadius: 6,
+                                          fontSize: 11,
+                                          fontWeight: 700,
+                                          background: child.actual_qty > 0 ? '#ecfdf5' : '#fee2e2',
+                                          color: child.actual_qty > 0 ? '#15803d' : '#b91c1c',
+                                          border: `1px solid ${child.actual_qty > 0 ? '#a7f3d0' : '#fecaca'}`
+                                        }}>
+                                          {child.actual_qty || 0}
+                                        </span>
+                                      </td>
+                                      <td style={{ textAlign: 'right', paddingRight: 20 }}>
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            const target = items.find(i => i.item_code === child.item_code);
+                                            if (target) {
+                                              handleRowClick(target);
+                                            } else {
+                                              handleRowClick({ item_code: child.item_code, item_name: child.item_name, stock_uom: child.uom, standard_rate: child.rate });
+                                            }
+                                          }}
+                                          className="il-btn il-btn-secondary"
+                                          style={{ padding: '4px 10px', fontSize: 11, fontWeight: 700, borderRadius: 6, background: '#fff' }}
+                                        >
+                                          View →
+                                        </button>
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                        </CardSection>
+                      </div>
+                    )}
 
                     {/* Grid */}
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr) 280px', gap: 16 }}>
@@ -3139,7 +3345,7 @@ export default function ItemList() {
                           options={baseUomOptions}
                           required
                           placeholder="Select UOM"
-                          onChange={val => setForm({ ...form, default_uom: val })}
+                          onChange={handleDefaultUomChange}
                           onAction={handleCreateUom}
                         />
                       )}
@@ -3158,7 +3364,7 @@ export default function ItemList() {
                       {/* 9. Pieces Per Box */}
                       <div className="il-form-field">
                         <label className="il-form-label">Pieces Per Box</label>
-                        <input type="number" className="il-input" value={form.custom_pieces_per_box} onChange={e => setForm({ ...form, custom_pieces_per_box: e.target.value })} placeholder="Conversion factor" />
+                        <input type="number" className="il-input" value={form.custom_pieces_per_box} onChange={e => handlePiecesPerBoxChange(e.target.value)} placeholder="Conversion factor (e.g. 12)" />
                       </div>
                     </div>
                   </div>
@@ -3851,30 +4057,52 @@ export default function ItemList() {
 
                 {/* UOM + Suppliers */}
                 <div className="il-form-grid-2">
-                  <CardSection title="UOM Conversions" icon={<Scale size={14} />}
-                    action={<button className="il-btn il-btn-ghost" style={{ padding: '4px 9px', fontSize: 12 }} onClick={addUomRow}><Plus size={12} />Add</button>}
+                  <CardSection 
+                    title="UOM Conversions (Auto-Calculated)" 
+                    icon={<Scale size={14} />}
+                    badge={<span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', background: '#ecfdf5', color: '#059669', borderRadius: 6, border: '1px solid #a7f3d0' }}>Auto Synced</span>}
                   >
                     {form.uoms.length > 0 ? (
-                      <table className="il-table">
-                        <thead><tr><th>UOM</th><th style={{ textAlign: 'right' }}>Factor</th><th style={{ width: 40 }}></th></tr></thead>
-                        <tbody>
-                          {form.uoms.map((u, i) => (
-                            <tr key={i}>
-                              <td style={{ paddingTop: 8, paddingBottom: 8 }}>
-                                <SearchableSelectInline
-                                  value={u.uom}
-                                  options={uoms}
-                                  placeholder="Select UOM"
-                                  onChange={val => updateUomRow(i, 'uom', val)}
-                                />
-                              </td>
-                              <td style={{ paddingTop: 8, paddingBottom: 8 }}><input type="number" style={{ border: 'none', background: 'transparent', fontWeight: 600, width: '100%', textAlign: 'right', outline: 'none', fontFamily: 'DM Sans, sans-serif', fontSize: 13 }} value={u.conversion_factor} onChange={e => updateUomRow(i, 'conversion_factor', Number(e.target.value))} /></td>
-                              <td><button onClick={() => removeUomRow(i)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.red, display: 'flex' }}><Trash2 size={13} /></button></td>
+                      <div style={{ padding: '6px 12px' }}>
+                        <div style={{ fontSize: 11, color: T.textMuted, marginBottom: 8, fontStyle: 'italic' }}>
+                          * Generated automatically from <b>Base UOM ({form.default_uom || 'Nos'})</b> and <b>Pieces Per Box ({form.custom_pieces_per_box || 0})</b>.
+                        </div>
+                        <table className="il-table" style={{ width: '100%' }}>
+                          <thead>
+                            <tr style={{ background: T.bg }}>
+                              <th style={{ padding: '8px 10px', fontSize: 11, fontWeight: 700, color: T.textMuted }}>UOM UNIT</th>
+                              <th style={{ padding: '8px 10px', textAlign: 'right', fontSize: 11, fontWeight: 700, color: T.textMuted }}>CONVERSION FACTOR</th>
+                              <th style={{ padding: '8px 10px', textAlign: 'center', fontSize: 11, fontWeight: 700, color: T.textMuted }}>TYPE</th>
                             </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    ) : <div style={{ padding: '18px', textAlign: 'center', color: T.textMuted, fontSize: 13 }}>No additional UOMs</div>}
+                          </thead>
+                          <tbody>
+                            {form.uoms.map((u, i) => (
+                              <tr key={i} style={{ borderBottom: `1px solid ${T.borderLight}` }}>
+                                <td style={{ padding: '8px 10px', fontWeight: 700, color: u.uom === (form.default_uom || 'Nos') ? T.blue : '#059669' }}>
+                                  {u.uom}
+                                </td>
+                                <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 800, fontFamily: "'DM Mono', monospace", color: T.text }}>
+                                  {u.conversion_factor} {form.default_uom || 'Nos'}
+                                </td>
+                                <td style={{ padding: '8px 10px', textAlign: 'center' }}>
+                                  <span style={{
+                                    fontSize: 10,
+                                    fontWeight: 700,
+                                    padding: '2px 8px',
+                                    borderRadius: 4,
+                                    background: u.uom === (form.default_uom || 'Nos') ? '#eff6ff' : '#f0fdf4',
+                                    color: u.uom === (form.default_uom || 'Nos') ? '#2563eb' : '#16a34a',
+                                    border: `1px solid ${u.uom === (form.default_uom || 'Nos') ? '#bfdbfe' : '#bbf7d0'}`
+                                  }}>
+                                    {u.uom === (form.default_uom || 'Nos') ? 'Base Unit' : 'Box Package'}
+                                  </span>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : <div style={{ padding: '18px', textAlign: 'center', color: T.textMuted, fontSize: 13 }}>No UOM Conversions</div>}
                   </CardSection>
 
                   <CardSection title="Branch Visibility" icon={<MapPin size={14} />}

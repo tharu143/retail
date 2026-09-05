@@ -138,7 +138,7 @@ function ClosingCollection() {
         setAmount(balanceData.remaining_balance > 0 ? balanceData.remaining_balance.toString() : '');
     };
 
-    // 4. Submit Collection
+    // 4. Submit Collection Flow with PIN Modal
     const handleSubmit = async (e) => {
         e.preventDefault();
         const enteredAmt = parseFloat(amount || 0);
@@ -152,34 +152,115 @@ function ClosingCollection() {
             return;
         }
 
-        if (!collectorName && !secretCode) {
-            Swal.fire({
-                icon: 'warning',
-                title: 'Collector Details Needed',
-                text: 'Please provide a valid Secret Code or Collector / Employee Name.'
-            });
-            return;
-        }
+        // Interactive Live-Resolving SweetAlert2 Collector PIN Modal
+        let resolvedCollectorData = null;
+        let verifiedCode = '';
 
-        const confirm = await Swal.fire({
-            title: 'Confirm Cash Handover?',
+        const { value: confirmed } = await Swal.fire({
+            title: '🔑 Collector Secret PIN Verification',
             html: `
-                <div style="text-align: left; font-size: 13px; line-height: 1.6; color: #334155; padding: 6px 0;">
+                <div style="text-align: left; font-size: 13px; color: #475569; margin-bottom: 14px; line-height: 1.5;">
                     <div><strong>Branch:</strong> ${selectedBranch}</div>
-                    <div><strong>Date:</strong> ${selectedDate}</div>
-                    <div><strong>Collector:</strong> ${collectorName || 'Manual'}</div>
-                    <div><strong>Amount:</strong> AED ${enteredAmt.toLocaleString(undefined, { minimumFractionDigits: 2 })}</div>
-                    <div><strong>Mode:</strong> Cash Handover</div>
+                    <div><strong>Handover Amount:</strong> <span style="color: #059669; font-weight: 800; font-size: 14px;">AED ${enteredAmt.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span></div>
+                </div>
+                <div style="text-align: left; margin-bottom: 8px;">
+                    <label style="font-size: 12px; font-weight: 700; color: #334155; display: block; margin-bottom: 6px;">
+                        Enter 4-Digit Secret PIN:
+                    </label>
+                    <input 
+                        id="swal-collector-pin-input" 
+                        type="password" 
+                        maxlength="10" 
+                        placeholder="••••"
+                        style="width: 100%; height: 44px; text-align: center; font-size: 24px; letter-spacing: 6px; font-weight: 800; border: 2px solid #cbd5e1; border-radius: 10px; box-sizing: border-box; outline: none;" 
+                        autofocus
+                    />
+                </div>
+                <div id="swal-collector-status-box" style="min-height: 52px; margin-top: 10px; display: flex; align-items: center; justify-content: center;">
+                    <div style="font-size: 12px; color: #94a3b8; font-style: italic;">
+                        Type PIN to verify collector...
+                    </div>
                 </div>
             `,
-            icon: 'question',
             showCancelButton: true,
-            confirmButtonText: 'Yes, Submit & Print Slip',
+            confirmButtonText: '✓ Confirm & Submit Handover',
             cancelButtonText: 'Cancel',
-            confirmButtonColor: '#059669'
+            confirmButtonColor: '#059669',
+            cancelButtonColor: '#94a3b8',
+            didOpen: () => {
+                const inputEl = document.getElementById('swal-collector-pin-input');
+                const statusBox = document.getElementById('swal-collector-status-box');
+                const confirmBtn = Swal.getConfirmButton();
+                if (confirmBtn) confirmBtn.disabled = true;
+
+                let timeout = null;
+                inputEl?.addEventListener('input', (e) => {
+                    const val = e.target.value.trim();
+                    resolvedCollectorData = null;
+                    verifiedCode = '';
+                    if (confirmBtn) confirmBtn.disabled = true;
+
+                    if (val.length < 3) {
+                        statusBox.innerHTML = `<div style="font-size: 12px; color: #94a3b8; font-style: italic;">Type PIN to verify collector...</div>`;
+                        return;
+                    }
+
+                    statusBox.innerHTML = `
+                        <div style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #64748b;">
+                            <span class="animate-spin" style="display: inline-block;">⟳</span> Verifying PIN...
+                        </div>
+                    `;
+
+                    clearTimeout(timeout);
+                    timeout = setTimeout(async () => {
+                        try {
+                            const res = await fetch(`${API_PATH}.get_collector_by_secret_code?secret_code=${encodeURIComponent(val)}`, {
+                                headers: { 'X-Frappe-SID': getSession() },
+                                credentials: 'include'
+                            });
+                            const json = await res.json();
+                            const result = json.message || json;
+                            if (result.status === 'success' && result.data) {
+                                resolvedCollectorData = result.data;
+                                verifiedCode = val;
+                                if (confirmBtn) confirmBtn.disabled = false;
+                                statusBox.innerHTML = `
+                                    <div style="width: 100%; display: flex; align-items: center; gap: 10px; background: #ecfdf5; border: 1.5px solid #a7f3d0; padding: 8px 12px; border-radius: 8px; text-align: left;">
+                                        <div style="width: 28px; height: 28px; border-radius: 50%; background: #059669; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 14px;">✓</div>
+                                        <div>
+                                            <div style="font-size: 13px; font-weight: 800; color: #065f46;">${result.data.collector_name}</div>
+                                            <div style="font-size: 11px; color: #047857;">Authorized Collector (${result.data.employee || 'Active'})</div>
+                                        </div>
+                                    </div>
+                                `;
+                            } else {
+                                if (confirmBtn) confirmBtn.disabled = true;
+                                statusBox.innerHTML = `
+                                    <div style="font-size: 12px; color: #ef4444; font-weight: 700; background: #fef2f2; border: 1px solid #fecaca; padding: 6px 12px; border-radius: 6px;">
+                                        ✕ Invalid PIN — Collector not recognized
+                                    </div>
+                                `;
+                            }
+                        } catch (err) {
+                            if (confirmBtn) confirmBtn.disabled = true;
+                            statusBox.innerHTML = `<div style="font-size: 12px; color: #ef4444;">Verification error: ${err.message}</div>`;
+                        }
+                    }, 250);
+                });
+            },
+            preConfirm: () => {
+                if (!resolvedCollectorData || !verifiedCode) {
+                    Swal.showValidationMessage('Please enter a valid Collector PIN to verify');
+                    return false;
+                }
+                return { pin: verifiedCode, collectorData: resolvedCollectorData };
+            }
         });
 
-        if (!confirm.isConfirmed) return;
+        if (!confirmed || !confirmed.pin || !confirmed.collectorData) return;
+
+        const verifiedCollector = confirmed.collectorData.collector_name;
+        const verifiedPin = confirmed.pin;
 
         setSubmitting(true);
         try {
@@ -188,8 +269,8 @@ function ClosingCollection() {
                 posting_date: selectedDate,
                 amount: enteredAmt,
                 collection_type: 'Cash',
-                secret_code: secretCode,
-                collector_name: collectorName,
+                secret_code: verifiedPin,
+                collector_name: verifiedCollector,
                 description: description
             };
 
@@ -210,8 +291,8 @@ function ClosingCollection() {
                 Swal.fire({
                     icon: 'success',
                     title: 'Collection Recorded!',
-                    text: result.message || 'Collection recorded successfully.',
-                    timer: 2000,
+                    html: `<div style="font-size: 14px; color: #334155;">Cash handover to <strong>${verifiedCollector}</strong> recorded successfully.</div>`,
+                    timer: 2500,
                     showConfirmButton: false
                 });
 
@@ -497,54 +578,29 @@ function ClosingCollection() {
                                 </div>
                             </div>
 
-                            {/* Collector PIN */}
+                            {/* Collector PIN Verification Info */}
                             <div className="bca-field-group">
                                 <label className="bca-field-label">
-                                    Collector Secret Code / PIN <span className="bca-field-req">*</span>
+                                    Collector Authorization <span className="bca-field-req">*</span>
                                 </label>
-                                <div className="bca-input-container">
-                                    <div className="bca-input-prefix-icon">
-                                        <KeyRound size={16} />
+                                <div style={{
+                                    padding: '12px 14px',
+                                    borderRadius: 10,
+                                    border: '1.5px dashed #cbd5e1',
+                                    background: '#f8fafc',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 10
+                                }}>
+                                    <KeyRound size={20} style={{ color: '#059669' }} />
+                                    <div style={{ flex: 1 }}>
+                                        <div style={{ fontSize: 12, fontWeight: 700, color: '#334155' }}>Collector Secret PIN Prompt</div>
+                                        <div style={{ fontSize: 11, color: '#64748b' }}>A secure PIN verification popup will appear when clicking <b>Submit Handover</b>.</div>
                                     </div>
-                                    <input 
-                                        type="password"
-                                        placeholder="Enter 4-digit PIN (e.g. 1111)"
-                                        value={secretCode}
-                                        onChange={handleSecretCodeChange}
-                                        className="bca-input bca-input-pin"
-                                        required
-                                    />
-                                    {isVerifyingCode && (
-                                        <span style={{ position: 'absolute', right: 14 }}>
-                                            <RefreshCw size={15} className="animate-spin text-slate-400" />
-                                        </span>
-                                    )}
-                                    {codeVerified && (
-                                        <span style={{ position: 'absolute', right: 14, color: '#059669', background: '#ecfdf5', padding: 4, borderRadius: 6, display: 'flex' }}>
-                                            <CheckCheck size={16} />
-                                        </span>
-                                    )}
+                                    <span style={{ fontSize: 10, fontWeight: 800, color: '#065f46', background: '#ecfdf5', border: '1px solid #a7f3d0', padding: '2px 8px', borderRadius: 6 }}>
+                                        MANDATORY
+                                    </span>
                                 </div>
-
-                                {/* Collector Card if verified */}
-                                {collectorName ? (
-                                    <div className="bca-verified-collector-card">
-                                        <UserCheck size={18} className="shrink-0" />
-                                        <div>
-                                            <span className="bca-verified-name">{collectorName}</span>
-                                            <span className="bca-verified-sub">Authorized Collector Verified</span>
-                                        </div>
-                                    </div>
-                                ) : secretCode && !isVerifyingCode ? (
-                                    <input 
-                                        type="text"
-                                        placeholder="Or enter Collector Name manually"
-                                        value={collectorName}
-                                        onChange={(e) => setCollectorName(e.target.value)}
-                                        className="bca-input"
-                                        style={{ height: 38, fontSize: 12, paddingLeft: 12 }}
-                                    />
-                                ) : null}
                             </div>
 
                             {/* Mode of Collection - Cash Only */}

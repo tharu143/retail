@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   Package, Tag, MapPin, Hash, Layers, Anchor, Bookmark, Box, Archive,
   ArrowRight, ShieldCheck, Activity, AlertCircle, FileText, Palette, FileBox,
-  TrendingUp, Warehouse, DollarSign, Loader2, Info, Users
+  TrendingUp, Warehouse, DollarSign, Loader2, Info, Users, Boxes, CheckCircle2
 } from 'lucide-react';
 import axios from 'axios';
 import { useSelector } from 'react-redux';
@@ -167,6 +167,7 @@ const ItemDetails = () => {
   const [valuationData, setValuationData] = useState(null);
   const [priceData, setPriceData] = useState({ prices: [], metrics: {}, warehouse_breakdown: [] });
   const [barcodes, setBarcodes] = useState([]);
+  const [productBundleData, setProductBundleData] = useState(null);
   const [dashSubTab, setDashSubTab] = useState('Procurement');
   const [connectionSearch, setConnectionSearch] = useState('');
   const [fromDate, setFromDate] = useState('');
@@ -202,6 +203,24 @@ const ItemDetails = () => {
         setItem(res.data.data);
       }
       
+      // Fetch Product Bundle details if this item is a bundle
+      try {
+        const bundleRes = await axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_item_product_bundle', {
+          params: { item_code: id, warehouse: localStorage.getItem('warehouse') || warehouse },
+          withCredentials: true
+        });
+        if (bundleRes.data?.message?.status === 'success' && bundleRes.data.message.is_bundle) {
+          setProductBundleData(bundleRes.data.message.bundle);
+        } else if (bundleRes.data?.status === 'success' && bundleRes.data?.is_bundle) {
+          setProductBundleData(bundleRes.data.bundle);
+        } else {
+          setProductBundleData(null);
+        }
+      } catch (bundleErr) {
+        console.warn('Error checking product bundle:', bundleErr);
+        setProductBundleData(null);
+      }
+
       // Fetch rich dashboard details
       const dashRes = await axios.get('/api/method/kyle_retail.retail_api.api.get_item_dashboard_details', { params: { item_code: id, warehouse: !isAdmin ? warehouse : undefined }, withCredentials: true });
       if (dashRes.data && dashRes.data.message) {
@@ -416,6 +435,15 @@ const ItemDetails = () => {
                 <span className="badge-label-muted">Group:</span>
                 <span className="badge-value-dark">{item.item_group}</span>
               </div>
+
+              {productBundleData && (
+                <div className="badge-pill-modern" style={{ borderColor: '#a7f3d0', backgroundColor: '#ecfdf5' }}>
+                  <Boxes size={12} style={{ color: '#059669' }} />
+                  <span style={{ color: '#065f46', fontWeight: 800, fontSize: '0.75rem', textTransform: 'uppercase' }}>
+                    Product Bundle ({productBundleData.items?.length || 0} Components)
+                  </span>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -510,6 +538,110 @@ const ItemDetails = () => {
                 </div>
               </InfoSection>
             </ScrollReveal>
+
+            {/* Product Bundle Components Card */}
+            {productBundleData && (
+              <div className="lg:col-span-2">
+                <ScrollReveal delay={150}>
+                  <div className="info-panel-card" style={{ margin: 0 }}>
+                    <div className="info-panel-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <Boxes size={18} style={{ color: '#059669' }} strokeWidth={2.5} />
+                        <h5 className="info-panel-title">
+                          Product Bundle Package Components ({productBundleData.items?.length || 0})
+                        </h5>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#065f46', background: '#ecfdf5', border: '1px solid #a7f3d0', padding: '3px 10px', borderRadius: 20 }}>
+                          Available Sets: {productBundleData.available_bundle_qty || 0}
+                        </span>
+                        <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#334155' }}>
+                          Calculated: AED {Number(productBundleData.calculated_price || 0).toFixed(2)}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="info-panel-body" style={{ padding: 0 }}>
+                      <div style={{ overflowX: 'auto' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                          <thead>
+                            <tr style={{ background: T.bg, borderBottom: `2px solid ${T.border}`, textAlign: 'left' }}>
+                              <th style={{ padding: '12px 18px', width: '50px', fontSize: 11, fontWeight: 700, color: T.textMuted, textTransform: 'uppercase', textAlign: 'center' }}>#</th>
+                              <th style={{ padding: '12px 18px', fontSize: 11, fontWeight: 700, color: T.textMuted, textTransform: 'uppercase' }}>Child Item Code</th>
+                              <th style={{ padding: '12px 18px', fontSize: 11, fontWeight: 700, color: T.textMuted, textTransform: 'uppercase' }}>Item Name</th>
+                              <th style={{ padding: '12px 18px', textAlign: 'center', fontSize: 11, fontWeight: 700, color: T.textMuted, textTransform: 'uppercase' }}>Qty</th>
+                              <th style={{ padding: '12px 18px', textAlign: 'center', fontSize: 11, fontWeight: 700, color: T.textMuted, textTransform: 'uppercase' }}>UOM</th>
+                              <th style={{ padding: '12px 18px', textAlign: 'right', fontSize: 11, fontWeight: 700, color: T.textMuted, textTransform: 'uppercase' }}>Unit Rate</th>
+                              <th style={{ padding: '12px 18px', textAlign: 'right', fontSize: 11, fontWeight: 700, color: T.textMuted, textTransform: 'uppercase' }}>Total Amount</th>
+                              <th style={{ padding: '12px 18px', textAlign: 'center', fontSize: 11, fontWeight: 700, color: T.textMuted, textTransform: 'uppercase' }}>Stock</th>
+                              <th style={{ padding: '12px 18px', textAlign: 'right', fontSize: 11, fontWeight: 700, color: T.textMuted, textTransform: 'uppercase' }}>Action</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {(productBundleData.items || []).map((child, idx) => (
+                              <tr key={idx} style={{ borderBottom: `1px solid ${T.borderLight}`, transition: 'background 0.15s' }}>
+                                <td style={{ padding: '12px 18px', textAlign: 'center', color: '#94a3b8', fontWeight: 800 }}>
+                                  {idx + 1}
+                                </td>
+                                <td style={{ padding: '12px 18px', fontWeight: 700, color: '#059669', fontFamily: "'DM Mono', monospace" }}>
+                                  {child.item_code}
+                                </td>
+                                <td style={{ padding: '12px 18px', fontWeight: 700, color: T.text }}>
+                                  {child.item_name}
+                                </td>
+                                <td style={{ padding: '12px 18px', textAlign: 'center', fontWeight: 800 }}>
+                                  <span style={{ padding: '2px 8px', background: '#ecfdf5', color: '#059669', borderRadius: 6, border: '1px solid #a7f3d0' }}>
+                                    {child.qty}
+                                  </span>
+                                </td>
+                                <td style={{ padding: '12px 18px', textAlign: 'center', color: T.textSub, fontWeight: 600 }}>
+                                  {child.uom}
+                                </td>
+                                <td style={{ padding: '12px 18px', textAlign: 'right', fontWeight: 700 }}>
+                                  AED {Number(child.rate || 0).toFixed(2)}
+                                </td>
+                                <td style={{ padding: '12px 18px', textAlign: 'right', fontWeight: 800, color: '#059669' }}>
+                                  AED {Number(child.amount || (child.qty * child.rate) || 0).toFixed(2)}
+                                </td>
+                                <td style={{ padding: '12px 18px', textAlign: 'center' }}>
+                                  <span style={{
+                                    padding: '3px 8px',
+                                    borderRadius: 6,
+                                    fontSize: 11,
+                                    fontWeight: 700,
+                                    background: child.actual_qty > 0 ? '#ecfdf5' : '#fee2e2',
+                                    color: child.actual_qty > 0 ? '#15803d' : '#b91c1c',
+                                    border: `1px solid ${child.actual_qty > 0 ? '#a7f3d0' : '#fecaca'}`
+                                  }}>
+                                    {child.actual_qty || 0}
+                                  </span>
+                                </td>
+                                <td style={{ padding: '12px 18px', textAlign: 'right' }}>
+                                  <button
+                                    onClick={() => navigate(`/item/${encodeURIComponent(child.item_code)}`)}
+                                    style={{
+                                      padding: '5px 10px',
+                                      borderRadius: 6,
+                                      background: T.bg,
+                                      border: `1px solid ${T.border}`,
+                                      fontSize: 11,
+                                      fontWeight: 700,
+                                      color: T.text,
+                                      cursor: 'pointer'
+                                    }}
+                                  >
+                                    View →
+                                  </button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
+                </ScrollReveal>
+              </div>
+            )}
 
             {/* Template Item Variants Table Card */}
             {item.has_variants === 1 && (

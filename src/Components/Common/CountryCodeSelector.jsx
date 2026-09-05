@@ -25,17 +25,22 @@ const CountryCodeSelector = ({
   const updatePosition = () => {
     if (buttonRef.current) {
       const rect = buttonRef.current.getBoundingClientRect();
+      const popHeight = 360;
+      const popWidth = 320;
       const spaceBelow = window.innerHeight - rect.bottom;
-      const popHeight = 330;
       
-      let top = rect.bottom + 6;
+      let top = rect.bottom + 8;
       if (spaceBelow < popHeight && rect.top > popHeight) {
-        top = rect.top - popHeight - 6;
+        top = rect.top - popHeight - 8;
       }
+
+      // Ensure a clean margin from screen edges
+      const maxLeft = window.innerWidth - popWidth - 12;
+      const left = Math.max(12, Math.min(rect.left, maxLeft));
 
       setDropdownPosition({
         top,
-        left: Math.max(8, Math.min(rect.left, window.innerWidth - 310)),
+        left,
       });
     }
   };
@@ -197,15 +202,15 @@ const CountryCodeSelector = ({
             style={{
               top: `${dropdownPosition.top}px`,
               left: `${dropdownPosition.left}px`,
-              width: '300px',
-              maxHeight: '340px',
-              boxShadow: '0 20px 30px -10px rgba(15, 23, 42, 0.25), 0 10px 15px -5px rgba(15, 23, 42, 0.1)',
+              width: '320px',
+              maxHeight: '360px',
+              boxShadow: '0 20px 35px -10px rgba(15, 23, 42, 0.25), 0 10px 20px -5px rgba(15, 23, 42, 0.1)',
             }}
           >
-            {/* Clean ERPNext Style Search Header */}
-            <div style={{ padding: '8px 10px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+            {/* Clean ERPNext Style Search Header with clear margin & padding */}
+            <div style={{ padding: '10px 12px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
               <div style={{ position: 'relative', width: '100%', display: 'flex', alignItems: 'center' }}>
-                <Search size={14} style={{ position: 'absolute', left: '10px', color: '#94a3b8', pointerEvents: 'none', zIndex: 1 }} />
+                <Search size={15} style={{ position: 'absolute', left: '11px', color: '#94a3b8', pointerEvents: 'none', zIndex: 1 }} />
                 <input
                   ref={searchInputRef}
                   type="text"
@@ -215,11 +220,11 @@ const CountryCodeSelector = ({
                   onKeyDown={handleKeyDown}
                   style={{
                     width: '100%',
-                    height: '34px',
-                    padding: '0 28px 0 32px',
+                    height: '36px',
+                    padding: '0 30px 0 34px',
                     backgroundColor: '#ffffff',
-                    border: '1px solid #cbd5e1',
-                    borderRadius: '8px',
+                    border: '1.5px solid #cbd5e1',
+                    borderRadius: '10px',
                     fontSize: '12px',
                     fontWeight: 600,
                     color: '#0f172a',
@@ -233,7 +238,7 @@ const CountryCodeSelector = ({
                   <button
                     type="button"
                     onClick={() => setSearchTerm('')}
-                    style={{ position: 'absolute', right: '8px', color: '#94a3b8', background: 'transparent', border: 'none', cursor: 'pointer', padding: '2px', display: 'flex', alignItems: 'center' }}
+                    style={{ position: 'absolute', right: '8px', color: '#94a3b8', background: 'transparent', border: 'none', cursor: 'pointer', padding: '4px', display: 'flex', alignItems: 'center' }}
                   >
                     <X size={13} />
                   </button>
@@ -242,15 +247,15 @@ const CountryCodeSelector = ({
             </div>
 
             {/* List Body with Generous Padding and Spacing */}
-            <div className="flex-1 overflow-y-auto p-1.5 space-y-2 text-xs">
+            <div style={{ padding: '10px', overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: '10px' }}>
               {/* GCC Primary Section */}
               {filteredGCC.length > 0 && (
                 <div>
-                  <div className="px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-emerald-700 bg-emerald-50/90 rounded-lg mb-1 flex items-center justify-between">
-                    <span className="flex items-center gap-1">🌟 GCC Countries</span>
-                    <span className="text-[8px] bg-emerald-200/70 text-emerald-900 px-1.5 py-0.5 rounded font-extrabold uppercase">Primary</span>
+                  <div style={{ padding: '6px 10px', fontSize: '10px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#065f46', background: '#ecfdf5', borderRadius: '8px', marginBottom: '6px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', border: '1px solid #a7f3d0' }}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>🌟 GCC Countries</span>
+                    <span style={{ fontSize: '8px', background: '#a7f3d0', color: '#064e3b', padding: '2px 6px', borderRadius: '4px', fontWeight: 900, textTransform: 'uppercase' }}>Primary</span>
                   </div>
-                  <div className="space-y-0.5">
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
                     {filteredGCC.map((c, idx) => {
                       const isSelected = c.code === value;
                       const isKeyboardActive = activeIndex === idx;
@@ -259,20 +264,34 @@ const CountryCodeSelector = ({
                           key={c.code}
                           type="button"
                           onClick={() => handleSelect(c.code)}
-                          className={`w-full px-2.5 py-2 rounded-lg flex items-center justify-between text-left transition-all cursor-pointer ${
-                            isKeyboardActive
-                              ? 'bg-sky-100 text-sky-950 font-bold shadow-xs'
-                              : isSelected
-                              ? 'bg-sky-50/90 text-sky-950 font-bold border border-sky-200/60'
-                              : 'hover:bg-slate-50 text-slate-700'
-                          }`}
+                          style={{
+                            width: '100%',
+                            padding: '8px 12px',
+                            borderRadius: '10px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            textAlign: 'left',
+                            transition: 'all 0.15s ease',
+                            cursor: 'pointer',
+                            border: isSelected ? '1.5px solid #7dd3fc' : (isKeyboardActive ? '1.5px solid #38bdf8' : '1px solid transparent'),
+                            backgroundColor: isSelected ? '#f0f9ff' : (isKeyboardActive ? '#e0f2fe' : 'transparent'),
+                            color: isSelected || isKeyboardActive ? '#082f49' : '#334155',
+                            boxSizing: 'border-box'
+                          }}
+                          onMouseEnter={(e) => {
+                            if (!isSelected && !isKeyboardActive) e.currentTarget.style.backgroundColor = '#f8fafc';
+                          }}
+                          onMouseLeave={(e) => {
+                            if (!isSelected && !isKeyboardActive) e.currentTarget.style.backgroundColor = 'transparent';
+                          }}
                         >
-                          <div className="flex items-center gap-2.5 min-w-0">
-                            <span className="text-base leading-none drop-shadow-xs">{c.flag}</span>
-                            <span className="font-extrabold text-xs text-slate-900 w-11 shrink-0">{c.code}</span>
-                            <span className="text-slate-600 truncate text-[11.5px] font-medium">{c.country}</span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, flex: 1 }}>
+                            <span style={{ fontSize: '17px', lineHeight: 1, flexShrink: 0, display: 'inline-flex' }}>{c.flag}</span>
+                            <span style={{ fontWeight: 900, fontSize: '12px', color: '#0f172a', width: '46px', flexShrink: 0 }}>{c.code}</span>
+                            <span style={{ color: '#475569', fontSize: '11.5px', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.country}</span>
                           </div>
-                          {isSelected && <Check size={14} className="text-sky-600 flex-shrink-0 font-bold ml-1" />}
+                          {isSelected && <Check size={15} style={{ color: '#0284c7', flexShrink: 0, fontWeight: 900, marginLeft: '8px' }} />}
                         </button>
                       );
                     })}
@@ -283,10 +302,10 @@ const CountryCodeSelector = ({
               {/* Other All Countries Section */}
               {filteredOther.length > 0 && (
                 <div>
-                  <div className="px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-slate-500 bg-slate-100/80 rounded-lg mb-1">
+                  <div style={{ padding: '6px 10px', fontSize: '10px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b', background: '#f1f5f9', borderRadius: '8px', marginBottom: '6px' }}>
                     All Countries
                   </div>
-                  <div className="space-y-0.5">
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
                     {filteredOther.map((c, idx) => {
                       const isSelected = c.code === value;
                       const globalIdx = filteredGCC.length + idx;
@@ -296,20 +315,34 @@ const CountryCodeSelector = ({
                           key={`${c.code}-${c.short}`}
                           type="button"
                           onClick={() => handleSelect(c.code)}
-                          className={`w-full px-2.5 py-2 rounded-lg flex items-center justify-between text-left transition-all cursor-pointer ${
-                            isKeyboardActive
-                              ? 'bg-sky-100 text-sky-950 font-bold shadow-xs'
-                              : isSelected
-                              ? 'bg-sky-50/90 text-sky-950 font-bold border border-sky-200/60'
-                              : 'hover:bg-slate-50 text-slate-700'
-                          }`}
+                          style={{
+                            width: '100%',
+                            padding: '8px 12px',
+                            borderRadius: '10px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            textAlign: 'left',
+                            transition: 'all 0.15s ease',
+                            cursor: 'pointer',
+                            border: isSelected ? '1.5px solid #7dd3fc' : (isKeyboardActive ? '1.5px solid #38bdf8' : '1px solid transparent'),
+                            backgroundColor: isSelected ? '#f0f9ff' : (isKeyboardActive ? '#e0f2fe' : 'transparent'),
+                            color: isSelected || isKeyboardActive ? '#082f49' : '#334155',
+                            boxSizing: 'border-box'
+                          }}
+                          onMouseEnter={(e) => {
+                            if (!isSelected && !isKeyboardActive) e.currentTarget.style.backgroundColor = '#f8fafc';
+                          }}
+                          onMouseLeave={(e) => {
+                            if (!isSelected && !isKeyboardActive) e.currentTarget.style.backgroundColor = 'transparent';
+                          }}
                         >
-                          <div className="flex items-center gap-2.5 min-w-0">
-                            <span className="text-base leading-none drop-shadow-xs">{c.flag}</span>
-                            <span className="font-extrabold text-xs text-slate-900 w-11 shrink-0">{c.code}</span>
-                            <span className="text-slate-600 truncate text-[11.5px] font-medium">{c.country}</span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, flex: 1 }}>
+                            <span style={{ fontSize: '17px', lineHeight: 1, flexShrink: 0, display: 'inline-flex' }}>{c.flag}</span>
+                            <span style={{ fontWeight: 900, fontSize: '12px', color: '#0f172a', width: '46px', flexShrink: 0 }}>{c.code}</span>
+                            <span style={{ color: '#475569', fontSize: '11.5px', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.country}</span>
                           </div>
-                          {isSelected && <Check size={14} className="text-sky-600 flex-shrink-0 font-bold ml-1" />}
+                          {isSelected && <Check size={15} style={{ color: '#0284c7', flexShrink: 0, fontWeight: 900, marginLeft: '8px' }} />}
                         </button>
                       );
                     })}

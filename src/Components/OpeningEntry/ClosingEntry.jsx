@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import {
   AlertCircle, CheckCircle2, Loader2, Receipt, Calendar, CreditCard,
   TrendingUp, DollarSign, Palette, RefreshCw, FileText, ChevronDown, User, Building2, X, Printer, LogOut,
-  ArrowRightLeft, Truck, AlertTriangle
+  ArrowRightLeft, Truck, AlertTriangle, HandCoins, Wallet
 } from 'lucide-react';
 import DirhamIcon from '../../assets/Currency/DirhamIcon';
 import { useSelector } from 'react-redux';
@@ -11,6 +11,7 @@ import { db } from '../../db';
 import { frappeCall } from '../../utils/frappe';
 import '../Admin/SalesOrder.css';
 import '../Reports/DailySalesReport.css';
+import './ClosingEntry.css';
 
 const UAE_DENOMINATIONS = [
   { value: 1000, label: '1000 AED (Note)' },
@@ -401,10 +402,13 @@ function ClosingEntry() {
           });
 
           const fixedReconciliation = (payload.payment_reconciliation || []).map(pr => {
-            const expected = flt(pr.opening_amount + (paidAmounts[pr.mode_of_payment] || 0));
+            const paidSales = paidAmounts[pr.mode_of_payment] !== undefined ? paidAmounts[pr.mode_of_payment] : flt(pr.paid_amount || 0);
+            const handover = flt(pr.collected_handover || 0);
+            const expected = pr.expected_amount !== undefined ? flt(pr.expected_amount) : Math.max(0, flt(pr.opening_amount + paidSales - (pr.mode_of_payment === 'Cash' ? handover : 0)));
             return {
               ...pr,
-              paid_amount: paidAmounts[pr.mode_of_payment] || 0,
+              paid_amount: paidSales,
+              collected_handover: handover,
               expected_amount: expected,
               closing_amount: pr.mode_of_payment === 'Cash' ? 0.0 : expected,
               difference: pr.mode_of_payment === 'Cash' ? expected : 0
@@ -509,6 +513,16 @@ function ClosingEntry() {
       return;
     }
 
+    if (telephoneBalance === '' || telephoneBalance === null || telephoneBalance === undefined) {
+      alert('Please enter Telephone Machine Balance (AED). It is required.');
+      return;
+    }
+
+    if (telephoneCash === '' || telephoneCash === null || telephoneCash === undefined) {
+      alert('Please enter Telephone Machine Cash (AED). It is required.');
+      return;
+    }
+
     if (pendingBranchReqs.has_pending) {
       const confirmProceed = window.confirm(
         `⚠️ WARNING: This branch currently has ${pendingBranchReqs.pending_mr_count} pending Material Request(s) (MR) and ${pendingBranchReqs.pending_mt_count} in-transit/draft Stock Transfer(s) (MT).\n\nDo you want to proceed with closing this shift anyway?`
@@ -609,6 +623,9 @@ function ClosingEntry() {
 
       const opEntry = openingEntries.find(o => o.name === selectedOpeningEntry);
 
+      const handoverAmount = parseFloat(cashReco.collected_handover || invoicesData.total_collections_collected || 0);
+      const cashSaleAmount = parseFloat(cashReco.paid_amount || 0);
+
       setThermalData({
         name,
         isDraft,
@@ -616,11 +633,13 @@ function ClosingEntry() {
         startTime: opEntry?.period_start_date ? new Date(opEntry.period_start_date).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).toLowerCase() : '9:10am',
         endTime: new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).toLowerCase(),
         status: isDraft ? 'Draft Closing' : 'Closed',
-        cashSale: parseFloat(cashReco.expected_amount || 0) - parseFloat(cashReco.opening_amount || 0),
-        cardSale: parseFloat(cardReco.expected_amount || 0),
-        onlinePayment: parseFloat(onlineReco.expected_amount || 0),
-        instaCash: parseFloat(instaReco.expected_amount || 0),
-        creditSale: parseFloat(creditReco.expected_amount || 0),
+        cashSale: cashSaleAmount,
+        handoverAmount: handoverAmount,
+        expectedCash: parseFloat(cashReco.expected_amount || 0),
+        cardSale: parseFloat(cardReco.expected_amount || cardReco.paid_amount || 0),
+        onlinePayment: parseFloat(onlineReco.expected_amount || onlineReco.paid_amount || 0),
+        instaCash: parseFloat(instaReco.expected_amount || instaReco.paid_amount || 0),
+        creditSale: parseFloat(creditReco.expected_amount || creditReco.paid_amount || 0),
         netTotal: total,
         counterCash: countedCash,
         openingFloat: parseFloat(cashReco.opening_amount || 0),
@@ -798,235 +817,153 @@ function ClosingEntry() {
   }
 
   return (
-    <div className="so-page" style={{ height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-
-      <style>{`
-        .ce-scroll-area {
-            flex: 1;
-            overflow-y: auto;
-            padding: 2rem 2.25rem;
-            background: #f8fafc;
-        }
-        .ce-summary-card {
-            background: linear-gradient(135deg, ${isGreen ? '#064e3b' : '#0c4a6e'} 0%, ${isGreen ? '#065f46' : '#075985'} 100%);
-            border-radius: 1rem;
-            padding: 1.75rem;
-            color: white;
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-        }
-        .ce-stat-value {
-            font-size: 1.875rem;
-            font-weight: 800;
-            font-family: 'JetBrains Mono', monospace;
-        }
-        .ce-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 1.75rem;
-            margin-bottom: 2rem;
-        }
-        /* Custom spacious cards for closing entry */
-        .ce-scroll-area .so-card {
-            border-radius: 1rem;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.03), 0 2px 4px -1px rgba(0, 0, 0, 0.02);
-            border: 1px solid rgba(226, 232, 240, 0.8) !important;
-            background: #ffffff;
-            margin-bottom: 2rem;
-            overflow: hidden;
-        }
-        .ce-scroll-area .so-card-header {
-            padding: 1.25rem 1.5rem !important;
-            border-bottom: 1px solid #f1f5f9 !important;
-        }
-        .ce-scroll-area .so-card-body {
-            padding: 1.5rem !important;
-        }
-        /* Spacing for input fields */
-        .ce-scroll-area .so-input,
-        .ce-scroll-area .so-select {
-            padding: 0.75rem 1rem !important;
-            border-radius: 0.5rem !important;
-            border: 1px solid #cbd5e1 !important;
-            font-size: 0.85rem !important;
-            font-weight: 600 !important;
-            height: auto !important;
-        }
-        /* Editable table closing amount cell */
-        .ce-scroll-area .so-td-input {
-            background: #f8fafc !important;
-            border: 1px solid #cbd5e1 !important;
-            border-radius: 0.5rem !important;
-            padding: 0.55rem 0.85rem !important;
-            font-size: 0.8rem !important;
-            font-weight: 800 !important;
-            width: 100% !important;
-            box-sizing: border-box !important;
-        }
-        .ce-scroll-area .so-td-input:focus {
-            background: #ffffff !important;
-            border-color: ${themeColor} !important;
-            box-shadow: 0 0 0 3px ${themeColor}15 !important;
-        }
-        /* Adjust spacing of tables */
-        .ce-scroll-area .so-items-table th {
-            padding: 0.85rem 1.25rem !important;
-            font-size: 0.7rem !important;
-        }
-        .ce-scroll-area .so-items-table td {
-            padding: 0.85rem 1.25rem !important;
-            font-size: 0.825rem !important;
-        }
-      `}</style>
-
-      <div className="so-page-header" style={{ flexShrink: 0 }}>
-        <div>
-          <h1 className="so-page-title">
-            <Receipt size={22} />
-            POS Closing Entry
-          </h1>
-          <p className="so-page-subtitle">Reconcile shift payments and finalize daily sales</p>
+    <div className="pce-container">
+      {/* Top Navigation Bar */}
+      <div className="pce-header">
+        <div className="pce-header-left">
+          <div className="pce-header-icon">
+            <Receipt size={26} />
+          </div>
+          <div>
+            <div className="pce-title-row">
+              <h1 className="pce-title">
+                POS Shift Closing Entry
+              </h1>
+              <span className="pce-tag">
+                Shift Reconciliation
+              </span>
+            </div>
+            <div className="pce-subtitle">
+              Reconcile physical cash, digital payments, and finalize day shift sales
+            </div>
+          </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+
+        <div className="pce-header-actions">
           <button
             onClick={() => setPolTheme(isGreen ? 'blue' : 'green')}
-            style={{
-              display: 'flex', alignItems: 'center', gap: '0.4rem',
-              padding: '0.5rem 1rem', background: themeHeaderBg,
-              border: `1.5px solid ${themeColor}`, borderRadius: '0.5rem',
-              fontSize: '0.7rem', fontWeight: 700, color: themeHeaderText,
-              cursor: 'pointer', transition: 'all 0.2s',
-              textTransform: 'uppercase', letterSpacing: '0.04em'
-            }}
+            className="pce-btn-theme"
           >
-            <Palette size={14} />
-            {polTheme}
+            <Palette size={15} />
+            <span>{polTheme}</span>
           </button>
 
-          <div style={{ width: '1px', height: '24px', background: '#e2e8f0' }}></div>
+          <div style={{ width: '1px', height: '24px', background: '#e2e8f0', margin: '0 4px' }}></div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            {userRoles.includes('Administrator') || userRoles.includes('System Manager') ? (
-              <>
-                <button
-                  className="so-btn-ghost"
-                  style={{ background: '#f1f5f9', fontSize: '0.7rem', padding: '0.55rem 1rem', height: '38px' }}
-                  onClick={() => handleSubmit(true)}
-                  disabled={loading || !invoicesData}
-                >
-                  {loading ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
-                  Save Draft
-                </button>
-                <button
-                  className="so-btn-primary"
-                  style={{ height: '38px', padding: '0 1.25rem', fontSize: '0.75rem', background: '#0f172a' }}
-                  onClick={() => handleSubmit(false)}
-                  disabled={loading || !invoicesData}
-                >
-                  {loading ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
-                  {loading ? 'Processing...' : 'Finalize & Submit Shift'}
-                </button>
-              </>
-            ) : (
+          {userRoles.includes('Administrator') || userRoles.includes('System Manager') ? (
+            <>
               <button
-                className="so-btn-primary"
-                style={{ height: '38px', padding: '0 1.5rem', fontSize: '0.75rem' }}
+                className="pce-btn-draft"
                 onClick={() => handleSubmit(true)}
                 disabled={loading || !invoicesData}
               >
-                {loading ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
-                {loading ? 'Processing...' : 'Save Shift as Draft'}
+                {loading ? <Loader2 size={15} className="animate-spin" /> : <RefreshCw size={15} />}
+                <span>Save Draft</span>
               </button>
-            )}
-          </div>
+              <button
+                className="pce-btn-submit"
+                onClick={() => handleSubmit(false)}
+                disabled={loading || !invoicesData}
+              >
+                {loading ? <Loader2 size={15} className="animate-spin" /> : <CheckCircle2 size={15} />}
+                <span>{loading ? 'Processing...' : 'Finalize & Submit Shift'}</span>
+              </button>
+            </>
+          ) : (
+            <button
+              className="pce-btn-submit green"
+              onClick={() => handleSubmit(true)}
+              disabled={loading || !invoicesData}
+            >
+              {loading ? <Loader2 size={15} className="animate-spin" /> : <CheckCircle2 size={15} />}
+              <span>{loading ? 'Processing...' : 'Save Shift as Draft'}</span>
+            </button>
+          )}
         </div>
       </div>
 
-      <div className="ce-scroll-area">
-        <div style={{ width: '100%' }}>
+      {/* Main Body */}
+      <div className="pce-body">
+        <div className="pce-content">
           {error && (
-            <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
-              <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-              <div>
-                <h3 className="text-red-900 font-semibold text-sm caps">System Error</h3>
-                <p className="text-red-700 text-sm mt-1">{error}</p>
-              </div>
+            <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '14px', padding: '1rem 1.25rem', display: 'flex', alignItems: 'center', gap: '0.75rem', color: '#991b1b', fontSize: '0.85rem', fontWeight: 600 }}>
+              <AlertCircle size={20} color="#dc2626" />
+              <span>{error}</span>
             </div>
           )}
 
           {successMessage && (
-            <div className="mb-6 bg-emerald-50 border border-emerald-200 rounded-lg p-4 flex items-start gap-3">
-              <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
-              <div>
-                <h3 className="text-emerald-900 font-semibold text-sm">Operation Success</h3>
-                <p className="text-emerald-700 text-sm mt-1">{successMessage}</p>
-              </div>
+            <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '14px', padding: '1rem 1.25rem', display: 'flex', alignItems: 'center', gap: '0.75rem', color: '#166534', fontSize: '0.85rem', fontWeight: 600 }}>
+              <CheckCircle2 size={20} color="#16a34a" />
+              <span>{successMessage}</span>
             </div>
           )}
 
           {noInvoicesMessage && (
-            <div className="so-card" style={{ borderLeft: `4px solid #f59e0b`, padding: '1rem 1.5rem', marginBottom: '1.5rem' }}>
-              <div className="flex items-center gap-3">
-                <AlertCircle className="w-5 h-5 text-amber-500" />
-                <p className="text-slate-700 font-medium text-sm">{noInvoicesMessage}</p>
-              </div>
+            <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '14px', padding: '1rem 1.25rem', display: 'flex', alignItems: 'center', gap: '0.75rem', color: '#92400e', fontSize: '0.85rem', fontWeight: 600 }}>
+              <AlertCircle size={20} color="#d97706" />
+              <span>{noInvoicesMessage}</span>
             </div>
           )}
 
-          {/* Pending Inter-Branch Material Request / Transfer Notification */}
+          {/* Pending Inter-Branch Stock Transfers Alert */}
           {pendingBranchReqs.has_pending && (
-            <div className="mb-6 bg-amber-50/90 border-2 border-amber-300 rounded-xl p-4 shadow-xs">
-              <div className="flex items-start gap-3.5">
-                <div className="w-9 h-9 rounded-lg bg-amber-100 border border-amber-300 flex items-center justify-center text-amber-700 flex-shrink-0 mt-0.5">
-                  <Truck size={20} />
+            <div style={{ background: '#fffbeb', border: '1.5px solid #fcd34d', borderRadius: '16px', padding: '1.25rem 1.5rem', display: 'flex', alignItems: 'flex-start', gap: '1rem' }}>
+              <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: '#fef3c7', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#b45309', flexShrink: 0 }}>
+                <Truck size={20} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                  <span style={{ fontSize: '0.9rem', fontWeight: 900, color: '#78350f', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    Pending Inter-Branch Stock Transfers / Requests Alert
+                  </span>
+                  <span style={{ background: '#fde68a', color: '#92400e', fontSize: '0.65rem', fontWeight: 900, padding: '0.2rem 0.6rem', borderRadius: '9999px', textTransform: 'uppercase' }}>
+                    Action Required
+                  </span>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <h3 className="text-amber-950 font-black text-sm uppercase tracking-wide flex items-center gap-1.5">
-                      <AlertTriangle size={15} className="text-amber-600" />
-                      Pending Inter-Branch Stock Transfers / Requests Alert
-                    </h3>
-                    <span className="bg-amber-200/80 text-amber-900 text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider">
-                      Action Required
+                <div style={{ fontSize: '0.8rem', color: '#92400e', marginTop: '0.35rem', lineHeight: 1.5, fontWeight: 500 }}>
+                  This branch has <strong>{pendingBranchReqs.pending_mr_count} pending Material Request(s) (MR)</strong> and <strong>{pendingBranchReqs.pending_mt_count} in-transit/draft Stock Transfer(s) (MT)</strong>. Please review or complete them before shift handover.
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginTop: '0.75rem' }}>
+                  {pendingBranchReqs.pending_mr.slice(0, 3).map((mr) => (
+                    <span key={mr.name} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', padding: '0.35rem 0.75rem', background: '#ffffff', border: '1px solid #fde68a', borderRadius: '8px', fontSize: '0.75rem', fontWeight: 700, color: '#334155' }}>
+                      <ArrowRightLeft size={13} color="#d97706" />
+                      MR: {mr.name} <span style={{ color: '#d97706', fontWeight: 500 }}>({mr.status})</span>
                     </span>
-                  </div>
-                  <p className="text-amber-800 text-xs mt-1 font-medium leading-relaxed">
-                    This branch has <strong>{pendingBranchReqs.pending_mr_count} pending Material Request(s) (MR)</strong> and <strong>{pendingBranchReqs.pending_mt_count} in-transit/draft Stock Transfer(s) (MT)</strong>. Please review or complete them before shift handover.
-                  </p>
-
-                  <div className="mt-2.5 flex flex-wrap gap-2">
-                    {pendingBranchReqs.pending_mr.slice(0, 3).map((mr) => (
-                      <span key={mr.name} className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white border border-amber-200 rounded-md text-[11px] font-bold text-slate-700 shadow-2xs">
-                        <ArrowRightLeft size={12} className="text-amber-600" />
-                        MR: {mr.name} <span className="text-amber-600 font-normal">({mr.status})</span>
-                      </span>
-                    ))}
-                    {pendingBranchReqs.pending_mt.slice(0, 3).map((mt) => (
-                      <span key={mt.name} className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white border border-amber-200 rounded-md text-[11px] font-bold text-slate-700 shadow-2xs">
-                        <Truck size={12} className="text-blue-600" />
-                        MT: {mt.name} <span className="text-slate-400 font-normal">({mt.from_warehouse} → {mt.to_warehouse})</span>
-                      </span>
-                    ))}
-                  </div>
+                  ))}
+                  {pendingBranchReqs.pending_mt.slice(0, 3).map((mt) => (
+                    <span key={mt.name} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', padding: '0.35rem 0.75rem', background: '#ffffff', border: '1px solid #fde68a', borderRadius: '8px', fontSize: '0.75rem', fontWeight: 700, color: '#334155' }}>
+                      <Truck size={13} color="#2563eb" />
+                      MT: {mt.name} <span style={{ color: '#64748b', fontWeight: 500 }}>({mt.from_warehouse} → {mt.to_warehouse})</span>
+                    </span>
+                  ))}
                 </div>
               </div>
             </div>
           )}
 
           {/* Shift Details Selector Card */}
-          <div className="so-card" style={{ marginBottom: '1.5rem' }}>
-            <div className="so-card-header">
-              <span className="so-card-title flex items-center gap-2">
-                <Calendar size={16} style={{ color: themeColor }} />
-                Shift Details
-              </span>
-            </div>
-            <div className="so-card-body">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="pce-card">
+            <div className="pce-card-header">
+              <div className="pce-card-header-left">
+                <div className="pce-card-icon-pill blue">
+                  <Calendar size={18} />
+                </div>
                 <div>
-                  <label className="so-label">POS Opening Entry <span className="text-red-500">*</span></label>
-                  <div className="so-relative">
+                  <div className="pce-card-title">Shift Identification & Date Period</div>
+                  <div className="pce-card-desc">Select POS Opening Session to load transactions</div>
+                </div>
+              </div>
+            </div>
+            <div className="pce-card-body">
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem' }}>
+                <div className="pce-field-group">
+                  <label className="pce-field-label">
+                    POS Opening Entry <span style={{ color: '#ef4444' }}>*</span>
+                  </label>
+                  <div style={{ position: 'relative' }}>
                     <select
-                      className="so-select"
+                      className="pce-select"
                       value={selectedOpeningEntry}
                       onChange={(e) => setSelectedOpeningEntry(e.target.value)}
                     >
@@ -1037,23 +974,25 @@ function ClosingEntry() {
                         </option>
                       ))}
                     </select>
-                    <ChevronDown size={14} style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: '#64748b' }} />
+                    <ChevronDown size={16} style={{ position: 'absolute', right: '14px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', pointerEvents: 'none' }} />
                   </div>
                 </div>
-                <div>
-                  <label className="so-label">Posting Date</label>
+
+                <div className="pce-field-group">
+                  <label className="pce-field-label">Posting Date & Time</label>
                   <input
                     type="datetime-local"
-                    className="so-input"
+                    className="pce-input"
                     value={postingDate}
                     onChange={(e) => setPostingDate(e.target.value)}
                   />
                 </div>
-                <div>
-                  <label className="so-label">Period End Date</label>
+
+                <div className="pce-field-group">
+                  <label className="pce-field-label">Period End Date & Time</label>
                   <input
                     type="datetime-local"
-                    className="so-input"
+                    className="pce-input"
                     value={periodEndDate}
                     onChange={(e) => setPeriodEndDate(e.target.value)}
                   />
@@ -1064,88 +1003,111 @@ function ClosingEntry() {
 
           {invoicesData && (
             <>
-              {/* Summary Dashboard Section */}
-              <div className="ce-grid">
-                <div className="ce-summary-card">
-                  <div className="flex justify-between items-start mb-4">
-                    <div className="p-2 bg-white/20 rounded-lg"><DollarSign size={20} /></div>
-                    <span className="text-xs font-bold uppercase tracking-wider text-white/70">Grand Total</span>
+              {/* Summary KPI Dashboard */}
+              <div className="pce-kpi-grid">
+                <div className="pce-kpi-card sales">
+                  <div className="pce-kpi-top">
+                    <span className="pce-kpi-label">Total Sales Turnover</span>
+                    <div className="pce-kpi-pill">
+                      <DollarSign size={20} />
+                    </div>
                   </div>
-                  <div className="ce-stat-value flex items-center justify-center gap-1.5"><DirhamIcon size={24} /> {flt(invoicesData.grand_total).toLocaleString('en-AE', { minimumFractionDigits: 2 })}</div>
-                  <div className="mt-2 text-sm text-white/80 flex items-center gap-1">
+                  <div className="pce-kpi-value-box">
+                    <div className="pce-kpi-value">
+                      <span className="pce-kpi-currency">AED</span>
+                      {flt(invoicesData.grand_total).toLocaleString('en-AE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </div>
+                  </div>
+                  <div className="pce-kpi-sub">
                     <TrendingUp size={14} /> Total collected across all modes
                   </div>
                 </div>
 
-                <div className="ce-summary-card" style={{ background: `linear-gradient(135deg, #1e293b 0%, #334155 100%)` }}>
-                  <div className="flex justify-between items-start mb-4">
-                    <div className="p-2 bg-white/10 rounded-lg"><Receipt size={20} /></div>
-                    <span className="text-xs font-bold uppercase tracking-wider text-white/60">Invoice Count</span>
+                <div className="pce-kpi-card invoices">
+                  <div className="pce-kpi-top">
+                    <span className="pce-kpi-label">Invoices Billed</span>
+                    <div className="pce-kpi-pill">
+                      <Receipt size={20} />
+                    </div>
                   </div>
-                  <div className="ce-stat-value">{invoicesData.invoices.length}</div>
-                  <div className="mt-2 text-sm text-white/50">Successful transactions in this shift</div>
+                  <div className="pce-kpi-value-box">
+                    <div className="pce-kpi-value">
+                      {invoicesData.invoices.length} <span style={{ fontSize: '1rem', opacity: 0.7, fontWeight: 700 }}>Bills</span>
+                    </div>
+                  </div>
+                  <div className="pce-kpi-sub">
+                    Successful transactions in shift
+                  </div>
                 </div>
 
-                <div className="ce-summary-card" style={{ background: `linear-gradient(135deg, ${isGreen ? '#065f46' : '#075985'} 0%, ${isGreen ? '#10b981' : '#0ea5e9'} 100%)` }}>
-                  <div className="flex justify-between items-start mb-4">
-                    <div className="p-2 bg-white/20 rounded-lg"><FileText size={20} /></div>
-                    <span className="text-xs font-bold uppercase tracking-wider text-white/70">Quantity</span>
+                <div className="pce-kpi-card quantity">
+                  <div className="pce-kpi-top">
+                    <span className="pce-kpi-label">Items Quantity Sold</span>
+                    <div className="pce-kpi-pill">
+                      <FileText size={20} />
+                    </div>
                   </div>
-                  <div className="ce-stat-value">{flt(invoicesData.total_quantity).toFixed(0)}</div>
-                  <div className="mt-2 text-sm text-white/80 font-medium">Items moved during session</div>
+                  <div className="pce-kpi-value-box">
+                    <div className="pce-kpi-value">
+                      {flt(invoicesData.total_quantity).toFixed(0)} <span style={{ fontSize: '1rem', opacity: 0.7, fontWeight: 700 }}>Units</span>
+                    </div>
+                  </div>
+                  <div className="pce-kpi-sub">
+                    Total volume moved during session
+                  </div>
                 </div>
+
+                {flt(invoicesData.total_collections_collected) > 0 && (
+                  <div className="pce-kpi-card handover">
+                    <div className="pce-kpi-top">
+                      <span className="pce-kpi-label">Cash Handovers (Collections)</span>
+                      <div className="pce-kpi-pill">
+                        <HandCoins size={20} />
+                      </div>
+                    </div>
+                    <div className="pce-kpi-value-box">
+                      <div className="pce-kpi-value">
+                        <span className="pce-kpi-currency">AED</span>
+                        {flt(invoicesData.total_collections_collected).toLocaleString('en-AE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </div>
+                    </div>
+                    <div className="pce-kpi-sub">
+                      <CheckCircle2 size={14} /> {(invoicesData.branch_collections || []).length} handover(s) collected today
+                    </div>
+                  </div>
+                )}
               </div>
 
-              {/* Shift Transactions by Payment Method Summary */}
-              <div className="so-card mb-6">
-                <div className="so-card-header" style={{ borderBottom: '1px solid #f1f5f9', paddingBottom: '12px' }}>
-                  <span className="so-card-title flex items-center gap-2">
-                    <TrendingUp size={16} style={{ color: themeColor }} />
-                    Shift Transactions by Payment Method
-                  </span>
+              {/* Shift Breakdown by Payment Mode */}
+              <div className="pce-card">
+                <div className="pce-card-header">
+                  <div className="pce-card-header-left">
+                    <div className="pce-card-icon-pill violet">
+                      <TrendingUp size={18} />
+                    </div>
+                    <div>
+                      <div className="pce-card-title">Shift Transactions by Payment Method</div>
+                      <div className="pce-card-desc">Total sales collected categorized by payment channels</div>
+                    </div>
+                  </div>
                 </div>
-                <div className="so-card-body" style={{ padding: '1.25rem' }}>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
+                <div className="pce-card-body">
+                  <div className="pce-mode-grid">
                     {paymentReconciliation.map((pr) => {
-                      let color = '#475569';
-                      let bg = '#f8fafc';
-                      let border = '1px solid #e2e8f0';
                       const mode = pr.mode_of_payment.toLowerCase();
-                      
-                      if (mode === 'cash') {
-                        color = '#10b981';
-                        bg = '#ecfdf5';
-                        border = '1px solid #a7f3d0';
-                      } else if (mode.includes('card')) {
-                        color = '#3b82f6';
-                        bg = '#eff6ff';
-                        border = '1px solid #bfdbfe';
-                      } else if (mode.includes('bank') || mode.includes('transfer')) {
-                        color = '#8b5cf6';
-                        bg = '#f5f3ff';
-                        border = '1px solid #ddd6fe';
-                      } else if (mode.includes('insta')) {
-                        color = '#d97706';
-                        bg = '#fffbeb';
-                        border = '1px solid #fde68a';
-                      } else if (mode.includes('credit')) {
-                        color = '#f43f5e';
-                        bg = '#fff1f2';
-                        border = '1px solid #fecdd3';
-                      }
+                      let modeClass = 'cash';
+                      if (mode.includes('card')) modeClass = 'card';
+                      else if (mode.includes('bank') || mode.includes('transfer')) modeClass = 'bank';
+                      else if (mode.includes('insta')) modeClass = 'insta';
+                      else if (mode.includes('credit')) modeClass = 'credit';
 
                       return (
-                        <div 
-                          key={pr.mode_of_payment} 
-                          className="rounded-xl p-3 text-center transition-all hover:shadow-xs" 
-                          style={{ backgroundColor: bg, border }}
-                        >
-                          <span className="block text-[9.5px] font-black uppercase tracking-wider text-slate-400">
-                            {pr.mode_of_payment}
-                          </span>
-                          <span className="block text-base font-black mt-1" style={{ color }}>
-                            AED {(pr.paid_amount || 0).toFixed(2)}
-                          </span>
+                        <div key={pr.mode_of_payment} className={`pce-mode-item ${modeClass}`}>
+                          <div className="pce-mode-title">{pr.mode_of_payment}</div>
+                          <div className="pce-mode-amount">
+                            <span style={{ fontSize: '0.75rem', opacity: 0.6, fontWeight: 800 }}>AED</span>
+                            <span>{(pr.paid_amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                          </div>
                         </div>
                       );
                     })}
@@ -1153,130 +1115,190 @@ function ClosingEntry() {
                 </div>
               </div>
 
-              {/* Two Column Layout for Closing Entry Sections */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-                {/* LEFT COLUMN: Counted UAE Cash Denominations -> Telephone Machine Balance -> Payment Reconciliation */}
-                <div className="space-y-6">
-                  {/* UAE Cash Denomination counting grid */}
-                  <div className="so-card">
-                    <div className="so-card-header">
-                      <span className="so-card-title flex items-center gap-2">
-                        <DollarSign size={16} style={{ color: themeColor }} />
-                        Counted UAE Cash Denominations
-                      </span>
+              {/* Two Column Layout: UAE Cash Count (Left) vs Reconciliation & Tax (Right) */}
+              <div className="pce-two-col">
+                {/* LEFT COLUMN: Counted Denominations + Telephone Machine */}
+                <div className="pce-col-stack">
+                  {/* UAE Cash Denominations Card */}
+                  <div className="pce-card">
+                    <div className="pce-card-header">
+                      <div className="pce-card-header-left">
+                        <div className="pce-card-icon-pill emerald">
+                          <DollarSign size={18} />
+                        </div>
+                        <div>
+                          <div className="pce-card-title">Counted UAE Cash Denominations</div>
+                          <div className="pce-card-desc">Enter quantity of physical notes & coins</div>
+                        </div>
+                      </div>
+                      <div className="pce-total-badge">
+                        <span className="pce-total-badge-lbl">Total Counted:</span>
+                        <span className="pce-total-badge-val">
+                          AED {Object.keys(denomCounts).reduce((sum, k) => sum + (parseFloat(k) * (denomCounts[k] || 0)), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
+                      </div>
                     </div>
-                    <div className="bg-slate-50/50" style={{ padding: '1.5rem' }}>
-                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                        {UAE_DENOMINATIONS.map((d) => (
-                          <div key={d.value} className="bg-white rounded-xl p-4 shadow-xs border border-slate-200/60 flex flex-col justify-between gap-2">
-                            <span className="text-[9.5px] font-black uppercase tracking-wider text-slate-400">
-                              {d.label}
-                            </span>
-                            <input
-                              type="number"
-                              min="0"
-                              placeholder="0"
-                              value={denomCounts[d.value] || ''}
-                              onChange={(e) => handleDenomChange(d.value, e.target.value)}
-                              className="mt-1 w-full px-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:ring-1 focus:ring-slate-500 focus:border-slate-500 transition-all outline-none font-bold text-slate-800"
-                            />
-                          </div>
-                        ))}
+                    <div className="pce-card-body" style={{ background: '#fcfdfd' }}>
+                      <div className="pce-denom-grid">
+                        {UAE_DENOMINATIONS.map((d) => {
+                          const count = denomCounts[d.value] || 0;
+                          const subtotal = (d.value * count);
+                          const isNote = d.label.includes('Note');
+
+                          return (
+                            <div key={d.value} className={`pce-denom-box ${count > 0 ? 'active' : ''}`}>
+                              <div className="pce-denom-header">
+                                <span className={`pce-denom-tag ${isNote ? 'note' : 'coin'}`}>
+                                  {d.value >= 1 ? `${d.value} AED` : `${d.value.toFixed(2)} AED`}
+                                </span>
+                                <span className={`pce-denom-subtotal ${count === 0 ? 'zero' : ''}`}>
+                                  = {subtotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </span>
+                              </div>
+                              <div className="pce-denom-input-wrap">
+                                <span className="pce-denom-qty-lbl">QTY</span>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  placeholder="0"
+                                  value={denomCounts[d.value] === 0 ? '' : denomCounts[d.value]}
+                                  onChange={(e) => handleDenomChange(d.value, e.target.value)}
+                                  className="pce-denom-input"
+                                />
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   </div>
 
-                  {/* Telephone Machine Balance Section */}
-                  <div className="so-card">
-                    <div className="so-card-header">
-                      <span className="so-card-title flex items-center gap-2">
-                        <Receipt size={16} style={{ color: themeColor }} />
-                        Telephone Machine Balance
-                      </span>
-                    </div>
-                    <div className="bg-slate-50/50" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                  {/* Telephone Machine Balance Card */}
+                  <div className="pce-card">
+                    <div className="pce-card-header">
+                      <div className="pce-card-header-left">
+                        <div className="pce-card-icon-pill sky">
+                          <Receipt size={18} />
+                        </div>
                         <div>
-                          <label className="text-[10px] font-black uppercase text-slate-400 block mb-1.5">User</label>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <div className="pce-card-title">Telephone Machine Balance</div>
+                            <span style={{ fontSize: '0.65rem', fontWeight: 800, background: '#fee2e2', color: '#b91c1c', border: '1px solid #fecaca', padding: '0.15rem 0.5rem', borderRadius: '9999px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                              Required
+                            </span>
+                          </div>
+                          <div className="pce-card-desc">Record telecom machine e-wallet balance & cash</div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="pce-card-body">
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '1rem' }}>
+                        <div className="pce-field-group">
+                          <label className="pce-field-label">User</label>
                           <input
                             type="text"
                             readOnly
                             value={currentUser || localStorage.getItem('user') || 'Current User'}
-                            className="w-full px-4 py-2 text-xs border border-slate-200 rounded-lg bg-slate-100 font-bold text-slate-700 cursor-not-allowed"
+                            className="pce-input"
+                            disabled
                           />
                         </div>
-                        <div>
-                          <label className="text-[10px] font-black uppercase text-slate-400 block mb-1.5">Date & Time</label>
+                        <div className="pce-field-group">
+                          <label className="pce-field-label">Date & Time</label>
                           <input
                             type="text"
                             readOnly
                             value={new Date().toLocaleString()}
-                            className="w-full px-4 py-2 text-xs border border-slate-200 rounded-lg bg-slate-100 font-semibold text-slate-700 cursor-not-allowed"
+                            className="pce-input"
+                            disabled
                           />
                         </div>
-                        <div>
-                          <label className="text-[10px] font-black uppercase text-slate-400 block mb-1.5">Balance</label>
+                        <div className="pce-field-group">
+                          <label className="pce-field-label">
+                            Balance (AED) <span style={{ color: '#ef4444' }}>*</span>
+                          </label>
                           <input
                             type="number"
                             placeholder="0.00"
                             value={telephoneBalance}
                             onChange={e => setTelephoneBalance(e.target.value)}
-                            className="w-full px-4 py-2 text-xs border border-slate-200 rounded-lg bg-white font-bold text-slate-850 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                            className="pce-input"
+                            required
                           />
                         </div>
-                        <div>
-                          <label className="text-[10px] font-black uppercase text-slate-400 block mb-1.5">Cash</label>
+                        <div className="pce-field-group">
+                          <label className="pce-field-label">
+                            Cash (AED) <span style={{ color: '#ef4444' }}>*</span>
+                          </label>
                           <input
                             type="number"
                             placeholder="0.00"
                             value={telephoneCash}
                             onChange={e => setTelephoneCash(e.target.value)}
-                            className="w-full px-4 py-2 text-xs border border-slate-200 rounded-lg bg-white font-bold text-slate-850 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                            className="pce-input"
+                            required
                           />
                         </div>
                       </div>
                     </div>
                   </div>
+                </div>
 
-                  {/* Reconciliation Table */}
-                  <div className="so-card">
-                    <div className="so-card-header">
-                      <span className="so-card-title flex items-center gap-2">
-                        <CreditCard size={16} /> Payment Reconciliation
-                      </span>
+                {/* RIGHT COLUMN: Payment Reconciliation Table + Discrepancy + Taxes */}
+                <div className="pce-col-stack">
+                  {/* Payment Reconciliation Table */}
+                  <div className="pce-card">
+                    <div className="pce-card-header">
+                      <div className="pce-card-header-left">
+                        <div className="pce-card-icon-pill amber">
+                          <CreditCard size={18} />
+                        </div>
+                        <div>
+                          <div className="pce-card-title">Payment Reconciliation Table</div>
+                          <div className="pce-card-desc">Compare expected collections against counted closing amounts</div>
+                        </div>
+                      </div>
                     </div>
-                    <div className="so-items-table-wrap">
-                      <table className="so-items-table">
+                    <div className="pce-table-wrapper">
+                      <table className="pce-table">
                         <thead>
                           <tr>
                             <th>Payment Mode</th>
-                            <th style={{ textAlign: 'right' }}>Opening</th>
+                            <th style={{ textAlign: 'right' }}>Opening Float</th>
                             <th style={{ textAlign: 'right' }}>Sales</th>
-                            <th style={{ textAlign: 'right' }}>Expected</th>
-                            <th style={{ textAlign: 'right', width: '25%' }}>Closing Amount</th>
-                            <th style={{ textAlign: 'right' }}>Diff</th>
+                            <th style={{ textAlign: 'right' }}>Handover (Deducted)</th>
+                            <th style={{ textAlign: 'right' }}>Expected in Drawer</th>
+                            <th style={{ textAlign: 'right', width: '135px' }}>Closing Count</th>
+                            <th style={{ textAlign: 'right' }}>Difference</th>
                           </tr>
                         </thead>
                         <tbody>
                           {paymentReconciliation.map((pr, idx) => (
                             <tr key={pr.mode_of_payment}>
-                              <td style={{ fontWeight: 600 }}>{pr.mode_of_payment}</td>
-                              <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{flt(pr.opening_amount).toFixed(2)}</td>
-                              <td style={{ textAlign: 'right', fontFamily: 'monospace', color: '#10b981', fontWeight: 'bold' }}>{flt(pr.paid_amount).toFixed(2)}</td>
-                              <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{flt(pr.expected_amount).toFixed(2)}</td>
+                              <td style={{ fontWeight: 800, color: '#0f172a' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                  <span style={{ width: '8px', height: '8px', borderRadius: '9999px', background: pr.mode_of_payment === 'Cash' ? '#10b981' : '#3b82f6' }}></span>
+                                  {pr.mode_of_payment}
+                                </div>
+                              </td>
+                              <td style={{ textAlign: 'right', color: '#64748b', fontWeight: 600 }}>{flt(pr.opening_amount).toFixed(2)}</td>
+                              <td style={{ textAlign: 'right', color: '#059669', fontWeight: 800 }}>+{flt(pr.paid_amount).toFixed(2)}</td>
+                              <td style={{ textAlign: 'right', color: flt(pr.collected_handover) > 0 ? '#dc2626' : '#94a3b8', fontWeight: 800 }}>
+                                {flt(pr.collected_handover) > 0 ? `-${flt(pr.collected_handover).toFixed(2)}` : '0.00'}
+                              </td>
+                              <td style={{ textAlign: 'right', fontWeight: 900, color: '#0f172a' }}>{flt(pr.expected_amount).toFixed(2)}</td>
                               <td>
                                 <input
                                   type="number"
-                                  className={`so-td-input ${pr.mode_of_payment === 'Cash' ? 'bg-slate-100 text-slate-500 cursor-not-allowed font-black' : ''}`}
-                                  style={{ textAlign: 'right', fontStyle: 'normal', fontWeight: 800 }}
+                                  className="pce-table-input"
                                   value={pr.closing_amount !== undefined ? pr.closing_amount : ''}
                                   onChange={(e) => handleClosingAmountChange(idx, e.target.value)}
                                   disabled={pr.mode_of_payment === 'Cash'}
                                   ref={(el) => (closingAmountRefs.current[idx] = el)}
                                 />
                               </td>
-                              <td style={{ textAlign: 'right', fontWeight: 700, color: pr.difference > 0 ? '#ef4444' : pr.difference < 0 ? '#10b981' : '#64748b' }}>
-                                {flt(pr.difference).toFixed(2)}
+                              <td style={{ textAlign: 'right', fontWeight: 900, color: pr.difference > 0 ? '#ef4444' : pr.difference < 0 ? '#10b981' : '#94a3b8' }}>
+                                {flt(pr.difference) === 0 ? '0.00' : flt(pr.difference).toFixed(2)}
                               </td>
                             </tr>
                           ))}
@@ -1284,63 +1306,66 @@ function ClosingEntry() {
                       </table>
                     </div>
                   </div>
-                </div>
 
-                {/* RIGHT COLUMN: Cash Discrepancy -> Tax Statistics */}
-                <div className="space-y-6">
-                  {/* Discrepancy Warnings & Input */}
+                  {/* Discrepancy Alert */}
                   {cashReconciliation && flt(cashReconciliation.difference) !== 0 && (
-                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex flex-col gap-3 animate-in fade-in duration-300">
-                      <div className="flex items-start gap-3">
-                        <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                    <div style={{ background: '#fffbeb', border: '1.5px solid #fcd34d', borderRadius: '16px', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.85rem' }}>
+                        <AlertCircle size={22} color="#d97706" style={{ flexShrink: 0, marginTop: '2px' }} />
                         <div>
-                          <h3 className="text-amber-900 font-semibold text-sm caps">Cash Discrepancy Warning</h3>
-                          <p className="text-amber-700 text-sm mt-1">
-                            The counted cash (AED {flt(cashReconciliation.closing_amount).toFixed(2)}) does not match the expected cash (AED {flt(cashReconciliation.expected_amount).toFixed(2)}). 
-                            Difference/Variance: AED {flt(-cashReconciliation.difference).toFixed(2)}.
-                          </p>
+                          <div style={{ fontSize: '0.9rem', fontWeight: 900, color: '#78350f', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                            Cash Discrepancy Warning
+                          </div>
+                          <div style={{ fontSize: '0.825rem', color: '#92400e', marginTop: '0.35rem', lineHeight: 1.5 }}>
+                            Counted cash (AED {flt(cashReconciliation.closing_amount).toFixed(2)}) does not match expected (AED {flt(cashReconciliation.expected_amount).toFixed(2)}). 
+                            Variance: <strong style={{ color: '#dc2626' }}>AED {flt(-cashReconciliation.difference).toFixed(2)}</strong>.
+                          </div>
                         </div>
                       </div>
-                      <div className="space-y-1.5">
-                        <label className="text-xs font-bold text-amber-900 uppercase tracking-wider">
-                          Please explain the discrepancy: <span className="text-red-500">*</span>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                        <label style={{ fontSize: '0.7rem', fontWeight: 900, textTransform: 'uppercase', color: '#78350f', letterSpacing: '0.04em' }}>
+                          Reason for Discrepancy: <span style={{ color: '#ef4444' }}>*</span>
                         </label>
                         <textarea
                           value={discrepancyReason}
                           onChange={(e) => setDiscrepancyReason(e.target.value)}
-                          className="w-full px-3 py-2 text-sm border border-amber-300 rounded-xl focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all outline-none bg-white font-medium"
-                          placeholder="Explain the reason for this cash variance..."
+                          style={{ width: '100%', padding: '0.75rem 1rem', background: '#ffffff', border: '1.5px solid #fcd34d', borderRadius: '10px', fontSize: '0.825rem', outline: 'none', fontWeight: 600, color: '#0f172a', resize: 'vertical', boxSizing: 'border-box' }}
+                          placeholder="Provide explanation for this cash variance..."
                           rows={3}
                         />
                       </div>
                     </div>
                   )}
 
-                  {/* Tax Statistics */}
-                  <div className="so-card">
-                    <div className="so-card-header">
-                      <span className="so-card-title flex items-center gap-2">
-                        <TrendingUp size={16} /> Tax Statistics
-                      </span>
+                  {/* Tax Statistics Card */}
+                  <div className="pce-card">
+                    <div className="pce-card-header">
+                      <div className="pce-card-header-left">
+                        <div className="pce-card-icon-pill slate">
+                          <TrendingUp size={18} />
+                        </div>
+                        <div>
+                          <div className="pce-card-title">Tax & VAT Breakdown</div>
+                          <div className="pce-card-desc">Applicable VAT tax collected on shift invoices</div>
+                        </div>
+                      </div>
                     </div>
-                    <div className="so-items-table-wrap">
-                      <table className="so-items-table">
+                    <div className="pce-table-wrapper">
+                      <table className="pce-table">
                         <thead>
                           <tr>
-                            <th>Account</th>
-                            <th style={{ textAlign: 'right' }}>Rate</th>
-                            <th style={{ textAlign: 'right' }}>Amount</th>
+                            <th>Account Head</th>
+                            <th style={{ textAlign: 'right' }}>Tax Rate</th>
+                            <th style={{ textAlign: 'right' }}>Total Tax Amount</th>
                           </tr>
                         </thead>
                         <tbody>
                           {invoicesData.taxes && invoicesData.taxes.map((tax) => (
                             <tr key={tax.account_head}>
-                              <td style={{ fontSize: '0.75rem' }}>{tax.account_head}</td>
-                              <td style={{ textAlign: 'right' }}>{tax.rate}%</td>
-                              <td style={{ textAlign: 'right', fontWeight: 600 }}>
-                                <span className="flex items-center justify-end gap-1">
-                                  <DirhamIcon size={12} className="text-slate-400" /> {flt(tax.amount).toFixed(2)}
-                                </span>
+                              <td style={{ fontWeight: 600, color: '#334155' }}>{tax.account_head}</td>
+                              <td style={{ textAlign: 'right', fontWeight: 700, color: '#64748b' }}>{tax.rate}%</td>
+                              <td style={{ textAlign: 'right', fontWeight: 900, color: '#0f172a' }}>
+                                AED {flt(tax.amount).toFixed(2)}
                               </td>
                             </tr>
                           ))}
@@ -1351,44 +1376,108 @@ function ClosingEntry() {
                 </div>
               </div>
 
-              {/* Invoices List Card - Compact */}
-              <div className="so-card">
-                <div className="so-card-header" style={{ background: '#f8fafc' }}>
-                  <span className="so-card-title flex items-center gap-2">
-                    <Receipt size={16} /> Shift Transaction Log
-                  </span>
+              {/* Invoices List Card */}
+              <div className="pce-card">
+                <div className="pce-card-header">
+                  <div className="pce-card-header-left">
+                    <div className="pce-card-icon-pill slate">
+                      <Receipt size={18} />
+                    </div>
+                    <div>
+                      <div className="pce-card-title">Shift Transaction Log ({invoicesData.invoices?.length || 0})</div>
+                      <div className="pce-card-desc">Detailed log of customer invoices created in this session</div>
+                    </div>
+                  </div>
                 </div>
-                <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
-                  <table className="so-table">
-                    <thead style={{ position: 'sticky', top: 0, zIndex: 1, background: '#f2fdf9' }}>
+                <div className="pce-table-wrapper" style={{ maxHeight: '340px', overflowY: 'auto' }}>
+                  <table className="pce-table">
+                    <thead style={{ position: 'sticky', top: 0, zIndex: 5 }}>
                       <tr>
                         <th>Invoice #</th>
                         <th>Customer</th>
-                        <th>Date</th>
+                        <th>Posting Date</th>
                         <th style={{ textAlign: 'right' }}>Grand Total</th>
                       </tr>
                     </thead>
                     <tbody>
                       {invoicesData.invoices && invoicesData.invoices.map((inv) => (
                         <tr key={inv.name}>
-                          <td style={{ fontFamily: 'monospace', fontSize: '11px' }}>{inv.name}</td>
-                          <td>{inv.customer_name}</td>
-                          <td>{new Date(inv.posting_date).toLocaleDateString()}</td>
-                          <td style={{ textAlign: 'right', fontWeight: 700 }}>
-                             <span className="flex items-center justify-end gap-1">
-                               <DirhamIcon size={12} /> {flt(inv.grand_total).toFixed(2)}
-                             </span>
-                           </td>
+                          <td style={{ fontFamily: 'ui-monospace, monospace', fontWeight: 800, color: '#0f172a' }}>{inv.name}</td>
+                          <td style={{ color: '#475569', fontWeight: 600 }}>{inv.customer_name}</td>
+                          <td style={{ color: '#64748b' }}>{new Date(inv.posting_date).toLocaleDateString()}</td>
+                          <td style={{ textAlign: 'right', fontWeight: 900, color: '#0f172a' }}>
+                            AED {flt(inv.grand_total).toFixed(2)}
+                          </td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
               </div>
+
+              {/* Mid-Day Cash Handover Collections Card */}
+              {invoicesData.branch_collections && invoicesData.branch_collections.length > 0 && (
+                <div className="pce-card" style={{ border: '1px solid #fed7aa', background: '#fffaf5' }}>
+                  <div className="pce-card-header" style={{ background: '#fff7ed', borderBottom: '1px solid #ffedd5' }}>
+                    <div className="pce-card-header-left">
+                      <div className="pce-card-icon-pill" style={{ background: '#ffedd5', color: '#c2410c', border: '1px solid #fdba74' }}>
+                        <HandCoins size={18} />
+                      </div>
+                      <div>
+                        <div className="pce-card-title" style={{ color: '#9a3412' }}>Mid-Day Cash Handover Collection Log ({invoicesData.branch_collections.length})</div>
+                        <div className="pce-card-desc" style={{ color: '#c2410c' }}>Authorised cash handovers collected from this drawer today</div>
+                      </div>
+                    </div>
+                    <div className="pce-total-badge" style={{ background: '#fed7aa', borderColor: '#f97316' }}>
+                      <span className="pce-total-badge-lbl" style={{ color: '#7c2d12' }}>Total Handed Over:</span>
+                      <span className="pce-total-badge-val" style={{ color: '#9a3412' }}>
+                        AED {flt(invoicesData.total_collections_collected).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="pce-table-wrapper" style={{ maxHeight: '280px', overflowY: 'auto' }}>
+                    <table className="pce-table">
+                      <thead style={{ position: 'sticky', top: 0, zIndex: 5, background: '#ffedd5' }}>
+                        <tr>
+                          <th>Collection Voucher</th>
+                          <th>Time</th>
+                          <th>Collector / Employee</th>
+                          <th>Mode</th>
+                          <th style={{ textAlign: 'right' }}>Collected Amount</th>
+                          <th style={{ textAlign: 'right' }}>Drawer Remaining</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {invoicesData.branch_collections.map((coll) => (
+                          <tr key={coll.name} style={{ background: '#ffffff' }}>
+                            <td style={{ fontFamily: 'ui-monospace, monospace', fontWeight: 800, color: '#9a3412' }}>{coll.name}</td>
+                            <td style={{ color: '#64748b', fontWeight: 600 }}>{coll.posting_time ? coll.posting_time.slice(0, 5) : '—'}</td>
+                            <td>
+                              <div style={{ fontWeight: 800, color: '#0f172a' }}>{coll.collector_name || 'Collector'}</div>
+                              {coll.employee && <div style={{ fontSize: '0.72rem', color: '#64748b' }}>{coll.employee}</div>}
+                            </td>
+                            <td>
+                              <span style={{ fontSize: '0.7rem', fontWeight: 800, background: '#ffedd5', color: '#c2410c', padding: '0.2rem 0.55rem', borderRadius: '9999px', border: '1px solid #fed7aa' }}>
+                                {coll.collection_type}
+                              </span>
+                            </td>
+                            <td style={{ textAlign: 'right', fontWeight: 900, color: '#dc2626' }}>
+                              -AED {flt(coll.amount).toFixed(2)}
+                            </td>
+                            <td style={{ textAlign: 'right', fontWeight: 800, color: '#059669' }}>
+                              AED {flt(coll.remaining_balance).toFixed(2)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
             </>
           )}
 
-          <div className="mb-20"></div>
+          <div style={{ height: '2rem' }}></div>
         </div>
       </div>
 
@@ -1456,14 +1545,22 @@ function ClosingEntry() {
                     <span>{(thermalData.netTotal || 0).toFixed(2)}</span>
                   </div>
 
-                  <div className="thermal-line-sep" style={{ borderTop: '1px solid #000', margin: '6px 0' }}></div>
-
                   <div className="thermal-row-3col" style={{ display: 'flex', justifyContent: 'space-between' }}>
                     <span>Opening Cash</span>
                     <span style={{ fontWeight: 600 }}>{(thermalData.openingFloat || 0).toFixed(2)}</span>
                   </div>
+                  {parseFloat(thermalData.handoverAmount || 0) > 0 && (
+                    <div className="thermal-row-3col" style={{ display: 'flex', justifyContent: 'space-between', color: '#000000' }}>
+                      <span>- Handover Collected</span>
+                      <span style={{ fontWeight: 600 }}>-{(thermalData.handoverAmount || 0).toFixed(2)}</span>
+                    </div>
+                  )}
+                  <div className="thermal-row-3col" style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 600 }}>
+                    <span>Expected Drawer Cash</span>
+                    <span>{(thermalData.expectedCash || 0).toFixed(2)}</span>
+                  </div>
                   <div className="thermal-row-3col" style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 900 }}>
-                    <span>Counter / Closing Cash</span>
+                    <span>Counter / Counted Cash</span>
                     <span>{(thermalData.counterCash || 0).toFixed(2)}</span>
                   </div>
                 </div>

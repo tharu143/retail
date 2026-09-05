@@ -245,6 +245,95 @@ export default function SalesOrderDetails() {
     const [quickItemInitialCode, setQuickItemInitialCode] = useState('');
     const [quickItemTargetRow, setQuickItemTargetRow] = useState(null);
 
+    // Column Resizing
+    const [resizingCol, setResizingCol] = useState(null);
+
+    const handleResizeMouseDown = (e, colId) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const startX = e.clientX;
+        const targetCol = soColumns.find(c => c.id === colId);
+        const startWidth = parseInt(targetCol?.width || 100, 10);
+
+        const handleMouseMove = (moveEvent) => {
+            const diff = moveEvent.clientX - startX;
+            const newWidth = Math.max(40, startWidth + diff);
+            setSoColumns(prev => prev.map(c => c.id === colId ? { ...c, width: newWidth } : c));
+        };
+
+        const handleMouseUp = () => {
+            document.removeEventListener('mousemove', handleMouseMove);
+            document.removeEventListener('mouseup', handleMouseUp);
+            document.body.style.cursor = 'default';
+            document.body.style.userSelect = 'auto';
+            setResizingCol(null);
+            setSoColumns(currentCols => {
+                localStorage.setItem('sales_matrix_config', JSON.stringify(currentCols));
+                return currentCols;
+            });
+        };
+
+        document.body.style.cursor = 'col-resize';
+        document.body.style.userSelect = 'none';
+        setResizingCol(colId);
+        document.addEventListener('mousemove', handleMouseMove);
+        document.addEventListener('mouseup', handleMouseUp);
+    };
+
+    // Direct Column Drag & Drop Reordering on Table Header
+    const [draggedColId, setDraggedColId] = useState(null);
+    const [dragOverColId, setDragOverColId] = useState(null);
+
+    const handleColumnDragStart = (e, colId) => {
+        if (resizingCol) {
+            e.preventDefault();
+            return;
+        }
+        setDraggedColId(colId);
+        e.dataTransfer.setData('text/plain', colId);
+        e.dataTransfer.effectAllowed = 'move';
+    };
+
+    const handleColumnDragOver = (e, colId) => {
+        e.preventDefault();
+        if (draggedColId && draggedColId !== colId) {
+            setDragOverColId(colId);
+            e.dataTransfer.dropEffect = 'move';
+        }
+    };
+
+    const handleColumnDragLeave = (e, colId) => {
+        if (dragOverColId === colId) {
+            setDragOverColId(null);
+        }
+    };
+
+    const handleColumnDrop = (e, targetColId) => {
+        e.preventDefault();
+        const sourceColId = draggedColId || e.dataTransfer.getData('text/plain');
+        if (sourceColId && targetColId && sourceColId !== targetColId) {
+            setSoColumns(prevCols => {
+                const fromIndex = prevCols.findIndex(c => c.id === sourceColId);
+                const toIndex = prevCols.findIndex(c => c.id === targetColId);
+                if (fromIndex !== -1 && toIndex !== -1) {
+                    const newCols = [...prevCols];
+                    const [moved] = newCols.splice(fromIndex, 1);
+                    newCols.splice(toIndex, 0, moved);
+                    localStorage.setItem('sales_matrix_config', JSON.stringify(newCols));
+                    return newCols;
+                }
+                return prevCols;
+            });
+        }
+        setDraggedColId(null);
+        setDragOverColId(null);
+    };
+
+    const handleColumnDragEnd = () => {
+        setDraggedColId(null);
+        setDragOverColId(null);
+    };
+
     useEffect(() => {
         const handleClickOutside = (e) => {
             if (createDropdownRef.current && !createDropdownRef.current.contains(e.target)) {
@@ -2807,14 +2896,30 @@ export default function SalesOrderDetails() {
                                                         }
 
                                                         const colW = col.width ? (typeof col.width === 'number' || !col.width.includes('px') ? `${parseInt(col.width)}px` : col.width) : '100px';
+                                                        const isDraggingThis = draggedColId === col.id;
+                                                        const isDragOverThis = dragOverColId === col.id;
 
                                                         return (
                                                             <th
                                                                 key={col.id}
-                                                                className={alignClass}
+                                                                draggable={!resizingCol}
+                                                                onDragStart={(e) => handleColumnDragStart(e, col.id)}
+                                                                onDragOver={(e) => handleColumnDragOver(e, col.id)}
+                                                                onDragLeave={(e) => handleColumnDragLeave(e, col.id)}
+                                                                onDrop={(e) => handleColumnDrop(e, col.id)}
+                                                                onDragEnd={handleColumnDragEnd}
+                                                                className={`relative group select-none cursor-grab active:cursor-grabbing transition-colors ${alignClass} ${
+                                                                    isDragOverThis ? 'border-l-2 border-indigo-500 bg-indigo-50' : ''
+                                                                } ${isDraggingThis ? 'opacity-40 bg-slate-200' : ''}`}
                                                                 style={{ width: colW, minWidth: colW, maxWidth: colW }}
                                                             >
-                                                                {finalLabel}
+                                                                <span className="truncate block pointer-events-none">{finalLabel}</span>
+                                                                <div
+                                                                    onMouseDown={(e) => handleResizeMouseDown(e, col.id)}
+                                                                    className={`absolute top-0 right-0 w-2 h-full cursor-col-resize z-20 hover:bg-indigo-500/40 transition-colors ${resizingCol === col.id ? 'bg-indigo-600' : ''}`}
+                                                                    style={{ touchAction: 'none' }}
+                                                                    title="Drag to resize column"
+                                                                />
                                                             </th>
                                                         );
                                                     });
