@@ -494,20 +494,6 @@ const ItemDetails = () => {
                     <span className="info-field-label">Brand</span>
                     <span className="info-field-value font-bold text-slate-800">{item.brand || 'N/A'}</span>
                   </div>
-                  <div className="info-field-box">
-                    <span className="info-field-label">Barcodes</span>
-                    <span className="info-field-value font-bold text-slate-800">
-                      {barcodes?.length > 0 ? (
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 4 }}>
-                          {barcodes.map((b, i) => (
-                            <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '4px 8px', background: T.bg, border: `1px solid ${T.border}`, borderRadius: 6, fontSize: 11, fontFamily: "'DM Mono', monospace" }}>
-                              {b.barcode} <span style={{ color: T.textMuted }}>· {b.uom}</span>
-                            </span>
-                          ))}
-                        </div>
-                      ) : 'None'}
-                    </span>
-                  </div>
                   <div className="info-field-box" style={{ borderBottom: 'none', paddingBottom: 0 }}>
                     <span className="info-field-label">Description</span>
                     <span className="info-field-value font-bold text-slate-800" dangerouslySetInnerHTML={{ __html: item.description || 'N/A' }}></span>
@@ -516,24 +502,86 @@ const ItemDetails = () => {
               </InfoSection>
             </ScrollReveal>
 
+            {/* UOM, BARCODES & PRICING STRUCTURE: UOM FIRST -> BARCODE -> PRICE */}
             <ScrollReveal delay={150}>
-              <InfoSection title="Inventory Profile" icon={Box} themeColor={themeColor} style={{ margin: 0 }}>
-                <div className="info-fields-grid">
-                  <div className="info-field-box">
-                    <span className="info-field-label">Default UOM</span>
-                    <span className="info-field-value font-bold" style={{ color: themeColor }}>{item.stock_uom}</span>
+              <InfoSection title="UOM, Barcode & Price Profile" icon={Box} themeColor={themeColor} style={{ height: '100%', margin: 0 }}>
+                <div style={{ padding: '4px 0' }}>
+                  <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                      <thead>
+                        <tr style={{ background: T.bg, borderBottom: `2px solid ${T.border}`, textAlign: 'left' }}>
+                          <th style={{ padding: '8px 12px', fontSize: 10, fontWeight: 800, color: T.textMuted, textTransform: 'uppercase' }}>1. UOM (Unit)</th>
+                          <th style={{ padding: '8px 12px', fontSize: 10, fontWeight: 800, color: T.textMuted, textTransform: 'uppercase' }}>2. Barcode(s)</th>
+                          <th style={{ padding: '8px 12px', fontSize: 10, fontWeight: 800, color: T.textMuted, textTransform: 'uppercase', textAlign: 'right' }}>3. Standard Rate</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {/* Base UOM Row */}
+                        <tr style={{ borderBottom: `1px solid ${T.borderLight}` }}>
+                          <td style={{ padding: '10px 12px', fontWeight: 800, color: themeColor }}>
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                              <span style={{ width: 8, height: 8, borderRadius: '50%', background: themeColor }}></span>
+                              {item.stock_uom || 'Nos'}
+                              <span style={{ fontSize: 9, padding: '1px 5px', background: '#ecfdf5', color: '#059669', borderRadius: 4, fontWeight: 700 }}>Base</span>
+                            </span>
+                          </td>
+                          <td style={{ padding: '10px 12px' }}>
+                            {barcodes?.filter(b => !b.uom || b.uom === item.stock_uom).length > 0 ? (
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                                {barcodes.filter(b => !b.uom || b.uom === item.stock_uom).map((b, idx) => (
+                                  <span key={idx} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 6px', background: T.bg, border: `1px solid ${T.border}`, borderRadius: 5, fontSize: 11, fontFamily: "'DM Mono', monospace", fontWeight: 700 }}>
+                                    {b.barcode}
+                                  </span>
+                                ))}
+                              </div>
+                            ) : (
+                              <span style={{ color: T.textMuted, fontSize: 11, fontStyle: 'italic' }}>None</span>
+                            )}
+                          </td>
+                          <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 800, fontFamily: "'DM Mono', monospace" }}>
+                            AED {Number(item.standard_rate || 0).toFixed(2)}
+                          </td>
+                        </tr>
+
+                        {/* Additional UOM rows if any barcodes or prices defined */}
+                        {Array.from(new Set(barcodes?.map(b => b.uom).filter(u => u && u !== item.stock_uom))).map((altUom, idx) => {
+                          const matchedPrice = priceData?.prices?.find(p => p.uom === altUom)?.price_list_rate;
+                          return (
+                            <tr key={idx} style={{ borderBottom: `1px solid ${T.borderLight}` }}>
+                              <td style={{ padding: '10px 12px', fontWeight: 800, color: T.text }}>
+                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#94a3b8' }}></span>
+                                  {altUom}
+                                </span>
+                              </td>
+                              <td style={{ padding: '10px 12px' }}>
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                                  {barcodes.filter(b => b.uom === altUom).map((b, bIdx) => (
+                                    <span key={bIdx} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 6px', background: T.bg, border: `1px solid ${T.border}`, borderRadius: 5, fontSize: 11, fontFamily: "'DM Mono', monospace", fontWeight: 700 }}>
+                                      {b.barcode}
+                                    </span>
+                                  ))}
+                                </div>
+                              </td>
+                              <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 800, fontFamily: "'DM Mono', monospace" }}>
+                                {matchedPrice ? `AED ${Number(matchedPrice).toFixed(2)}` : '—'}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
                   </div>
-                  <div className="info-field-box">
-                    <span className="info-field-label">Valuation Method</span>
-                    <span className="info-field-value font-bold text-slate-800">{item.valuation_method || 'FIFO'}</span>
-                  </div>
-                  <div className="info-field-box">
-                    <span className="info-field-label">Default Warehouse</span>
-                    <span className="info-field-value font-bold text-slate-800">{item.default_warehouse || 'N/A'}</span>
-                  </div>
-                  <div className="info-field-box" style={{ borderBottom: 'none', paddingBottom: 0 }}>
-                    <span className="info-field-label">End of Life</span>
-                    <span className="info-field-value font-bold text-slate-800">{item.end_of_life || 'Not Set'}</span>
+
+                  <div className="info-fields-grid" style={{ marginTop: 12, borderTop: `1px solid ${T.borderLight}`, paddingTop: 10 }}>
+                    <div className="info-field-box">
+                      <span className="info-field-label">Valuation Method</span>
+                      <span className="info-field-value font-bold text-slate-800">{item.valuation_method || 'FIFO'}</span>
+                    </div>
+                    <div className="info-field-box">
+                      <span className="info-field-label">Default Warehouse</span>
+                      <span className="info-field-value font-bold text-slate-800">{item.default_warehouse || 'N/A'}</span>
+                    </div>
                   </div>
                 </div>
               </InfoSection>

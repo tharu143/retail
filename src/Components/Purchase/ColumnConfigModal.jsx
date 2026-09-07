@@ -19,7 +19,14 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
-const SortableItem = ({ id, column, onToggle, onWidthChange, onAlignChange, onMoveUp, onMoveDown, isFirst, isLast }) => {
+const SortableItem = ({ id, column, onToggle, onWidthChange, onAlignChange, onLabelChange, onMoveUp, onMoveDown, isFirst, isLast }) => {
+  const [isEditingLabel, setIsEditingLabel] = useState(false);
+  const [tempLabel, setTempLabel] = useState(column.label || '');
+
+  useEffect(() => {
+    setTempLabel(column.label || '');
+  }, [column.label]);
+
   const {
     attributes,
     listeners,
@@ -34,6 +41,24 @@ const SortableItem = ({ id, column, onToggle, onWidthChange, onAlignChange, onMo
     transition,
     zIndex: isDragging ? 1 : 0,
     opacity: isDragging ? 0.6 : 1,
+  };
+
+  const handleLabelBlur = () => {
+    setIsEditingLabel(false);
+    if (tempLabel.trim() && tempLabel !== column.label) {
+      onLabelChange(id, tempLabel.trim());
+    } else {
+      setTempLabel(column.label || '');
+    }
+  };
+
+  const handleLabelKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      handleLabelBlur();
+    } else if (e.key === 'Escape') {
+      setTempLabel(column.label || '');
+      setIsEditingLabel(false);
+    }
   };
 
   return (
@@ -77,10 +102,28 @@ const SortableItem = ({ id, column, onToggle, onWidthChange, onAlignChange, onMo
         {column.visible ? <Eye size={15} /> : <EyeOff size={15} />}
       </button>
 
+      {/* Editable Label Facility */}
       <div className="flex-1 min-w-0 pr-2">
-        <p className={`text-xs sm:text-sm font-bold truncate ${column.visible ? 'text-slate-800' : 'text-slate-400'}`}>
-          {column.label}
-        </p>
+        {isEditingLabel ? (
+          <input
+            type="text"
+            autoFocus
+            value={tempLabel}
+            onChange={(e) => setTempLabel(e.target.value)}
+            onBlur={handleLabelBlur}
+            onKeyDown={handleLabelKeyDown}
+            className="w-full text-xs sm:text-sm font-bold px-2 py-1 border border-indigo-500 rounded bg-indigo-50/50 outline-none text-slate-800"
+          />
+        ) : (
+          <div className="flex items-center gap-1.5 group/label cursor-pointer" onClick={() => setIsEditingLabel(true)} title="Click to rename label">
+            <p className={`text-xs sm:text-sm font-bold truncate ${column.visible ? 'text-slate-800' : 'text-slate-400'}`}>
+              {column.label}
+            </p>
+            <span className="text-[10px] text-slate-400 opacity-0 group-hover/label:opacity-100 hover:text-indigo-600 transition-opacity">
+              ✎
+            </span>
+          </div>
+        )}
         <p className="text-[9px] text-slate-400 uppercase font-semibold tracking-wider truncate">{id.replace(/_/g, ' ')}</p>
       </div>
 
@@ -178,6 +221,12 @@ const ColumnConfigModal = ({ isOpen, onClose, config, columns, onUpdate, doctype
     ));
   };
 
+  const updateLabel = (id, newLabel) => {
+    setLocalConfig(prev => prev.map(col => 
+      col.id === id ? { ...col, label: newLabel } : col
+    ));
+  };
+
   const resetToDefault = () => {
     // This will be handled by Parent passing its default
     if (window.confirm("Reset to default system column configuration?")) {
@@ -258,21 +307,23 @@ const ColumnConfigModal = ({ isOpen, onClose, config, columns, onUpdate, doctype
               width: '2.25rem',
               height: '2.25rem',
               borderRadius: '9999px',
-              border: 'none',
               backgroundColor: '#f1f5f9',
+              border: 'none',
               color: '#64748b',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               cursor: 'pointer',
-              transition: 'all 0.15s'
+              transition: 'background-color 0.15s'
             }}
+            onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#e2e8f0'}
+            onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#f1f5f9'}
           >
             <X size={18} />
           </button>
         </div>
 
-        {/* Sub-header instruction banner */}
+        {/* Subheader */}
         <div style={{
           padding: '0.6rem 1.75rem',
           backgroundColor: '#f1f5f9',
@@ -286,7 +337,7 @@ const ColumnConfigModal = ({ isOpen, onClose, config, columns, onUpdate, doctype
           textTransform: 'uppercase',
           letterSpacing: '0.05em'
         }}>
-          <span>Drag ≡ or use ↑↓ to reorder · Click eye to show/hide</span>
+          <span>Drag ≡ or use ↑↓ to reorder · Click eye to show/hide · Click label ✎ to rename</span>
           <span style={{ color: '#4f46e5' }}>{localConfig.filter(c => c.visible).length} / {localConfig.length} Visible</span>
         </div>
 
@@ -317,6 +368,7 @@ const ColumnConfigModal = ({ isOpen, onClose, config, columns, onUpdate, doctype
                     onToggle={toggleVisibility}
                     onWidthChange={updateWidth}
                     onAlignChange={updateAlign}
+                    onLabelChange={updateLabel}
                     onMoveUp={() => moveColumn(idx, -1)}
                     onMoveDown={() => moveColumn(idx, 1)}
                     isFirst={idx === 0}

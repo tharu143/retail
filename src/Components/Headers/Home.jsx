@@ -374,6 +374,7 @@ function Home() {
 
     const [classicColumns, setClassicColumns] = useState(loadClassicColumnConfig);
     const [showClassicColConfig, setShowClassicColConfig] = useState(false);
+    const [resizingClassicCol, setResizingClassicCol] = useState(null);
 
     const handleClassicColConfigUpdate = (newConfig) => {
         if (newConfig === null) {
@@ -384,6 +385,38 @@ function Home() {
             localStorage.setItem('classic_pos_table_config', JSON.stringify(newConfig));
         }
         setShowClassicColConfig(false);
+    };
+
+    const handleClassicColResizeMouseDown = (e, colId) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const startX = e.clientX;
+        const targetCol = classicColumns.find(c => c.id === colId);
+        const startWidth = parseInt(targetCol?.width || 100, 10);
+
+        const handleMouseMove = (moveEvent) => {
+            const diff = moveEvent.clientX - startX;
+            const newWidth = Math.max(30, startWidth + diff);
+            setClassicColumns(prev => prev.map(c => c.id === colId ? { ...c, width: newWidth } : c));
+        };
+
+        const handleMouseUp = () => {
+            document.removeEventListener('mousemove', handleMouseMove);
+            document.removeEventListener('mouseup', handleMouseUp);
+            document.body.style.cursor = 'default';
+            document.body.style.userSelect = 'auto';
+            setResizingClassicCol(null);
+            setClassicColumns(currentCols => {
+                localStorage.setItem('classic_pos_table_config', JSON.stringify(currentCols));
+                return currentCols;
+            });
+        };
+
+        document.body.style.cursor = 'col-resize';
+        document.body.style.userSelect = 'none';
+        setResizingClassicCol(colId);
+        document.addEventListener('mousemove', handleMouseMove);
+        document.addEventListener('mouseup', handleMouseUp);
     };
 
     const visibleClassicCols = classicColumns.filter(c => c.visible);
@@ -10356,8 +10389,18 @@ function Home() {
                                     <tr>
                                         <th className="text-center">#</th>
                                         {visibleClassicCols.map(col => (
-                                            <th key={col.id} className={col.id === 'price' || col.id === 'vat' || col.id === 'total' ? 'text-right' : 'text-center'}>
-                                                {col.label.toUpperCase()}
+                                            <th 
+                                                key={col.id} 
+                                                className={`relative select-none ${col.id === 'price' || col.id === 'vat' || col.id === 'total' ? 'text-right' : 'text-center'}`}
+                                                style={{ userSelect: 'none' }}
+                                            >
+                                                <span>{col.label.toUpperCase()}</span>
+                                                <div
+                                                    onMouseDown={(e) => handleClassicColResizeMouseDown(e, col.id)}
+                                                    className="absolute top-0 right-0 w-1.5 h-full cursor-col-resize hover:bg-amber-400/80 active:bg-amber-500 z-10"
+                                                    style={{ touchAction: 'none' }}
+                                                    title="Drag to resize column"
+                                                />
                                             </th>
                                         ))}
                                         <th className="text-center p-0">

@@ -3186,7 +3186,26 @@ export default function ItemList() {
                 <CardSection title="Specifications" icon={<Package size={14} />}>
                   <div style={{ padding: 20 }}>
                     <div className="il-form-grid">
-                      {/* 1. Barcode */}
+                      {/* 1. Base UOM */}
+                      {!isEditMode && (
+                        <SearchableSelect
+                          label="Base UOM"
+                          value={form.default_uom}
+                          options={baseUomOptions}
+                          required
+                          placeholder="Select UOM"
+                          onChange={handleDefaultUomChange}
+                          onAction={handleCreateUom}
+                        />
+                      )}
+
+                      {/* 2. Pieces Per Box */}
+                      <div className="il-form-field">
+                        <label className="il-form-label">Pieces Per Box</label>
+                        <input type="number" className="il-input" value={form.custom_pieces_per_box} onChange={e => handlePiecesPerBoxChange(e.target.value)} placeholder="Conversion factor (e.g. 12)" />
+                      </div>
+
+                      {/* 3. Barcode (linked to selected UOM) */}
                       <div className="il-form-field">
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 5 }}>
                           <label className="il-form-label" style={{ margin: 0 }}>Barcode</label>
@@ -3232,7 +3251,7 @@ export default function ItemList() {
                         )}
                       </div>
 
-                      {/* 2. Item Code */}
+                      {/* 4. Item Code */}
                       <div className="il-form-field">
                         <label className="il-form-label req">Item Code</label>
                         <input
@@ -3293,13 +3312,13 @@ export default function ItemList() {
                         />
                       </div>
 
-                      {/* 3. Item Name */}
+                      {/* 5. Item Name */}
                       <div className="il-form-field">
                         <label className="il-form-label req">Item Name</label>
                         <input className="il-input" value={form.item_name} onChange={e => setForm({ ...form, item_name: e.target.value })} placeholder="Full item name" />
                       </div>
 
-                      {/* 4. Main Item Category */}
+                      {/* 6. Main Item Category */}
                       <SearchableSelect
                         label="Main Item Category"
                         value={formMainGroup}
@@ -3312,7 +3331,7 @@ export default function ItemList() {
                         onAction={(search) => handleOpenCreateItemGroup('All Item Groups', search)}
                       />
 
-                      {/* 5. Item Subgroup */}
+                      {/* 7. Item Subgroup */}
                       <SearchableSelect
                         label="Item Subgroup"
                         value={form.item_group}
@@ -3327,7 +3346,7 @@ export default function ItemList() {
                         onAction={(search) => handleOpenCreateItemGroup(formMainGroup || '', search)}
                       />
 
-                      {/* 6. Brand */}
+                      {/* 8. Brand */}
                       <SearchableSelect
                         label="Brand"
                         value={form.brand}
@@ -3337,20 +3356,7 @@ export default function ItemList() {
                         onAction={handleCreateBrand}
                       />
 
-                      {/* 7. Base UOM */}
-                      {!isEditMode && (
-                        <SearchableSelect
-                          label="Base UOM"
-                          value={form.default_uom}
-                          options={baseUomOptions}
-                          required
-                          placeholder="Select UOM"
-                          onChange={handleDefaultUomChange}
-                          onAction={handleCreateUom}
-                        />
-                      )}
-
-                      {/* 8. Country of Origin */}
+                      {/* 9. Country of Origin */}
                       <div className="il-form-field">
                         <SearchableSelect
                           label="Country of Origin"
@@ -3359,12 +3365,6 @@ export default function ItemList() {
                           placeholder="Select Country"
                           onChange={val => setForm({ ...form, country_of_origin: val })}
                         />
-                      </div>
-
-                      {/* 9. Pieces Per Box */}
-                      <div className="il-form-field">
-                        <label className="il-form-label">Pieces Per Box</label>
-                        <input type="number" className="il-input" value={form.custom_pieces_per_box} onChange={e => handlePiecesPerBoxChange(e.target.value)} placeholder="Conversion factor (e.g. 12)" />
                       </div>
                     </div>
                   </div>

@@ -88,7 +88,8 @@ function PurchaseOrder() {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const { getShortcut, isShortcutPressed } = useCustomShortcuts();
-  const { warehouse, user_roles, theme } = useSelector((state) => state.user || {});
+  const { warehouse, user_roles } = useSelector((state) => state.user || {});
+  const theme = 'legacy'; // Strictly locked to Legacy theme only (matching PI) as requested
   const isAdmin = (user_roles || []).includes("Administrator") || (user_roles || []).includes("System Manager");
 
   const navigateToDoc = (doctype, docname) => {
@@ -2466,11 +2467,23 @@ function PurchaseOrder() {
     }
   };
 
-  const handleItemSelect = (item, rowIndex) => {
+  const handleItemSelect = (rawItem, rowIndex) => {
+    if (!rawItem) return;
+    const itemCode = rawItem.item_code || rawItem.name;
+    if (!itemCode) return;
+
+    const item = {
+      ...rawItem,
+      item_code: itemCode,
+      item_name: rawItem.item_name || rawItem.name || itemCode,
+      stock_uom: rawItem.stock_uom || 'Nos',
+      rate: parseFloat(rawItem.last_buying_rate || rawItem.rate || 0)
+    };
+
     setFormData(prev => {
-      const items = [...prev.items];
-      const existingIdx = items.findIndex((i, idx) => i.item_code === item.item_code && idx !== rowIndex);
-      const rate = parseFloat(item.last_buying_rate || item.rate || 0);
+      let items = [...(prev.items || [])];
+      const existingIdx = items.findIndex((i, idx) => i && i.item_code === item.item_code && (rowIndex === undefined || idx !== rowIndex));
+      const rate = item.rate;
 
       if (existingIdx !== -1) {
         const existingItem = { ...items[existingIdx] };
@@ -2487,10 +2500,12 @@ function PurchaseOrder() {
         existingItem.amount = existingItem.qty * (parseFloat(existingItem.rate) || 0);
         items[existingIdx] = existingItem;
 
-        if (items.length > 1) {
-          items.splice(rowIndex, 1);
-        } else {
-          items[rowIndex] = { ...POItemModel, schedule_date: prev.transaction_date };
+        if (rowIndex !== undefined && rowIndex >= 0 && rowIndex < items.length) {
+          if (items.length > 1) {
+            items.splice(rowIndex, 1);
+          } else {
+            items[rowIndex] = { ...POItemModel, schedule_date: prev.transaction_date };
+          }
         }
       } else {
         const pPerBox = parseFloat(item.custom_pieces_per_box || 1);
@@ -2499,12 +2514,16 @@ function PurchaseOrder() {
         const sellNos = parseFloat(item.custom_selling_price || item.selling_price || 0);
         const sellBox = parseFloat(item.custom_selling_price_box || item.custom_box_selling_price || (sellNos * pPerBox) || 0);
 
-        items[rowIndex] = {
-          ...items[rowIndex],
+        const targetRow = (rowIndex !== undefined && rowIndex >= 0 && rowIndex < items.length) 
+          ? items[rowIndex] 
+          : { ...POItemModel, schedule_date: prev.transaction_date };
+
+        const newRow = {
+          ...targetRow,
           item_code: item.item_code,
           item_name: item.item_name,
-          stock_uom: item.stock_uom || '',
-          uom: item.stock_uom || '',
+          stock_uom: item.stock_uom || 'Nos',
+          uom: item.stock_uom || 'Nos',
           uom_list: uomList,
           use_box_entry: false, // default Nos mode
           rate: rate,
@@ -2516,24 +2535,36 @@ function PurchaseOrder() {
           custom_box_price: defaultBoxPrice,
           custom_box_qty: 1,
           temp_barcode: '',
-          schedule_date: items[rowIndex].schedule_date || prev.transaction_date,
+          schedule_date: targetRow.schedule_date || prev.transaction_date,
           custom_supplier_sl_num: item.custom_supplier_sl_num || item.supplier_part_no || '',
           supplier_part_no: item.supplier_part_no || item.custom_supplier_sl_num || '',
           custom_selling_price: sellNos,
           custom_selling_price_box: sellBox
         };
 
+        if (rowIndex !== undefined && rowIndex >= 0 && rowIndex < items.length) {
+          items[rowIndex] = newRow;
+        } else {
+          const firstEmptyIdx = items.findIndex(i => !i.item_code);
+          if (firstEmptyIdx !== -1) {
+            items[firstEmptyIdx] = newRow;
+          } else {
+            items.push(newRow);
+          }
+        }
+
         // Async fetch UOMs and update row
         fetchItemUOMs(item.item_code).then(uomList => {
           setFormData(p => {
-            const its = [...p.items];
-            const ri = its.findIndex(i => i.item_code === item.item_code);
+            const its = [...(p.items || [])];
+            const ri = its.findIndex(i => i && i.item_code === item.item_code);
             if (ri !== -1) its[ri] = { ...its[ri], uom_list: uomList };
             return { ...p, items: its };
           });
         });
       }
 
+      // Ensure at least one trailing empty row
       if (items.every(i => i.item_code)) {
         items.push({ ...POItemModel, schedule_date: prev.transaction_date });
       }

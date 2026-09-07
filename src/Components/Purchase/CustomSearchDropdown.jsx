@@ -226,7 +226,7 @@ const CustomSearchDropdown = ({
     setSelectedIndex(-1);
   };
 
-  const handleKeyDown = (e) => {
+  const handleKeyDown = async (e) => {
     if (!show || disabled) return;
 
     if (e.key === 'ArrowDown') {
@@ -240,9 +240,67 @@ const CustomSearchDropdown = ({
     } else if (e.key === 'Enter') {
       e.preventDefault();
       e.stopPropagation();
+
+      const trimmed = (query || '').trim();
+      const isBarcodePattern = /^[0-9A-Za-z\-_]{3,}$/.test(trimmed) && (trimmed.length >= 4);
+
+      // 1. If user explicitly navigated to an item using arrow keys
+      if (selectedIndex >= 0 && selectedIndex < displayResults.length) {
+        handleItemClick(displayResults[selectedIndex]);
+        return;
+      }
+
+      // 2. Check if there is an exact barcode match in displayResults
+      const exactBarcodeMatch = displayResults.find(it => 
+        (it.barcode && String(it.barcode).trim().toLowerCase() === trimmed.toLowerCase()) ||
+        (it.item_code && String(it.item_code).trim().toLowerCase() === trimmed.toLowerCase()) ||
+        (it.supplier_part_no && String(it.supplier_part_no).trim().toLowerCase() === trimmed.toLowerCase()) ||
+        (it.name && String(it.name).trim().toLowerCase() === trimmed.toLowerCase())
+      );
+
+      if (exactBarcodeMatch) {
+        handleItemClick(exactBarcodeMatch);
+        return;
+      }
+
+      // 3. If trimmed looks like a barcode or code, try exact barcode lookup via API before selecting anything
+      if (isBarcodePattern) {
+        try {
+          const wh = localStorage.getItem('warehouse') || '';
+          const warehouseParam = wh ? `&warehouse=${encodeURIComponent(wh)}` : '';
+          const bcRes = await fetch(`/api/method/kyle_retail.retail_api.api.get_item_by_barcode_po?barcode=${encodeURIComponent(trimmed)}${warehouseParam}`, {
+            credentials: 'include'
+          });
+          if (bcRes.ok) {
+            const bcData = await bcRes.json();
+            const bcItem = Array.isArray(bcData.message) ? bcData.message[0] : bcData.message;
+            if (bcItem && (bcItem.item_code || bcItem.name)) {
+              handleItemClick(bcItem);
+              return;
+            }
+          }
+        } catch (bcErr) {
+          console.warn("[CustomSearchDropdown] Direct barcode fetch error:", bcErr);
+        }
+
+        // If barcode was scanned/typed and no exact match found, DO NOT select the 1st random item!
+        // Instead alert user cleanly so wrong items are never added to PO
+        const alertMsg = `No item found for barcode / code: "${trimmed}"`;
+        if (typeof window !== 'undefined' && window.Swal) {
+          window.Swal.fire({
+            title: 'Item Not Found',
+            text: alertMsg,
+            icon: 'warning',
+            timer: 2000,
+            showConfirmButton: false
+          });
+        }
+        return;
+      }
+
+      // 4. Default: If not a barcode scan and search results exist, select the top matched item
       if (displayResults.length > 0) {
-        const idxToSelect = selectedIndex >= 0 ? selectedIndex : 0;
-        handleItemClick(displayResults[idxToSelect]);
+        handleItemClick(displayResults[0]);
       }
     } else if (e.key === 'Escape') {
       e.preventDefault();
