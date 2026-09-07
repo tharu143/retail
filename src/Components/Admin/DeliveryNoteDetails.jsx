@@ -21,6 +21,7 @@ import AttachmentSection from './AttachmentSection';
 import { useCustomShortcuts } from '../../hooks/useCustomShortcuts';
 import CustomSearchDropdown from '../Purchase/CustomSearchDropdown';
 import QuickItemCreateModal from '../Purchase/QuickItemCreateModal';
+import { loadLocalMatrixConfig, fetchUserMatrixConfig, saveUserMatrixConfig } from '../../utils/tableMatrixHelper';
 
 
 const DEFAULT_DN_COLUMNS = [
@@ -362,12 +363,18 @@ const DeliveryNoteDetails = () => {
     const [customerSelectedIndex, setCustomerSelectedIndex] = useState(-1);
     const [barcodeInput, setBarcodeInput] = useState('');
 
-    const [dnColumns, setDnColumns] = useState(loadColumnConfig);
+    const [dnColumns, setDnColumns] = useState(() => loadLocalMatrixConfig('delivery_matrix_config', DEFAULT_DN_COLUMNS));
     const [showColConfig, setShowColConfig] = useState(false);
     const [showCamera, setShowCamera] = useState(false);
     const barcodeRef = useRef(null);
     const scannerBuffer = useRef("");
     const [isInputFocused, setIsInputFocused] = useState(false);
+
+    useEffect(() => {
+        fetchUserMatrixConfig('delivery_matrix_config', DEFAULT_DN_COLUMNS).then(backendCols => {
+            if (backendCols) setDnColumns(backendCols);
+        });
+    }, []);
 
     // Column Resizing
     const [resizingCol, setResizingCol] = useState(null);
@@ -392,7 +399,7 @@ const DeliveryNoteDetails = () => {
             document.body.style.userSelect = 'auto';
             setResizingCol(null);
             setDnColumns(currentCols => {
-                localStorage.setItem('delivery_matrix_config', JSON.stringify(currentCols));
+                saveUserMatrixConfig('delivery_matrix_config', currentCols, DEFAULT_DN_COLUMNS);
                 return currentCols;
             });
         };
@@ -443,7 +450,7 @@ const DeliveryNoteDetails = () => {
                     const newCols = [...prevCols];
                     const [moved] = newCols.splice(fromIndex, 1);
                     newCols.splice(toIndex, 0, moved);
-                    localStorage.setItem('delivery_matrix_config', JSON.stringify(newCols));
+                    saveUserMatrixConfig('delivery_matrix_config', newCols, DEFAULT_DN_COLUMNS);
                     return newCols;
                 }
                 return prevCols;
@@ -3594,12 +3601,11 @@ const DeliveryNoteDetails = () => {
                 onClose={() => setShowColConfig(false)}
                 config={dnColumns}
                 onUpdate={(newConfig) => {
+                    saveUserMatrixConfig('delivery_matrix_config', newConfig, DEFAULT_DN_COLUMNS);
                     if (newConfig === null) {
                         setDnColumns(DEFAULT_DN_COLUMNS);
-                        localStorage.removeItem('delivery_matrix_config');
                     } else {
                         setDnColumns(newConfig);
-                        localStorage.setItem('delivery_matrix_config', JSON.stringify(newConfig));
                     }
                     setShowColConfig(false);
                 }}

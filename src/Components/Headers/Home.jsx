@@ -58,6 +58,7 @@ import Swal from 'sweetalert2';
 import { frappeCall } from '../../utils/frappe';
 import POSService from '../../utils/posService';
 import { GCC_COUNTRIES, OTHER_COUNTRIES, ALL_COUNTRY_CODES, getCountryRule, stripCountryPrefix } from '../../utils/countryCodes';
+import { loadLocalMatrixConfig, fetchUserMatrixConfig, saveUserMatrixConfig } from '../../utils/tableMatrixHelper';
 import CountryCodeSelector from '../Common/CountryCodeSelector';
 
 const LEGACY_API = '/api/method/custom_retailpos.custom_retailpos.retail_api.retail';
@@ -357,32 +358,22 @@ function Home() {
         { id: 'total', label: 'Total', visible: true, width: 100 },
     ];
 
-    const loadClassicColumnConfig = () => {
-        try {
-            const saved = localStorage.getItem('classic_pos_table_config');
-            if (saved) {
-                const parsed = JSON.parse(saved);
-                const defaultIds = DEFAULT_CLASSIC_COLUMNS.map(c => c.id);
-                const savedIds = parsed.map(c => c.id);
-                const existing = parsed.filter(c => defaultIds.includes(c.id));
-                const missing = DEFAULT_CLASSIC_COLUMNS.filter(c => !savedIds.includes(c.id));
-                return [...existing, ...missing];
-            }
-        } catch (e) { console.error('Classic POS Column Config Error:', e); }
-        return DEFAULT_CLASSIC_COLUMNS;
-    };
-
-    const [classicColumns, setClassicColumns] = useState(loadClassicColumnConfig);
+    const [classicColumns, setClassicColumns] = useState(() => loadLocalMatrixConfig('pos_home_matrix_config', DEFAULT_CLASSIC_COLUMNS));
     const [showClassicColConfig, setShowClassicColConfig] = useState(false);
     const [resizingClassicCol, setResizingClassicCol] = useState(null);
 
+    useEffect(() => {
+        fetchUserMatrixConfig('pos_home_matrix_config', DEFAULT_CLASSIC_COLUMNS).then(backendCols => {
+            if (backendCols) setClassicColumns(backendCols);
+        });
+    }, []);
+
     const handleClassicColConfigUpdate = (newConfig) => {
+        saveUserMatrixConfig('pos_home_matrix_config', newConfig, DEFAULT_CLASSIC_COLUMNS);
         if (newConfig === null) {
             setClassicColumns(DEFAULT_CLASSIC_COLUMNS);
-            localStorage.removeItem('classic_pos_table_config');
         } else {
             setClassicColumns(newConfig);
-            localStorage.setItem('classic_pos_table_config', JSON.stringify(newConfig));
         }
         setShowClassicColConfig(false);
     };
@@ -407,7 +398,7 @@ function Home() {
             document.body.style.userSelect = 'auto';
             setResizingClassicCol(null);
             setClassicColumns(currentCols => {
-                localStorage.setItem('classic_pos_table_config', JSON.stringify(currentCols));
+                saveUserMatrixConfig('pos_home_matrix_config', currentCols, DEFAULT_CLASSIC_COLUMNS);
                 return currentCols;
             });
         };
@@ -3154,14 +3145,17 @@ function Home() {
                 }
                 const pcsPerBox = item.custom_pieces_per_box || 12;
                 const baseNosPrice = item.prices?.['Nos'] || item.prices?.['Piece'] || item.price || 0;
-                const calcPrice = selectedUom === 'Box' ? (item.prices?.['Box'] || (baseNosPrice * pcsPerBox)) : baseNosPrice;
+                const hasValidBoxPrice = item.prices?.['Box'] && Number(item.prices['Box']) > baseNosPrice;
+                const calcPrice = selectedUom === 'Box' 
+                    ? (hasValidBoxPrice ? Number(item.prices['Box']) : (baseNosPrice * pcsPerBox)) 
+                    : baseNosPrice;
 
                 const newItem = {
                     ...item,
                     qty: addQty,
                     uom: selectedUom,
                     price: calcPrice,
-                    base_unit_price: calcPrice,
+                    base_unit_price: baseNosPrice,
                     custom_pieces_per_box: pcsPerBox,
                     is_tax_inclusive: true // Default to inclusive for retail
                 };

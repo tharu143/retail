@@ -18,6 +18,7 @@ import ColumnConfigModal from '../Purchase/ColumnConfigModal';
 import ListCustomizer from './ListCustomizer';
 import { Settings } from 'lucide-react';
 import { useCustomShortcuts } from '../../hooks/useCustomShortcuts';
+import { loadLocalMatrixConfig, fetchUserMatrixConfig, saveUserMatrixConfig } from '../../utils/tableMatrixHelper';
 
 const API_PATH_C = '/api/method/custom_retailpos.custom_retailpos.retail_api.retail';
 
@@ -199,16 +200,21 @@ export default function SalesOrderList() {
   const [savingCustomer, setSavingCustomer] = useState(false);
 
   // Columns Matrix Configuration
-  const [soColumns, setSoColumns] = useState(loadColumnConfig);
+  const [soColumns, setSoColumns] = useState(() => loadLocalMatrixConfig('sales_matrix_config', DEFAULT_SO_COLUMNS));
   const [showColConfig, setShowColConfig] = useState(false);
 
+  useEffect(() => {
+    fetchUserMatrixConfig('sales_matrix_config', DEFAULT_SO_COLUMNS).then(backendCols => {
+      if (backendCols) setSoColumns(backendCols);
+    });
+  }, []);
+
   const handleColConfigUpdate = (newConfig) => {
+    saveUserMatrixConfig('sales_matrix_config', newConfig, DEFAULT_SO_COLUMNS);
     if (newConfig === null) {
       setSoColumns(DEFAULT_SO_COLUMNS);
-      localStorage.removeItem('sales_matrix_config');
     } else {
       setSoColumns(newConfig);
-      localStorage.setItem('sales_matrix_config', JSON.stringify(newConfig));
     }
     setShowColConfig(false);
   };

@@ -11,6 +11,7 @@ import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import './SalesOrder.css';
 import DirhamIcon from '../../assets/Currency/DirhamIcon';
 import ColumnConfigModal from '../Purchase/ColumnConfigModal';
+import { loadLocalMatrixConfig, fetchUserMatrixConfig, saveUserMatrixConfig } from '../../utils/tableMatrixHelper';
 
 const DEFAULT_SO_COLUMNS = [
   { id: 'item_code', label: 'Item Code', visible: true, width: 120 },
@@ -161,16 +162,21 @@ function SalesOrder() {
   const [isViewMode, setIsViewMode] = useState(false);
 
   // Columns Matrix Configuration
-  const [soColumns, setSoColumns] = useState(loadColumnConfig);
+  const [soColumns, setSoColumns] = useState(() => loadLocalMatrixConfig('sales_matrix_config', DEFAULT_SO_COLUMNS));
   const [showColConfig, setShowColConfig] = useState(false);
 
+  useEffect(() => {
+    fetchUserMatrixConfig('sales_matrix_config', DEFAULT_SO_COLUMNS).then(backendCols => {
+      if (backendCols) setSoColumns(backendCols);
+    });
+  }, []);
+
   const handleColConfigUpdate = (newConfig) => {
+    saveUserMatrixConfig('sales_matrix_config', newConfig, DEFAULT_SO_COLUMNS);
     if (newConfig === null) {
       setSoColumns(DEFAULT_SO_COLUMNS);
-      localStorage.removeItem('sales_matrix_config');
     } else {
       setSoColumns(newConfig);
-      localStorage.setItem('sales_matrix_config', JSON.stringify(newConfig));
     }
     setShowColConfig(false);
   };
@@ -496,6 +502,7 @@ function SalesOrder() {
         rateRes.data?.message?.rate ||
         rateRes.data?.rate || 0;
 
+      const isBox = (item.scanned_uom || item.uom || '').toLowerCase() === 'box';
       const pPerBox = parseFloat(item.custom_pieces_per_box || 1);
       const uomList = item.uom_list || [];
 
@@ -506,16 +513,16 @@ function SalesOrder() {
           item_code: item.item_code,
           item_name: item.item_name,
           stock_uom: item.stock_uom || 'Nos',
-          uom: item.stock_uom || 'Nos',
+          uom: isBox ? 'Box' : (item.stock_uom || 'Nos'),
           uom_list: uomList,
-          use_box_entry: false,
-          qty: 1,
-          rate,
-          amount: rate,
-          custom_pieces_per_box: 1,
+          use_box_entry: isBox,
+          qty: isBox ? pPerBox : 1,
+          rate: rate,
+          amount: isBox ? (rate * pPerBox) : rate,
+          custom_pieces_per_box: pPerBox,
           default_pieces_per_box: pPerBox,
           custom_box_qty: 1,
-          custom_box_price: rate,
+          custom_box_price: isBox ? (rate * pPerBox) : rate,
           custom_selling_price: parseFloat(item.selling_price || 0),
           custom_ref_sl_no: item.custom_ref_sl_no || item.custom_supplier_sl_num || '',
           delivery_date: prev.delivery_date || prev.transaction_date,
@@ -576,6 +583,11 @@ function SalesOrder() {
       const apiItem = (res.data.message || [])[0];
 
       if (apiItem) {
+        const scannedBarcodeStr = barcode.trim();
+        const matchedBarcode = (apiItem.barcodes || []).find(b => b.barcode === scannedBarcodeStr);
+        const scannedUom = (apiItem.scanned_uom || matchedBarcode?.uom || apiItem.uom || '').toLowerCase() === 'box' ? 'Box' : (apiItem.stock_uom || 'Nos');
+        const isBox = scannedUom === 'Box';
+
         let rate = apiItem.price_list_rate || 0;
         try {
           const rateRes = await axios.get(`${API_PATH}.get_item_selling_rate_so`, {
@@ -610,16 +622,16 @@ function SalesOrder() {
             item_code: apiItem.name,
             item_name: apiItem.item_name,
             stock_uom: apiItem.stock_uom || 'Nos',
-            uom: apiItem.stock_uom || 'Nos',
+            uom: isBox ? 'Box' : (apiItem.stock_uom || 'Nos'),
             uom_list: uomList,
-            use_box_entry: false,
-            qty: 1,
-            rate,
-            amount: rate,
-            custom_pieces_per_box: 1,
+            use_box_entry: isBox,
+            qty: isBox ? pPerBox : 1,
+            rate: rate,
+            amount: isBox ? (rate * pPerBox) : rate,
+            custom_pieces_per_box: pPerBox,
             default_pieces_per_box: pPerBox,
             custom_box_qty: 1,
-            custom_box_price: rate,
+            custom_box_price: isBox ? (rate * pPerBox) : rate,
             custom_selling_price: parseFloat(apiItem.selling_price || 0),
             custom_ref_sl_no: apiItem.custom_ref_sl_no || apiItem.custom_supplier_sl_num || '',
             delivery_date: prev.delivery_date || prev.transaction_date,

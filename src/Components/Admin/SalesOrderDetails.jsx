@@ -22,6 +22,7 @@ import CustomSearchDropdown from '../Purchase/CustomSearchDropdown';
 import QuickItemCreateModal from '../Purchase/QuickItemCreateModal';
 import AttachmentSection from './AttachmentSection';
 import { useCustomShortcuts } from '../../hooks/useCustomShortcuts';
+import { loadLocalMatrixConfig, fetchUserMatrixConfig, saveUserMatrixConfig } from '../../utils/tableMatrixHelper';
 
 const DEFAULT_SO_COLUMNS = [
     { id: 'item_code', label: 'Item Code', visible: true, width: 120 },
@@ -239,11 +240,17 @@ export default function SalesOrderDetails() {
     const createDropdownRef = useRef(null);
 
     // Matrix Columns Configuration
-    const [soColumns, setSoColumns] = useState(loadColumnConfig);
+    const [soColumns, setSoColumns] = useState(() => loadLocalMatrixConfig('sales_matrix_config', DEFAULT_SO_COLUMNS));
     const [showColConfig, setShowColConfig] = useState(false);
     const [showQuickItemModal, setShowQuickItemModal] = useState(false);
     const [quickItemInitialCode, setQuickItemInitialCode] = useState('');
     const [quickItemTargetRow, setQuickItemTargetRow] = useState(null);
+
+    useEffect(() => {
+        fetchUserMatrixConfig('sales_matrix_config', DEFAULT_SO_COLUMNS).then(backendCols => {
+            if (backendCols) setSoColumns(backendCols);
+        });
+    }, []);
 
     // Column Resizing
     const [resizingCol, setResizingCol] = useState(null);
@@ -268,7 +275,7 @@ export default function SalesOrderDetails() {
             document.body.style.userSelect = 'auto';
             setResizingCol(null);
             setSoColumns(currentCols => {
-                localStorage.setItem('sales_matrix_config', JSON.stringify(currentCols));
+                saveUserMatrixConfig('sales_matrix_config', currentCols, DEFAULT_SO_COLUMNS);
                 return currentCols;
             });
         };
@@ -319,7 +326,7 @@ export default function SalesOrderDetails() {
                     const newCols = [...prevCols];
                     const [moved] = newCols.splice(fromIndex, 1);
                     newCols.splice(toIndex, 0, moved);
-                    localStorage.setItem('sales_matrix_config', JSON.stringify(newCols));
+                    saveUserMatrixConfig('sales_matrix_config', newCols, DEFAULT_SO_COLUMNS);
                     return newCols;
                 }
                 return prevCols;
@@ -357,12 +364,11 @@ export default function SalesOrderDetails() {
     };
 
     const handleColConfigUpdate = (newConfig) => {
+        saveUserMatrixConfig('sales_matrix_config', newConfig, DEFAULT_SO_COLUMNS);
         if (newConfig === null) {
             setSoColumns(DEFAULT_SO_COLUMNS);
-            localStorage.removeItem('sales_matrix_config');
         } else {
             setSoColumns(newConfig);
-            localStorage.setItem('sales_matrix_config', JSON.stringify(newConfig));
         }
         setShowColConfig(false);
     };

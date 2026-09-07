@@ -18,6 +18,7 @@ import ListCustomizer from './ListCustomizer';
 import { useCustomShortcuts } from '../../hooks/useCustomShortcuts';
 import DirhamIcon from '../../assets/Currency/DirhamIcon';
 import ColumnConfigModal from '../Purchase/ColumnConfigModal';
+import { loadLocalMatrixConfig, fetchUserMatrixConfig, saveUserMatrixConfig } from '../../utils/tableMatrixHelper';
 
 // Custom APIs (moved to standardized path)
 const API_PATH = '/api/method/kyle_retail.retail_api.api';
@@ -83,29 +84,14 @@ function PurchaseReceiptList() {
 
 
   // ----- Column Config -----
-  const loadColumnConfig = () => {
-    try {
-      const saved = localStorage.getItem('pr_column_config_v2');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        const savedIds = parsed.map(c => c.id);
-        const result = [];
-        DEFAULT_PR_COLUMNS.forEach(defCol => {
-          const found = parsed.find(c => c.id === defCol.id);
-          if (found) {
-            result.push({ ...found, label: defCol.label });
-          } else {
-            result.push(defCol);
-          }
-        });
-        return result;
-      }
-    } catch (e) { /* ignore */ }
-    return DEFAULT_PR_COLUMNS;
-  };
-
-  const [columnConfig, setColumnConfig] = useState(loadColumnConfig);
+  const [columnConfig, setColumnConfig] = useState(() => loadLocalMatrixConfig('pr_matrix_config', DEFAULT_PR_COLUMNS));
   const [resizingCol, setResizingCol] = useState(null);
+
+  useEffect(() => {
+    fetchUserMatrixConfig('pr_matrix_config', DEFAULT_PR_COLUMNS).then(backendCols => {
+      if (backendCols) setColumnConfig(backendCols);
+    });
+  }, []);
 
   const handleResizeMouseDown = (e, colId) => {
     e.preventDefault();
@@ -126,9 +112,9 @@ function PurchaseReceiptList() {
       document.body.style.cursor = 'default';
       document.body.style.userSelect = 'auto';
       setResizingCol(null);
-      // Persist to localStorage
+      // Persist to localStorage & backend
       setColumnConfig(currentCols => {
-        localStorage.setItem('pr_column_config_v2', JSON.stringify(currentCols));
+        saveUserMatrixConfig('pr_matrix_config', currentCols, DEFAULT_PR_COLUMNS);
         return currentCols;
       });
     };
@@ -179,7 +165,7 @@ function PurchaseReceiptList() {
           const newCols = [...prevCols];
           const [moved] = newCols.splice(fromIndex, 1);
           newCols.splice(toIndex, 0, moved);
-          localStorage.setItem('pr_column_config_v2', JSON.stringify(newCols));
+          saveUserMatrixConfig('pr_matrix_config', newCols, DEFAULT_PR_COLUMNS);
           return newCols;
         }
         return prevCols;
@@ -197,12 +183,11 @@ function PurchaseReceiptList() {
   const [showColConfig, setShowColConfig] = useState(false);
 
   const handleColConfigUpdate = (newConfig) => {
+    saveUserMatrixConfig('pr_matrix_config', newConfig, DEFAULT_PR_COLUMNS);
     if (newConfig === null) {
       setColumnConfig(DEFAULT_PR_COLUMNS);
-      localStorage.removeItem('pr_column_config_v2');
     } else {
       setColumnConfig(newConfig);
-      localStorage.setItem('pr_column_config_v2', JSON.stringify(newConfig));
     }
     setShowColConfig(false);
   };
@@ -3380,7 +3365,29 @@ function PurchaseReceiptList() {
                                 }}
                                 fetchData={fetchItems}
                                 optionsLabel="item_name"
+                                targetWarehouse={formData.set_warehouse || warehouse || localStorage.getItem('warehouse')}
                                 globalSearch={true}
+                                onGlobalSearch={async (query) => {
+                                  const res = await axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.find_item_globally_retail', {
+                                    params: { search_term: query },
+                                    withCredentials: true
+                                  });
+                                  return res.data?.message?.data || res.data?.message || [];
+                                }}
+                                onActivate={async (it) => {
+                                  const targetWh = formData.set_warehouse || warehouse || localStorage.getItem('warehouse');
+                                  const res = await axios.post('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.enable_item_for_branch_retail', {
+                                    item_code: it.name || it.item_code,
+                                    warehouse: targetWh
+                                  }, { withCredentials: true });
+                                  if (res.data?.message?.success || res.data?.success) {
+                                    selectItem(formData.items.length, it);
+                                    return true;
+                                  }
+                                  return false;
+                                }}
+                                clearOnSelect={true}
+                                hideInlineButton={true}
                                 themeColor="#10b981"
                                 className="w-full h-full font-black italic text-slate-600"
                               />

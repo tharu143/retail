@@ -491,6 +491,139 @@ const SearchableSelectInline = ({ value, options, onChange, placeholder, style }
   );
 };
 
+/* ========== SEARCHABLE SELECT COMPACT (FOR PRICE LISTS / MINI DROPDOWNS) ========== */
+const SearchableSelectCompact = ({ value, options = [], onChange, placeholder = 'Select Price List...', style }) => {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const ref = useRef(null);
+
+  useEffect(() => {
+    const click = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', click);
+    return () => document.removeEventListener('mousedown', click);
+  }, []);
+
+  const normOptions = useMemo(() => {
+    return options.map(o => typeof o === 'string' ? { label: o, value: o } : o);
+  }, [options]);
+
+  const filtered = useMemo(() => {
+    if (!search) return normOptions;
+    const q = search.toLowerCase();
+    return normOptions.filter(o => String(o.label || o.value || '').toLowerCase().includes(q));
+  }, [normOptions, search]);
+
+  const selectedItem = normOptions.find(o => String(o.value) === String(value));
+
+  return (
+    <div ref={ref} style={{ position: 'relative', width: '100%', ...style }}>
+      <div
+        onClick={() => setOpen(!open)}
+        className="il-input"
+        style={{
+          cursor: 'pointer',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          height: 32,
+          padding: '0 8px',
+          background: '#ffffff',
+          fontSize: 12,
+          border: `1.5px solid ${open ? T.blue : T.border}`,
+          borderRadius: 8,
+          boxShadow: open ? `0 0 0 2px ${T.blueLight}` : 'none',
+          userSelect: 'none'
+        }}
+      >
+        <span style={{ color: value ? T.text : T.textMuted, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {selectedItem?.label || value || placeholder}
+        </span>
+        <ChevronDown size={13} style={{ color: T.textMuted, flexShrink: 0, transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }} />
+      </div>
+
+      {open && (
+        <div style={{
+          position: 'absolute',
+          top: '100%',
+          left: 0,
+          right: 0,
+          minWidth: 200,
+          background: '#ffffff',
+          border: `1.5px solid ${T.blue}`,
+          borderRadius: 8,
+          zIndex: 1200,
+          marginTop: 4,
+          maxHeight: 220,
+          overflow: 'hidden',
+          display: 'flex',
+          flexDirection: 'column',
+          boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1)'
+        }}>
+          <div style={{ padding: 6, borderBottom: `1px solid ${T.borderLight}`, background: '#f8fafc' }}>
+            <input
+              style={{
+                width: '100%',
+                height: 28,
+                fontSize: 11,
+                padding: '0 8px',
+                border: `1px solid ${T.border}`,
+                borderRadius: 6,
+                outline: 'none',
+                background: '#fff'
+              }}
+              autoFocus
+              placeholder="Search price list..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              onClick={e => e.stopPropagation()}
+            />
+          </div>
+          <div style={{ flex: 1, overflowY: 'auto', maxHeight: 170 }}>
+            {filtered.length === 0 ? (
+              <div style={{ padding: '10px 8px', textAlign: 'center', fontSize: 11, color: T.textMuted }}>
+                No price list found
+              </div>
+            ) : (
+              filtered.map(o => {
+                const isSelected = String(value) === String(o.value);
+                return (
+                  <div
+                    key={o.value}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onChange(o.value);
+                      setOpen(false);
+                      setSearch('');
+                    }}
+                    style={{
+                      padding: '7px 10px',
+                      fontSize: 12,
+                      cursor: 'pointer',
+                      background: isSelected ? '#eff6ff' : 'transparent',
+                      color: isSelected ? T.blue : T.text,
+                      fontWeight: isSelected ? 700 : 500,
+                      borderBottom: `1px solid #f1f5f9`,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between'
+                    }}
+                    onMouseOver={e => { if (!isSelected) e.currentTarget.style.background = '#f8fafc'; }}
+                    onMouseOut={e => { if (!isSelected) e.currentTarget.style.background = 'transparent'; }}
+                  >
+                    <span>{o.label}</span>
+                    {isSelected && <span style={{ width: 6, height: 6, borderRadius: '50%', background: T.blue }} />}
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+
 
 /* ========== DEFAULT FORM ========== */
 const defaultForm = () => ({
@@ -501,7 +634,13 @@ const defaultForm = () => ({
   default_uom: 'Nos', description: '', image: null, imagePreview: null,
   uoms: [{ uom: 'Nos', conversion_factor: 1 }], hsn_code: '', country_of_origin: '', custom_loyalty_eligible: 0, custom_allow_discount: 1,
   is_stock_item: 1, is_sales_item: 1, is_purchase_item: 1, supplier_items: [],
-  branch_availability: [], custom_pieces_per_box: 0
+  branch_availability: [], custom_pieces_per_box: 0,
+  buying_price_list: 'Standard Buying', buying_price: 0,
+  selling_price_list: 'Standard Selling', selling_price: 0,
+  box_buying_price_list: 'Standard Buying', box_buying_price: 0,
+  box_selling_price_list: 'Standard Selling', box_selling_price: 0,
+  master_box_buying_price_list: 'Standard Buying', master_box_buying_price: 0,
+  master_box_selling_price_list: 'Standard Selling', master_box_selling_price: 0
 });
 
 /* ========== MAIN COMPONENT ========== */
@@ -559,6 +698,7 @@ export default function ItemList() {
   const [showCameraScanner, setShowCameraScanner] = useState(false);
   const [barcodes, setBarcodes] = useState([]);
   const [barcodeInput, setBarcodeInput] = useState('');
+  const [barcodeUom, setBarcodeUom] = useState('Nos');
 
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState(defaultForm());
@@ -571,6 +711,7 @@ export default function ItemList() {
   const [itemGroups, setItemGroups] = useState([]);
   const [brands, setBrands] = useState([]);
   const [uoms, setUoms] = useState([]);
+  const [masterPriceLists, setMasterPriceLists] = useState([]);
   const [onlyPackingUoms, setOnlyPackingUoms] = useState(() => {
     const saved = localStorage.getItem('uom_filter_packing_only');
     return saved !== null ? saved === 'true' : true;
@@ -619,6 +760,7 @@ export default function ItemList() {
     });
     return merged;
   }, [uoms, onlyPackingUoms, form.default_uom]);
+
   const [countries, setCountries] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
   const [availableAttributes, setAvailableAttributes] = useState([]);
@@ -637,7 +779,7 @@ export default function ItemList() {
     ]
   });
   const [loadingPrices, setLoadingPrices] = useState(false);
-  const [groupSearch] = useState('');
+  const [groupSearch, setGroupSearch] = useState('');
 
   // ── Item Group Modal ──
   const [showItemGroupModal, setShowItemGroupModal] = useState(false);
@@ -654,7 +796,9 @@ export default function ItemList() {
     attribute_name: '',
     attribute_value: '',
     abbr: '',
-    targetRowIndex: null
+    targetRowIndex: null,
+    isNewAttribute: false,
+    attributeIndex: null
   });
   const [savingAttrValue, setSavingAttrValue] = useState(false);
 
@@ -669,6 +813,68 @@ export default function ItemList() {
   const [connectionSearch, setConnectionSearch] = useState('');
   const [dashSubTab, setDashSubTab] = useState('Procurement');
   const [fromDate, setFromDate] = useState('');
+
+  // ── Branch & Price List resolution for logged-in user ──
+  const userWarehouse = localStorage.getItem('warehouse') || warehouse || '';
+  const userBranchClean = useMemo(() => {
+    if (!userWarehouse) return '';
+    return userWarehouse
+      .replace(/\s*(?:Warehouse|-|\(.*?\)).*$/i, '')
+      .replace(' - kyle', '')
+      .trim();
+  }, [userWarehouse]);
+
+  const buyingPriceListOptions = useMemo(() => {
+    const fromMaster = (masterPriceLists || [])
+      .filter(p => p.buying === 1)
+      .map(p => p.name)
+      .filter(n => n.toLowerCase().includes('buying') || n.toLowerCase().includes('standard'));
+    const fromItem = (priceData?.prices || [])
+      .filter(p => p.buying === 1)
+      .map(p => p.price_list)
+      .filter(n => n && (n.toLowerCase().includes('buying') || n.toLowerCase().includes('standard')));
+    
+    let all = Array.from(new Set(['Standard Buying', ...fromMaster, ...fromItem].filter(Boolean)));
+    
+    // If user has a branch (e.g. Al Rayyana Mall), filter only their branch price lists & Standard Buying
+    if (userBranchClean) {
+      const branchBuyingName = `${userBranchClean} Buying`;
+      const branchMatches = all.filter(n => n.toLowerCase().includes(userBranchClean.toLowerCase()));
+      all = Array.from(new Set([
+        branchMatches.find(n => n.toLowerCase() === branchBuyingName.toLowerCase()) || branchMatches[0] || branchBuyingName,
+        'Standard Buying',
+        ...branchMatches
+      ].filter(Boolean)));
+    }
+
+    return all;
+  }, [masterPriceLists, priceData?.prices, userBranchClean]);
+
+  const sellingPriceListOptions = useMemo(() => {
+    const fromMaster = (masterPriceLists || [])
+      .filter(p => p.selling === 1)
+      .map(p => p.name)
+      .filter(n => n.toLowerCase().includes('selling') || n.toLowerCase().includes('standard'));
+    const fromItem = (priceData?.prices || [])
+      .filter(p => p.selling === 1)
+      .map(p => p.price_list)
+      .filter(n => n && (n.toLowerCase().includes('selling') || n.toLowerCase().includes('standard')));
+    
+    let all = Array.from(new Set(['Standard Selling', ...fromMaster, ...fromItem].filter(Boolean)));
+
+    // If user has a branch (e.g. Al Rayyana Mall), filter only their branch price lists & Standard Selling
+    if (userBranchClean) {
+      const branchSellingName = `${userBranchClean} Selling`;
+      const branchMatches = all.filter(n => n.toLowerCase().includes(userBranchClean.toLowerCase()));
+      all = Array.from(new Set([
+        branchMatches.find(n => n.toLowerCase() === branchSellingName.toLowerCase()) || branchMatches[0] || branchSellingName,
+        'Standard Selling',
+        ...branchMatches
+      ].filter(Boolean)));
+    }
+
+    return all;
+  }, [masterPriceLists, priceData?.prices, userBranchClean]);
   const [toDate, setToDate] = useState('');
   const [connectionActiveTab, setConnectionActiveTab] = useState(null);
   const [valuationData, setValuationData] = useState(null);
@@ -717,13 +923,28 @@ export default function ItemList() {
     return () => document.removeEventListener('keydown', onKey);
   }, [showForm, isScanning]);
 
-  useEffect(() => { fetchBrands(); fetchUoms(); fetchCountries(); fetchSuppliers(); fetchWarehouses(); fetchItemAttributes(); }, []);
+  useEffect(() => { fetchBrands(); fetchUoms(); fetchCountries(); fetchSuppliers(); fetchWarehouses(); fetchItemAttributes(); fetchMasterPriceLists(); }, []);
 
   const handleAdd = () => {
     resetForm();
     const myWh = localStorage.getItem('warehouse');
-    if (myWh) setForm(p => ({ ...p, branch_availability: [{ warehouse: myWh }] }));
-    setShowForm(true); fetchItemGroups(); fetchBrands(); fetchUoms(); fetchCountries(); fetchItemAttributes();
+    const myBranch = myWh ? myWh.replace(/\s*(?:Warehouse|-|\(.*?\)).*$/i, '').replace(' - kyle', '').trim() : '';
+    const defBuying = myBranch ? `${myBranch} Buying` : 'Standard Buying';
+    const defSelling = myBranch ? `${myBranch} Selling` : 'Standard Selling';
+    
+    if (myWh) {
+      setForm(p => ({
+        ...p,
+        branch_availability: [{ warehouse: myWh }],
+        buying_price_list: defBuying,
+        selling_price_list: defSelling,
+        box_buying_price_list: defBuying,
+        box_selling_price_list: defSelling,
+        master_box_buying_price_list: defBuying,
+        master_box_selling_price_list: defSelling
+      }));
+    }
+    setShowForm(true); fetchItemGroups(); fetchBrands(); fetchUoms(); fetchCountries(); fetchItemAttributes(); fetchMasterPriceLists();
   };
 
   useEffect(() => {
@@ -972,6 +1193,23 @@ export default function ItemList() {
     } catch { }
   };
 
+  const fetchMasterPriceLists = async () => {
+    try {
+      const res = await axios.get('/api/method/kyle_retail.retail_api.api.get_price_lists', { withCredentials: true });
+      const raw = res.data?.data || res.data?.message?.data || res.data?.message || [];
+      if (Array.isArray(raw)) {
+        setMasterPriceLists(raw.map(p => ({
+          name: p.name,
+          buying: Number(p.buying),
+          selling: Number(p.selling),
+          enabled: p.enabled === undefined ? 1 : Number(p.enabled)
+        })).filter(p => p.enabled !== 0));
+      }
+    } catch (e) {
+      console.warn('Failed to fetch master price lists:', e);
+    }
+  };
+
   const DEFAULT_ATTRS = ['Colour', 'Size', 'Pack Size', 'GSM', 'Brand', 'Pages', 'Binding', 'Type'];
   const HARDCODED_ATTR_VALUES = {
     'Colour': [
@@ -1091,6 +1329,38 @@ export default function ItemList() {
           return prev;
         });
 
+        // If this is a new attribute created from template attributes section
+        if (attrModalData.isNewAttribute) {
+          const newAttrName = attribute_name.trim();
+          setForm(prevForm => {
+            const currentAttrs = [...(prevForm.attributes || [])];
+            if (attrModalData.attributeIndex !== null && attrModalData.attributeIndex !== undefined && currentAttrs[attrModalData.attributeIndex]) {
+              currentAttrs[attrModalData.attributeIndex] = { attribute: newAttrName };
+            } else if (!currentAttrs.some(a => (a.attribute || a) === newAttrName)) {
+              currentAttrs.push({ attribute: newAttrName });
+            }
+            return { ...prevForm, attributes: currentAttrs };
+          });
+
+          // Also set first attribute value on variant rows
+          setVariantForm(vf => {
+            const updatedVariants = (vf.initial_variants || []).map(v => {
+              const currentSelected = { ...(v.selected_attributes || {}) };
+              if (!currentSelected[newAttrName]) {
+                currentSelected[newAttrName] = newVal.attribute_value;
+              }
+              const attrStr = Object.values(currentSelected).filter(Boolean).join('-');
+              return {
+                ...v,
+                selected_attributes: currentSelected,
+                variant_item_code: attrStr ? `${form.item_code || 'ITEM'}-${attrStr}`.toUpperCase() : '',
+                variant_item_name: attrStr ? `${form.item_name || 'Item'} ${attrStr}` : ''
+              };
+            });
+            return { ...vf, initial_variants: updatedVariants };
+          });
+        }
+
         // If this was opened from a specific variant row, select it immediately
         if (targetRowIndex !== null && targetRowIndex !== undefined) {
           setVariantForm(vf => {
@@ -1113,7 +1383,7 @@ export default function ItemList() {
         // Refresh global attribute list
         fetchItemAttributes();
         setShowAddAttrValueModal(false);
-        setAttrModalData({ attribute_name: '', attribute_value: '', abbr: '', targetRowIndex: null });
+        setAttrModalData({ attribute_name: '', attribute_value: '', abbr: '', targetRowIndex: null, isNewAttribute: false, attributeIndex: null });
       } else {
         alert(data.message || 'Failed to add attribute value.');
       }
@@ -1322,15 +1592,16 @@ export default function ItemList() {
     }
   };
 
-  const addBarcode = async (code) => {
+  const addBarcode = async (code, uomToUse) => {
     if (!code?.trim()) return;
     code = code.trim();
+    const uom = uomToUse || barcodeUom || form.default_uom || 'Nos';
     if (barcodes.some(b => b.barcode === code)) { alert('Barcode already added'); return; }
     try {
       const res = await axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.check_barcode_exists', { params: { barcode: code }, withCredentials: true });
       if (res.data?.message?.exists) { alert(`Already used by: ${res.data.message.item}`); return; }
     } catch { }
-    setBarcodes(p => [...p, { barcode: code, uom: form.default_uom || 'Nos' }]);
+    setBarcodes(p => [...p, { barcode: code, uom }]);
     setBarcodeInput(''); setIsScanning(false);
   };
 
@@ -1604,14 +1875,20 @@ export default function ItemList() {
         try {
           const variantsPayload = variantForm.initial_variants
             .filter(v => Object.keys(v.selected_attributes || {}).length > 0 && (v.variant_item_code || '').trim() !== '')
-            .map(v => ({
-              attribute_values: v.selected_attributes,
-              custom_item_code: (v.variant_item_code || '').trim() || null,
-              item_name: (v.variant_item_name || '').trim() || null,
-              barcode: (v.variant_barcode || '').trim() || null,
-              image: v.image || v.imagePreview || null,
-              standard_rate: 0
-            }));
+            .map(v => {
+              const bPrice = v.buying_price !== undefined && v.buying_price !== '' ? parseFloat(v.buying_price) : (parseFloat(form.buying_price) || 0);
+              const sPrice = v.selling_price !== undefined && v.selling_price !== '' ? parseFloat(v.selling_price) : (parseFloat(form.selling_price) || 0);
+              return {
+                attribute_values: v.selected_attributes,
+                custom_item_code: (v.variant_item_code || '').trim() || null,
+                item_name: (v.variant_item_name || '').trim() || null,
+                barcode: (v.variant_barcode || '').trim() || null,
+                image: v.image || v.imagePreview || null,
+                buying_price: bPrice || 0,
+                selling_price: sPrice || 0,
+                standard_rate: sPrice || 0
+              };
+            });
 
           if (variantsPayload.length > 0) {
             Swal.fire({
@@ -1635,6 +1912,50 @@ export default function ItemList() {
         }
       }
 
+      // Save buying / selling prices if filled in (Nos, Box, Master Box)
+      const priceOps = [];
+      // 1. Nos Prices
+      if (form.buying_price > 0 || (form.buying_price === 0 && form.buying_price_list)) {
+        priceOps.push(axios.post('/api/method/kyle_retail.retail_api.api.update_item_price', {
+          item_code: form.item_code,
+          data: { price_list: form.buying_price_list || 'Standard Buying', uom: form.default_uom || 'Nos', price_list_rate: form.buying_price || 0, buying: 1, selling: 0, name: '' }
+        }, { withCredentials: true }).catch(() => {}));
+      }
+      if (form.selling_price > 0 || (form.selling_price === 0 && form.selling_price_list)) {
+        priceOps.push(axios.post('/api/method/kyle_retail.retail_api.api.update_item_price', {
+          item_code: form.item_code,
+          data: { price_list: form.selling_price_list || 'Standard Selling', uom: form.default_uom || 'Nos', price_list_rate: form.selling_price || 0, buying: 0, selling: 1, name: '' }
+        }, { withCredentials: true }).catch(() => {}));
+      }
+      // 2. Box Prices
+      if (form.box_buying_price > 0 || (form.box_buying_price === 0 && form.box_buying_price_list)) {
+        priceOps.push(axios.post('/api/method/kyle_retail.retail_api.api.update_item_price', {
+          item_code: form.item_code,
+          data: { price_list: form.box_buying_price_list || 'Standard Buying', uom: 'Box', price_list_rate: form.box_buying_price || 0, buying: 1, selling: 0, name: '' }
+        }, { withCredentials: true }).catch(() => {}));
+      }
+      if (form.box_selling_price > 0 || (form.box_selling_price === 0 && form.box_selling_price_list)) {
+        priceOps.push(axios.post('/api/method/kyle_retail.retail_api.api.update_item_price', {
+          item_code: form.item_code,
+          data: { price_list: form.box_selling_price_list || 'Standard Selling', uom: 'Box', price_list_rate: form.box_selling_price || 0, buying: 0, selling: 1, name: '' }
+        }, { withCredentials: true }).catch(() => {}));
+      }
+      // 3. Master Box Prices
+      if (form.master_box_buying_price > 0 || (form.master_box_buying_price === 0 && form.master_box_buying_price_list)) {
+        priceOps.push(axios.post('/api/method/kyle_retail.retail_api.api.update_item_price', {
+          item_code: form.item_code,
+          data: { price_list: form.master_box_buying_price_list || 'Standard Buying', uom: 'Master Box', price_list_rate: form.master_box_buying_price || 0, buying: 1, selling: 0, name: '' }
+        }, { withCredentials: true }).catch(() => {}));
+      }
+      if (form.master_box_selling_price > 0 || (form.master_box_selling_price === 0 && form.master_box_selling_price_list)) {
+        priceOps.push(axios.post('/api/method/kyle_retail.retail_api.api.update_item_price', {
+          item_code: form.item_code,
+          data: { price_list: form.master_box_selling_price_list || 'Standard Selling', uom: 'Master Box', price_list_rate: form.master_box_selling_price || 0, buying: 0, selling: 1, name: '' }
+        }, { withCredentials: true }).catch(() => {}));
+      }
+      if (priceOps.length > 0) await Promise.all(priceOps);
+
+
       Swal.fire({
         icon: 'success',
         title: isEditMode ? 'Item Updated!' : (form.has_variants && variantForm.create_first_variant ? 'Template & Variants Created!' : 'Item Created!'),
@@ -1647,6 +1968,7 @@ export default function ItemList() {
         showConfirmButton: false,
         timerProgressBar: true
       });
+
 
       setShowForm(false); 
       resetForm(); 
@@ -3186,26 +3508,7 @@ export default function ItemList() {
                 <CardSection title="Specifications" icon={<Package size={14} />}>
                   <div style={{ padding: 20 }}>
                     <div className="il-form-grid">
-                      {/* 1. Base UOM */}
-                      {!isEditMode && (
-                        <SearchableSelect
-                          label="Base UOM"
-                          value={form.default_uom}
-                          options={baseUomOptions}
-                          required
-                          placeholder="Select UOM"
-                          onChange={handleDefaultUomChange}
-                          onAction={handleCreateUom}
-                        />
-                      )}
-
-                      {/* 2. Pieces Per Box */}
-                      <div className="il-form-field">
-                        <label className="il-form-label">Pieces Per Box</label>
-                        <input type="number" className="il-input" value={form.custom_pieces_per_box} onChange={e => handlePiecesPerBoxChange(e.target.value)} placeholder="Conversion factor (e.g. 12)" />
-                      </div>
-
-                      {/* 3. Barcode (linked to selected UOM) */}
+                      {/* ROW 1: 1. Barcode */}
                       <div className="il-form-field">
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 5 }}>
                           <label className="il-form-label" style={{ margin: 0 }}>Barcode</label>
@@ -3228,22 +3531,79 @@ export default function ItemList() {
                             onKeyDown={e => {
                               if (e.key === 'Enter') {
                                 e.preventDefault();
-                                addBarcode(barcodeInput);
+                                addBarcode(barcodeInput, barcodeUom);
                               }
                             }}
                             placeholder="Type barcode and press Enter..."
                           />
-                          <button type="button" className="il-btn il-btn-primary" style={{ padding: '0 12px', fontSize: 12 }} onClick={() => addBarcode(barcodeInput)}>
+                          <select
+                            className="il-select"
+                            style={{ width: 110, height: 38, fontSize: 12, fontWeight: 700, background: '#fff' }}
+                            value={barcodeUom}
+                            onChange={e => setBarcodeUom(e.target.value)}
+                          >
+                            <option value={form.default_uom || 'Nos'}>{form.default_uom || 'Nos'} (Base)</option>
+                            <option value="Box">Box</option>
+                            <option value="Master Box">Master Box</option>
+                            {(form.uoms || []).filter(u => u.uom && u.uom !== form.default_uom && u.uom !== 'Box' && u.uom !== 'Master Box').map(u => (
+                              <option key={u.uom} value={u.uom}>{u.uom}</option>
+                            ))}
+                          </select>
+                          <button type="button" className="il-btn il-btn-primary" style={{ padding: '0 12px', fontSize: 12, fontWeight: 700 }} onClick={() => addBarcode(barcodeInput, barcodeUom)}>
                             Add
                           </button>
                         </div>
                         {barcodes.length > 0 && (
-                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 6 }}>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
                             {barcodes.map((b, i) => (
-                              <span key={i} className="il-chip" style={{ fontSize: 11, padding: '2px 6px' }}>
-                                {b.barcode}<span style={{ color: T.textMuted }}>·{b.uom}</span>
-                                <button type="button" onClick={() => setBarcodes(p => p.filter((_, idx) => idx !== i))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.red, display: 'flex', padding: 0, marginLeft: 3 }}>
-                                  <X size={10} />
+                              <span
+                                key={i}
+                                className="il-chip"
+                                style={{
+                                  fontSize: 11,
+                                  padding: '3px 8px',
+                                  background: b.uom === 'Box' ? '#fef3c7' : (b.uom === 'Master Box' ? '#f5f3ff' : '#eff6ff'),
+                                  color: b.uom === 'Box' ? '#92400e' : (b.uom === 'Master Box' ? '#6d28d9' : '#1d4ed8'),
+                                  border: `1px solid ${b.uom === 'Box' ? '#fde68a' : (b.uom === 'Master Box' ? '#ddd6fe' : '#bfdbfe')}`,
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: 6
+                                }}
+                              >
+                                <span style={{ fontWeight: 800, fontFamily: "'DM Mono', monospace" }}>{b.barcode}</span>
+                                <select
+                                  value={b.uom || form.default_uom || 'Nos'}
+                                  onChange={e => {
+                                    const next = [...barcodes];
+                                    next[i] = { ...b, uom: e.target.value };
+                                    setBarcodes(next);
+                                  }}
+                                  style={{
+                                    fontSize: 10,
+                                    fontWeight: 700,
+                                    background: 'transparent',
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                    color: 'inherit',
+                                    outline: 'none',
+                                    padding: 0
+                                  }}
+                                  onClick={e => e.stopPropagation()}
+                                >
+                                  <option value={form.default_uom || 'Nos'}>{form.default_uom || 'Nos'}</option>
+                                  <option value="Box">Box</option>
+                                  <option value="Master Box">Master Box</option>
+                                  {(form.uoms || []).filter(u => u.uom && u.uom !== form.default_uom && u.uom !== 'Box' && u.uom !== 'Master Box').map(u => (
+                                    <option key={u.uom} value={u.uom}>{u.uom}</option>
+                                  ))}
+                                </select>
+                                <button
+                                  type="button"
+                                  onClick={() => setBarcodes(p => p.filter((_, idx) => idx !== i))}
+                                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.red, display: 'flex', padding: 0 }}
+                                  title="Remove barcode"
+                                >
+                                  <X size={12} />
                                 </button>
                               </span>
                             ))}
@@ -3251,7 +3611,7 @@ export default function ItemList() {
                         )}
                       </div>
 
-                      {/* 4. Item Code */}
+                      {/* ROW 1: 2. Item Code */}
                       <div className="il-form-field">
                         <label className="il-form-label req">Item Code</label>
                         <input
@@ -3312,13 +3672,13 @@ export default function ItemList() {
                         />
                       </div>
 
-                      {/* 5. Item Name */}
+                      {/* ROW 1: 3. Item Name */}
                       <div className="il-form-field">
                         <label className="il-form-label req">Item Name</label>
                         <input className="il-input" value={form.item_name} onChange={e => setForm({ ...form, item_name: e.target.value })} placeholder="Full item name" />
                       </div>
 
-                      {/* 6. Main Item Category */}
+                      {/* ROW 2: 4. Main Item Category */}
                       <SearchableSelect
                         label="Main Item Category"
                         value={formMainGroup}
@@ -3331,7 +3691,7 @@ export default function ItemList() {
                         onAction={(search) => handleOpenCreateItemGroup('All Item Groups', search)}
                       />
 
-                      {/* 7. Item Subgroup */}
+                      {/* ROW 2: 5. Item Subgroup */}
                       <SearchableSelect
                         label="Item Subgroup"
                         value={form.item_group}
@@ -3346,7 +3706,7 @@ export default function ItemList() {
                         onAction={(search) => handleOpenCreateItemGroup(formMainGroup || '', search)}
                       />
 
-                      {/* 8. Brand */}
+                      {/* ROW 2: 6. Brand */}
                       <SearchableSelect
                         label="Brand"
                         value={form.brand}
@@ -3356,7 +3716,7 @@ export default function ItemList() {
                         onAction={handleCreateBrand}
                       />
 
-                      {/* 9. Country of Origin */}
+                      {/* ROW 3: 7. Country of Origin */}
                       <div className="il-form-field">
                         <SearchableSelect
                           label="Country of Origin"
@@ -3366,99 +3726,442 @@ export default function ItemList() {
                           onChange={val => setForm({ ...form, country_of_origin: val })}
                         />
                       </div>
+
+                      {/* ROW 3: 8. Base UOM */}
+                      {!isEditMode ? (
+                        <SearchableSelect
+                          label="Base UOM"
+                          value={form.default_uom}
+                          options={baseUomOptions}
+                          required
+                          placeholder="Select UOM"
+                          onChange={handleDefaultUomChange}
+                          onAction={handleCreateUom}
+                        />
+                      ) : (
+                        <div className="il-form-field">
+                          <label className="il-form-label req">Base UOM</label>
+                          <input className="il-input" value={form.default_uom || 'Nos'} disabled />
+                        </div>
+                      )}
+
+                      {/* ROW 3: 9. Pieces Per Box */}
+                      <div className="il-form-field">
+                        <label className="il-form-label">Pieces Per Box</label>
+                        <input type="number" className="il-input" value={form.custom_pieces_per_box} onChange={e => handlePiecesPerBoxChange(e.target.value)} placeholder="Conversion factor (e.g. 12)" />
+                      </div>
                     </div>
                   </div>
                 </CardSection>
 
-                {/* Controls row */}
-                <div className="il-form-grid-2">
-                  <CardSection title="Inventory & Sales" icon={<BarChart2 size={14} />}>
-                    <div style={{ padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-                      {[
-                        { key: 'is_stock_item', label: 'Track Stock', desc: 'Enables inventory ledger' },
-                        { key: 'is_sales_item', label: 'Allow Sales', desc: 'Show in POS & Sales Orders' },
-                        { key: 'is_purchase_item', label: 'Allow Purchase', desc: 'Available for procurement' },
-                      ].map(f => (
-                        <label key={f.key} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', background: form[f.key] === 1 ? T.blueLight : T.bg, borderRadius: 9, cursor: 'pointer', border: `1.5px solid ${form[f.key] === 1 ? T.blueMid : T.border}`, transition: 'all 0.15s' }}>
-                          <input
-                            type="checkbox"
-                            className="il-check"
-                            checked={form[f.key] === 1}
-                            onChange={e => setForm({ ...form, [f.key]: e.target.checked ? 1 : 0 })}
-                            tabIndex={showForm ? 0 : -1}
-                          />
-                          <div>
-                            <div style={{ fontSize: 13, fontWeight: 600, color: T.text }}>{f.label}</div>
-                            <div style={{ fontSize: 11, color: T.textMuted }}>{f.desc}</div>
+                {/* ROW 4: Price Lists (Nos, Box, Master Box) */}
+                <CardSection
+                  title="Price Lists (Nos · Box · Master Box)"
+                  icon={<Tag size={14} />}
+                  action={
+                    isEditMode && (
+                      <button
+                        type="button"
+                        className="il-btn il-btn-ghost"
+                        style={{ padding: '4px 9px', fontSize: 11, color: T.blue }}
+                        onClick={() => { setIsViewMode(true); setIsEditMode(false); setActiveTab('Prices'); }}
+                      >
+                        <Edit2 size={12} /> Full Price Manager
+                      </button>
+                    )
+                  }
+                >
+                  <div style={{ padding: '16px 20px' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
+                      {/* 1. NOS PRICE */}
+                      <div style={{ background: '#f8fafc', border: `1.5px solid ${T.border}`, borderRadius: 12, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: `1px solid ${T.borderLight}`, paddingBottom: 8 }}>
+                          <div style={{ fontSize: 13, fontWeight: 800, color: T.blue, display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <span style={{ width: 8, height: 8, borderRadius: '50%', background: T.blue }} />
+                            Nos Price <span style={{ fontSize: 11, color: T.textMuted, fontWeight: 600 }}>({form.default_uom || 'Nos'})</span>
                           </div>
-                        </label>
-                      ))}
-                    </div>
-                  </CardSection>
-                  <CardSection title="Loyalty & Status" icon={<Tag size={14} />}>
-                    <div style={{ padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-                      {[
-                        { key: 'custom_loyalty_eligible', label: 'Loyalty Points', desc: 'Earn points on purchase' },
-                        { key: 'custom_allow_discount', label: 'Allow Discount', desc: 'Enable manual overrides' },
-                        ...(!form.variant_of ? [{ key: 'has_variants', label: 'Has Variants (Template)', desc: 'Mark as Item Template for variant creation' }] : []),
-                      ].map(f => (
-                        <label key={f.key} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', background: form[f.key] === 1 ? T.blueLight : T.bg, borderRadius: 9, cursor: 'pointer', border: `1.5px solid ${form[f.key] === 1 ? T.blueMid : T.border}`, transition: 'all 0.15s' }}>
-                          <input
-                            type="checkbox"
-                            className="il-check"
-                            checked={form[f.key] === 1}
-                            onChange={e => {
-                              const checked = e.target.checked;
-                              const updatedForm = { ...form, [f.key]: checked ? 1 : 0 };
-                              if (f.key === 'has_variants') {
-                                if (checked) {
-                                  updatedForm.is_sales_item = 0;
-                                  updatedForm.is_purchase_item = 0;
-                                  updatedForm.is_stock_item = 0;
-                                }
-                                if (checked && (!form.attributes || form.attributes.length === 0)) {
-                                  const initialAttr = availableAttributes[0]?.value || 'Colour';
-                                  updatedForm.attributes = [{ attribute: initialAttr }];
-                                  const possibleVals = attributeValuesMap[initialAttr] || [];
-                                  const firstVal = possibleVals[0]?.attribute_value || '';
-                                  const initSelected = firstVal ? { [initialAttr]: firstVal } : {};
-                                  setVariantForm(vf => ({
-                                    ...vf,
-                                    initial_variants: [
-                                      {
-                                        id: `var-1-${Date.now()}`,
-                                        selected_attributes: initSelected,
-                                        variant_item_code: firstVal ? `${form.item_code || 'ITEM'}-${firstVal}`.toUpperCase() : '',
-                                        variant_item_name: firstVal ? `${form.item_name || 'Item'} ${firstVal}` : '',
-                                        variant_barcode: '',
-                                        use_custom_code: true
-                                      }
-                                    ]
-                                  }));
-                                }
-                              }
-                              setForm(updatedForm);
-                            }}
-                            tabIndex={showForm ? 0 : -1}
-                          />
-                          <div>
-                            <div style={{ fontSize: 13, fontWeight: 600 }}>{f.label}</div>
-                            <div style={{ fontSize: 11, color: T.textMuted }}>{f.desc}</div>
-                          </div>
-                        </label>
-                      ))}
-                      <label style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', background: form.disabled ? T.redLight : T.bg, borderRadius: 9, cursor: 'pointer', border: `1.5px solid ${form.disabled ? '#FECACA' : T.border}`, transition: 'all 0.15s' }}>
-                        <input type="checkbox" className="il-check" checked={form.disabled} onChange={e => handleDisableToggle(e.target.checked)} />
-                        <div style={{ flex: 1 }}>
-                          <div style={{ fontSize: 13, fontWeight: 600, color: T.red }}>Disable Item</div>
-                          <div style={{ fontSize: 11, color: '#FCA5A5' }}>Hide from active registries</div>
+                          <span className="il-chip" style={{ fontSize: 10, padding: '1px 7px', background: '#eff6ff', color: T.blue, border: '1px solid #bfdbfe', fontWeight: 700 }}>Base UOM</span>
                         </div>
-                      </label>
-                    </div>
-                  </CardSection>
-                </div>
 
-                {/* Template Attributes & Initial Variant Configuration (Like CreateVariantModal) */}
+                        {/* Nos Buying Price */}
+                        <div style={{ background: '#fffbeb', border: '1px solid #FDE68A', borderRadius: 8, padding: '10px 12px' }}>
+                          <div style={{ fontSize: 10, fontWeight: 800, color: T.amber, textTransform: 'uppercase', marginBottom: 6 }}>
+                            ● Buying Price
+                          </div>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                            <div>
+                              <label style={{ fontSize: 10, fontWeight: 600, color: '#78350f', display: 'block', marginBottom: 2 }}>Price List</label>
+                              <SearchableSelectCompact
+                                value={form.buying_price_list || 'Standard Buying'}
+                                options={buyingPriceListOptions}
+                                placeholder="Select Buying Price List"
+                                onChange={pl => {
+                                  setForm(p => ({ ...p, buying_price_list: pl }));
+                                  if (isEditMode && editingItemCode) {
+                                    const found = (priceData.prices || []).find(p => p.price_list === pl && p.buying === 1 && p.uom === (form.default_uom || 'Nos'));
+                                    if (found) setForm(prev => ({ ...prev, buying_price_list: pl, buying_price: found.price_list_rate }));
+                                  }
+                                }}
+                              />
+                            </div>
+                            <div>
+                              <label style={{ fontSize: 10, fontWeight: 600, color: '#78350f', display: 'block', marginBottom: 2 }}>Rate (AED)</label>
+                              <input
+                                type="number"
+                                className="il-input"
+                                style={{ fontWeight: 800, fontSize: 14, color: T.amber, background: '#fff', height: 32 }}
+                                value={form.buying_price || (priceData.prices || []).find(p => p.price_list === (form.buying_price_list || 'Standard Buying') && p.buying === 1 && p.uom === (form.default_uom || 'Nos'))?.price_list_rate || 0}
+                                onChange={e => setForm(p => ({ ...p, buying_price: Number(e.target.value) }))}
+                                onBlur={async () => {
+                                  if (!isEditMode || !editingItemCode) return;
+                                  try {
+                                    const pl = form.buying_price_list || 'Standard Buying';
+                                    const existing = (priceData.prices || []).find(p => p.price_list === pl && p.buying === 1 && p.uom === (form.default_uom || 'Nos'));
+                                    await axios.post('/api/method/kyle_retail.retail_api.api.update_item_price', {
+                                      item_code: editingItemCode,
+                                      data: { price_list: pl, uom: form.default_uom || 'Nos', price_list_rate: form.buying_price || 0, buying: 1, selling: 0, name: existing?.name || '' }
+                                    }, { withCredentials: true });
+                                    fetchPriceList(editingItemCode);
+                                  } catch (err) { console.warn('Price save err:', err); }
+                                }}
+                                placeholder="0.00"
+                                onFocus={e => e.target.select()}
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Nos Selling Price */}
+                        <div style={{ background: '#f0fdf4', border: '1px solid #BBF7D0', borderRadius: 8, padding: '10px 12px' }}>
+                          <div style={{ fontSize: 10, fontWeight: 800, color: T.green, textTransform: 'uppercase', marginBottom: 6 }}>
+                            ● Selling Price
+                          </div>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                            <div>
+                              <label style={{ fontSize: 10, fontWeight: 600, color: '#14532d', display: 'block', marginBottom: 2 }}>Price List</label>
+                              <SearchableSelectCompact
+                                value={form.selling_price_list || 'Standard Selling'}
+                                options={sellingPriceListOptions}
+                                placeholder="Select Selling Price List"
+                                onChange={pl => {
+                                  setForm(p => ({ ...p, selling_price_list: pl }));
+                                  if (isEditMode && editingItemCode) {
+                                    const found = (priceData.prices || []).find(p => p.price_list === pl && p.selling === 1 && p.uom === (form.default_uom || 'Nos'));
+                                    if (found) setForm(prev => ({ ...prev, selling_price_list: pl, selling_price: found.price_list_rate }));
+                                  }
+                                }}
+                              />
+                            </div>
+                            <div>
+                              <label style={{ fontSize: 10, fontWeight: 600, color: '#14532d', display: 'block', marginBottom: 2 }}>Rate (AED)</label>
+                              <input
+                                type="number"
+                                className="il-input"
+                                style={{ fontWeight: 800, fontSize: 14, color: T.green, background: '#fff', height: 32 }}
+                                value={form.selling_price || (priceData.prices || []).find(p => p.price_list === (form.selling_price_list || 'Standard Selling') && p.selling === 1 && p.uom === (form.default_uom || 'Nos'))?.price_list_rate || 0}
+                                onChange={e => setForm(p => ({ ...p, selling_price: Number(e.target.value) }))}
+                                onBlur={async () => {
+                                  if (!isEditMode || !editingItemCode) return;
+                                  try {
+                                    const pl = form.selling_price_list || 'Standard Selling';
+                                    const existing = (priceData.prices || []).find(p => p.price_list === pl && p.selling === 1 && p.uom === (form.default_uom || 'Nos'));
+                                    await axios.post('/api/method/kyle_retail.retail_api.api.update_item_price', {
+                                      item_code: editingItemCode,
+                                      data: { price_list: pl, uom: form.default_uom || 'Nos', price_list_rate: form.selling_price || 0, buying: 0, selling: 1, name: existing?.name || '' }
+                                    }, { withCredentials: true });
+                                    fetchPriceList(editingItemCode);
+                                  } catch (err) { console.warn('Price save err:', err); }
+                                }}
+                                placeholder="0.00"
+                                onFocus={e => e.target.select()}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* 2. BOX PRICE */}
+                      <div style={{ background: '#f8fafc', border: `1.5px solid ${T.border}`, borderRadius: 12, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: `1px solid ${T.borderLight}`, paddingBottom: 8 }}>
+                          <div style={{ fontSize: 13, fontWeight: 800, color: '#d97706', display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#d97706' }} />
+                            Box Price <span style={{ fontSize: 11, color: T.textMuted, fontWeight: 600 }}>(Box = {form.custom_pieces_per_box || 1} {form.default_uom || 'Nos'})</span>
+                          </div>
+                          <span className="il-chip" style={{ fontSize: 10, padding: '1px 7px', background: '#fef3c7', color: '#b45309', border: '1px solid #fde68a', fontWeight: 700 }}>Box UOM</span>
+                        </div>
+
+                        {/* Box Buying Price */}
+                        <div style={{ background: '#fffbeb', border: '1px solid #FDE68A', borderRadius: 8, padding: '10px 12px' }}>
+                          <div style={{ fontSize: 10, fontWeight: 800, color: T.amber, textTransform: 'uppercase', marginBottom: 6 }}>
+                            ● Buying Price
+                          </div>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                            <div>
+                              <label style={{ fontSize: 10, fontWeight: 600, color: '#78350f', display: 'block', marginBottom: 2 }}>Price List</label>
+                              <SearchableSelectCompact
+                                value={form.box_buying_price_list || 'Standard Buying'}
+                                options={buyingPriceListOptions}
+                                placeholder="Select Buying Price List"
+                                onChange={pl => {
+                                  setForm(p => ({ ...p, box_buying_price_list: pl }));
+                                  if (isEditMode && editingItemCode) {
+                                    const found = (priceData.prices || []).find(p => p.price_list === pl && p.buying === 1 && p.uom === 'Box');
+                                    if (found) setForm(prev => ({ ...prev, box_buying_price_list: pl, box_buying_price: found.price_list_rate }));
+                                  }
+                                }}
+                              />
+                            </div>
+                            <div>
+                              <label style={{ fontSize: 10, fontWeight: 600, color: '#78350f', display: 'block', marginBottom: 2 }}>Rate (AED)</label>
+                              <input
+                                type="number"
+                                className="il-input"
+                                style={{ fontWeight: 800, fontSize: 14, color: T.amber, background: '#fff', height: 32 }}
+                                value={form.box_buying_price || (priceData.prices || []).find(p => p.price_list === (form.box_buying_price_list || 'Standard Buying') && p.buying === 1 && p.uom === 'Box')?.price_list_rate || 0}
+                                onChange={e => setForm(p => ({ ...p, box_buying_price: Number(e.target.value) }))}
+                                onBlur={async () => {
+                                  if (!isEditMode || !editingItemCode) return;
+                                  try {
+                                    const pl = form.box_buying_price_list || 'Standard Buying';
+                                    const existing = (priceData.prices || []).find(p => p.price_list === pl && p.buying === 1 && p.uom === 'Box');
+                                    await axios.post('/api/method/kyle_retail.retail_api.api.update_item_price', {
+                                      item_code: editingItemCode,
+                                      data: { price_list: pl, uom: 'Box', price_list_rate: form.box_buying_price || 0, buying: 1, selling: 0, name: existing?.name || '' }
+                                    }, { withCredentials: true });
+                                    fetchPriceList(editingItemCode);
+                                  } catch (err) { console.warn('Price save err:', err); }
+                                }}
+                                placeholder="0.00"
+                                onFocus={e => e.target.select()}
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Box Selling Price */}
+                        <div style={{ background: '#f0fdf4', border: '1px solid #BBF7D0', borderRadius: 8, padding: '10px 12px' }}>
+                          <div style={{ fontSize: 10, fontWeight: 800, color: T.green, textTransform: 'uppercase', marginBottom: 6 }}>
+                            ● Selling Price
+                          </div>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                            <div>
+                              <label style={{ fontSize: 10, fontWeight: 600, color: '#14532d', display: 'block', marginBottom: 2 }}>Price List</label>
+                              <SearchableSelectCompact
+                                value={form.box_selling_price_list || 'Standard Selling'}
+                                options={sellingPriceListOptions}
+                                placeholder="Select Selling Price List"
+                                onChange={pl => {
+                                  setForm(p => ({ ...p, box_selling_price_list: pl }));
+                                  if (isEditMode && editingItemCode) {
+                                    const found = (priceData.prices || []).find(p => p.price_list === pl && p.selling === 1 && p.uom === 'Box');
+                                    if (found) setForm(prev => ({ ...prev, box_selling_price_list: pl, box_selling_price: found.price_list_rate }));
+                                  }
+                                }}
+                              />
+                            </div>
+                            <div>
+                              <label style={{ fontSize: 10, fontWeight: 600, color: '#14532d', display: 'block', marginBottom: 2 }}>Rate (AED)</label>
+                              <input
+                                type="number"
+                                className="il-input"
+                                style={{ fontWeight: 800, fontSize: 14, color: T.green, background: '#fff', height: 32 }}
+                                value={form.box_selling_price || (priceData.prices || []).find(p => p.price_list === (form.box_selling_price_list || 'Standard Selling') && p.selling === 1 && p.uom === 'Box')?.price_list_rate || 0}
+                                onChange={e => setForm(p => ({ ...p, box_selling_price: Number(e.target.value) }))}
+                                onBlur={async () => {
+                                  if (!isEditMode || !editingItemCode) return;
+                                  try {
+                                    const pl = form.box_selling_price_list || 'Standard Selling';
+                                    const existing = (priceData.prices || []).find(p => p.price_list === pl && p.selling === 1 && p.uom === 'Box');
+                                    await axios.post('/api/method/kyle_retail.retail_api.api.update_item_price', {
+                                      item_code: editingItemCode,
+                                      data: { price_list: pl, uom: 'Box', price_list_rate: form.box_selling_price || 0, buying: 0, selling: 1, name: existing?.name || '' }
+                                    }, { withCredentials: true });
+                                    fetchPriceList(editingItemCode);
+                                  } catch (err) { console.warn('Price save err:', err); }
+                                }}
+                                placeholder="0.00"
+                                onFocus={e => e.target.select()}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* 3. MASTER BOX PRICE */}
+                      <div style={{ background: '#f8fafc', border: `1.5px solid ${T.border}`, borderRadius: 12, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: `1px solid ${T.borderLight}`, paddingBottom: 8 }}>
+                          <div style={{ fontSize: 13, fontWeight: 800, color: '#7c3aed', display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#7c3aed' }} />
+                            Master Box Price
+                          </div>
+                          <span className="il-chip" style={{ fontSize: 10, padding: '1px 7px', background: '#f5f3ff', color: '#7c3aed', border: '1px solid #ddd6fe', fontWeight: 700 }}>Master Box</span>
+                        </div>
+
+                        {/* Master Box Buying Price */}
+                        <div style={{ background: '#fffbeb', border: '1px solid #FDE68A', borderRadius: 8, padding: '10px 12px' }}>
+                          <div style={{ fontSize: 10, fontWeight: 800, color: T.amber, textTransform: 'uppercase', marginBottom: 6 }}>
+                            ● Buying Price
+                          </div>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                            <div>
+                              <label style={{ fontSize: 10, fontWeight: 600, color: '#78350f', display: 'block', marginBottom: 2 }}>Price List</label>
+                              <SearchableSelectCompact
+                                value={form.master_box_buying_price_list || 'Standard Buying'}
+                                options={buyingPriceListOptions}
+                                placeholder="Select Buying Price List"
+                                onChange={pl => {
+                                  setForm(p => ({ ...p, master_box_buying_price_list: pl }));
+                                  if (isEditMode && editingItemCode) {
+                                    const found = (priceData.prices || []).find(p => p.price_list === pl && p.buying === 1 && p.uom === 'Master Box');
+                                    if (found) setForm(prev => ({ ...prev, master_box_buying_price_list: pl, master_box_buying_price: found.price_list_rate }));
+                                  }
+                                }}
+                              />
+                            </div>
+                            <div>
+                              <label style={{ fontSize: 10, fontWeight: 600, color: '#78350f', display: 'block', marginBottom: 2 }}>Rate (AED)</label>
+                              <input
+                                type="number"
+                                className="il-input"
+                                style={{ fontWeight: 800, fontSize: 14, color: T.amber, background: '#fff', height: 32 }}
+                                value={form.master_box_buying_price || (priceData.prices || []).find(p => p.price_list === (form.master_box_buying_price_list || 'Standard Buying') && p.buying === 1 && p.uom === 'Master Box')?.price_list_rate || 0}
+                                onChange={e => setForm(p => ({ ...p, master_box_buying_price: Number(e.target.value) }))}
+                                onBlur={async () => {
+                                  if (!isEditMode || !editingItemCode) return;
+                                  try {
+                                    const pl = form.master_box_buying_price_list || 'Standard Buying';
+                                    const existing = (priceData.prices || []).find(p => p.price_list === pl && p.buying === 1 && p.uom === 'Master Box');
+                                    await axios.post('/api/method/kyle_retail.retail_api.api.update_item_price', {
+                                      item_code: editingItemCode,
+                                      data: { price_list: pl, uom: 'Master Box', price_list_rate: form.master_box_buying_price || 0, buying: 1, selling: 0, name: existing?.name || '' }
+                                    }, { withCredentials: true });
+                                    fetchPriceList(editingItemCode);
+                                  } catch (err) { console.warn('Price save err:', err); }
+                                }}
+                                placeholder="0.00"
+                                onFocus={e => e.target.select()}
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Master Box Selling Price */}
+                        <div style={{ background: '#f0fdf4', border: '1px solid #BBF7D0', borderRadius: 8, padding: '10px 12px' }}>
+                          <div style={{ fontSize: 10, fontWeight: 800, color: T.green, textTransform: 'uppercase', marginBottom: 6 }}>
+                            ● Selling Price
+                          </div>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                            <div>
+                              <label style={{ fontSize: 10, fontWeight: 600, color: '#14532d', display: 'block', marginBottom: 2 }}>Price List</label>
+                              <SearchableSelectCompact
+                                value={form.master_box_selling_price_list || 'Standard Selling'}
+                                options={sellingPriceListOptions}
+                                placeholder="Select Selling Price List"
+                                onChange={pl => {
+                                  setForm(p => ({ ...p, master_box_selling_price_list: pl }));
+                                  if (isEditMode && editingItemCode) {
+                                    const found = (priceData.prices || []).find(p => p.price_list === pl && p.selling === 1 && p.uom === 'Master Box');
+                                    if (found) setForm(prev => ({ ...prev, master_box_selling_price_list: pl, master_box_selling_price: found.price_list_rate }));
+                                  }
+                                }}
+                              />
+                            </div>
+                            <div>
+                              <label style={{ fontSize: 10, fontWeight: 600, color: '#14532d', display: 'block', marginBottom: 2 }}>Rate (AED)</label>
+                              <input
+                                type="number"
+                                className="il-input"
+                                style={{ fontWeight: 800, fontSize: 14, color: T.green, background: '#fff', height: 32 }}
+                                value={form.master_box_selling_price || (priceData.prices || []).find(p => p.price_list === (form.master_box_selling_price_list || 'Standard Selling') && p.selling === 1 && p.uom === 'Master Box')?.price_list_rate || 0}
+                                onChange={e => setForm(p => ({ ...p, master_box_selling_price: Number(e.target.value) }))}
+                                onBlur={async () => {
+                                  if (!isEditMode || !editingItemCode) return;
+                                  try {
+                                    const pl = form.master_box_selling_price_list || 'Standard Selling';
+                                    const existing = (priceData.prices || []).find(p => p.price_list === pl && p.selling === 1 && p.uom === 'Master Box');
+                                    await axios.post('/api/method/kyle_retail.retail_api.api.update_item_price', {
+                                      item_code: editingItemCode,
+                                      data: { price_list: pl, uom: 'Master Box', price_list_rate: form.master_box_selling_price || 0, buying: 0, selling: 1, name: existing?.name || '' }
+                                    }, { withCredentials: true });
+                                    fetchPriceList(editingItemCode);
+                                  } catch (err) { console.warn('Price save err:', err); }
+                                }}
+                                placeholder="0.00"
+                                onFocus={e => e.target.select()}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Existing prices summary */}
+                    {isEditMode && priceData.prices?.length > 0 && (
+                      <div style={{ marginTop: 14, display: 'flex', flexWrap: 'wrap', gap: 6, paddingTop: 10, borderTop: `1px dashed ${T.border}` }}>
+                        {priceData.prices.map((p, i) => (
+                          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 10px', background: '#fff', border: `1px solid ${T.border}`, borderRadius: 8 }}>
+                            <span style={{ fontSize: 10, fontWeight: 700, color: p.buying ? T.amber : T.green }}>
+                              {p.buying ? '▲ BUY' : '▼ SELL'}
+                            </span>
+                            <span style={{ fontSize: 11, color: T.textSub, fontWeight: 600 }}>{p.price_list}</span>
+                            <span style={{ fontSize: 12, fontWeight: 800, color: T.text }}>AED {Number(p.price_list_rate).toFixed(2)}</span>
+                            <span style={{ fontSize: 10, color: T.blue, fontWeight: 700, background: '#eff6ff', padding: '1px 5px', borderRadius: 4 }}>{p.uom}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </CardSection>
+
+                {/* ROW 5: Has Variants (Template) toggle */}
+                {!form.variant_of && (
+                  <div style={{ background: form.has_variants === 1 ? '#f5f3ff' : T.bg, border: `1.5px solid ${form.has_variants === 1 ? '#c4b5fd' : T.border}`, borderRadius: 12, padding: '12px 16px', transition: 'all 0.15s' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}>
+                      <input
+                        type="checkbox"
+                        className="il-check"
+                        checked={form.has_variants === 1}
+                        onChange={e => {
+                          const checked = e.target.checked;
+                          const updatedForm = { ...form, has_variants: checked ? 1 : 0 };
+                          if (checked) {
+                            updatedForm.is_sales_item = 0;
+                            updatedForm.is_purchase_item = 0;
+                            updatedForm.is_stock_item = 0;
+                          }
+                          if (checked && (!form.attributes || form.attributes.length === 0)) {
+                            const initialAttr = availableAttributes[0]?.value || 'Colour';
+                            updatedForm.attributes = [{ attribute: initialAttr }];
+                            const possibleVals = attributeValuesMap[initialAttr] || [];
+                            const firstVal = possibleVals[0]?.attribute_value || '';
+                            const initSelected = firstVal ? { [initialAttr]: firstVal } : {};
+                            setVariantForm(vf => ({
+                              ...vf,
+                              initial_variants: [
+                                {
+                                  id: `var-1-${Date.now()}`,
+                                  selected_attributes: initSelected,
+                                  variant_item_code: firstVal ? `${form.item_code || 'ITEM'}-${firstVal}`.toUpperCase() : '',
+                                  variant_item_name: firstVal ? `${form.item_name || 'Item'} ${firstVal}` : '',
+                                  variant_barcode: '',
+                                  use_custom_code: true
+                                }
+                              ]
+                            }));
+                          }
+                          setForm(updatedForm);
+                        }}
+                        tabIndex={showForm ? 0 : -1}
+                      />
+                      <div>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: form.has_variants === 1 ? '#6d28d9' : T.text }}>Has Variants (Template Item)</div>
+                        <div style={{ fontSize: 12, color: T.textMuted }}>Mark this as an Item Template to configure attributes & initial variants below</div>
+                      </div>
+                    </label>
+                  </div>
+                )}
+
+                {/* Template Attributes & Initial Variant Configuration (Directly under Has Variants when checked) */}
                 {Boolean(form.has_variants) && (
                   <CardSection 
                     title="Template Item Attributes & Initial Variant" 
@@ -3472,82 +4175,110 @@ export default function ItemList() {
                       </div>
                       
                       {/* Fast Tag Selector */}
-                      {availableAttributes.length > 0 && (
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 14, padding: '10px', background: '#fff', borderRadius: 8, border: '1px solid #e9d5ff' }}>
-                          <span style={{ fontSize: 11, fontWeight: 700, color: '#7c3aed', alignSelf: 'center', marginRight: 4 }}>Quick Attributes:</span>
-                          {availableAttributes.map(attr => {
-                            const isSelected = (form.attributes || []).some(a => (a.attribute || a) === attr.value);
-                            return (
-                              <button
-                                key={attr.value}
-                                type="button"
-                                onClick={() => {
-                                  let nextAttrs = [];
-                                  if (isSelected) {
-                                    nextAttrs = (form.attributes || []).filter(a => (a.attribute || a) !== attr.value);
-                                  } else {
-                                    nextAttrs = [...(form.attributes || []), { attribute: attr.value }];
-                                  }
-                                  setForm(p => ({ ...p, attributes: nextAttrs }));
-                                  
-                                  // Update all initial variant rows
-                                  setVariantForm(vf => {
-                                    const updatedVariants = (vf.initial_variants || []).map(v => {
-                                      const updatedVals = { ...(v.selected_attributes || {}) };
-                                      if (isSelected) {
-                                        delete updatedVals[attr.value];
-                                      } else {
-                                        const possibleVals = attributeValuesMap[attr.value] || [];
-                                        if (possibleVals.length > 0 && !updatedVals[attr.value]) {
-                                          updatedVals[attr.value] = possibleVals[0].attribute_value;
-                                        }
+                      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6, marginBottom: 14, padding: '10px', background: '#fff', borderRadius: 8, border: '1px solid #e9d5ff' }}>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: '#7c3aed', alignSelf: 'center', marginRight: 4 }}>Quick Attributes:</span>
+                        {availableAttributes.map(attr => {
+                          const isSelected = (form.attributes || []).some(a => (a.attribute || a) === attr.value);
+                          return (
+                            <button
+                              key={attr.value}
+                              type="button"
+                              onClick={() => {
+                                let nextAttrs = [];
+                                if (isSelected) {
+                                  nextAttrs = (form.attributes || []).filter(a => (a.attribute || a) !== attr.value);
+                                } else {
+                                  nextAttrs = [...(form.attributes || []), { attribute: attr.value }];
+                                }
+                                setForm(p => ({ ...p, attributes: nextAttrs }));
+                                
+                                // Update all initial variant rows
+                                setVariantForm(vf => {
+                                  const updatedVariants = (vf.initial_variants || []).map(v => {
+                                    const updatedVals = { ...(v.selected_attributes || {}) };
+                                    if (isSelected) {
+                                      delete updatedVals[attr.value];
+                                    } else {
+                                      const possibleVals = attributeValuesMap[attr.value] || [];
+                                      if (possibleVals.length > 0 && !updatedVals[attr.value]) {
+                                        updatedVals[attr.value] = possibleVals[0].attribute_value;
                                       }
+                                    }
 
-                                      // Order values by template attributes order
-                                      const orderedCodes = [];
-                                      const orderedNames = [];
-                                      nextAttrs.forEach(a => {
-                                        const aName = typeof a === 'object' && a !== null ? a.attribute : a;
-                                        const val = updatedVals[aName];
-                                        if (val) {
-                                          const pVals = attributeValuesMap[aName] || [];
-                                          const matched = pVals.find(x => x.attribute_value === val);
-                                          orderedCodes.push((matched?.abbr || val).toUpperCase());
-                                          orderedNames.push(val);
-                                        }
-                                      });
-
-                                      const codeSuffix = orderedCodes.join('-');
-                                      const nameSuffix = orderedNames.join(' ');
-
-                                      return {
-                                        ...v,
-                                        selected_attributes: updatedVals,
-                                        variant_item_code: codeSuffix ? `${form.item_code || 'ITEM'}-${codeSuffix}`.toUpperCase() : '',
-                                        variant_item_name: nameSuffix ? `${form.item_name || 'Item'} ${nameSuffix}` : ''
-                                      };
+                                    // Order values by template attributes order
+                                    const orderedCodes = [];
+                                    const orderedNames = [];
+                                    nextAttrs.forEach(a => {
+                                      const aName = typeof a === 'object' && a !== null ? a.attribute : a;
+                                      const val = updatedVals[aName];
+                                      if (val) {
+                                        const pVals = attributeValuesMap[aName] || [];
+                                        const matched = pVals.find(x => x.attribute_value === val);
+                                        orderedCodes.push((matched?.abbr || val).toUpperCase());
+                                        orderedNames.push(val);
+                                      }
                                     });
-                                    return { ...vf, initial_variants: updatedVariants };
+
+                                    const codeSuffix = orderedCodes.join('-');
+                                    const nameSuffix = orderedNames.join(' ');
+
+                                    return {
+                                      ...v,
+                                      selected_attributes: updatedVals,
+                                      variant_item_code: codeSuffix ? `${form.item_code || 'ITEM'}-${codeSuffix}`.toUpperCase() : '',
+                                      variant_item_name: nameSuffix ? `${form.item_name || 'Item'} ${nameSuffix}` : ''
+                                    };
                                   });
-                                }}
-                                style={{
-                                  padding: '4px 10px',
-                                  fontSize: 11,
-                                  fontWeight: 700,
-                                  borderRadius: 20,
-                                  border: isSelected ? '1.5px solid #7c3aed' : '1px solid #cbd5e1',
-                                  background: isSelected ? '#7c3aed' : '#fff',
-                                  color: isSelected ? '#fff' : '#475569',
-                                  cursor: 'pointer',
-                                  transition: 'all 0.15s'
-                                }}
-                              >
-                                {isSelected ? `✓ ${attr.value}` : `+ ${attr.value}`}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      )}
+                                  return { ...vf, initial_variants: updatedVariants };
+                                });
+                              }}
+                              style={{
+                                padding: '4px 10px',
+                                fontSize: 11,
+                                fontWeight: 700,
+                                borderRadius: 20,
+                                border: isSelected ? '1.5px solid #7c3aed' : '1px solid #cbd5e1',
+                                background: isSelected ? '#7c3aed' : '#fff',
+                                color: isSelected ? '#fff' : '#475569',
+                                cursor: 'pointer',
+                                transition: 'all 0.15s'
+                              }}
+                            >
+                              {isSelected ? `✓ ${attr.value}` : `+ ${attr.value}`}
+                            </button>
+                          );
+                        })}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAttrModalData({
+                              attribute_name: '',
+                              attribute_value: '',
+                              abbr: '',
+                              targetRowIndex: null,
+                              isNewAttribute: true,
+                              attributeIndex: null
+                            });
+                            setShowAddAttrValueModal(true);
+                          }}
+                          style={{
+                            padding: '4px 10px',
+                            fontSize: 11,
+                            fontWeight: 800,
+                            borderRadius: 20,
+                            border: '1.5px dashed #7c3aed',
+                            background: '#f5f3ff',
+                            color: '#6d28d9',
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 3,
+                            marginLeft: 'auto'
+                          }}
+                        >
+                          <Plus size={11} /> Create New Attribute
+                        </button>
+                      </div>
 
                       {/* Selected Attributes Dropdowns */}
                       {(form.attributes || []).length > 0 ? (
@@ -3563,12 +4294,18 @@ export default function ItemList() {
                                     value={attrName}
                                     onChange={e => {
                                       const val = e.target.value;
-                                      const updated = [...(form.attributes || [])];
-                                      updated[idx] = { attribute: val };
-                                      setForm({ ...form, attributes: updated });
-                                      
-                                      const possibleVals = attributeValuesMap[val] || [];
-                                      const firstVal = possibleVals[0]?.attribute_value || '';
+                                      if (val === '__CREATE_NEW__') {
+                                        setAttrModalData({
+                                          attribute_name: '',
+                                          attribute_value: '',
+                                          abbr: '',
+                                          targetRowIndex: null,
+                                          isNewAttribute: true,
+                                          attributeIndex: idx
+                                        });
+                                        setShowAddAttrValueModal(true);
+                                        return;
+                                      }
                                       // Update all initial variants
                                       setVariantForm(vf => {
                                         const updatedVariants = (vf.initial_variants || []).map(v => {
@@ -3593,6 +4330,9 @@ export default function ItemList() {
                                         {opt.label}
                                       </option>
                                     ))}
+                                    <option value="__CREATE_NEW__" style={{ color: '#6d28d9', fontWeight: 700 }}>
+                                      ➕ + Create New Attribute...
+                                    </option>
                                   </select>
                                 </div>
                                 <button 
@@ -3654,6 +4394,8 @@ export default function ItemList() {
                                     <th style={{ padding: '8px 10px', fontWeight: 700 }}>Code</th>
                                     <th style={{ padding: '8px 10px', fontWeight: 700 }}>Name</th>
                                     <th style={{ padding: '8px 10px', fontWeight: 700 }}>Attributes</th>
+                                    <th style={{ padding: '8px 10px', fontWeight: 700, color: '#0369a1' }}>Buy Price</th>
+                                    <th style={{ padding: '8px 10px', fontWeight: 700, color: '#15803d' }}>Sell Price</th>
                                     <th style={{ padding: '8px 10px', fontWeight: 700 }}>Barcode</th>
                                     <th style={{ padding: '8px 10px', fontWeight: 700 }}>Status</th>
                                   </tr>
@@ -3675,6 +4417,12 @@ export default function ItemList() {
                                             </span>
                                           ))}
                                         </div>
+                                      </td>
+                                      <td style={{ padding: '8px 10px', fontWeight: 700, color: '#0369a1' }}>
+                                        {v.buying_price ? `AED ${Number(v.buying_price).toFixed(2)}` : '—'}
+                                      </td>
+                                      <td style={{ padding: '8px 10px', fontWeight: 700, color: '#15803d' }}>
+                                        {v.selling_price ? `AED ${Number(v.selling_price).toFixed(2)}` : '—'}
                                       </td>
                                       <td style={{ padding: '8px 10px', fontFamily: "'DM Mono', monospace", fontSize: 11, color: T.textSub }}>
                                         {v.barcodes && v.barcodes.length > 0 ? v.barcodes[0].barcode : '—'}
@@ -3825,6 +4573,8 @@ export default function ItemList() {
                                     ))}
                                     <th style={{ padding: '10px 12px', minWidth: 170, fontWeight: 700 }}>Variant Item Code *</th>
                                     <th style={{ padding: '10px 12px', minWidth: 200, fontWeight: 700 }}>Variant Item Name</th>
+                                    <th style={{ padding: '10px 12px', minWidth: 120, fontWeight: 700, color: '#0369a1' }}>Buying Price</th>
+                                    <th style={{ padding: '10px 12px', minWidth: 120, fontWeight: 700, color: '#15803d' }}>Selling Price</th>
                                     <th style={{ padding: '10px 12px', minWidth: 150, fontWeight: 700 }}>Variant Barcode</th>
                                     <th style={{ padding: '10px 12px', minWidth: 120, fontWeight: 700 }}>Variant Image</th>
                                     <th style={{ padding: '10px 12px', width: 50, textAlign: 'center', fontWeight: 700 }}></th>
@@ -3926,6 +4676,40 @@ export default function ItemList() {
                                               setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
                                             }}
                                             placeholder="Variant Name"
+                                          />
+                                        </td>
+
+                                        {/* Buying Price */}
+                                        <td style={{ padding: '8px 10px' }}>
+                                          <input
+                                            type="number"
+                                            step="any"
+                                            className="il-input"
+                                            style={{ height: 34, fontSize: 12, fontWeight: 700, color: '#0369a1', background: '#f0f9ff', borderColor: '#bae6fd' }}
+                                            value={vRow.buying_price !== undefined ? vRow.buying_price : (form.buying_price || '')}
+                                            onChange={e => {
+                                              const updatedVariants = [...variantForm.initial_variants];
+                                              updatedVariants[vIdx] = { ...vRow, buying_price: e.target.value };
+                                              setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
+                                            }}
+                                            placeholder="0.00"
+                                          />
+                                        </td>
+
+                                        {/* Selling Price */}
+                                        <td style={{ padding: '8px 10px' }}>
+                                          <input
+                                            type="number"
+                                            step="any"
+                                            className="il-input"
+                                            style={{ height: 34, fontSize: 12, fontWeight: 700, color: '#15803d', background: '#f0fdf4', borderColor: '#bbf7d0' }}
+                                            value={vRow.selling_price !== undefined ? vRow.selling_price : (form.selling_price || '')}
+                                            onChange={e => {
+                                              const updatedVariants = [...variantForm.initial_variants];
+                                              updatedVariants[vIdx] = { ...vRow, selling_price: e.target.value };
+                                              setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
+                                            }}
+                                            placeholder="0.00"
                                           />
                                         </td>
 
@@ -4055,6 +4839,94 @@ export default function ItemList() {
                   </CardSection>
                 )}
 
+                {/* Controls row: Inventory & Sales + Loyalty & Status */}
+                <div className="il-form-grid-2">
+                  {/* Inventory & Sales */}
+                  <CardSection title="Inventory & Sales" icon={<BarChart2 size={14} />}>
+                    <div style={{ padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      {[
+                        { key: 'is_stock_item', label: 'Track Stock', desc: 'Enables inventory ledger' },
+                        { key: 'is_sales_item', label: 'Allow Sales', desc: 'Show in POS & Sales Orders' },
+                        { key: 'is_purchase_item', label: 'Allow Purchase', desc: 'Available for procurement' },
+                      ].map(f => (
+                        <label
+                          key={f.key}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 10,
+                            padding: '10px 12px',
+                            background: form[f.key] === 1 ? T.blueLight : T.bg,
+                            borderRadius: 9,
+                            cursor: 'pointer',
+                            border: `1.5px solid ${form[f.key] === 1 ? T.blueMid : T.border}`,
+                            transition: 'all 0.15s'
+                          }}
+                        >
+                          <input
+                            type="checkbox"
+                            className="il-check"
+                            checked={form[f.key] === 1}
+                            onChange={e => setForm({ ...form, [f.key]: e.target.checked ? 1 : 0 })}
+                          />
+                          <div>
+                            <div style={{ fontSize: 13, fontWeight: 700, color: T.text }}>{f.label}</div>
+                            <div style={{ fontSize: 11, color: T.textMuted }}>{f.desc}</div>
+                          </div>
+                        </label>
+                      ))}
+                    </div>
+                  </CardSection>
+
+                  {/* Loyalty & Status */}
+                  <CardSection title="Loyalty & Status" icon={<Tag size={14} />}>
+                    <div style={{ padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      {[
+                        { key: 'custom_loyalty_eligible', label: 'Loyalty Points', desc: 'Earn points on purchase' },
+                        { key: 'custom_allow_discount', label: 'Allow Discount', desc: 'Enable manual overrides' },
+                        { key: 'disabled', label: 'Disable Item', desc: 'Hide from active registries' }
+                      ].map(f => {
+                        const isChecked = f.key === 'disabled' ? Boolean(form.disabled) : form[f.key] === 1;
+                        return (
+                          <label
+                            key={f.key}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 10,
+                              padding: '10px 12px',
+                              background: isChecked ? (f.key === 'disabled' ? '#fee2e2' : T.blueLight) : T.bg,
+                              borderRadius: 9,
+                              cursor: 'pointer',
+                              border: `1.5px solid ${isChecked ? (f.key === 'disabled' ? '#fca5a5' : T.blueMid) : T.border}`,
+                              transition: 'all 0.15s'
+                            }}
+                          >
+                            <input
+                              type="checkbox"
+                              className="il-check"
+                              checked={isChecked}
+                              onChange={e => {
+                                if (f.key === 'disabled') {
+                                  setForm({ ...form, disabled: e.target.checked });
+                                } else {
+                                  setForm({ ...form, [f.key]: e.target.checked ? 1 : 0 });
+                                }
+                              }}
+                            />
+                            <div>
+                              <div style={{ fontSize: 13, fontWeight: 700, color: f.key === 'disabled' && isChecked ? '#b91c1c' : T.text }}>
+                                {f.label}
+                              </div>
+                              <div style={{ fontSize: 11, color: T.textMuted }}>{f.desc}</div>
+                            </div>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </CardSection>
+                </div>
+
                 {/* UOM + Suppliers */}
                 <div className="il-form-grid-2">
                   <CardSection 
@@ -4157,7 +5029,7 @@ export default function ItemList() {
                   </CardSection>
                 </div>
 
-                {/* Image */}
+                {/* Product Image */}
                 <CardSection title="Product Image" icon={<Upload size={14} />}>
                   <div style={{ padding: '16px 18px', display: 'flex', alignItems: 'center', gap: 16 }}>
                     <div style={{ width: 72, height: 72, background: T.bg, border: `1.5px solid ${T.border}`, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0 }}>
@@ -4170,6 +5042,7 @@ export default function ItemList() {
                     <input ref={fileInputRef} type="file" hidden accept="image/*" onChange={handleImageChange} />
                   </div>
                 </CardSection>
+
               </div>
             )}
           </div>
@@ -4185,6 +5058,7 @@ export default function ItemList() {
           )}
         </div>
       )}
+
 
       {showCameraScanner && <CameraScanner onScan={c => { addBarcode(c); setShowCameraScanner(false); }} onClose={() => setShowCameraScanner(false)} />}
       {showGlobalScan && (
@@ -4259,7 +5133,7 @@ export default function ItemList() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <Layers size={18} color="#c7d2fe" />
                 <span style={{ fontSize: 14, fontWeight: 800 }}>
-                  Add Value to {attrModalData.attribute_name}
+                  {attrModalData.isNewAttribute ? 'Create New Attribute' : `Add Value to ${attrModalData.attribute_name}`}
                 </span>
               </div>
               <button
@@ -4274,28 +5148,31 @@ export default function ItemList() {
             <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
               <div>
                 <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#334155', marginBottom: 6 }}>
-                  Attribute Name
+                  Attribute Name * (e.g. Size, Colour, Paper GSM, Material)
                 </label>
                 <input
                   type="text"
                   className="il-input"
                   value={attrModalData.attribute_name}
-                  readOnly
-                  style={{ background: '#f8fafc', color: '#64748b' }}
+                  readOnly={!attrModalData.isNewAttribute}
+                  onChange={e => setAttrModalData({ ...attrModalData, attribute_name: e.target.value })}
+                  placeholder="e.g. Size or Material"
+                  autoFocus={attrModalData.isNewAttribute}
+                  style={!attrModalData.isNewAttribute ? { background: '#f8fafc', color: '#64748b' } : {}}
                 />
               </div>
 
               <div>
                 <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: '#334155', marginBottom: 6 }}>
-                  New Value * (e.g. 50 Pages, 120 GSM, Lavender)
+                  {attrModalData.isNewAttribute ? 'Initial Value * (e.g. Small, 80 GSM, Cotton)' : 'New Value * (e.g. 50 Pages, 120 GSM, Lavender)'}
                 </label>
                 <input
                   type="text"
                   className="il-input"
                   value={attrModalData.attribute_value}
                   onChange={e => setAttrModalData({ ...attrModalData, attribute_value: e.target.value })}
-                  placeholder="Enter new attribute value"
-                  autoFocus
+                  placeholder="Enter attribute value"
+                  autoFocus={!attrModalData.isNewAttribute}
                 />
               </div>
 
@@ -4308,7 +5185,7 @@ export default function ItemList() {
                   className="il-input"
                   value={attrModalData.abbr}
                   onChange={e => setAttrModalData({ ...attrModalData, abbr: e.target.value })}
-                  placeholder="e.g. 50P or LAV"
+                  placeholder="e.g. 50P or S or LAV"
                 />
               </div>
             </div>
@@ -4324,7 +5201,7 @@ export default function ItemList() {
               <button
                 type="button"
                 onClick={handleSaveNewAttributeValue}
-                disabled={savingAttrValue || !attrModalData.attribute_value.trim()}
+                disabled={savingAttrValue || !attrModalData.attribute_name?.trim() || !attrModalData.attribute_value?.trim()}
                 style={{
                   padding: '8px 20px',
                   borderRadius: 8,
@@ -4333,11 +5210,11 @@ export default function ItemList() {
                   border: 'none',
                   fontSize: 12,
                   fontWeight: 800,
-                  cursor: savingAttrValue || !attrModalData.attribute_value.trim() ? 'not-allowed' : 'pointer',
-                  opacity: savingAttrValue || !attrModalData.attribute_value.trim() ? 0.6 : 1
+                  cursor: savingAttrValue || !attrModalData.attribute_name?.trim() || !attrModalData.attribute_value?.trim() ? 'not-allowed' : 'pointer',
+                  opacity: savingAttrValue || !attrModalData.attribute_name?.trim() || !attrModalData.attribute_value?.trim() ? 0.6 : 1
                 }}
               >
-                {savingAttrValue ? 'Adding...' : 'Add & Select Value'}
+                {savingAttrValue ? 'Saving...' : (attrModalData.isNewAttribute ? 'Create & Select Attribute' : 'Add & Select Value')}
               </button>
             </div>
           </div>

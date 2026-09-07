@@ -18,6 +18,7 @@ import { promptSecretCode } from '../../utils/secretCodePrompt';
 import AttachmentSection from './AttachmentSection';
 import ListCustomizer from './ListCustomizer';
 import { useCustomShortcuts } from '../../hooks/useCustomShortcuts';
+import { loadLocalMatrixConfig, fetchUserMatrixConfig, saveUserMatrixConfig } from '../../utils/tableMatrixHelper';
 
 // Custom APIs (moved to standardized path)
 const API_PATH = '/api/method/kyle_retail.retail_api.api';
@@ -119,29 +120,14 @@ function PurchaseInvoiceList() {
   const themeLight = isGreen ? '#f0fdf4' : '#f0f9ff';
 
   // ----- Column Config -----
-  const loadColumnConfig = () => {
-    try {
-      const saved = localStorage.getItem('pi_column_config');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        // Rebuild from DEFAULT_PI_COLUMNS so order in saved is respected,
-        // but any NEW columns added to DEFAULT that are missing from saved
-        // are always appended so they appear in Configure Columns panel.
-        const merged = DEFAULT_PI_COLUMNS.map(defCol => {
-          const savedCol = parsed.find(c => c.id === defCol.id);
-          if (savedCol) {
-            return { ...defCol, visible: savedCol.visible, width: savedCol.width };
-          }
-          // New column not in saved config → use default (visible)
-          return defCol;
-        });
-        return merged;
-      }
-    } catch (e) { /* ignore */ }
-    return DEFAULT_PI_COLUMNS;
-  };
-  const [columnConfig, setColumnConfig] = useState(loadColumnConfig);
+  const [columnConfig, setColumnConfig] = useState(() => loadLocalMatrixConfig('pi_column_config', DEFAULT_PI_COLUMNS));
   const [resizingCol, setResizingCol] = useState(null);
+
+  useEffect(() => {
+    fetchUserMatrixConfig('pi_column_config', DEFAULT_PI_COLUMNS).then(backendCols => {
+      if (backendCols) setColumnConfig(backendCols);
+    });
+  }, []);
 
   const handleResizeMouseDown = (e, colId) => {
     e.preventDefault();
@@ -162,9 +148,9 @@ function PurchaseInvoiceList() {
       document.body.style.cursor = 'default';
       document.body.style.userSelect = 'auto';
       setResizingCol(null);
-      // Persist to localStorage
+      // Persist to localStorage & backend
       setColumnConfig(currentCols => {
-        localStorage.setItem('pi_column_config', JSON.stringify(currentCols));
+        saveUserMatrixConfig('pi_column_config', currentCols, DEFAULT_PI_COLUMNS);
         return currentCols;
       });
     };
@@ -215,7 +201,7 @@ function PurchaseInvoiceList() {
           const newCols = [...prevCols];
           const [moved] = newCols.splice(fromIndex, 1);
           newCols.splice(toIndex, 0, moved);
-          localStorage.setItem('pi_column_config', JSON.stringify(newCols));
+          saveUserMatrixConfig('pi_column_config', newCols, DEFAULT_PI_COLUMNS);
           return newCols;
         }
         return prevCols;
@@ -233,31 +219,14 @@ function PurchaseInvoiceList() {
   const [showColConfig, setShowColConfig] = useState(false);
 
   const handleColConfigUpdate = (newConfig) => {
+    saveUserMatrixConfig('pi_column_config', newConfig, DEFAULT_PI_COLUMNS);
     if (newConfig === null) {
       // Reset to defaults
       setColumnConfig([...DEFAULT_PI_COLUMNS]);
-      localStorage.removeItem('pi_column_config');
     } else {
       setColumnConfig(newConfig);
-      localStorage.setItem('pi_column_config', JSON.stringify(newConfig));
     }
   };
-
-  // One-time migration: if saved column config is missing new columns, clear it so defaults apply
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem('pi_column_config');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        const requiredCols = ['custom_selling_price', 'custom_box_selling_price', 'last_purchase_rate'];
-        const hasAll = requiredCols.every(id => parsed.some(c => c.id === id));
-        if (!hasAll) {
-          localStorage.removeItem('pi_column_config');
-          setColumnConfig([...DEFAULT_PI_COLUMNS]);
-        }
-      }
-    } catch (e) { /* ignore */ }
-  }, []);
 
   useEffect(() => {
     localStorage.setItem('legacySubTheme', piTheme);

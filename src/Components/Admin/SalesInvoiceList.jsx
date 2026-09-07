@@ -15,6 +15,8 @@ import ListCustomizer from './ListCustomizer';
 import { useCustomShortcuts } from '../../hooks/useCustomShortcuts';
 import { frappeCall } from '../../utils/frappe';
 import CustomSearchDropdown from '../Purchase/CustomSearchDropdown';
+import ColumnConfigModal from '../Purchase/ColumnConfigModal';
+import { loadLocalMatrixConfig, fetchUserMatrixConfig, saveUserMatrixConfig } from '../../utils/tableMatrixHelper';
 
 const DEFAULT_SI_COLUMNS = [
   { id: 'item_details', label: 'Item Details', visible: true, width: 220 },
@@ -61,8 +63,25 @@ const SalesInvoiceList = () => {
     }
   });
 
-  const [siColumns, setSiColumns] = useState(loadSIColumnConfig);
+  const [siColumns, setSiColumns] = useState(() => loadLocalMatrixConfig('si_modal_matrix_config', DEFAULT_SI_COLUMNS));
+  const [showColConfig, setShowColConfig] = useState(false);
   const [resizingCol, setResizingCol] = useState(null);
+
+  useEffect(() => {
+    fetchUserMatrixConfig('si_modal_matrix_config', DEFAULT_SI_COLUMNS).then(backendCols => {
+      if (backendCols) setSiColumns(backendCols);
+    });
+  }, []);
+
+  const handleColConfigUpdate = (newConfig) => {
+    saveUserMatrixConfig('si_modal_matrix_config', newConfig, DEFAULT_SI_COLUMNS);
+    if (newConfig === null) {
+      setSiColumns(DEFAULT_SI_COLUMNS);
+    } else {
+      setSiColumns(newConfig);
+    }
+    setShowColConfig(false);
+  };
 
   const handleResizeMouseDown = (e, colId) => {
     e.preventDefault();
@@ -84,7 +103,7 @@ const SalesInvoiceList = () => {
       document.body.style.userSelect = 'auto';
       setResizingCol(null);
       setSiColumns(currentCols => {
-        localStorage.setItem('si_modal_matrix_config', JSON.stringify(currentCols));
+        saveUserMatrixConfig('si_modal_matrix_config', currentCols, DEFAULT_SI_COLUMNS);
         return currentCols;
       });
     };
@@ -135,7 +154,7 @@ const SalesInvoiceList = () => {
           const newCols = [...prevCols];
           const [moved] = newCols.splice(fromIndex, 1);
           newCols.splice(toIndex, 0, moved);
-          localStorage.setItem('si_modal_matrix_config', JSON.stringify(newCols));
+          saveUserMatrixConfig('si_modal_matrix_config', newCols, DEFAULT_SI_COLUMNS);
           return newCols;
         }
         return prevCols;
@@ -446,6 +465,10 @@ const SalesInvoiceList = () => {
           if (itemsList.length > 0) {
             const item = itemsList[0];
 
+            const scannedUom = checkRes.data.message.uom || item.stock_uom || 'Nos';
+            const isBox = (scannedUom || '').toLowerCase() === 'box';
+            const pPerBox = Number(item.custom_pieces_per_box) > 0 ? Number(item.custom_pieces_per_box) : 12;
+
             // Fetch rate
             let rate = 0;
             try {
@@ -458,16 +481,23 @@ const SalesInvoiceList = () => {
               rate = rateRes.data.rate || rateRes.data.message?.rate || 0;
             } catch (err) { }
 
+            const finalQty = isBox ? pPerBox : 1;
+            const finalRate = rate;
+            const finalAmount = isBox ? (rate * pPerBox) : rate;
+
             // Add to table
             setForm(prev => ({
               ...prev,
               items: [...prev.items, {
                 item_code: item.item_code,
                 item_name: item.item_name,
-                qty: 1,
-                uom: item.stock_uom || 'Nos',
-                rate: rate,
-                amount: rate * 1,
+                qty: finalQty,
+                uom: isBox ? 'Box' : (item.stock_uom || 'Nos'),
+                use_box_entry: isBox,
+                custom_pieces_per_box: pPerBox,
+                custom_box_price: rate * pPerBox,
+                rate: finalRate,
+                amount: finalAmount,
                 income_account: defaultIncomeAccount
               }]
             }));
@@ -2334,7 +2364,27 @@ const SalesInvoiceList = () => {
                       </button>
                     )}
                   </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowColConfig(true)}
+                      className="flex items-center gap-1 px-2.5 py-1 text-xs font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-md border border-slate-300 transition-colors"
+                      title="Configure Columns"
+                    >
+                      <Settings size={13} />
+                      <span>Columns</span>
+                    </button>
+                  </div>
                 </div>
+
+                <ColumnConfigModal
+                  isOpen={showColConfig}
+                  onClose={() => setShowColConfig(false)}
+                  columns={siColumns}
+                  onUpdate={handleColConfigUpdate}
+                  themeColor="#10b981"
+                  doctype="Sales Invoice"
+                />
 
                 {/* Dynamic Items Table */}
                 {(() => {

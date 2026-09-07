@@ -21,6 +21,7 @@ import '../Headers/LegacyPOS.css';
 import AttachmentSection from '../Admin/AttachmentSection';
 import { useCustomShortcuts } from '../../hooks/useCustomShortcuts';
 import DirhamIcon from '../../assets/Currency/DirhamIcon';
+import { loadLocalMatrixConfig, fetchUserMatrixConfig, saveUserMatrixConfig } from '../../utils/tableMatrixHelper';
 
 const DEFAULT_PO_COLUMNS = [
   { id: 'item_code', label: 'Item Code', visible: true, width: 120 },
@@ -198,28 +199,16 @@ function PurchaseOrder() {
   }, []);
 
   // ----- Column Config -----
-  const loadColumnConfig = () => {
-    try {
-      const saved = localStorage.getItem('purchase_matrix_config');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        const defaultIds = DEFAULT_PO_COLUMNS.map(c => c.id);
-        const savedIds = parsed.map(c => c.id);
-
-        // Match only valid PO columns and append any missing defaults
-        const existing = parsed.filter(c => defaultIds.includes(c.id));
-        const missing = DEFAULT_PO_COLUMNS.filter(c => !savedIds.includes(c.id));
-
-        return [...existing, ...missing];
-      }
-    } catch (e) { console.error("PO Style Config Error:", e); }
-    return DEFAULT_PO_COLUMNS;
-  };
-
-  const [poColumns, setPoColumns] = useState(loadColumnConfig);
+  const [poColumns, setPoColumns] = useState(() => loadLocalMatrixConfig('purchase_matrix_config', DEFAULT_PO_COLUMNS));
   const [showColConfig, setShowColConfig] = useState(false);
 
   const [resizingCol, setResizingCol] = useState(null);
+
+  useEffect(() => {
+    fetchUserMatrixConfig('purchase_matrix_config', DEFAULT_PO_COLUMNS).then(backendCols => {
+      if (backendCols) setPoColumns(backendCols);
+    });
+  }, []);
 
   const handleResizeMouseDown = (e, colId) => {
     e.preventDefault();
@@ -240,9 +229,9 @@ function PurchaseOrder() {
       document.body.style.cursor = 'default';
       document.body.style.userSelect = 'auto';
       setResizingCol(null);
-      // Persist to localStorage
+      // Persist to localStorage & backend
       setPoColumns(currentCols => {
-        localStorage.setItem('purchase_matrix_config', JSON.stringify(currentCols));
+        saveUserMatrixConfig('purchase_matrix_config', currentCols, DEFAULT_PO_COLUMNS);
         return currentCols;
       });
     };
@@ -293,7 +282,7 @@ function PurchaseOrder() {
           const newCols = [...prevCols];
           const [moved] = newCols.splice(fromIndex, 1);
           newCols.splice(toIndex, 0, moved);
-          localStorage.setItem('purchase_matrix_config', JSON.stringify(newCols));
+          saveUserMatrixConfig('purchase_matrix_config', newCols, DEFAULT_PO_COLUMNS);
           return newCols;
         }
         return prevCols;
@@ -309,12 +298,11 @@ function PurchaseOrder() {
   };
 
   const handleColConfigUpdate = (newConfig) => {
+    saveUserMatrixConfig('purchase_matrix_config', newConfig, DEFAULT_PO_COLUMNS);
     if (newConfig === null) {
       setPoColumns([...DEFAULT_PO_COLUMNS]);
-      localStorage.removeItem('purchase_matrix_config');
     } else {
       setPoColumns(newConfig);
-      localStorage.setItem('purchase_matrix_config', JSON.stringify(newConfig));
     }
     setShowColConfig(false);
   };
@@ -2500,7 +2488,9 @@ function PurchaseOrder() {
         existingItem.amount = existingItem.qty * (parseFloat(existingItem.rate) || 0);
         items[existingIdx] = existingItem;
 
-        if (rowIndex !== undefined && rowIndex >= 0 && rowIndex < items.length) {
+        // If replacing an existing draft row that had an item, clear or remove it.
+        // But do NOT splice if rowIndex is the inline search row or exceeds items length!
+        if (rowIndex !== undefined && rowIndex >= 0 && rowIndex < items.length && items[rowIndex]?.item_code && rowIndex !== existingIdx) {
           if (items.length > 1) {
             items.splice(rowIndex, 1);
           } else {
@@ -2508,6 +2498,7 @@ function PurchaseOrder() {
           }
         }
       } else {
+        const isBox = (item.scanned_uom || item.uom || '').toLowerCase() === 'box';
         const pPerBox = parseFloat(item.custom_pieces_per_box || 1);
         const uomList = item.uom_list || [];
         const defaultBoxPrice = parseFloat(item.custom_box_price || (rate * pPerBox) || 0);
@@ -2523,15 +2514,15 @@ function PurchaseOrder() {
           item_code: item.item_code,
           item_name: item.item_name,
           stock_uom: item.stock_uom || 'Nos',
-          uom: item.stock_uom || 'Nos',
+          uom: isBox ? 'Box' : (item.stock_uom || 'Nos'),
           uom_list: uomList,
-          use_box_entry: false, // default Nos mode
+          use_box_entry: isBox, // auto switch if scanned Box barcode
           rate: rate,
           last_buying_rate: rate,
           custom_pieces_per_box: pPerBox,
           default_pieces_per_box: pPerBox,
-          qty: 1,
-          amount: rate,
+          qty: isBox ? pPerBox : 1,
+          amount: isBox ? (rate * pPerBox) : rate,
           custom_box_price: defaultBoxPrice,
           custom_box_qty: 1,
           temp_barcode: '',
@@ -3063,6 +3054,7 @@ function PurchaseOrder() {
                         }}
                         fetchData={fetchItems}
                         optionsLabel="item_name"
+                        targetWarehouse={formData.set_warehouse || warehouse || localStorage.getItem('warehouse')}
                         globalSearch={true}
                         onGlobalSearch={handleGlobalItemSearch}
                         onActivate={async (item) => {
@@ -3080,6 +3072,8 @@ function PurchaseOrder() {
                           setShowQuickItemModal(true);
                         }}
                         themeColor="#10b981"
+                        clearOnSelect={true}
+                        hideInlineButton={true}
                         className="w-full h-full font-black italic text-slate-600"
                       />
                     </td>

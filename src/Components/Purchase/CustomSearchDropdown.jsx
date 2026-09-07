@@ -15,7 +15,9 @@ const CustomSearchDropdown = ({
   globalSearch = false,
   onGlobalSearch, // (query) => Promise<results>
   onActivate, // (item) => Promise<success>
-  clearOnSelect = false
+  clearOnSelect = false,
+  hideInlineButton = false,
+  targetWarehouse = ''
 }) => {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
@@ -224,16 +226,24 @@ const CustomSearchDropdown = ({
     setShow(false);
     setJustCreated(false);
     setSelectedIndex(-1);
+    // Keep focus on the search input for seamless continuous barcode scanning
+    if (shouldClear && inputRef.current) {
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 50);
+    }
   };
 
   const handleKeyDown = async (e) => {
-    if (!show || disabled) return;
+    if (disabled) return;
 
     if (e.key === 'ArrowDown') {
+      if (!show) return;
       e.preventDefault();
       e.stopPropagation();
       setSelectedIndex(prev => (prev < displayResults.length - 1 ? prev + 1 : prev));
     } else if (e.key === 'ArrowUp') {
+      if (!show) return;
       e.preventDefault();
       e.stopPropagation();
       setSelectedIndex(prev => (prev > 0 ? prev - 1 : 0));
@@ -266,15 +276,20 @@ const CustomSearchDropdown = ({
       // 3. If trimmed looks like a barcode or code, try exact barcode lookup via API before selecting anything
       if (isBarcodePattern) {
         try {
-          const wh = localStorage.getItem('warehouse') || '';
+          const wh = targetWarehouse || localStorage.getItem('warehouse') || '';
           const warehouseParam = wh ? `&warehouse=${encodeURIComponent(wh)}` : '';
-          const bcRes = await fetch(`/api/method/kyle_retail.retail_api.api.get_item_by_barcode_po?barcode=${encodeURIComponent(trimmed)}${warehouseParam}`, {
+          let bcRes = await fetch(`/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_item_by_barcode_po?barcode=${encodeURIComponent(trimmed)}${warehouseParam}`, {
             credentials: 'include'
           });
+          if (!bcRes.ok) {
+            bcRes = await fetch(`/api/method/kyle_retail.retail_api.api.get_item_by_barcode_po?barcode=${encodeURIComponent(trimmed)}${warehouseParam}`, {
+              credentials: 'include'
+            });
+          }
           if (bcRes.ok) {
             const bcData = await bcRes.json();
             const bcItem = Array.isArray(bcData.message) ? bcData.message[0] : bcData.message;
-            if (bcItem && (bcItem.item_code || bcItem.name)) {
+            if (bcItem && !bcItem.not_in_branch && bcItem.status !== 'error' && (bcItem.item_code || bcItem.name)) {
               handleItemClick(bcItem);
               return;
             }
@@ -283,8 +298,27 @@ const CustomSearchDropdown = ({
           console.warn("[CustomSearchDropdown] Direct barcode fetch error:", bcErr);
         }
 
-        // If barcode was scanned/typed and no exact match found, DO NOT select the 1st random item!
-        // Instead alert user cleanly so wrong items are never added to PO
+        // If local barcode lookup didn't find the item, check if it exists globally (in other branches / registry)
+        if (globalSearch && onGlobalSearch) {
+          try {
+            setLoading(true);
+            const gData = await onGlobalSearch(trimmed);
+            if (Array.isArray(gData) && gData.length > 0) {
+              setGlobalResults(gData);
+              setIsGlobalView(true);
+              setShow(true);
+              setLoading(false);
+              return;
+            }
+          } catch (gErr) {
+            console.warn("[CustomSearchDropdown] Barcode fallback global search error:", gErr);
+          } finally {
+            setLoading(false);
+          }
+        }
+
+        // If barcode was scanned/typed and no exact match found locally or globally,
+        // Alert user cleanly so wrong items are never added to PO
         const alertMsg = `No item found for barcode / code: "${trimmed}"`;
         if (typeof window !== 'undefined' && window.Swal) {
           window.Swal.fire({
@@ -347,7 +381,7 @@ const CustomSearchDropdown = ({
           )}
         </div>
 
-        {createOption && results.length === 0 && query.trim().length >= 2 && !loading && (
+        {!hideInlineButton && createOption && results.length === 0 && query.trim().length >= 2 && !loading && (
           <button
             onClick={handleCreate}
             disabled={loading || !query.trim()}
