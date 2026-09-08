@@ -2004,12 +2004,12 @@ export default function ItemList() {
                 country_of_origin: v.country_of_origin !== undefined ? v.country_of_origin : form.country_of_origin || null,
                 item_group: v.item_group !== undefined ? v.item_group : form.item_group || null,
                 stock_uom: v.stock_uom !== undefined ? v.stock_uom : form.default_uom || null,
-                is_stock_item: v.is_stock_item !== undefined ? v.is_stock_item : (form.is_stock_item !== undefined ? form.is_stock_item : 1),
-                is_sales_item: v.is_sales_item !== undefined ? v.is_sales_item : (form.is_sales_item !== undefined ? form.is_sales_item : 1),
-                is_purchase_item: v.is_purchase_item !== undefined ? v.is_purchase_item : (form.is_purchase_item !== undefined ? form.is_purchase_item : 1),
-                custom_loyalty_eligible: v.custom_loyalty_eligible !== undefined ? v.custom_loyalty_eligible : (form.custom_loyalty_eligible !== undefined ? form.custom_loyalty_eligible : 1),
-                custom_allow_discount: v.custom_allow_discount !== undefined ? v.custom_allow_discount : (form.custom_allow_discount !== undefined ? form.custom_allow_discount : 1),
-                disabled: v.disabled !== undefined ? (v.disabled ? 1 : 0) : (form.disabled ? 1 : 0),
+                is_stock_item: v.is_stock_item !== undefined ? v.is_stock_item : 1,
+                is_sales_item: v.is_sales_item !== undefined ? v.is_sales_item : 1,
+                is_purchase_item: v.is_purchase_item !== undefined ? v.is_purchase_item : 1,
+                custom_loyalty_eligible: v.custom_loyalty_eligible !== undefined ? v.custom_loyalty_eligible : 1,
+                custom_allow_discount: v.custom_allow_discount !== undefined ? v.custom_allow_discount : 1,
+                disabled: v.disabled !== undefined ? (v.disabled ? 1 : 0) : 0,
                 branch_availability: v.branch_availability !== undefined ? v.branch_availability : (data.branch_availability || form.branch_availability || []),
                 supplier_items: v.supplier_items !== undefined ? v.supplier_items : (form.supplier_items || [])
               };
