@@ -4628,14 +4628,26 @@ export default function ItemList() {
                                         <input
                                           type="text"
                                           className="il-input"
-                                          style={{ width: 140, height: 32, fontSize: 12, fontWeight: 800, fontFamily: "'DM Mono', monospace", color: '#6d28d9' }}
+                                          style={{
+                                            flex: 1,
+                                            minWidth: 200,
+                                            height: 36,
+                                            fontSize: 13,
+                                            fontWeight: 800,
+                                            fontFamily: "'DM Mono', monospace",
+                                            color: '#6d28d9',
+                                            padding: '0 10px',
+                                            border: '1.5px solid #cbd5e1',
+                                            borderRadius: 8,
+                                            background: '#fff'
+                                          }}
                                           value={vRow.variant_item_code || ''}
                                           onChange={e => {
                                             const updatedVariants = [...variantForm.initial_variants];
                                             updatedVariants[vIdx] = { ...vRow, variant_item_code: e.target.value };
                                             setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
                                           }}
-                                          placeholder="Item Code *"
+                                          placeholder="Variant Code *"
                                           title="Variant Item Code"
                                         />
 
@@ -4643,14 +4655,24 @@ export default function ItemList() {
                                         <input
                                           type="text"
                                           className="il-input"
-                                          style={{ minWidth: 160, flex: 1, height: 32, fontSize: 12, fontWeight: 600 }}
+                                          style={{
+                                            flex: 1.2,
+                                            minWidth: 220,
+                                            height: 36,
+                                            fontSize: 13,
+                                            fontWeight: 600,
+                                            padding: '0 10px',
+                                            border: '1.5px solid #cbd5e1',
+                                            borderRadius: 8,
+                                            background: '#fff'
+                                          }}
                                           value={vRow.variant_item_name || ''}
                                           onChange={e => {
                                             const updatedVariants = [...variantForm.initial_variants];
                                             updatedVariants[vIdx] = { ...vRow, variant_item_name: e.target.value };
                                             setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
                                           }}
-                                          placeholder="Variant Name"
+                                          placeholder="Variant Item Name"
                                           title="Variant Item Name"
                                         />
                                       </div>
