@@ -510,7 +510,7 @@ const SearchableSelectInline = ({ value, options, onChange, placeholder, style }
 };
 
 /* ========== SEARCHABLE SELECT COMPACT (FOR PRICE LISTS / MINI DROPDOWNS / ATTRIBUTES) ========== */
-const SearchableSelectCompact = ({ value, options = [], onChange, placeholder = 'Select...', onAction, actionLabel, style }) => {
+const SearchableSelectCompact = ({ value, options = [], onChange, placeholder = 'Select...', onAction, actionLabel, style, disabled = false }) => {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const ref = useRef(null);
@@ -536,20 +536,21 @@ const SearchableSelectCompact = ({ value, options = [], onChange, placeholder = 
   return (
     <div ref={ref} style={{ position: 'relative', width: '100%', ...style }}>
       <div
-        onClick={() => setOpen(!open)}
+        onClick={() => { if (!disabled) setOpen(!open); }}
         className="il-input"
         style={{
-          cursor: 'pointer',
+          cursor: disabled ? 'not-allowed' : 'pointer',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
           height: 36,
           padding: '0 10px',
-          background: '#ffffff',
+          background: disabled ? '#f1f5f9' : '#ffffff',
+          opacity: disabled ? 0.85 : 1,
           fontSize: 13,
-          border: `1.5px solid ${open ? '#8b5cf6' : '#cbd5e1'}`,
+          border: `1.5px solid ${open && !disabled ? '#8b5cf6' : '#cbd5e1'}`,
           borderRadius: 8,
-          boxShadow: open ? '0 0 0 3px rgba(139, 92, 246, 0.15)' : 'none',
+          boxShadow: open && !disabled ? '0 0 0 3px rgba(139, 92, 246, 0.15)' : 'none',
           userSelect: 'none',
           transition: 'all 0.15s'
         }}
@@ -557,7 +558,7 @@ const SearchableSelectCompact = ({ value, options = [], onChange, placeholder = 
         <span style={{ color: value ? '#1e293b' : '#94a3b8', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {selectedItem?.label || value || placeholder}
         </span>
-        <ChevronDown size={14} style={{ color: '#64748b', flexShrink: 0, transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }} />
+        <ChevronDown size={14} style={{ color: disabled ? '#94a3b8' : '#64748b', flexShrink: 0, transform: open && !disabled ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }} />
       </div>
 
       {open && (
@@ -4576,6 +4577,7 @@ export default function ItemList() {
                                               <span style={{ fontSize: 11, fontWeight: 700, color: '#475569' }}>{attrName}:</span>
                                               <div style={{ minWidth: 110, flex: 1 }}>
                                                 <SearchableSelectCompact
+                                                  disabled={Boolean(vRow.is_existing)}
                                                   value={vRow.selected_attributes?.[attrName] || ''}
                                                   options={attrOptions}
                                                   placeholder={`Select ${attrName}...`}
@@ -4628,6 +4630,7 @@ export default function ItemList() {
                                         <input
                                           type="text"
                                           className="il-input"
+                                          readOnly={Boolean(vRow.is_existing)}
                                           style={{
                                             flex: 1,
                                             minWidth: 200,
@@ -4639,16 +4642,18 @@ export default function ItemList() {
                                             padding: '0 10px',
                                             border: '1.5px solid #cbd5e1',
                                             borderRadius: 8,
-                                            background: '#fff'
+                                            background: vRow.is_existing ? '#f1f5f9' : '#fff',
+                                            cursor: vRow.is_existing ? 'not-allowed' : 'text'
                                           }}
                                           value={vRow.variant_item_code || ''}
                                           onChange={e => {
+                                            if (vRow.is_existing) return;
                                             const updatedVariants = [...variantForm.initial_variants];
                                             updatedVariants[vIdx] = { ...vRow, variant_item_code: e.target.value };
                                             setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
                                           }}
                                           placeholder="Variant Code *"
-                                          title="Variant Item Code"
+                                          title={vRow.is_existing ? "Existing Variant Code (Locked)" : "Variant Item Code"}
                                         />
 
                                         {/* Name Input */}
@@ -4748,7 +4753,7 @@ export default function ItemList() {
                                         </button>
 
                                         {/* Delete Button */}
-                                        {(variantForm.initial_variants || []).length > 1 && (
+                                        {(variantForm.initial_variants || []).length > 1 && !vRow.is_existing && (
                                           <button
                                             type="button"
                                             onClick={() => {
@@ -4996,25 +5001,28 @@ export default function ItemList() {
                                             </div>
                                             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                                               {[
-                                                { key: 'is_stock_item', label: 'Track Stock', desc: 'Enables inventory ledger', def: 1 },
+                                                { key: 'is_stock_item', label: 'Track Stock', desc: 'Enables inventory ledger', def: 1, lockedForExisting: true },
                                                 { key: 'is_sales_item', label: 'Allow Sales', desc: 'Show in POS & Sales Orders', def: 1 },
                                                 { key: 'is_purchase_item', label: 'Allow Purchase', desc: 'Available for procurement', def: 1 },
                                               ].map(f => {
                                                 const checked = vRow[f.key] !== undefined ? vRow[f.key] === 1 : (form[f.key] !== undefined ? form[f.key] === 1 : f.def === 1);
+                                                const isFieldLocked = f.lockedForExisting && Boolean(vRow.is_existing);
                                                 return (
-                                                  <label key={f.key} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', background: checked ? '#eff6ff' : '#f8fafc', borderRadius: 6, cursor: 'pointer', border: `1px solid ${checked ? '#bfdbfe' : '#e2e8f0'}` }}>
+                                                  <label key={f.key} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', background: isFieldLocked ? '#f1f5f9' : (checked ? '#eff6ff' : '#f8fafc'), borderRadius: 6, cursor: isFieldLocked ? 'not-allowed' : 'pointer', border: `1px solid ${checked ? '#bfdbfe' : '#e2e8f0'}` }}>
                                                     <input
                                                       type="checkbox"
                                                       className="il-check"
+                                                      disabled={isFieldLocked}
                                                       checked={checked}
                                                       onChange={e => {
+                                                        if (isFieldLocked) return;
                                                         const updatedVariants = [...variantForm.initial_variants];
                                                         updatedVariants[vIdx] = { ...vRow, [f.key]: e.target.checked ? 1 : 0 };
                                                         setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
                                                       }}
                                                     />
                                                     <div>
-                                                      <div style={{ fontSize: 12, fontWeight: 700, color: '#1e293b' }}>{f.label}</div>
+                                                      <div style={{ fontSize: 12, fontWeight: 700, color: '#1e293b' }}>{f.label} {isFieldLocked && <span style={{ fontSize: 10, color: '#64748b', fontWeight: 600 }}>(Locked)</span>}</div>
                                                       <div style={{ fontSize: 10, color: '#64748b' }}>{f.desc}</div>
                                                     </div>
                                                   </label>
