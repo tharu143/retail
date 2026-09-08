@@ -1878,15 +1878,35 @@ export default function ItemList() {
             .map(v => {
               const bPrice = v.buying_price !== undefined && v.buying_price !== '' ? parseFloat(v.buying_price) : (parseFloat(form.buying_price) || 0);
               const sPrice = v.selling_price !== undefined && v.selling_price !== '' ? parseFloat(v.selling_price) : (parseFloat(form.selling_price) || 0);
+              const boxBPrice = v.box_buying_price !== undefined && v.box_buying_price !== '' ? parseFloat(v.box_buying_price) : (parseFloat(form.box_buying_price) || 0);
+              const boxSPrice = v.box_selling_price !== undefined && v.box_selling_price !== '' ? parseFloat(v.box_selling_price) : (parseFloat(form.box_selling_price) || 0);
+              const pcsPerBox = v.custom_pieces_per_box !== undefined && v.custom_pieces_per_box !== '' ? parseFloat(v.custom_pieces_per_box) : (parseFloat(form.custom_pieces_per_box) || 0);
+
+              const nosBc = (v.nos_barcode !== undefined ? v.nos_barcode : (v.variant_barcode || '')).trim();
+              const boxBc = (v.box_barcode || '').trim();
+
               return {
                 attribute_values: v.selected_attributes,
                 custom_item_code: (v.variant_item_code || '').trim() || null,
                 item_name: (v.variant_item_name || '').trim() || null,
-                barcode: (v.variant_barcode || '').trim() || null,
+                barcode: nosBc || null,
+                nos_barcode: nosBc || null,
+                box_barcode: boxBc || null,
                 image: v.image || v.imagePreview || null,
                 buying_price: bPrice || 0,
                 selling_price: sPrice || 0,
-                standard_rate: sPrice || 0
+                standard_rate: sPrice || 0,
+                box_buying_price: boxBPrice || 0,
+                box_selling_price: boxSPrice || 0,
+                custom_pieces_per_box: pcsPerBox || 0,
+                is_stock_item: v.is_stock_item !== undefined ? v.is_stock_item : (form.is_stock_item !== undefined ? form.is_stock_item : 1),
+                is_sales_item: v.is_sales_item !== undefined ? v.is_sales_item : (form.is_sales_item !== undefined ? form.is_sales_item : 1),
+                is_purchase_item: v.is_purchase_item !== undefined ? v.is_purchase_item : (form.is_purchase_item !== undefined ? form.is_purchase_item : 1),
+                custom_loyalty_eligible: v.custom_loyalty_eligible !== undefined ? v.custom_loyalty_eligible : (form.custom_loyalty_eligible !== undefined ? form.custom_loyalty_eligible : 1),
+                custom_allow_discount: v.custom_allow_discount !== undefined ? v.custom_allow_discount : (form.custom_allow_discount !== undefined ? form.custom_allow_discount : 1),
+                disabled: v.disabled !== undefined ? (v.disabled ? 1 : 0) : (form.disabled ? 1 : 0),
+                branch_availability: v.branch_availability !== undefined ? v.branch_availability : (data.branch_availability || form.branch_availability || []),
+                supplier_items: v.supplier_items !== undefined ? v.supplier_items : (form.supplier_items || [])
               };
             });
 
@@ -3544,7 +3564,9 @@ export default function ItemList() {
                           >
                             <option value={form.default_uom || 'Nos'}>{form.default_uom || 'Nos'} (Base)</option>
                             <option value="Box">Box</option>
+                            {/* Master Box hidden as requested for future use:
                             <option value="Master Box">Master Box</option>
+                            */}
                             {(form.uoms || []).filter(u => u.uom && u.uom !== form.default_uom && u.uom !== 'Box' && u.uom !== 'Master Box').map(u => (
                               <option key={u.uom} value={u.uom}>{u.uom}</option>
                             ))}
@@ -3592,7 +3614,7 @@ export default function ItemList() {
                                 >
                                   <option value={form.default_uom || 'Nos'}>{form.default_uom || 'Nos'}</option>
                                   <option value="Box">Box</option>
-                                  <option value="Master Box">Master Box</option>
+                                  {/* <option value="Master Box">Master Box</option> */}
                                   {(form.uoms || []).filter(u => u.uom && u.uom !== form.default_uom && u.uom !== 'Box' && u.uom !== 'Master Box').map(u => (
                                     <option key={u.uom} value={u.uom}>{u.uom}</option>
                                   ))}
@@ -3754,9 +3776,9 @@ export default function ItemList() {
                   </div>
                 </CardSection>
 
-                {/* ROW 4: Price Lists (Nos, Box, Master Box) */}
+                {/* ROW 4: Price Lists (Nos, Box) */}
                 <CardSection
-                  title="Price Lists (Nos · Box · Master Box)"
+                  title="Price Lists (Nos · Box)"
                   icon={<Tag size={14} />}
                   action={
                     isEditMode && (
@@ -3772,7 +3794,7 @@ export default function ItemList() {
                   }
                 >
                   <div style={{ padding: '16px 20px' }}>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16 }}>
                       {/* 1. NOS PRICE */}
                       <div style={{ background: '#f8fafc', border: `1.5px solid ${T.border}`, borderRadius: 12, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: `1px solid ${T.borderLight}`, paddingBottom: 8 }}>
@@ -3987,112 +4009,11 @@ export default function ItemList() {
                         </div>
                       </div>
 
-                      {/* 3. MASTER BOX PRICE */}
+                      {/* 3. MASTER BOX PRICE (Commented out for future use as requested)
                       <div style={{ background: '#f8fafc', border: `1.5px solid ${T.border}`, borderRadius: 12, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: `1px solid ${T.borderLight}`, paddingBottom: 8 }}>
-                          <div style={{ fontSize: 13, fontWeight: 800, color: '#7c3aed', display: 'flex', alignItems: 'center', gap: 6 }}>
-                            <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#7c3aed' }} />
-                            Master Box Price
-                          </div>
-                          <span className="il-chip" style={{ fontSize: 10, padding: '1px 7px', background: '#f5f3ff', color: '#7c3aed', border: '1px solid #ddd6fe', fontWeight: 700 }}>Master Box</span>
-                        </div>
-
-                        {/* Master Box Buying Price */}
-                        <div style={{ background: '#fffbeb', border: '1px solid #FDE68A', borderRadius: 8, padding: '10px 12px' }}>
-                          <div style={{ fontSize: 10, fontWeight: 800, color: T.amber, textTransform: 'uppercase', marginBottom: 6 }}>
-                            ● Buying Price
-                          </div>
-                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                            <div>
-                              <label style={{ fontSize: 10, fontWeight: 600, color: '#78350f', display: 'block', marginBottom: 2 }}>Price List</label>
-                              <SearchableSelectCompact
-                                value={form.master_box_buying_price_list || 'Standard Buying'}
-                                options={buyingPriceListOptions}
-                                placeholder="Select Buying Price List"
-                                onChange={pl => {
-                                  setForm(p => ({ ...p, master_box_buying_price_list: pl }));
-                                  if (isEditMode && editingItemCode) {
-                                    const found = (priceData.prices || []).find(p => p.price_list === pl && p.buying === 1 && p.uom === 'Master Box');
-                                    if (found) setForm(prev => ({ ...prev, master_box_buying_price_list: pl, master_box_buying_price: found.price_list_rate }));
-                                  }
-                                }}
-                              />
-                            </div>
-                            <div>
-                              <label style={{ fontSize: 10, fontWeight: 600, color: '#78350f', display: 'block', marginBottom: 2 }}>Rate (AED)</label>
-                              <input
-                                type="number"
-                                className="il-input"
-                                style={{ fontWeight: 800, fontSize: 14, color: T.amber, background: '#fff', height: 32 }}
-                                value={form.master_box_buying_price || (priceData.prices || []).find(p => p.price_list === (form.master_box_buying_price_list || 'Standard Buying') && p.buying === 1 && p.uom === 'Master Box')?.price_list_rate || 0}
-                                onChange={e => setForm(p => ({ ...p, master_box_buying_price: Number(e.target.value) }))}
-                                onBlur={async () => {
-                                  if (!isEditMode || !editingItemCode) return;
-                                  try {
-                                    const pl = form.master_box_buying_price_list || 'Standard Buying';
-                                    const existing = (priceData.prices || []).find(p => p.price_list === pl && p.buying === 1 && p.uom === 'Master Box');
-                                    await axios.post('/api/method/kyle_retail.retail_api.api.update_item_price', {
-                                      item_code: editingItemCode,
-                                      data: { price_list: pl, uom: 'Master Box', price_list_rate: form.master_box_buying_price || 0, buying: 1, selling: 0, name: existing?.name || '' }
-                                    }, { withCredentials: true });
-                                    fetchPriceList(editingItemCode);
-                                  } catch (err) { console.warn('Price save err:', err); }
-                                }}
-                                placeholder="0.00"
-                                onFocus={e => e.target.select()}
-                              />
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Master Box Selling Price */}
-                        <div style={{ background: '#f0fdf4', border: '1px solid #BBF7D0', borderRadius: 8, padding: '10px 12px' }}>
-                          <div style={{ fontSize: 10, fontWeight: 800, color: T.green, textTransform: 'uppercase', marginBottom: 6 }}>
-                            ● Selling Price
-                          </div>
-                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                            <div>
-                              <label style={{ fontSize: 10, fontWeight: 600, color: '#14532d', display: 'block', marginBottom: 2 }}>Price List</label>
-                              <SearchableSelectCompact
-                                value={form.master_box_selling_price_list || 'Standard Selling'}
-                                options={sellingPriceListOptions}
-                                placeholder="Select Selling Price List"
-                                onChange={pl => {
-                                  setForm(p => ({ ...p, master_box_selling_price_list: pl }));
-                                  if (isEditMode && editingItemCode) {
-                                    const found = (priceData.prices || []).find(p => p.price_list === pl && p.selling === 1 && p.uom === 'Master Box');
-                                    if (found) setForm(prev => ({ ...prev, master_box_selling_price_list: pl, master_box_selling_price: found.price_list_rate }));
-                                  }
-                                }}
-                              />
-                            </div>
-                            <div>
-                              <label style={{ fontSize: 10, fontWeight: 600, color: '#14532d', display: 'block', marginBottom: 2 }}>Rate (AED)</label>
-                              <input
-                                type="number"
-                                className="il-input"
-                                style={{ fontWeight: 800, fontSize: 14, color: T.green, background: '#fff', height: 32 }}
-                                value={form.master_box_selling_price || (priceData.prices || []).find(p => p.price_list === (form.master_box_selling_price_list || 'Standard Selling') && p.selling === 1 && p.uom === 'Master Box')?.price_list_rate || 0}
-                                onChange={e => setForm(p => ({ ...p, master_box_selling_price: Number(e.target.value) }))}
-                                onBlur={async () => {
-                                  if (!isEditMode || !editingItemCode) return;
-                                  try {
-                                    const pl = form.master_box_selling_price_list || 'Standard Selling';
-                                    const existing = (priceData.prices || []).find(p => p.price_list === pl && p.selling === 1 && p.uom === 'Master Box');
-                                    await axios.post('/api/method/kyle_retail.retail_api.api.update_item_price', {
-                                      item_code: editingItemCode,
-                                      data: { price_list: pl, uom: 'Master Box', price_list_rate: form.master_box_selling_price || 0, buying: 0, selling: 1, name: existing?.name || '' }
-                                    }, { withCredentials: true });
-                                    fetchPriceList(editingItemCode);
-                                  } catch (err) { console.warn('Price save err:', err); }
-                                }}
-                                placeholder="0.00"
-                                onFocus={e => e.target.select()}
-                              />
-                            </div>
-                          </div>
-                        </div>
+                        ...
                       </div>
+                      */}
                     </div>
 
                     {/* Existing prices summary */}
@@ -4571,262 +4492,636 @@ export default function ItemList() {
                                         </div>
                                       </th>
                                     ))}
-                                    <th style={{ padding: '10px 12px', minWidth: 170, fontWeight: 700 }}>Variant Item Code *</th>
-                                    <th style={{ padding: '10px 12px', minWidth: 200, fontWeight: 700 }}>Variant Item Name</th>
-                                    <th style={{ padding: '10px 12px', minWidth: 120, fontWeight: 700, color: '#0369a1' }}>Buying Price</th>
-                                    <th style={{ padding: '10px 12px', minWidth: 120, fontWeight: 700, color: '#15803d' }}>Selling Price</th>
-                                    <th style={{ padding: '10px 12px', minWidth: 150, fontWeight: 700 }}>Variant Barcode</th>
-                                    <th style={{ padding: '10px 12px', minWidth: 120, fontWeight: 700 }}>Variant Image</th>
-                                    <th style={{ padding: '10px 12px', width: 50, textAlign: 'center', fontWeight: 700 }}></th>
+                                    <th style={{ padding: '10px 12px', minWidth: 160, fontWeight: 700 }}>Variant Item Code *</th>
+                                    <th style={{ padding: '10px 12px', minWidth: 170, fontWeight: 700 }}>Variant Item Name</th>
+                                    <th style={{ padding: '10px 12px', minWidth: 110, fontWeight: 700, color: '#0369a1' }}>Nos Buy</th>
+                                    <th style={{ padding: '10px 12px', minWidth: 110, fontWeight: 700, color: '#15803d' }}>Nos Sell</th>
+                                    <th style={{ padding: '10px 12px', minWidth: 110, fontWeight: 700, color: '#b45309' }}>Box Buy</th>
+                                    <th style={{ padding: '10px 12px', minWidth: 110, fontWeight: 700, color: '#d97706' }}>Box Sell</th>
+                                    <th style={{ padding: '10px 12px', minWidth: 130, fontWeight: 700 }}>Nos Barcode</th>
+                                    <th style={{ padding: '10px 12px', minWidth: 130, fontWeight: 700 }}>Box Barcode</th>
+                                    <th style={{ padding: '10px 12px', minWidth: 100, fontWeight: 700 }}>Image</th>
+                                    <th style={{ padding: '10px 12px', width: 90, textAlign: 'center', fontWeight: 700 }}>Details</th>
+                                    <th style={{ padding: '10px 12px', width: 40, textAlign: 'center', fontWeight: 700 }}></th>
                                   </tr>
                                 </thead>
                                 <tbody>
                                   {(variantForm.initial_variants || []).map((vRow, vIdx) => {
+                                    const pcsBox = Number(vRow.custom_pieces_per_box !== undefined ? vRow.custom_pieces_per_box : (form.custom_pieces_per_box || 0));
+                                    const isExpanded = Boolean(vRow._isExpanded);
+
                                     return (
-                                      <tr key={vRow.id || vIdx} style={{ borderBottom: '1px solid #f1f5f9', background: vIdx % 2 === 0 ? '#fff' : '#faf5ff' }}>
-                                        <td style={{ padding: '10px 12px', fontWeight: 700, color: '#64748b' }}>
-                                          {vIdx + 1}
-                                        </td>
+                                      <React.Fragment key={vRow.id || vIdx}>
+                                        <tr style={{ borderBottom: isExpanded ? 'none' : '1px solid #f1f5f9', background: isExpanded ? '#f5f3ff' : (vIdx % 2 === 0 ? '#fff' : '#faf5ff') }}>
+                                          <td style={{ padding: '10px 12px', fontWeight: 700, color: '#64748b' }}>
+                                            {vIdx + 1}
+                                          </td>
 
-                                        {/* Attribute Selectors for each attribute */}
-                                        {(form.attributes || []).map(a => (typeof a === 'object' && a !== null ? a.attribute : a)).filter(Boolean).map(attrName => {
-                                          const possibleVals = attributeValuesMap[attrName] || [];
-                                          return (
-                                            <td key={attrName} style={{ padding: '8px 10px' }}>
-                                              <select
-                                                style={{
-                                                  width: '100%',
-                                                  padding: '6px 8px',
-                                                  borderRadius: 6,
-                                                  border: '1px solid #cbd5e1',
-                                                  fontSize: 12,
-                                                  background: '#fff',
-                                                  fontWeight: 600,
-                                                  color: '#1e293b',
-                                                  outline: 'none'
-                                                }}
-                                                value={vRow.selected_attributes?.[attrName] || ''}
-                                                onChange={e => {
-                                                  const nextSelected = { ...(vRow.selected_attributes || {}), [attrName]: e.target.value };
-                                                  
-                                                  // Order values by template attributes order
-                                                  const orderedCodes = [];
-                                                  const orderedNames = [];
-                                                  (form.attributes || []).forEach(attr => {
-                                                    const aName = typeof attr === 'object' && attr !== null ? attr.attribute : attr;
-                                                    const val = nextSelected[aName];
-                                                    if (val) {
-                                                      const pVals = attributeValuesMap[aName] || [];
-                                                      const matched = pVals.find(x => x.attribute_value === val);
-                                                      orderedCodes.push((matched?.abbr || val).toUpperCase());
-                                                      orderedNames.push(val);
-                                                    }
-                                                  });
+                                          {/* Attribute Selectors for each attribute */}
+                                          {(form.attributes || []).map(a => (typeof a === 'object' && a !== null ? a.attribute : a)).filter(Boolean).map(attrName => {
+                                            const possibleVals = attributeValuesMap[attrName] || [];
+                                            return (
+                                              <td key={attrName} style={{ padding: '8px 10px' }}>
+                                                <select
+                                                  style={{
+                                                    width: '100%',
+                                                    padding: '6px 8px',
+                                                    borderRadius: 6,
+                                                    border: '1px solid #cbd5e1',
+                                                    fontSize: 12,
+                                                    background: '#fff',
+                                                    fontWeight: 600,
+                                                    color: '#1e293b',
+                                                    outline: 'none'
+                                                  }}
+                                                  value={vRow.selected_attributes?.[attrName] || ''}
+                                                  onChange={e => {
+                                                    const nextSelected = { ...(vRow.selected_attributes || {}), [attrName]: e.target.value };
+                                                    
+                                                    // Order values by template attributes order
+                                                    const orderedCodes = [];
+                                                    const orderedNames = [];
+                                                    (form.attributes || []).forEach(attr => {
+                                                      const aName = typeof attr === 'object' && attr !== null ? attr.attribute : attr;
+                                                      const val = nextSelected[aName];
+                                                      if (val) {
+                                                        const pVals = attributeValuesMap[aName] || [];
+                                                        const matched = pVals.find(x => x.attribute_value === val);
+                                                        orderedCodes.push((matched?.abbr || val).toUpperCase());
+                                                        orderedNames.push(val);
+                                                      }
+                                                    });
 
-                                                  const codeSuffix = orderedCodes.join('-');
-                                                  const nameSuffix = orderedNames.join(' ');
+                                                    const codeSuffix = orderedCodes.join('-');
+                                                    const nameSuffix = orderedNames.join(' ');
 
-                                                  const updatedVariants = [...variantForm.initial_variants];
-                                                  updatedVariants[vIdx] = {
-                                                    ...vRow,
-                                                    selected_attributes: nextSelected,
-                                                    variant_item_code: codeSuffix ? `${form.item_code || 'ITEM'}-${codeSuffix}`.toUpperCase() : '',
-                                                    variant_item_name: nameSuffix ? `${form.item_name || 'Item'} ${nameSuffix}` : ''
-                                                  };
-                                                  setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
-                                                }}
-                                              >
-                                                <option value="">-- {String(attrName)} --</option>
-                                                {possibleVals.map(val => (
-                                                  <option key={val.attribute_value} value={val.attribute_value}>
-                                                    {val.attribute_value} {val.abbr ? `(${val.abbr})` : ''}
-                                                  </option>
-                                                ))}
-                                              </select>
-                                            </td>
-                                          );
-                                        })}
-
-                                        {/* Item Code */}
-                                        <td style={{ padding: '8px 10px' }}>
-                                          <input
-                                            type="text"
-                                            className="il-input"
-                                            style={{ height: 34, fontSize: 12, fontWeight: 700 }}
-                                            value={vRow.variant_item_code || ''}
-                                            onChange={e => {
-                                              const updatedVariants = [...variantForm.initial_variants];
-                                              updatedVariants[vIdx] = { ...vRow, variant_item_code: e.target.value };
-                                              setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
-                                            }}
-                                            placeholder="Variant Code"
-                                          />
-                                        </td>
-
-                                        {/* Item Name */}
-                                        <td style={{ padding: '8px 10px' }}>
-                                          <input
-                                            type="text"
-                                            className="il-input"
-                                            style={{ height: 34, fontSize: 12 }}
-                                            value={vRow.variant_item_name || ''}
-                                            onChange={e => {
-                                              const updatedVariants = [...variantForm.initial_variants];
-                                              updatedVariants[vIdx] = { ...vRow, variant_item_name: e.target.value };
-                                              setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
-                                            }}
-                                            placeholder="Variant Name"
-                                          />
-                                        </td>
-
-                                        {/* Buying Price */}
-                                        <td style={{ padding: '8px 10px' }}>
-                                          <input
-                                            type="number"
-                                            step="any"
-                                            className="il-input"
-                                            style={{ height: 34, fontSize: 12, fontWeight: 700, color: '#0369a1', background: '#f0f9ff', borderColor: '#bae6fd' }}
-                                            value={vRow.buying_price !== undefined ? vRow.buying_price : (form.buying_price || '')}
-                                            onChange={e => {
-                                              const updatedVariants = [...variantForm.initial_variants];
-                                              updatedVariants[vIdx] = { ...vRow, buying_price: e.target.value };
-                                              setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
-                                            }}
-                                            placeholder="0.00"
-                                          />
-                                        </td>
-
-                                        {/* Selling Price */}
-                                        <td style={{ padding: '8px 10px' }}>
-                                          <input
-                                            type="number"
-                                            step="any"
-                                            className="il-input"
-                                            style={{ height: 34, fontSize: 12, fontWeight: 700, color: '#15803d', background: '#f0fdf4', borderColor: '#bbf7d0' }}
-                                            value={vRow.selling_price !== undefined ? vRow.selling_price : (form.selling_price || '')}
-                                            onChange={e => {
-                                              const updatedVariants = [...variantForm.initial_variants];
-                                              updatedVariants[vIdx] = { ...vRow, selling_price: e.target.value };
-                                              setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
-                                            }}
-                                            placeholder="0.00"
-                                          />
-                                        </td>
-
-                                        {/* Barcode */}
-                                        <td style={{ padding: '8px 10px' }}>
-                                          <input
-                                            type="text"
-                                            className="il-input"
-                                            style={{ height: 34, fontSize: 12 }}
-                                            value={vRow.variant_barcode || ''}
-                                            onChange={e => {
-                                              const updatedVariants = [...variantForm.initial_variants];
-                                              updatedVariants[vIdx] = { ...vRow, variant_barcode: e.target.value };
-                                              setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
-                                            }}
-                                            placeholder="Barcode"
-                                          />
-                                        </td>
-
-                                        {/* Variant Image */}
-                                        <td style={{ padding: '8px 10px' }}>
-                                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                            {vRow.imagePreview || vRow.image ? (
-                                              <div style={{ position: 'relative', width: 34, height: 34, borderRadius: 6, overflow: 'hidden', border: '1px solid #cbd5e1', flexShrink: 0 }}>
-                                                <img src={vRow.imagePreview || vRow.image} alt="variant" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                                <button
-                                                  type="button"
-                                                  onClick={() => {
                                                     const updatedVariants = [...variantForm.initial_variants];
-                                                    updatedVariants[vIdx] = { ...vRow, image: '', imagePreview: '' };
+                                                    updatedVariants[vIdx] = {
+                                                      ...vRow,
+                                                      selected_attributes: nextSelected,
+                                                      variant_item_code: codeSuffix ? `${form.item_code || 'ITEM'}-${codeSuffix}`.toUpperCase() : '',
+                                                      variant_item_name: nameSuffix ? `${form.item_name || 'Item'} ${nameSuffix}` : ''
+                                                    };
                                                     setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
                                                   }}
-                                                  style={{
-                                                    position: 'absolute',
-                                                    top: 0,
-                                                    right: 0,
-                                                    background: 'rgba(0,0,0,0.6)',
-                                                    color: '#fff',
-                                                    border: 'none',
-                                                    borderRadius: '0 0 0 4px',
-                                                    cursor: 'pointer',
-                                                    width: 14,
-                                                    height: 14,
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    justifyContent: 'center',
-                                                    fontSize: 9
-                                                  }}
-                                                  title="Remove image"
                                                 >
-                                                  ✕
-                                                </button>
-                                              </div>
-                                            ) : null}
-                                            <label
+                                                  <option value="">-- {String(attrName)} --</option>
+                                                  {possibleVals.map(val => (
+                                                    <option key={val.attribute_value} value={val.attribute_value}>
+                                                      {val.attribute_value} {val.abbr ? `(${val.abbr})` : ''}
+                                                    </option>
+                                                  ))}
+                                                </select>
+                                              </td>
+                                            );
+                                          })}
+
+                                          {/* Item Code */}
+                                          <td style={{ padding: '8px 10px' }}>
+                                            <input
+                                              type="text"
+                                              className="il-input"
+                                              style={{ height: 34, fontSize: 12, fontWeight: 700 }}
+                                              value={vRow.variant_item_code || ''}
+                                              onChange={e => {
+                                                const updatedVariants = [...variantForm.initial_variants];
+                                                updatedVariants[vIdx] = { ...vRow, variant_item_code: e.target.value };
+                                                setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
+                                              }}
+                                              placeholder="Variant Code"
+                                            />
+                                          </td>
+
+                                          {/* Item Name */}
+                                          <td style={{ padding: '8px 10px' }}>
+                                            <input
+                                              type="text"
+                                              className="il-input"
+                                              style={{ height: 34, fontSize: 12 }}
+                                              value={vRow.variant_item_name || ''}
+                                              onChange={e => {
+                                                const updatedVariants = [...variantForm.initial_variants];
+                                                updatedVariants[vIdx] = { ...vRow, variant_item_name: e.target.value };
+                                                setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
+                                              }}
+                                              placeholder="Variant Name"
+                                            />
+                                          </td>
+
+                                          {/* Nos Buying Price */}
+                                          <td style={{ padding: '8px 10px' }}>
+                                            <input
+                                              type="number"
+                                              step="any"
+                                              className="il-input"
+                                              style={{ height: 34, fontSize: 12, fontWeight: 700, color: '#0369a1', background: '#f0f9ff', borderColor: '#bae6fd' }}
+                                              value={vRow.buying_price !== undefined ? vRow.buying_price : (form.buying_price || '')}
+                                              onChange={e => {
+                                                const updatedVariants = [...variantForm.initial_variants];
+                                                updatedVariants[vIdx] = { ...vRow, buying_price: e.target.value };
+                                                setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
+                                              }}
+                                              placeholder="0.00"
+                                              title="Nos Buying Price"
+                                            />
+                                          </td>
+
+                                          {/* Nos Selling Price */}
+                                          <td style={{ padding: '8px 10px' }}>
+                                            <input
+                                              type="number"
+                                              step="any"
+                                              className="il-input"
+                                              style={{ height: 34, fontSize: 12, fontWeight: 700, color: '#15803d', background: '#f0fdf4', borderColor: '#bbf7d0' }}
+                                              value={vRow.selling_price !== undefined ? vRow.selling_price : (form.selling_price || '')}
+                                              onChange={e => {
+                                                const updatedVariants = [...variantForm.initial_variants];
+                                                updatedVariants[vIdx] = { ...vRow, selling_price: e.target.value };
+                                                setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
+                                              }}
+                                              placeholder="0.00"
+                                              title="Nos Selling Price"
+                                            />
+                                          </td>
+
+                                          {/* Box Buying Price */}
+                                          <td style={{ padding: '8px 10px' }}>
+                                            <input
+                                              type="number"
+                                              step="any"
+                                              className="il-input"
+                                              style={{ height: 34, fontSize: 12, fontWeight: 700, color: '#b45309', background: '#fffbeb', borderColor: '#fde68a' }}
+                                              value={vRow.box_buying_price !== undefined ? vRow.box_buying_price : (form.box_buying_price || '')}
+                                              onChange={e => {
+                                                const updatedVariants = [...variantForm.initial_variants];
+                                                updatedVariants[vIdx] = { ...vRow, box_buying_price: e.target.value };
+                                                setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
+                                              }}
+                                              placeholder="0.00"
+                                              title="Box Buying Price"
+                                            />
+                                          </td>
+
+                                          {/* Box Selling Price */}
+                                          <td style={{ padding: '8px 10px' }}>
+                                            <input
+                                              type="number"
+                                              step="any"
+                                              className="il-input"
+                                              style={{ height: 34, fontSize: 12, fontWeight: 700, color: '#d97706', background: '#fffbeb', borderColor: '#fde68a' }}
+                                              value={vRow.box_selling_price !== undefined ? vRow.box_selling_price : (form.box_selling_price || '')}
+                                              onChange={e => {
+                                                const updatedVariants = [...variantForm.initial_variants];
+                                                updatedVariants[vIdx] = { ...vRow, box_selling_price: e.target.value };
+                                                setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
+                                              }}
+                                              placeholder="0.00"
+                                              title="Box Selling Price"
+                                            />
+                                          </td>
+
+                                          {/* Nos Barcode */}
+                                          <td style={{ padding: '8px 10px' }}>
+                                            <input
+                                              type="text"
+                                              className="il-input"
+                                              style={{ height: 34, fontSize: 12 }}
+                                              value={vRow.nos_barcode !== undefined ? vRow.nos_barcode : (vRow.variant_barcode || '')}
+                                              onChange={e => {
+                                                const updatedVariants = [...variantForm.initial_variants];
+                                                updatedVariants[vIdx] = { ...vRow, nos_barcode: e.target.value, variant_barcode: e.target.value };
+                                                setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
+                                              }}
+                                              placeholder="Nos Barcode"
+                                            />
+                                          </td>
+
+                                          {/* Box Barcode */}
+                                          <td style={{ padding: '8px 10px' }}>
+                                            <input
+                                              type="text"
+                                              className="il-input"
+                                              style={{ height: 34, fontSize: 12 }}
+                                              value={vRow.box_barcode || ''}
+                                              onChange={e => {
+                                                const updatedVariants = [...variantForm.initial_variants];
+                                                updatedVariants[vIdx] = { ...vRow, box_barcode: e.target.value };
+                                                setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
+                                              }}
+                                              placeholder="Box Barcode"
+                                            />
+                                          </td>
+
+                                          {/* Variant Image */}
+                                          <td style={{ padding: '8px 10px' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                              {vRow.imagePreview || vRow.image ? (
+                                                <div style={{ position: 'relative', width: 34, height: 34, borderRadius: 6, overflow: 'hidden', border: '1px solid #cbd5e1', flexShrink: 0 }}>
+                                                  <img src={vRow.imagePreview || vRow.image} alt="variant" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                                  <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                      const updatedVariants = [...variantForm.initial_variants];
+                                                      updatedVariants[vIdx] = { ...vRow, image: '', imagePreview: '' };
+                                                      setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
+                                                    }}
+                                                    style={{
+                                                      position: 'absolute',
+                                                      top: 0,
+                                                      right: 0,
+                                                      background: 'rgba(0,0,0,0.6)',
+                                                      color: '#fff',
+                                                      border: 'none',
+                                                      borderRadius: '0 0 0 4px',
+                                                      cursor: 'pointer',
+                                                      width: 14,
+                                                      height: 14,
+                                                      display: 'flex',
+                                                      alignItems: 'center',
+                                                      justifyContent: 'center',
+                                                      fontSize: 9
+                                                    }}
+                                                    title="Remove image"
+                                                  >
+                                                    ✕
+                                                  </button>
+                                                </div>
+                                              ) : null}
+                                              <label
+                                                style={{
+                                                  display: 'inline-flex',
+                                                  alignItems: 'center',
+                                                  gap: 4,
+                                                  padding: '4px 8px',
+                                                  background: '#f8fafc',
+                                                  border: '1px solid #cbd5e1',
+                                                  borderRadius: 6,
+                                                  fontSize: 11,
+                                                  fontWeight: 600,
+                                                  color: '#475569',
+                                                  cursor: 'pointer',
+                                                  whiteSpace: 'nowrap'
+                                                }}
+                                                title="Upload Variant Image"
+                                              >
+                                                <Upload size={12} />
+                                                <span>{vRow.imagePreview || vRow.image ? 'Change' : 'Upload'}</span>
+                                                <input
+                                                  type="file"
+                                                  hidden
+                                                  accept="image/*"
+                                                  onChange={e => {
+                                                    const file = e.target.files[0];
+                                                    if (file) {
+                                                      const reader = new FileReader();
+                                                      reader.onloadend = () => {
+                                                        const updatedVariants = [...variantForm.initial_variants];
+                                                        updatedVariants[vIdx] = {
+                                                          ...vRow,
+                                                          image: reader.result,
+                                                          imagePreview: reader.result
+                                                        };
+                                                        setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
+                                                      };
+                                                      reader.readAsDataURL(file);
+                                                    }
+                                                  }}
+                                                />
+                                              </label>
+                                            </div>
+                                          </td>
+
+                                          {/* Expand Details Button */}
+                                          <td style={{ padding: '8px 10px', textAlign: 'center' }}>
+                                            <button
+                                              type="button"
+                                              onClick={() => {
+                                                const updatedVariants = [...variantForm.initial_variants];
+                                                updatedVariants[vIdx] = { ...vRow, _isExpanded: !isExpanded };
+                                                setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
+                                              }}
                                               style={{
                                                 display: 'inline-flex',
                                                 alignItems: 'center',
                                                 gap: 4,
                                                 padding: '4px 8px',
-                                                background: '#f8fafc',
-                                                border: '1px solid #cbd5e1',
                                                 borderRadius: 6,
+                                                border: `1px solid ${isExpanded ? '#8b5cf6' : '#cbd5e1'}`,
+                                                background: isExpanded ? '#8b5cf6' : '#fff',
+                                                color: isExpanded ? '#fff' : '#64748b',
                                                 fontSize: 11,
-                                                fontWeight: 600,
-                                                color: '#475569',
-                                                cursor: 'pointer',
-                                                whiteSpace: 'nowrap'
+                                                fontWeight: 700,
+                                                cursor: 'pointer'
                                               }}
-                                              title="Upload Variant Image"
+                                              title="Toggle Full Variant Details (Inventory, Loyalty, Branches, Suppliers)"
                                             >
-                                              <Upload size={12} />
-                                              <span>{vRow.imagePreview || vRow.image ? 'Change' : 'Upload'}</span>
-                                              <input
-                                                type="file"
-                                                hidden
-                                                accept="image/*"
-                                                onChange={e => {
-                                                  const file = e.target.files[0];
-                                                  if (file) {
-                                                    const reader = new FileReader();
-                                                    reader.onloadend = () => {
-                                                      const updatedVariants = [...variantForm.initial_variants];
-                                                      updatedVariants[vIdx] = {
-                                                        ...vRow,
-                                                        image: reader.result,
-                                                        imagePreview: reader.result
-                                                      };
-                                                      setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
-                                                    };
-                                                    reader.readAsDataURL(file);
-                                                  }
-                                                }}
-                                              />
-                                            </label>
-                                          </div>
-                                        </td>
-
-                                        {/* Actions */}
-                                        <td style={{ padding: '8px 10px', textAlign: 'center' }}>
-                                          {(variantForm.initial_variants || []).length > 1 && (
-                                            <button
-                                              type="button"
-                                              onClick={() => {
-                                                setVariantForm(vf => ({
-                                                  ...vf,
-                                                  initial_variants: vf.initial_variants.filter((_, i) => i !== vIdx)
-                                                }));
-                                              }}
-                                              style={{ background: 'none', border: 'none', color: T.red, cursor: 'pointer', padding: 4 }}
-                                              title="Remove row"
-                                            >
-                                              <Trash2 size={15} />
+                                              <span>{isExpanded ? 'Hide' : 'Specs'}</span>
+                                              <ChevronDown size={12} style={{ transform: isExpanded ? 'rotate(180deg)' : 'none', transition: '0.2s' }} />
                                             </button>
-                                          )}
-                                        </td>
-                                      </tr>
+                                          </td>
+
+                                          {/* Actions */}
+                                          <td style={{ padding: '8px 10px', textAlign: 'center' }}>
+                                            {(variantForm.initial_variants || []).length > 1 && (
+                                              <button
+                                                type="button"
+                                                onClick={() => {
+                                                  setVariantForm(vf => ({
+                                                    ...vf,
+                                                    initial_variants: vf.initial_variants.filter((_, i) => i !== vIdx)
+                                                  }));
+                                                }}
+                                                style={{ background: 'none', border: 'none', color: T.red, cursor: 'pointer', padding: 4 }}
+                                                title="Remove row"
+                                              >
+                                                <Trash2 size={15} />
+                                              </button>
+                                            )}
+                                          </td>
+                                        </tr>
+
+                                        {/* Expanded Variant Configuration Details */}
+                                        {isExpanded && (
+                                          <tr style={{ background: '#fcfaff', borderBottom: '2px solid #ddd6fe' }}>
+                                            <td colSpan={11 + (form.attributes || []).length} style={{ padding: '16px 20px' }}>
+                                              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 800, color: '#6d28d9' }}>
+                                                    <Sparkles size={15} />
+                                                    <span>Variant Specifications & Advanced Configuration ({vRow.variant_item_code || `Variant #${vIdx + 1}`})</span>
+                                                  </div>
+                                                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                                    <span style={{ fontSize: 12, fontWeight: 700, color: '#475569' }}>Pieces Per Box:</span>
+                                                    <input
+                                                      type="number"
+                                                      step="1"
+                                                      min="0"
+                                                      className="il-input"
+                                                      style={{ width: 90, height: 30, fontSize: 12, fontWeight: 700, textAlign: 'center' }}
+                                                      value={vRow.custom_pieces_per_box !== undefined ? vRow.custom_pieces_per_box : (form.custom_pieces_per_box || '')}
+                                                      onChange={e => {
+                                                        const updatedVariants = [...variantForm.initial_variants];
+                                                        updatedVariants[vIdx] = { ...vRow, custom_pieces_per_box: e.target.value };
+                                                        setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
+                                                      }}
+                                                      placeholder="0"
+                                                    />
+                                                  </div>
+                                                </div>
+
+                                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 12 }}>
+                                                  {/* Inventory & Sales */}
+                                                  <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, padding: 12 }}>
+                                                    <div style={{ fontSize: 12, fontWeight: 800, color: '#1e293b', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+                                                      <BarChart2 size={13} color="#2563eb" /> Inventory & Sales
+                                                    </div>
+                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                                      {[
+                                                        { key: 'is_stock_item', label: 'Track Stock', desc: 'Enables inventory ledger', def: 1 },
+                                                        { key: 'is_sales_item', label: 'Allow Sales', desc: 'Show in POS & Sales Orders', def: 1 },
+                                                        { key: 'is_purchase_item', label: 'Allow Purchase', desc: 'Available for procurement', def: 1 },
+                                                      ].map(f => {
+                                                        const checked = vRow[f.key] !== undefined ? vRow[f.key] === 1 : (form[f.key] !== undefined ? form[f.key] === 1 : f.def === 1);
+                                                        return (
+                                                          <label key={f.key} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', background: checked ? '#eff6ff' : '#f8fafc', borderRadius: 6, cursor: 'pointer', border: `1px solid ${checked ? '#bfdbfe' : '#e2e8f0'}` }}>
+                                                            <input
+                                                              type="checkbox"
+                                                              className="il-check"
+                                                              checked={checked}
+                                                              onChange={e => {
+                                                                const updatedVariants = [...variantForm.initial_variants];
+                                                                updatedVariants[vIdx] = { ...vRow, [f.key]: e.target.checked ? 1 : 0 };
+                                                                setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
+                                                              }}
+                                                            />
+                                                            <div>
+                                                              <div style={{ fontSize: 12, fontWeight: 700, color: '#1e293b' }}>{f.label}</div>
+                                                              <div style={{ fontSize: 10, color: '#64748b' }}>{f.desc}</div>
+                                                            </div>
+                                                          </label>
+                                                        );
+                                                      })}
+                                                    </div>
+                                                  </div>
+
+                                                  {/* Loyalty & Status */}
+                                                  <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, padding: 12 }}>
+                                                    <div style={{ fontSize: 12, fontWeight: 800, color: '#1e293b', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+                                                      <Tag size={13} color="#7c3aed" /> Loyalty & Status
+                                                    </div>
+                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                                      {[
+                                                        { key: 'custom_loyalty_eligible', label: 'Loyalty Points', desc: 'Earn points on purchase', def: 1 },
+                                                        { key: 'custom_allow_discount', label: 'Allow Discount', desc: 'Enable manual overrides', def: 1 },
+                                                        { key: 'disabled', label: 'Disable Item', desc: 'Hide from active registries', def: 0 },
+                                                      ].map(f => {
+                                                        const checked = f.key === 'disabled' 
+                                                          ? (vRow.disabled !== undefined ? Boolean(vRow.disabled) : Boolean(form.disabled))
+                                                          : (vRow[f.key] !== undefined ? vRow[f.key] === 1 : (form[f.key] !== undefined ? form[f.key] === 1 : f.def === 1));
+                                                        return (
+                                                          <label key={f.key} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', background: checked ? (f.key === 'disabled' ? '#fee2e2' : '#f5f3ff') : '#f8fafc', borderRadius: 6, cursor: 'pointer', border: `1px solid ${checked ? (f.key === 'disabled' ? '#fca5a5' : '#ddd6fe') : '#e2e8f0'}` }}>
+                                                            <input
+                                                              type="checkbox"
+                                                              className="il-check"
+                                                              checked={checked}
+                                                              onChange={e => {
+                                                                const updatedVariants = [...variantForm.initial_variants];
+                                                                if (f.key === 'disabled') {
+                                                                  updatedVariants[vIdx] = { ...vRow, disabled: e.target.checked };
+                                                                } else {
+                                                                  updatedVariants[vIdx] = { ...vRow, [f.key]: e.target.checked ? 1 : 0 };
+                                                                }
+                                                                setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
+                                                              }}
+                                                            />
+                                                            <div>
+                                                              <div style={{ fontSize: 12, fontWeight: 700, color: f.key === 'disabled' && checked ? '#b91c1c' : '#1e293b' }}>{f.label}</div>
+                                                              <div style={{ fontSize: 10, color: '#64748b' }}>{f.desc}</div>
+                                                            </div>
+                                                          </label>
+                                                        );
+                                                      })}
+                                                    </div>
+                                                  </div>
+
+                                                  {/* UOM Conversions (Auto-Calculated) */}
+                                                  <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, padding: 12 }}>
+                                                    <div style={{ fontSize: 12, fontWeight: 800, color: '#1e293b', marginBottom: 4, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                                      <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                                        <Scale size={13} color="#059669" /> UOM Conversions
+                                                      </span>
+                                                      <span style={{ fontSize: 9, fontWeight: 800, padding: '1px 6px', background: '#ecfdf5', color: '#059669', borderRadius: 4, border: '1px solid #a7f3d0' }}>Auto</span>
+                                                    </div>
+                                                    <div style={{ fontSize: 10, color: '#64748b', fontStyle: 'italic', marginBottom: 6 }}>
+                                                      Base: {form.default_uom || 'Nos'} | Box Factor: {pcsBox}
+                                                    </div>
+                                                    <table style={{ width: '100%', fontSize: 11, borderCollapse: 'collapse' }}>
+                                                      <thead>
+                                                        <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', color: '#64748b', textAlign: 'left' }}>
+                                                          <th style={{ padding: '4px 6px' }}>UOM</th>
+                                                          <th style={{ padding: '4px 6px', textAlign: 'right' }}>Factor</th>
+                                                          <th style={{ padding: '4px 6px', textAlign: 'center' }}>Type</th>
+                                                        </tr>
+                                                      </thead>
+                                                      <tbody>
+                                                        <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
+                                                          <td style={{ padding: '4px 6px', fontWeight: 700, color: '#2563eb' }}>{form.default_uom || 'Nos'}</td>
+                                                          <td style={{ padding: '4px 6px', textAlign: 'right', fontWeight: 700 }}>1 {form.default_uom || 'Nos'}</td>
+                                                          <td style={{ padding: '4px 6px', textAlign: 'center' }}><span style={{ fontSize: 9, fontWeight: 700, padding: '1px 5px', background: '#eff6ff', color: '#2563eb', borderRadius: 3 }}>Base</span></td>
+                                                        </tr>
+                                                        {pcsBox > 0 && (
+                                                          <tr>
+                                                            <td style={{ padding: '4px 6px', fontWeight: 700, color: '#16a34a' }}>Box</td>
+                                                            <td style={{ padding: '4px 6px', textAlign: 'right', fontWeight: 700 }}>{pcsBox} {form.default_uom || 'Nos'}</td>
+                                                            <td style={{ padding: '4px 6px', textAlign: 'center' }}><span style={{ fontSize: 9, fontWeight: 700, padding: '1px 5px', background: '#f0fdf4', color: '#16a34a', borderRadius: 3 }}>Box</span></td>
+                                                          </tr>
+                                                        )}
+                                                      </tbody>
+                                                    </table>
+                                                  </div>
+                                                </div>
+
+                                                {/* Branch Visibility & Supplier Mapping */}
+                                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 12 }}>
+                                                  {/* Branch Visibility */}
+                                                  <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, padding: 12 }}>
+                                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                                                      <span style={{ fontSize: 12, fontWeight: 800, color: '#1e293b', display: 'flex', alignItems: 'center', gap: 6 }}>
+                                                        <MapPin size={13} color="#ea580c" /> Branch Visibility
+                                                      </span>
+                                                      <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                          const updatedVariants = [...variantForm.initial_variants];
+                                                          const currBranches = updatedVariants[vIdx].branch_availability || [...(form.branch_availability || [])];
+                                                          updatedVariants[vIdx] = {
+                                                            ...vRow,
+                                                            branch_availability: [...currBranches, { warehouse: '' }]
+                                                          };
+                                                          setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
+                                                        }}
+                                                        style={{ background: '#fff7ed', border: '1px solid #fed7aa', color: '#ea580c', fontSize: 10, fontWeight: 800, padding: '2px 6px', borderRadius: 4, cursor: 'pointer' }}
+                                                      >
+                                                        + Add Branch
+                                                      </button>
+                                                    </div>
+                                                    {((vRow.branch_availability !== undefined ? vRow.branch_availability : form.branch_availability) || []).length > 0 ? (
+                                                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                                        {((vRow.branch_availability !== undefined ? vRow.branch_availability : form.branch_availability) || []).map((b, bIdx) => (
+                                                          <div key={bIdx} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                                            <div style={{ flex: 1 }}>
+                                                              <SearchableSelectInline
+                                                                value={b.warehouse}
+                                                                options={warehouses.length > 0 ? warehouses : (priceData.warehouse_breakdown?.map(w => ({ label: w.warehouse, value: w.warehouse })) || [])}
+                                                                placeholder="Select Target Warehouse"
+                                                                onChange={val => {
+                                                                  const updatedVariants = [...variantForm.initial_variants];
+                                                                  const currBranches = [...((vRow.branch_availability !== undefined ? vRow.branch_availability : form.branch_availability) || [])];
+                                                                  currBranches[bIdx] = { ...currBranches[bIdx], warehouse: val };
+                                                                  updatedVariants[vIdx] = { ...vRow, branch_availability: currBranches };
+                                                                  setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
+                                                                }}
+                                                              />
+                                                            </div>
+                                                            <button
+                                                              type="button"
+                                                              onClick={() => {
+                                                                const updatedVariants = [...variantForm.initial_variants];
+                                                                const currBranches = ((vRow.branch_availability !== undefined ? vRow.branch_availability : form.branch_availability) || []).filter((_, i) => i !== bIdx);
+                                                                updatedVariants[vIdx] = { ...vRow, branch_availability: currBranches };
+                                                                setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
+                                                              }}
+                                                              style={{ background: 'none', border: 'none', color: T.red, cursor: 'pointer', padding: 2 }}
+                                                            >
+                                                              <Trash2 size={12} />
+                                                            </button>
+                                                          </div>
+                                                        ))}
+                                                      </div>
+                                                    ) : (
+                                                      <div style={{ fontSize: 11, color: '#94a3b8', fontStyle: 'italic', textAlign: 'center', padding: 8 }}>Global / Inherit from Template</div>
+                                                    )}
+                                                  </div>
+
+                                                  {/* Supplier Mapping */}
+                                                  <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, padding: 12 }}>
+                                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                                                      <span style={{ fontSize: 12, fontWeight: 800, color: '#1e293b', display: 'flex', alignItems: 'center', gap: 6 }}>
+                                                        <Users size={13} color="#0284c7" /> Supplier Mapping
+                                                      </span>
+                                                      <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                          const updatedVariants = [...variantForm.initial_variants];
+                                                          const currSups = updatedVariants[vIdx].supplier_items || [...(form.supplier_items || [])];
+                                                          updatedVariants[vIdx] = {
+                                                            ...vRow,
+                                                            supplier_items: [...currSups, { supplier: '', supplier_part_no: '' }]
+                                                          };
+                                                          setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
+                                                        }}
+                                                        style={{ background: '#f0f9ff', border: '1px solid #bae6fd', color: '#0284c7', fontSize: 10, fontWeight: 800, padding: '2px 6px', borderRadius: 4, cursor: 'pointer' }}
+                                                      >
+                                                        + Add Supplier
+                                                      </button>
+                                                    </div>
+                                                    {((vRow.supplier_items !== undefined ? vRow.supplier_items : form.supplier_items) || []).length > 0 ? (
+                                                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                                        {((vRow.supplier_items !== undefined ? vRow.supplier_items : form.supplier_items) || []).map((s, sIdx) => (
+                                                          <div key={sIdx} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                                            <div style={{ flex: 1 }}>
+                                                              <SearchableSelectInline
+                                                                value={s.supplier}
+                                                                options={suppliers.map(sup => ({ label: sup.supplier_name, value: sup.name }))}
+                                                                placeholder="Select Supplier"
+                                                                onChange={val => {
+                                                                  const updatedVariants = [...variantForm.initial_variants];
+                                                                  const currSups = [...((vRow.supplier_items !== undefined ? vRow.supplier_items : form.supplier_items) || [])];
+                                                                  currSups[sIdx] = { ...currSups[sIdx], supplier: val };
+                                                                  updatedVariants[vIdx] = { ...vRow, supplier_items: currSups };
+                                                                  setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
+                                                                }}
+                                                              />
+                                                            </div>
+                                                            <input
+                                                              type="text"
+                                                              className="il-input"
+                                                              style={{ flex: 1, height: 30, fontSize: 11 }}
+                                                              placeholder="Supplier SKU / Part No"
+                                                              value={s.supplier_part_no || ''}
+                                                              onChange={e => {
+                                                                const updatedVariants = [...variantForm.initial_variants];
+                                                                const currSups = [...((vRow.supplier_items !== undefined ? vRow.supplier_items : form.supplier_items) || [])];
+                                                                currSups[sIdx] = { ...currSups[sIdx], supplier_part_no: e.target.value };
+                                                                updatedVariants[vIdx] = { ...vRow, supplier_items: currSups };
+                                                                setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
+                                                              }}
+                                                            />
+                                                            <button
+                                                              type="button"
+                                                              onClick={() => {
+                                                                const updatedVariants = [...variantForm.initial_variants];
+                                                                const currSups = ((vRow.supplier_items !== undefined ? vRow.supplier_items : form.supplier_items) || []).filter((_, i) => i !== sIdx);
+                                                                updatedVariants[vIdx] = { ...vRow, supplier_items: currSups };
+                                                                setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
+                                                              }}
+                                                              style={{ background: 'none', border: 'none', color: T.red, cursor: 'pointer', padding: 2 }}
+                                                            >
+                                                              <Trash2 size={12} />
+                                                            </button>
+                                                          </div>
+                                                        ))}
+                                                      </div>
+                                                    ) : (
+                                                      <div style={{ fontSize: 11, color: '#94a3b8', fontStyle: 'italic', textAlign: 'center', padding: 8 }}>No suppliers linked</div>
+                                                    )}
+                                                  </div>
+                                                </div>
+                                              </div>
+                                            </td>
+                                          </tr>
+                                        )}
+                                      </React.Fragment>
                                     );
                                   })}
                                 </tbody>
