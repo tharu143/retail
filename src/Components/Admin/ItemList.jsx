@@ -4475,7 +4475,10 @@ export default function ItemList() {
                                         box_barcode: '',
                                         image: '',
                                         imagePreview: '',
-                                        use_custom_code: true
+                                        use_custom_code: true,
+                                        is_stock_item: 1,
+                                        is_sales_item: 1,
+                                        is_purchase_item: 1
                                       }
                                     ]
                                   }));
