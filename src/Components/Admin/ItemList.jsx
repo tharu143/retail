@@ -3630,114 +3630,140 @@ export default function ItemList() {
             {/* ===== EDIT/CREATE FORM ===== */}
             {!isViewMode && (
               <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 16 }}>
+                {/* Has Variants (Template) toggle - Placed at the very top for clear workflow */}
+                {!form.variant_of && (
+                  <div style={{ background: form.has_variants === 1 ? '#f5f3ff' : T.bg, border: `1.5px solid ${form.has_variants === 1 ? '#c4b5fd' : T.border}`, borderRadius: 12, padding: '12px 16px', transition: 'all 0.15s' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}>
+                      <input
+                        type="checkbox"
+                        className="il-check"
+                        checked={form.has_variants === 1}
+                        onChange={e => {
+                          const checked = e.target.checked;
+                          const updatedForm = { ...form, has_variants: checked ? 1 : 0 };
+                          if (checked) {
+                            updatedForm.is_sales_item = 0;
+                            updatedForm.is_purchase_item = 0;
+                            updatedForm.is_stock_item = 0;
+                          }
+                          setForm(updatedForm);
+                        }}
+                        tabIndex={showForm ? 0 : -1}
+                      />
+                      <div>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: form.has_variants === 1 ? '#6d28d9' : T.text }}>Has Variants (Template Item)</div>
+                        <div style={{ fontSize: 12, color: T.textMuted }}>Mark this as an Item Template to configure attributes & initial variants below</div>
+                      </div>
+                    </label>
+                  </div>
+                )}
+
                 {/* Specifications */}
                 <CardSection title="Specifications" icon={<Package size={14} />}>
                   <div style={{ padding: 20 }}>
                     <div className="il-form-grid">
-                      {/* ROW 1: 1. Barcode */}
-                      <div className="il-form-field">
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 5 }}>
-                          <label className="il-form-label" style={{ margin: 0 }}>Barcode</label>
-                          <div style={{ display: 'flex', gap: 4 }}>
-                            <button type="button" className="il-btn il-btn-secondary" style={{ padding: '2px 7px', fontSize: 11, height: 22 }} onClick={() => setShowCameraScanner(true)} title="Camera Scan">
-                              <Camera size={11} /> Camera
-                            </button>
-                            <button type="button" className="il-btn il-btn-secondary" style={{ padding: '2px 7px', fontSize: 11, height: 22, color: isScanning ? T.blue : T.textSub, borderColor: isScanning ? T.blue : T.border }} onClick={() => setIsScanning(s => !s)} title="Hardware Scan">
-                              {isScanning ? '● Scanning' : 'HW Scan'}
+                      {/* ROW 1: 1. Barcode (Hidden when Has Variants is enabled because each variant has its own barcodes) */}
+                      {!Boolean(form.has_variants) && (
+                        <div className="il-form-field">
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 5 }}>
+                            <label className="il-form-label" style={{ margin: 0 }}>Barcode</label>
+                            <div style={{ display: 'flex', gap: 4 }}>
+                              <button type="button" className="il-btn il-btn-secondary" style={{ padding: '2px 7px', fontSize: 11, height: 22 }} onClick={() => setShowCameraScanner(true)} title="Camera Scan">
+                                <Camera size={11} /> Camera
+                              </button>
+                              <button type="button" className="il-btn il-btn-secondary" style={{ padding: '2px 7px', fontSize: 11, height: 22, color: isScanning ? T.blue : T.textSub, borderColor: isScanning ? T.blue : T.border }} onClick={() => setIsScanning(s => !s)} title="Hardware Scan">
+                                {isScanning ? '● Scanning' : 'HW Scan'}
+                              </button>
+                            </div>
+                          </div>
+                          <div style={{ display: 'flex', gap: 6 }}>
+                            <input
+                              ref={barcodeInputRef}
+                              className="il-input"
+                              style={{ flex: 1 }}
+                              value={barcodeInput}
+                              onChange={e => setBarcodeInput(e.target.value)}
+                              onKeyDown={e => {
+                                if (e.key === 'Enter') {
+                                  e.preventDefault();
+                                  addBarcode(barcodeInput, barcodeUom);
+                                }
+                              }}
+                              placeholder="Type barcode and press Enter..."
+                            />
+                            <select
+                              className="il-select"
+                              style={{ width: 110, height: 38, fontSize: 12, fontWeight: 700, background: '#fff' }}
+                              value={barcodeUom}
+                              onChange={e => setBarcodeUom(e.target.value)}
+                            >
+                              <option value={form.default_uom || 'Nos'}>{form.default_uom || 'Nos'} (Base)</option>
+                              <option value="Box">Box</option>
+                              {(form.uoms || []).filter(u => u.uom && u.uom !== form.default_uom && u.uom !== 'Box' && u.uom !== 'Master Box').map(u => (
+                                <option key={u.uom} value={u.uom}>{u.uom}</option>
+                              ))}
+                            </select>
+                            <button type="button" className="il-btn il-btn-primary" style={{ padding: '0 12px', fontSize: 12, fontWeight: 700 }} onClick={() => addBarcode(barcodeInput, barcodeUom)}>
+                              Add
                             </button>
                           </div>
-                        </div>
-                        <div style={{ display: 'flex', gap: 6 }}>
-                          <input
-                            ref={barcodeInputRef}
-                            className="il-input"
-                            style={{ flex: 1 }}
-                            value={barcodeInput}
-                            onChange={e => setBarcodeInput(e.target.value)}
-                            onKeyDown={e => {
-                              if (e.key === 'Enter') {
-                                e.preventDefault();
-                                addBarcode(barcodeInput, barcodeUom);
-                              }
-                            }}
-                            placeholder="Type barcode and press Enter..."
-                          />
-                          <select
-                            className="il-select"
-                            style={{ width: 110, height: 38, fontSize: 12, fontWeight: 700, background: '#fff' }}
-                            value={barcodeUom}
-                            onChange={e => setBarcodeUom(e.target.value)}
-                          >
-                            <option value={form.default_uom || 'Nos'}>{form.default_uom || 'Nos'} (Base)</option>
-                            <option value="Box">Box</option>
-                            {/* Master Box hidden as requested for future use:
-                            <option value="Master Box">Master Box</option>
-                            */}
-                            {(form.uoms || []).filter(u => u.uom && u.uom !== form.default_uom && u.uom !== 'Box' && u.uom !== 'Master Box').map(u => (
-                              <option key={u.uom} value={u.uom}>{u.uom}</option>
-                            ))}
-                          </select>
-                          <button type="button" className="il-btn il-btn-primary" style={{ padding: '0 12px', fontSize: 12, fontWeight: 700 }} onClick={() => addBarcode(barcodeInput, barcodeUom)}>
-                            Add
-                          </button>
-                        </div>
-                        {barcodes.length > 0 && (
-                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
-                            {barcodes.map((b, i) => (
-                              <span
-                                key={i}
-                                className="il-chip"
-                                style={{
-                                  fontSize: 11,
-                                  padding: '3px 8px',
-                                  background: b.uom === 'Box' ? '#fef3c7' : (b.uom === 'Master Box' ? '#f5f3ff' : '#eff6ff'),
-                                  color: b.uom === 'Box' ? '#92400e' : (b.uom === 'Master Box' ? '#6d28d9' : '#1d4ed8'),
-                                  border: `1px solid ${b.uom === 'Box' ? '#fde68a' : (b.uom === 'Master Box' ? '#ddd6fe' : '#bfdbfe')}`,
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: 6
-                                }}
-                              >
-                                <span style={{ fontWeight: 800, fontFamily: "'DM Mono', monospace" }}>{b.barcode}</span>
-                                <select
-                                  value={b.uom || form.default_uom || 'Nos'}
-                                  onChange={e => {
-                                    const next = [...barcodes];
-                                    next[i] = { ...b, uom: e.target.value };
-                                    setBarcodes(next);
-                                  }}
+                          {barcodes.length > 0 && (
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
+                              {barcodes.map((b, i) => (
+                                <span
+                                  key={i}
+                                  className="il-chip"
                                   style={{
-                                    fontSize: 10,
-                                    fontWeight: 700,
-                                    background: 'transparent',
-                                    border: 'none',
-                                    cursor: 'pointer',
-                                    color: 'inherit',
-                                    outline: 'none',
-                                    padding: 0
+                                    fontSize: 11,
+                                    padding: '3px 8px',
+                                    background: b.uom === 'Box' ? '#fef3c7' : (b.uom === 'Master Box' ? '#f5f3ff' : '#eff6ff'),
+                                    color: b.uom === 'Box' ? '#92400e' : (b.uom === 'Master Box' ? '#6d28d9' : '#1d4ed8'),
+                                    border: `1px solid ${b.uom === 'Box' ? '#fde68a' : (b.uom === 'Master Box' ? '#ddd6fe' : '#bfdbfe')}`,
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: 6
                                   }}
-                                  onClick={e => e.stopPropagation()}
                                 >
-                                  <option value={form.default_uom || 'Nos'}>{form.default_uom || 'Nos'}</option>
-                                  <option value="Box">Box</option>
-                                  {/* <option value="Master Box">Master Box</option> */}
-                                  {(form.uoms || []).filter(u => u.uom && u.uom !== form.default_uom && u.uom !== 'Box' && u.uom !== 'Master Box').map(u => (
-                                    <option key={u.uom} value={u.uom}>{u.uom}</option>
-                                  ))}
-                                </select>
-                                <button
-                                  type="button"
-                                  onClick={() => setBarcodes(p => p.filter((_, idx) => idx !== i))}
-                                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.red, display: 'flex', padding: 0 }}
-                                  title="Remove barcode"
-                                >
-                                  <X size={12} />
-                                </button>
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                      </div>
+                                  <span style={{ fontWeight: 800, fontFamily: "'DM Mono', monospace" }}>{b.barcode}</span>
+                                  <select
+                                    value={b.uom || form.default_uom || 'Nos'}
+                                    onChange={e => {
+                                      const next = [...barcodes];
+                                      next[i] = { ...b, uom: e.target.value };
+                                      setBarcodes(next);
+                                    }}
+                                    style={{
+                                      fontSize: 10,
+                                      fontWeight: 700,
+                                      background: 'transparent',
+                                      border: 'none',
+                                      cursor: 'pointer',
+                                      color: 'inherit',
+                                      outline: 'none',
+                                      padding: 0
+                                    }}
+                                    onClick={e => e.stopPropagation()}
+                                  >
+                                    <option value={form.default_uom || 'Nos'}>{form.default_uom || 'Nos'}</option>
+                                    <option value="Box">Box</option>
+                                    {(form.uoms || []).filter(u => u.uom && u.uom !== form.default_uom && u.uom !== 'Box' && u.uom !== 'Master Box').map(u => (
+                                      <option key={u.uom} value={u.uom}>{u.uom}</option>
+                                    ))}
+                                  </select>
+                                  <button
+                                    type="button"
+                                    onClick={() => setBarcodes(p => p.filter((_, idx) => idx !== i))}
+                                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.red, display: 'flex', padding: 0 }}
+                                    title="Remove barcode"
+                                  >
+                                    <X size={12} />
+                                  </button>
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
 
                       {/* ROW 1: 2. Item Code */}
                       <div className="il-form-field">
@@ -3873,332 +3899,282 @@ export default function ItemList() {
                         </div>
                       )}
 
-                      {/* ROW 3: 9. Pieces Per Box */}
-                      <div className="il-form-field">
-                        <label className="il-form-label">Pieces Per Box</label>
-                        <input type="number" className="il-input" value={form.custom_pieces_per_box} onChange={e => handlePiecesPerBoxChange(e.target.value)} placeholder="Conversion factor (e.g. 12)" />
-                      </div>
+                      {/* ROW 3: 9. No of units in box (Only shown for non-variant items) */}
+                      {!Boolean(form.has_variants) && (
+                        <div className="il-form-field">
+                          <label className="il-form-label">No of units in box</label>
+                          <input type="number" className="il-input" value={form.custom_pieces_per_box} onChange={e => handlePiecesPerBoxChange(e.target.value)} placeholder="Conversion factor (e.g. 12)" />
+                        </div>
+                      )}
                     </div>
                   </div>
                 </CardSection>
 
-                {/* ROW 4: Price Lists (Nos, Box) */}
-                <CardSection
-                  title="Price Lists (Nos · Box)"
-                  icon={<Tag size={14} />}
-                  action={
-                    isEditMode && (
-                      <button
-                        type="button"
-                        className="il-btn il-btn-ghost"
-                        style={{ padding: '4px 9px', fontSize: 11, color: T.blue }}
-                        onClick={() => { setIsViewMode(true); setIsEditMode(false); setActiveTab('Prices'); }}
-                      >
-                        <Edit2 size={12} /> Full Price Manager
-                      </button>
-                    )
-                  }
-                >
-                  <div style={{ padding: '16px 20px' }}>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16 }}>
-                      {/* 1. NOS PRICE */}
-                      <div style={{ background: '#f8fafc', border: `1.5px solid ${T.border}`, borderRadius: 12, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: `1px solid ${T.borderLight}`, paddingBottom: 8 }}>
-                          <div style={{ fontSize: 13, fontWeight: 800, color: T.blue, display: 'flex', alignItems: 'center', gap: 6 }}>
-                            <span style={{ width: 8, height: 8, borderRadius: '50%', background: T.blue }} />
-                            Nos Price <span style={{ fontSize: 11, color: T.textMuted, fontWeight: 600 }}>({form.default_uom || 'Nos'})</span>
+                {/* ROW 4: Price Lists (Nos, Box) - Only shown for Standard Single Items */}
+                {!Boolean(form.has_variants) && (
+                  <CardSection
+                    title="Price Lists (Nos · Box)"
+                    icon={<Tag size={14} />}
+                    action={
+                      isEditMode && (
+                        <button
+                          type="button"
+                          className="il-btn il-btn-ghost"
+                          style={{ padding: '4px 9px', fontSize: 11, color: T.blue }}
+                          onClick={() => { setIsViewMode(true); setIsEditMode(false); setActiveTab('Prices'); }}
+                        >
+                          <Edit2 size={12} /> Full Price Manager
+                        </button>
+                      )
+                    }
+                  >
+                    <div style={{ padding: '16px 20px' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16 }}>
+                        {/* 1. NOS PRICE */}
+                        <div style={{ background: '#f8fafc', border: `1.5px solid ${T.border}`, borderRadius: 12, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: `1px solid ${T.borderLight}`, paddingBottom: 8 }}>
+                            <div style={{ fontSize: 13, fontWeight: 800, color: T.blue, display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <span style={{ width: 8, height: 8, borderRadius: '50%', background: T.blue }} />
+                              Nos Price <span style={{ fontSize: 11, color: T.textMuted, fontWeight: 600 }}>({form.default_uom || 'Nos'})</span>
+                            </div>
+                            <span className="il-chip" style={{ fontSize: 10, padding: '1px 7px', background: '#eff6ff', color: T.blue, border: '1px solid #bfdbfe', fontWeight: 700 }}>Base UOM</span>
                           </div>
-                          <span className="il-chip" style={{ fontSize: 10, padding: '1px 7px', background: '#eff6ff', color: T.blue, border: '1px solid #bfdbfe', fontWeight: 700 }}>Base UOM</span>
+
+                          {/* Nos Buying Price */}
+                          <div style={{ background: '#fffbeb', border: '1px solid #FDE68A', borderRadius: 8, padding: '10px 12px' }}>
+                            <div style={{ fontSize: 10, fontWeight: 800, color: T.amber, textTransform: 'uppercase', marginBottom: 6 }}>
+                              ● Buying Price
+                            </div>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                              <div>
+                                <label style={{ fontSize: 10, fontWeight: 600, color: '#78350f', display: 'block', marginBottom: 2 }}>Price List</label>
+                                <SearchableSelectCompact
+                                  value={form.buying_price_list || 'Standard Buying'}
+                                  options={buyingPriceListOptions}
+                                  placeholder="Select Buying Price List"
+                                  onChange={pl => {
+                                    setForm(p => ({ ...p, buying_price_list: pl }));
+                                    if (isEditMode && editingItemCode) {
+                                      const found = (priceData.prices || []).find(p => p.price_list === pl && p.buying === 1 && p.uom === (form.default_uom || 'Nos'));
+                                      if (found) setForm(prev => ({ ...prev, buying_price_list: pl, buying_price: found.price_list_rate }));
+                                    }
+                                  }}
+                                />
+                              </div>
+                              <div>
+                                <label style={{ fontSize: 10, fontWeight: 600, color: '#78350f', display: 'block', marginBottom: 2 }}>Rate (AED)</label>
+                                <input
+                                  type="number"
+                                  className="il-input"
+                                  style={{ fontWeight: 800, fontSize: 14, color: T.amber, background: '#fff', height: 32 }}
+                                  value={form.buying_price || (priceData.prices || []).find(p => p.price_list === (form.buying_price_list || 'Standard Buying') && p.buying === 1 && p.uom === (form.default_uom || 'Nos'))?.price_list_rate || 0}
+                                  onChange={e => setForm(p => ({ ...p, buying_price: Number(e.target.value) }))}
+                                  onBlur={async () => {
+                                    if (!isEditMode || !editingItemCode) return;
+                                    try {
+                                      const pl = form.buying_price_list || 'Standard Buying';
+                                      const existing = (priceData.prices || []).find(p => p.price_list === pl && p.buying === 1 && p.uom === (form.default_uom || 'Nos'));
+                                      await axios.post('/api/method/kyle_retail.retail_api.api.update_item_price', {
+                                        item_code: editingItemCode,
+                                        data: { price_list: pl, uom: form.default_uom || 'Nos', price_list_rate: form.buying_price || 0, buying: 1, selling: 0, name: existing?.name || '' }
+                                      }, { withCredentials: true });
+                                      fetchPriceList(editingItemCode);
+                                    } catch (err) { console.warn('Price save err:', err); }
+                                  }}
+                                  placeholder="0.00"
+                                  onFocus={e => e.target.select()}
+                                />
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Nos Selling Price */}
+                          <div style={{ background: '#f0fdf4', border: '1px solid #BBF7D0', borderRadius: 8, padding: '10px 12px' }}>
+                            <div style={{ fontSize: 10, fontWeight: 800, color: T.green, textTransform: 'uppercase', marginBottom: 6 }}>
+                              ● Selling Price
+                            </div>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                              <div>
+                                <label style={{ fontSize: 10, fontWeight: 600, color: '#14532d', display: 'block', marginBottom: 2 }}>Price List</label>
+                                <SearchableSelectCompact
+                                  value={form.selling_price_list || 'Standard Selling'}
+                                  options={sellingPriceListOptions}
+                                  placeholder="Select Selling Price List"
+                                  onChange={pl => {
+                                    setForm(p => ({ ...p, selling_price_list: pl }));
+                                    if (isEditMode && editingItemCode) {
+                                      const found = (priceData.prices || []).find(p => p.price_list === pl && p.selling === 1 && p.uom === (form.default_uom || 'Nos'));
+                                      if (found) setForm(prev => ({ ...prev, selling_price_list: pl, selling_price: found.price_list_rate }));
+                                    }
+                                  }}
+                                />
+                              </div>
+                              <div>
+                                <label style={{ fontSize: 10, fontWeight: 600, color: '#14532d', display: 'block', marginBottom: 2 }}>Rate (AED)</label>
+                                <input
+                                  type="number"
+                                  className="il-input"
+                                  style={{ fontWeight: 800, fontSize: 14, color: T.green, background: '#fff', height: 32 }}
+                                  value={form.selling_price || (priceData.prices || []).find(p => p.price_list === (form.selling_price_list || 'Standard Selling') && p.selling === 1 && p.uom === (form.default_uom || 'Nos'))?.price_list_rate || 0}
+                                  onChange={e => setForm(p => ({ ...p, selling_price: Number(e.target.value) }))}
+                                  onBlur={async () => {
+                                    if (!isEditMode || !editingItemCode) return;
+                                    try {
+                                      const pl = form.selling_price_list || 'Standard Selling';
+                                      const existing = (priceData.prices || []).find(p => p.price_list === pl && p.selling === 1 && p.uom === (form.default_uom || 'Nos'));
+                                      await axios.post('/api/method/kyle_retail.retail_api.api.update_item_price', {
+                                        item_code: editingItemCode,
+                                        data: { price_list: pl, uom: form.default_uom || 'Nos', price_list_rate: form.selling_price || 0, buying: 0, selling: 1, name: existing?.name || '' }
+                                      }, { withCredentials: true });
+                                      fetchPriceList(editingItemCode);
+                                    } catch (err) { console.warn('Price save err:', err); }
+                                  }}
+                                  placeholder="0.00"
+                                  onFocus={e => e.target.select()}
+                                />
+                              </div>
+                            </div>
+                          </div>
                         </div>
 
-                        {/* Nos Buying Price */}
-                        <div style={{ background: '#fffbeb', border: '1px solid #FDE68A', borderRadius: 8, padding: '10px 12px' }}>
-                          <div style={{ fontSize: 10, fontWeight: 800, color: T.amber, textTransform: 'uppercase', marginBottom: 6 }}>
-                            ● Buying Price
-                          </div>
-                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                            <div>
-                              <label style={{ fontSize: 10, fontWeight: 600, color: '#78350f', display: 'block', marginBottom: 2 }}>Price List</label>
-                              <SearchableSelectCompact
-                                value={form.buying_price_list || 'Standard Buying'}
-                                options={buyingPriceListOptions}
-                                placeholder="Select Buying Price List"
-                                onChange={pl => {
-                                  setForm(p => ({ ...p, buying_price_list: pl }));
-                                  if (isEditMode && editingItemCode) {
-                                    const found = (priceData.prices || []).find(p => p.price_list === pl && p.buying === 1 && p.uom === (form.default_uom || 'Nos'));
-                                    if (found) setForm(prev => ({ ...prev, buying_price_list: pl, buying_price: found.price_list_rate }));
-                                  }
-                                }}
-                              />
+                        {/* 2. BOX PRICE */}
+                        <div style={{ background: '#f8fafc', border: `1.5px solid ${T.border}`, borderRadius: 12, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: `1px solid ${T.borderLight}`, paddingBottom: 8 }}>
+                            <div style={{ fontSize: 13, fontWeight: 800, color: '#d97706', display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#d97706' }} />
+                              Box Price <span style={{ fontSize: 11, color: T.textMuted, fontWeight: 600 }}>(Box = {form.custom_pieces_per_box || 1} {form.default_uom || 'Nos'})</span>
                             </div>
-                            <div>
-                              <label style={{ fontSize: 10, fontWeight: 600, color: '#78350f', display: 'block', marginBottom: 2 }}>Rate (AED)</label>
-                              <input
-                                type="number"
-                                className="il-input"
-                                style={{ fontWeight: 800, fontSize: 14, color: T.amber, background: '#fff', height: 32 }}
-                                value={form.buying_price || (priceData.prices || []).find(p => p.price_list === (form.buying_price_list || 'Standard Buying') && p.buying === 1 && p.uom === (form.default_uom || 'Nos'))?.price_list_rate || 0}
-                                onChange={e => setForm(p => ({ ...p, buying_price: Number(e.target.value) }))}
-                                onBlur={async () => {
-                                  if (!isEditMode || !editingItemCode) return;
-                                  try {
-                                    const pl = form.buying_price_list || 'Standard Buying';
-                                    const existing = (priceData.prices || []).find(p => p.price_list === pl && p.buying === 1 && p.uom === (form.default_uom || 'Nos'));
-                                    await axios.post('/api/method/kyle_retail.retail_api.api.update_item_price', {
-                                      item_code: editingItemCode,
-                                      data: { price_list: pl, uom: form.default_uom || 'Nos', price_list_rate: form.buying_price || 0, buying: 1, selling: 0, name: existing?.name || '' }
-                                    }, { withCredentials: true });
-                                    fetchPriceList(editingItemCode);
-                                  } catch (err) { console.warn('Price save err:', err); }
-                                }}
-                                placeholder="0.00"
-                                onFocus={e => e.target.select()}
-                              />
-                            </div>
+                            <span className="il-chip" style={{ fontSize: 10, padding: '1px 7px', background: '#fef3c7', color: '#b45309', border: '1px solid #fde68a', fontWeight: 700 }}>Box UOM</span>
                           </div>
-                        </div>
 
-                        {/* Nos Selling Price */}
-                        <div style={{ background: '#f0fdf4', border: '1px solid #BBF7D0', borderRadius: 8, padding: '10px 12px' }}>
-                          <div style={{ fontSize: 10, fontWeight: 800, color: T.green, textTransform: 'uppercase', marginBottom: 6 }}>
-                            ● Selling Price
-                          </div>
-                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                            <div>
-                              <label style={{ fontSize: 10, fontWeight: 600, color: '#14532d', display: 'block', marginBottom: 2 }}>Price List</label>
-                              <SearchableSelectCompact
-                                value={form.selling_price_list || 'Standard Selling'}
-                                options={sellingPriceListOptions}
-                                placeholder="Select Selling Price List"
-                                onChange={pl => {
-                                  setForm(p => ({ ...p, selling_price_list: pl }));
-                                  if (isEditMode && editingItemCode) {
-                                    const found = (priceData.prices || []).find(p => p.price_list === pl && p.selling === 1 && p.uom === (form.default_uom || 'Nos'));
-                                    if (found) setForm(prev => ({ ...prev, selling_price_list: pl, selling_price: found.price_list_rate }));
-                                  }
-                                }}
-                              />
+                          {/* Box Buying Price */}
+                          <div style={{ background: '#fffbeb', border: '1px solid #FDE68A', borderRadius: 8, padding: '10px 12px' }}>
+                            <div style={{ fontSize: 10, fontWeight: 800, color: T.amber, textTransform: 'uppercase', marginBottom: 6 }}>
+                              ● Buying Price
                             </div>
-                            <div>
-                              <label style={{ fontSize: 10, fontWeight: 600, color: '#14532d', display: 'block', marginBottom: 2 }}>Rate (AED)</label>
-                              <input
-                                type="number"
-                                className="il-input"
-                                style={{ fontWeight: 800, fontSize: 14, color: T.green, background: '#fff', height: 32 }}
-                                value={form.selling_price || (priceData.prices || []).find(p => p.price_list === (form.selling_price_list || 'Standard Selling') && p.selling === 1 && p.uom === (form.default_uom || 'Nos'))?.price_list_rate || 0}
-                                onChange={e => setForm(p => ({ ...p, selling_price: Number(e.target.value) }))}
-                                onBlur={async () => {
-                                  if (!isEditMode || !editingItemCode) return;
-                                  try {
-                                    const pl = form.selling_price_list || 'Standard Selling';
-                                    const existing = (priceData.prices || []).find(p => p.price_list === pl && p.selling === 1 && p.uom === (form.default_uom || 'Nos'));
-                                    await axios.post('/api/method/kyle_retail.retail_api.api.update_item_price', {
-                                      item_code: editingItemCode,
-                                      data: { price_list: pl, uom: form.default_uom || 'Nos', price_list_rate: form.selling_price || 0, buying: 0, selling: 1, name: existing?.name || '' }
-                                    }, { withCredentials: true });
-                                    fetchPriceList(editingItemCode);
-                                  } catch (err) { console.warn('Price save err:', err); }
-                                }}
-                                placeholder="0.00"
-                                onFocus={e => e.target.select()}
-                              />
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                              <div>
+                                <label style={{ fontSize: 10, fontWeight: 600, color: '#78350f', display: 'block', marginBottom: 2 }}>Price List</label>
+                                <SearchableSelectCompact
+                                  value={form.box_buying_price_list || 'Standard Buying'}
+                                  options={buyingPriceListOptions}
+                                  placeholder="Select Buying Price List"
+                                  onChange={pl => {
+                                    setForm(p => ({ ...p, box_buying_price_list: pl }));
+                                    if (isEditMode && editingItemCode) {
+                                      const found = (priceData.prices || []).find(p => p.price_list === pl && p.buying === 1 && p.uom === 'Box');
+                                      if (found) setForm(prev => ({ ...prev, box_buying_price_list: pl, box_buying_price: found.price_list_rate }));
+                                    }
+                                  }}
+                                />
+                              </div>
+                              <div>
+                                <label style={{ fontSize: 10, fontWeight: 600, color: '#78350f', display: 'block', marginBottom: 2 }}>Rate (AED)</label>
+                                <input
+                                  type="number"
+                                  className="il-input"
+                                  style={{ fontWeight: 800, fontSize: 14, color: T.amber, background: '#fff', height: 32 }}
+                                  value={form.box_buying_price || (priceData.prices || []).find(p => p.price_list === (form.box_buying_price_list || 'Standard Buying') && p.buying === 1 && p.uom === 'Box')?.price_list_rate || 0}
+                                  onChange={e => setForm(p => ({ ...p, box_buying_price: Number(e.target.value) }))}
+                                  onBlur={async () => {
+                                    if (!isEditMode || !editingItemCode) return;
+                                    try {
+                                      const pl = form.box_buying_price_list || 'Standard Buying';
+                                      const existing = (priceData.prices || []).find(p => p.price_list === pl && p.buying === 1 && p.uom === 'Box');
+                                      await axios.post('/api/method/kyle_retail.retail_api.api.update_item_price', {
+                                        item_code: editingItemCode,
+                                        data: { price_list: pl, uom: 'Box', price_list_rate: form.box_buying_price || 0, buying: 1, selling: 0, name: existing?.name || '' }
+                                      }, { withCredentials: true });
+                                      fetchPriceList(editingItemCode);
+                                    } catch (err) { console.warn('Price save err:', err); }
+                                  }}
+                                  placeholder="0.00"
+                                  onFocus={e => e.target.select()}
+                                />
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Box Selling Price */}
+                          <div style={{ background: '#f0fdf4', border: '1px solid #BBF7D0', borderRadius: 8, padding: '10px 12px' }}>
+                            <div style={{ fontSize: 10, fontWeight: 800, color: T.green, textTransform: 'uppercase', marginBottom: 6 }}>
+                              ● Selling Price
+                            </div>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                              <div>
+                                <label style={{ fontSize: 10, fontWeight: 600, color: '#14532d', display: 'block', marginBottom: 2 }}>Price List</label>
+                                <SearchableSelectCompact
+                                  value={form.box_selling_price_list || 'Standard Selling'}
+                                  options={sellingPriceListOptions}
+                                  placeholder="Select Selling Price List"
+                                  onChange={pl => {
+                                    setForm(p => ({ ...p, box_selling_price_list: pl }));
+                                    if (isEditMode && editingItemCode) {
+                                      const found = (priceData.prices || []).find(p => p.price_list === pl && p.selling === 1 && p.uom === 'Box');
+                                      if (found) setForm(prev => ({ ...prev, box_selling_price_list: pl, box_selling_price: found.price_list_rate }));
+                                    }
+                                  }}
+                                />
+                              </div>
+                              <div>
+                                <label style={{ fontSize: 10, fontWeight: 600, color: '#14532d', display: 'block', marginBottom: 2 }}>Rate (AED)</label>
+                                <input
+                                  type="number"
+                                  className="il-input"
+                                  style={{ fontWeight: 800, fontSize: 14, color: T.green, background: '#fff', height: 32 }}
+                                  value={form.box_selling_price || (priceData.prices || []).find(p => p.price_list === (form.box_selling_price_list || 'Standard Selling') && p.selling === 1 && p.uom === 'Box')?.price_list_rate || 0}
+                                  onChange={e => setForm(p => ({ ...p, box_selling_price: Number(e.target.value) }))}
+                                  onBlur={async () => {
+                                    if (!isEditMode || !editingItemCode) return;
+                                    try {
+                                      const pl = form.box_selling_price_list || 'Standard Selling';
+                                      const existing = (priceData.prices || []).find(p => p.price_list === pl && p.selling === 1 && p.uom === 'Box');
+                                      await axios.post('/api/method/kyle_retail.retail_api.api.update_item_price', {
+                                        item_code: editingItemCode,
+                                        data: { price_list: pl, uom: 'Box', price_list_rate: form.box_selling_price || 0, buying: 0, selling: 1, name: existing?.name || '' }
+                                      }, { withCredentials: true });
+                                      fetchPriceList(editingItemCode);
+                                    } catch (err) { console.warn('Price save err:', err); }
+                                  }}
+                                  placeholder="0.00"
+                                  onFocus={e => e.target.select()}
+                                />
+                              </div>
                             </div>
                           </div>
                         </div>
                       </div>
 
-                      {/* 2. BOX PRICE */}
-                      <div style={{ background: '#f8fafc', border: `1.5px solid ${T.border}`, borderRadius: 12, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: `1px solid ${T.borderLight}`, paddingBottom: 8 }}>
-                          <div style={{ fontSize: 13, fontWeight: 800, color: '#d97706', display: 'flex', alignItems: 'center', gap: 6 }}>
-                            <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#d97706' }} />
-                            Box Price <span style={{ fontSize: 11, color: T.textMuted, fontWeight: 600 }}>(Box = {form.custom_pieces_per_box || 1} {form.default_uom || 'Nos'})</span>
-                          </div>
-                          <span className="il-chip" style={{ fontSize: 10, padding: '1px 7px', background: '#fef3c7', color: '#b45309', border: '1px solid #fde68a', fontWeight: 700 }}>Box UOM</span>
+                      {/* Existing prices summary */}
+                      {isEditMode && priceData.prices?.length > 0 && (
+                        <div style={{ marginTop: 14, display: 'flex', flexWrap: 'wrap', gap: 6, paddingTop: 10, borderTop: `1px dashed ${T.border}` }}>
+                          {priceData.prices.map((p, i) => (
+                            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 10px', background: '#fff', border: `1px solid ${T.border}`, borderRadius: 8 }}>
+                              <span style={{ fontSize: 10, fontWeight: 700, color: p.buying ? T.amber : T.green }}>
+                                {p.buying ? '▲ BUY' : '▼ SELL'}
+                              </span>
+                              <span style={{ fontSize: 11, color: T.textSub, fontWeight: 600 }}>{p.price_list}</span>
+                              <span style={{ fontSize: 12, fontWeight: 800, color: T.text }}>AED {Number(p.price_list_rate).toFixed(2)}</span>
+                              <span style={{ fontSize: 10, color: T.blue, fontWeight: 700, background: '#eff6ff', padding: '1px 5px', borderRadius: 4 }}>{p.uom}</span>
+                            </div>
+                          ))}
                         </div>
-
-                        {/* Box Buying Price */}
-                        <div style={{ background: '#fffbeb', border: '1px solid #FDE68A', borderRadius: 8, padding: '10px 12px' }}>
-                          <div style={{ fontSize: 10, fontWeight: 800, color: T.amber, textTransform: 'uppercase', marginBottom: 6 }}>
-                            ● Buying Price
-                          </div>
-                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                            <div>
-                              <label style={{ fontSize: 10, fontWeight: 600, color: '#78350f', display: 'block', marginBottom: 2 }}>Price List</label>
-                              <SearchableSelectCompact
-                                value={form.box_buying_price_list || 'Standard Buying'}
-                                options={buyingPriceListOptions}
-                                placeholder="Select Buying Price List"
-                                onChange={pl => {
-                                  setForm(p => ({ ...p, box_buying_price_list: pl }));
-                                  if (isEditMode && editingItemCode) {
-                                    const found = (priceData.prices || []).find(p => p.price_list === pl && p.buying === 1 && p.uom === 'Box');
-                                    if (found) setForm(prev => ({ ...prev, box_buying_price_list: pl, box_buying_price: found.price_list_rate }));
-                                  }
-                                }}
-                              />
-                            </div>
-                            <div>
-                              <label style={{ fontSize: 10, fontWeight: 600, color: '#78350f', display: 'block', marginBottom: 2 }}>Rate (AED)</label>
-                              <input
-                                type="number"
-                                className="il-input"
-                                style={{ fontWeight: 800, fontSize: 14, color: T.amber, background: '#fff', height: 32 }}
-                                value={form.box_buying_price || (priceData.prices || []).find(p => p.price_list === (form.box_buying_price_list || 'Standard Buying') && p.buying === 1 && p.uom === 'Box')?.price_list_rate || 0}
-                                onChange={e => setForm(p => ({ ...p, box_buying_price: Number(e.target.value) }))}
-                                onBlur={async () => {
-                                  if (!isEditMode || !editingItemCode) return;
-                                  try {
-                                    const pl = form.box_buying_price_list || 'Standard Buying';
-                                    const existing = (priceData.prices || []).find(p => p.price_list === pl && p.buying === 1 && p.uom === 'Box');
-                                    await axios.post('/api/method/kyle_retail.retail_api.api.update_item_price', {
-                                      item_code: editingItemCode,
-                                      data: { price_list: pl, uom: 'Box', price_list_rate: form.box_buying_price || 0, buying: 1, selling: 0, name: existing?.name || '' }
-                                    }, { withCredentials: true });
-                                    fetchPriceList(editingItemCode);
-                                  } catch (err) { console.warn('Price save err:', err); }
-                                }}
-                                placeholder="0.00"
-                                onFocus={e => e.target.select()}
-                              />
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Box Selling Price */}
-                        <div style={{ background: '#f0fdf4', border: '1px solid #BBF7D0', borderRadius: 8, padding: '10px 12px' }}>
-                          <div style={{ fontSize: 10, fontWeight: 800, color: T.green, textTransform: 'uppercase', marginBottom: 6 }}>
-                            ● Selling Price
-                          </div>
-                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                            <div>
-                              <label style={{ fontSize: 10, fontWeight: 600, color: '#14532d', display: 'block', marginBottom: 2 }}>Price List</label>
-                              <SearchableSelectCompact
-                                value={form.box_selling_price_list || 'Standard Selling'}
-                                options={sellingPriceListOptions}
-                                placeholder="Select Selling Price List"
-                                onChange={pl => {
-                                  setForm(p => ({ ...p, box_selling_price_list: pl }));
-                                  if (isEditMode && editingItemCode) {
-                                    const found = (priceData.prices || []).find(p => p.price_list === pl && p.selling === 1 && p.uom === 'Box');
-                                    if (found) setForm(prev => ({ ...prev, box_selling_price_list: pl, box_selling_price: found.price_list_rate }));
-                                  }
-                                }}
-                              />
-                            </div>
-                            <div>
-                              <label style={{ fontSize: 10, fontWeight: 600, color: '#14532d', display: 'block', marginBottom: 2 }}>Rate (AED)</label>
-                              <input
-                                type="number"
-                                className="il-input"
-                                style={{ fontWeight: 800, fontSize: 14, color: T.green, background: '#fff', height: 32 }}
-                                value={form.box_selling_price || (priceData.prices || []).find(p => p.price_list === (form.box_selling_price_list || 'Standard Selling') && p.selling === 1 && p.uom === 'Box')?.price_list_rate || 0}
-                                onChange={e => setForm(p => ({ ...p, box_selling_price: Number(e.target.value) }))}
-                                onBlur={async () => {
-                                  if (!isEditMode || !editingItemCode) return;
-                                  try {
-                                    const pl = form.box_selling_price_list || 'Standard Selling';
-                                    const existing = (priceData.prices || []).find(p => p.price_list === pl && p.selling === 1 && p.uom === 'Box');
-                                    await axios.post('/api/method/kyle_retail.retail_api.api.update_item_price', {
-                                      item_code: editingItemCode,
-                                      data: { price_list: pl, uom: 'Box', price_list_rate: form.box_selling_price || 0, buying: 0, selling: 1, name: existing?.name || '' }
-                                    }, { withCredentials: true });
-                                    fetchPriceList(editingItemCode);
-                                  } catch (err) { console.warn('Price save err:', err); }
-                                }}
-                                placeholder="0.00"
-                                onFocus={e => e.target.select()}
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* 3. MASTER BOX PRICE (Commented out for future use as requested)
-                      <div style={{ background: '#f8fafc', border: `1.5px solid ${T.border}`, borderRadius: 12, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-                        ...
-                      </div>
-                      */}
+                      )}
                     </div>
-
-                    {/* Existing prices summary */}
-                    {isEditMode && priceData.prices?.length > 0 && (
-                      <div style={{ marginTop: 14, display: 'flex', flexWrap: 'wrap', gap: 6, paddingTop: 10, borderTop: `1px dashed ${T.border}` }}>
-                        {priceData.prices.map((p, i) => (
-                          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 10px', background: '#fff', border: `1px solid ${T.border}`, borderRadius: 8 }}>
-                            <span style={{ fontSize: 10, fontWeight: 700, color: p.buying ? T.amber : T.green }}>
-                              {p.buying ? '▲ BUY' : '▼ SELL'}
-                            </span>
-                            <span style={{ fontSize: 11, color: T.textSub, fontWeight: 600 }}>{p.price_list}</span>
-                            <span style={{ fontSize: 12, fontWeight: 800, color: T.text }}>AED {Number(p.price_list_rate).toFixed(2)}</span>
-                            <span style={{ fontSize: 10, color: T.blue, fontWeight: 700, background: '#eff6ff', padding: '1px 5px', borderRadius: 4 }}>{p.uom}</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </CardSection>
-
-                {/* ROW 5: Has Variants (Template) toggle */}
-                {!form.variant_of && (
-                  <div style={{ background: form.has_variants === 1 ? '#f5f3ff' : T.bg, border: `1.5px solid ${form.has_variants === 1 ? '#c4b5fd' : T.border}`, borderRadius: 12, padding: '12px 16px', transition: 'all 0.15s' }}>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}>
-                      <input
-                        type="checkbox"
-                        className="il-check"
-                        checked={form.has_variants === 1}
-                        onChange={e => {
-                          const checked = e.target.checked;
-                          const updatedForm = { ...form, has_variants: checked ? 1 : 0 };
-                          if (checked) {
-                            updatedForm.is_sales_item = 0;
-                            updatedForm.is_purchase_item = 0;
-                            updatedForm.is_stock_item = 0;
-                          }
-                          if (checked && (!form.attributes || form.attributes.length === 0)) {
-                            const initialAttr = availableAttributes[0]?.value || 'Colour';
-                            updatedForm.attributes = [{ attribute: initialAttr }];
-                            const possibleVals = attributeValuesMap[initialAttr] || [];
-                            const firstVal = possibleVals[0]?.attribute_value || '';
-                            const initSelected = firstVal ? { [initialAttr]: firstVal } : {};
-                            setVariantForm(vf => ({
-                              ...vf,
-                              initial_variants: [
-                                {
-                                  id: `var-1-${Date.now()}`,
-                                  selected_attributes: initSelected,
-                                  variant_item_code: firstVal ? `${form.item_code || 'ITEM'}-${firstVal}`.toUpperCase() : '',
-                                  variant_item_name: firstVal ? `${form.item_name || 'Item'} ${firstVal}` : '',
-                                  variant_barcode: '',
-                                  use_custom_code: true
-                                }
-                              ]
-                            }));
-                          }
-                          setForm(updatedForm);
-                        }}
-                        tabIndex={showForm ? 0 : -1}
-                      />
-                      <div>
-                        <div style={{ fontSize: 14, fontWeight: 700, color: form.has_variants === 1 ? '#6d28d9' : T.text }}>Has Variants (Template Item)</div>
-                        <div style={{ fontSize: 12, color: T.textMuted }}>Mark this as an Item Template to configure attributes & initial variants below</div>
-                      </div>
-                    </label>
-                  </div>
+                  </CardSection>
                 )}
 
-                {/* Template Attributes & Initial Variant Configuration (Directly under Has Variants when checked) */}
+                {/* Template Attributes & Initial Variant Configuration (Directly under Specifications when Has Variants is checked) */}
                 {Boolean(form.has_variants) && (
                   <CardSection 
-                    title="Template Item Attributes & Initial Variant" 
+                    title="Item Variants & Options (e.g. Sizes / Colours / Types)" 
                     icon={<Layers size={14} />}
                     style={{ border: '1.5px solid #c4b5fd', background: '#faf5ff' }}
-                    action={<button type="button" className="il-btn il-btn-ghost" style={{ padding: '4px 9px', fontSize: 12, color: '#6d28d9' }} onClick={() => setForm(p => ({ ...p, attributes: [...(p.attributes || []), { attribute: '' }] }))}><Plus size={12} />Add Attribute</button>}
+                    action={<button type="button" className="il-btn il-btn-ghost" style={{ padding: '4px 9px', fontSize: 12, color: '#6d28d9' }} onClick={() => setForm(p => ({ ...p, attributes: [...(p.attributes || []), { attribute: '' }] }))}><Plus size={12} />Add Option</button>}
                   >
                     <div style={{ padding: '16px' }}>
                       <div style={{ fontSize: 12, color: '#6d28d9', fontWeight: 700, marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                        1. Select Template Attributes (e.g. Size, Colour)
+                        1. Choose Options for this Item (e.g. Size, Colour, Pack)
                       </div>
                       
                       {/* Fast Tag Selector */}
@@ -4221,7 +4197,11 @@ export default function ItemList() {
                                 
                                 // Update all initial variant rows
                                 setVariantForm(vf => {
-                                  const updatedVariants = (vf.initial_variants || []).map(v => {
+                                  const currentVars = (vf.initial_variants || []).length > 0 
+                                    ? vf.initial_variants 
+                                    : (!isSelected && nextAttrs.length > 0 ? [{ id: `var-1-${Date.now()}`, is_existing: false, selected_attributes: {}, variant_barcode: '', nos_barcode: '', box_barcode: '', use_custom_code: true }] : []);
+
+                                  const updatedVariants = currentVars.map(v => {
                                     const updatedVals = { ...(v.selected_attributes || {}) };
                                     if (isSelected) {
                                       delete updatedVals[attr.value];
@@ -4418,11 +4398,11 @@ export default function ItemList() {
                         </div>
                       ) : (
                         <div style={{ padding: '16px', textAlign: 'center', background: '#fff', borderRadius: 8, border: '1px dashed #c084fc', color: '#7c3aed', fontSize: 12, fontWeight: 600, marginBottom: 16 }}>
-                          ⚠️ Please select at least one Attribute above to enable Variant creation.
+                          ⚠️ Please select at least one Option above (e.g. Size, Colour) to add Variant items.
                         </div>
                       )}
 
-                      {/* Template Item Variants (Inline Editable for Existing & New Variants) */}
+                      {/* Variant Items List (Inline Editable for Existing & New Variants) */}
                       {(form.attributes || []).length > 0 && (
                         <div style={{ background: '#fff', border: '1.5px solid #ddd6fe', borderRadius: 12, padding: '16px', marginTop: 10 }}>
                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, borderBottom: '1px solid #f3e8ff', paddingBottom: 10 }}>
@@ -4430,8 +4410,8 @@ export default function ItemList() {
                               <Box size={16} color="#7c3aed" />
                               <span style={{ fontSize: 13, fontWeight: 800, color: '#5b21b6' }}>
                                 {isEditMode 
-                                  ? `Template Item Variants (${(variantForm.initial_variants || []).length})`
-                                  : `Initial Variant(s) (${(variantForm.initial_variants || []).length})`}
+                                  ? `Item Variants (${(variantForm.initial_variants || []).length})`
+                                  : `Variant Items to Create (${(variantForm.initial_variants || []).length})`}
                               </span>
                               {loadingTemplateVariants && <Loader2 size={15} className="spin" color="#7c3aed" />}
                             </div>
@@ -4687,46 +4667,6 @@ export default function ItemList() {
 
                                       {/* Right: Quick Action Buttons & Details Toggle */}
                                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                        {/* Variant Image */}
-                                        {vRow.imagePreview || vRow.image ? (
-                                          <div style={{ position: 'relative', width: 32, height: 32, borderRadius: 6, overflow: 'hidden', border: '1px solid #cbd5e1', flexShrink: 0 }}>
-                                            <img src={vRow.imagePreview || vRow.image} alt="variant" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                            <button
-                                              type="button"
-                                              onClick={() => {
-                                                const updatedVariants = [...variantForm.initial_variants];
-                                                updatedVariants[vIdx] = { ...vRow, image: '', imagePreview: '' };
-                                                setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
-                                              }}
-                                              style={{ position: 'absolute', top: 0, right: 0, background: 'rgba(0,0,0,0.6)', color: '#fff', border: 'none', borderRadius: '0 0 0 4px', cursor: 'pointer', width: 14, height: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 8 }}
-                                            >
-                                              ✕
-                                            </button>
-                                          </div>
-                                        ) : (
-                                          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '4px 8px', background: '#fff', border: '1px solid #cbd5e1', borderRadius: 6, fontSize: 11, fontWeight: 700, color: '#475569', cursor: 'pointer', height: 30 }}>
-                                            <Upload size={12} />
-                                            <span>Image</span>
-                                            <input
-                                              type="file"
-                                              hidden
-                                              accept="image/*"
-                                              onChange={e => {
-                                                const file = e.target.files[0];
-                                                if (file) {
-                                                  const reader = new FileReader();
-                                                  reader.onloadend = () => {
-                                                    const updatedVariants = [...variantForm.initial_variants];
-                                                    updatedVariants[vIdx] = { ...vRow, image: reader.result, imagePreview: reader.result };
-                                                    setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
-                                                  };
-                                                  reader.readAsDataURL(file);
-                                                }
-                                              }}
-                                            />
-                                          </label>
-                                        )}
-
                                         {/* Toggle Full Specs Drawer */}
                                         <button
                                           type="button"
@@ -4738,21 +4678,22 @@ export default function ItemList() {
                                           style={{
                                             display: 'inline-flex',
                                             alignItems: 'center',
-                                            gap: 4,
-                                            padding: '5px 10px',
+                                            gap: 5,
+                                            padding: '6px 12px',
                                             borderRadius: 8,
                                             border: `1.5px solid ${isExpanded ? '#7c3aed' : '#cbd5e1'}`,
                                             background: isExpanded ? '#7c3aed' : '#fff',
                                             color: isExpanded ? '#fff' : '#475569',
-                                            fontSize: 11,
+                                            fontSize: 12,
                                             fontWeight: 800,
                                             cursor: 'pointer',
-                                            height: 32
+                                            height: 34,
+                                            boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
                                           }}
                                         >
-                                          <Sparkles size={12} />
+                                          <Sparkles size={13} />
                                           <span>{isExpanded ? 'Hide Specs' : 'Expand Specs'}</span>
-                                          <ChevronDown size={12} style={{ transform: isExpanded ? 'rotate(180deg)' : 'none', transition: '0.2s' }} />
+                                          <ChevronDown size={13} style={{ transform: isExpanded ? 'rotate(180deg)' : 'none', transition: '0.2s' }} />
                                         </button>
 
                                         {/* Delete Button */}
@@ -4765,130 +4706,181 @@ export default function ItemList() {
                                                 initial_variants: vf.initial_variants.filter((_, i) => i !== vIdx)
                                               }));
                                             }}
-                                            style={{ background: 'none', border: 'none', color: T.red, cursor: 'pointer', padding: 4, display: 'flex' }}
+                                            style={{ background: '#fef2f2', border: '1px solid #fecaca', color: T.red, borderRadius: 8, cursor: 'pointer', padding: '6px 8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                                             title="Remove variant"
                                           >
-                                            <Trash2 size={16} />
+                                            <Trash2 size={15} />
                                           </button>
                                         )}
                                       </div>
                                     </div>
 
-                                    {/* Middle Row: Primary Price & Barcode Grid - Responsive Clean 4 or 6 Columns */}
+                                    {/* Middle Row: Excel-Inspired Structured Pricing & Barcode Grid (Nos Column vs Box Column) */}
                                     <div
                                       style={{
-                                        padding: '10px 16px',
+                                        padding: '14px 18px',
+                                        background: '#fafafa',
+                                        borderBottom: isExpanded ? '1px solid #e2e8f0' : 'none',
                                         display: 'grid',
-                                        gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
-                                        gap: 8,
-                                        background: '#fff',
-                                        borderBottom: isExpanded ? '1px solid #f1f5f9' : 'none'
+                                        gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+                                        gap: 14
                                       }}
                                     >
-                                      {/* Nos Buy */}
-                                      <div style={{ background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: 8, padding: '6px 8px' }}>
-                                        <div style={{ fontSize: 10, fontWeight: 800, color: '#0369a1', textTransform: 'uppercase', marginBottom: 2 }}>Nos Buy</div>
-                                        <input
-                                          type="number"
-                                          step="any"
-                                          className="il-input"
-                                          style={{ height: 28, fontSize: 12, fontWeight: 800, color: '#0369a1', background: '#fff', border: '1px solid #bae6fd' }}
-                                          value={vRow.buying_price !== undefined ? vRow.buying_price : (form.buying_price || '')}
-                                          onChange={e => {
-                                            const updatedVariants = [...variantForm.initial_variants];
-                                            updatedVariants[vIdx] = { ...vRow, buying_price: e.target.value };
-                                            setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
-                                          }}
-                                          placeholder="0.00"
-                                        />
+                                      {/* Column 1: NOS UNIT SPECS */}
+                                      <div style={{ background: '#fff', border: '1.5px solid #bae6fd', borderRadius: 10, padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 8, boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #e0f2fe', paddingBottom: 6 }}>
+                                          <span style={{ fontSize: 12, fontWeight: 800, color: '#0369a1', display: 'flex', alignItems: 'center', gap: 6 }}>
+                                            <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#0284c7' }} />
+                                            Nos Unit ({vRow.stock_uom || form.default_uom || 'Nos'})
+                                          </span>
+                                          <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 6px', background: '#e0f2fe', color: '#0369a1', borderRadius: 4 }}>Base Unit</span>
+                                        </div>
+
+                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                                          {/* Buying price Nos */}
+                                          <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: '6px 8px' }}>
+                                            <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', marginBottom: 2 }}>Buying price Nos</div>
+                                            <input
+                                              type="number"
+                                              step="any"
+                                              min="0"
+                                              className="il-input"
+                                              style={{ height: 30, fontSize: 12, fontWeight: 800, color: '#0369a1', background: '#fff', border: '1px solid #cbd5e1' }}
+                                              value={vRow.buying_price !== undefined ? vRow.buying_price : (form.buying_price || '')}
+                                              onChange={e => {
+                                                const updatedVariants = [...variantForm.initial_variants];
+                                                updatedVariants[vIdx] = { ...vRow, buying_price: e.target.value };
+                                                setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
+                                              }}
+                                              placeholder="0.00"
+                                            />
+                                          </div>
+
+                                          {/* Selling price Nos */}
+                                          <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: '6px 8px' }}>
+                                            <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', marginBottom: 2 }}>Selling price Nos</div>
+                                            <input
+                                              type="number"
+                                              step="any"
+                                              min="0"
+                                              className="il-input"
+                                              style={{ height: 30, fontSize: 12, fontWeight: 800, color: '#16a34a', background: '#fff', border: '1px solid #cbd5e1' }}
+                                              value={vRow.selling_price !== undefined ? vRow.selling_price : (form.selling_price || '')}
+                                              onChange={e => {
+                                                const updatedVariants = [...variantForm.initial_variants];
+                                                updatedVariants[vIdx] = { ...vRow, selling_price: e.target.value };
+                                                setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
+                                              }}
+                                              placeholder="0.00"
+                                            />
+                                          </div>
+                                        </div>
+
+                                        {/* Barcode Nos */}
+                                        <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: '6px 8px' }}>
+                                          <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', marginBottom: 2 }}>Barcode Nos</div>
+                                          <input
+                                            type="text"
+                                            className="il-input"
+                                            style={{ height: 30, fontSize: 12, fontWeight: 700, fontFamily: "'DM Mono', monospace", background: '#fff' }}
+                                            value={vRow.nos_barcode !== undefined ? vRow.nos_barcode : (vRow.variant_barcode || '')}
+                                            onChange={e => {
+                                              const updatedVariants = [...variantForm.initial_variants];
+                                              updatedVariants[vIdx] = { ...vRow, nos_barcode: e.target.value, variant_barcode: e.target.value };
+                                              setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
+                                            }}
+                                            placeholder="Scan/Type Nos Barcode"
+                                          />
+                                        </div>
                                       </div>
 
-                                      {/* Nos Sell */}
-                                      <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, padding: '6px 8px' }}>
-                                        <div style={{ fontSize: 10, fontWeight: 800, color: '#15803d', textTransform: 'uppercase', marginBottom: 2 }}>Nos Sell</div>
-                                        <input
-                                          type="number"
-                                          step="any"
-                                          className="il-input"
-                                          style={{ height: 28, fontSize: 12, fontWeight: 800, color: '#15803d', background: '#fff', border: '1px solid #bbf7d0' }}
-                                          value={vRow.selling_price !== undefined ? vRow.selling_price : (form.selling_price || '')}
-                                          onChange={e => {
-                                            const updatedVariants = [...variantForm.initial_variants];
-                                            updatedVariants[vIdx] = { ...vRow, selling_price: e.target.value };
-                                            setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
-                                          }}
-                                          placeholder="0.00"
-                                        />
-                                      </div>
+                                      {/* Column 2: BOX UNIT SPECS */}
+                                      <div style={{ background: '#fff', border: '1.5px solid #fde68a', borderRadius: 10, padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 8, boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #fef3c7', paddingBottom: 6 }}>
+                                          <span style={{ fontSize: 12, fontWeight: 800, color: '#b45309', display: 'flex', alignItems: 'center', gap: 6 }}>
+                                            <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#d97706' }} />
+                                            Box Package ({pcsBox ? `${pcsBox} ${vRow.stock_uom || form.default_uom || 'Nos'}` : 'Box'})
+                                          </span>
+                                          <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 6px', background: '#fef3c7', color: '#b45309', borderRadius: 4 }}>Box Unit</span>
+                                        </div>
 
-                                      {/* Box Buy */}
-                                      <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8, padding: '6px 8px' }}>
-                                        <div style={{ fontSize: 10, fontWeight: 800, color: '#b45309', textTransform: 'uppercase', marginBottom: 2 }}>Box Buy</div>
-                                        <input
-                                          type="number"
-                                          step="any"
-                                          className="il-input"
-                                          style={{ height: 28, fontSize: 12, fontWeight: 800, color: '#b45309', background: '#fff', border: '1px solid #fde68a' }}
-                                          value={vRow.box_buying_price !== undefined ? vRow.box_buying_price : (form.box_buying_price || '')}
-                                          onChange={e => {
-                                            const updatedVariants = [...variantForm.initial_variants];
-                                            updatedVariants[vIdx] = { ...vRow, box_buying_price: e.target.value };
-                                            setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
-                                          }}
-                                          placeholder="0.00"
-                                        />
-                                      </div>
+                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                                          {/* Buying price Box */}
+                                          <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: '6px 8px' }}>
+                                            <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', marginBottom: 2 }}>Buying price Box</div>
+                                            <input
+                                              type="number"
+                                              step="any"
+                                              min="0"
+                                              className="il-input"
+                                              style={{ height: 30, fontSize: 12, fontWeight: 800, color: '#b45309', background: '#fff', border: '1px solid #cbd5e1' }}
+                                              value={vRow.box_buying_price !== undefined ? vRow.box_buying_price : (form.box_buying_price || '')}
+                                              onChange={e => {
+                                                const updatedVariants = [...variantForm.initial_variants];
+                                                updatedVariants[vIdx] = { ...vRow, box_buying_price: e.target.value };
+                                                setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
+                                              }}
+                                              placeholder="0.00"
+                                            />
+                                          </div>
 
-                                      {/* Box Sell */}
-                                      <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8, padding: '6px 8px' }}>
-                                        <div style={{ fontSize: 10, fontWeight: 800, color: '#d97706', textTransform: 'uppercase', marginBottom: 2 }}>Box Sell</div>
-                                        <input
-                                          type="number"
-                                          step="any"
-                                          className="il-input"
-                                          style={{ height: 28, fontSize: 12, fontWeight: 800, color: '#d97706', background: '#fff', border: '1px solid #fde68a' }}
-                                          value={vRow.box_selling_price !== undefined ? vRow.box_selling_price : (form.box_selling_price || '')}
-                                          onChange={e => {
-                                            const updatedVariants = [...variantForm.initial_variants];
-                                            updatedVariants[vIdx] = { ...vRow, box_selling_price: e.target.value };
-                                            setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
-                                          }}
-                                          placeholder="0.00"
-                                        />
-                                      </div>
+                                          {/* Selling price Box */}
+                                          <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: '6px 8px' }}>
+                                            <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', marginBottom: 2 }}>Selling price Box</div>
+                                            <input
+                                              type="number"
+                                              step="any"
+                                              min="0"
+                                              className="il-input"
+                                              style={{ height: 30, fontSize: 12, fontWeight: 800, color: '#d97706', background: '#fff', border: '1px solid #cbd5e1' }}
+                                              value={vRow.box_selling_price !== undefined ? vRow.box_selling_price : (form.box_selling_price || '')}
+                                              onChange={e => {
+                                                const updatedVariants = [...variantForm.initial_variants];
+                                                updatedVariants[vIdx] = { ...vRow, box_selling_price: e.target.value };
+                                                setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
+                                              }}
+                                              placeholder="0.00"
+                                            />
+                                          </div>
+                                        </div>
 
-                                      {/* Nos Barcode */}
-                                      <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: '6px 8px' }}>
-                                        <div style={{ fontSize: 10, fontWeight: 800, color: '#475569', textTransform: 'uppercase', marginBottom: 2 }}>Nos Barcode</div>
-                                        <input
-                                          type="text"
-                                          className="il-input"
-                                          style={{ height: 28, fontSize: 12, background: '#fff' }}
-                                          value={vRow.nos_barcode !== undefined ? vRow.nos_barcode : (vRow.variant_barcode || '')}
-                                          onChange={e => {
-                                            const updatedVariants = [...variantForm.initial_variants];
-                                            updatedVariants[vIdx] = { ...vRow, nos_barcode: e.target.value, variant_barcode: e.target.value };
-                                            setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
-                                          }}
-                                          placeholder="Barcode"
-                                        />
-                                      </div>
+                                        <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: 8 }}>
+                                          {/* Barcode Box */}
+                                          <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: '6px 8px' }}>
+                                            <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', marginBottom: 2 }}>Barcode Box</div>
+                                            <input
+                                              type="text"
+                                              className="il-input"
+                                              style={{ height: 30, fontSize: 12, fontWeight: 700, fontFamily: "'DM Mono', monospace", background: '#fff' }}
+                                              value={vRow.box_barcode || ''}
+                                              onChange={e => {
+                                                const updatedVariants = [...variantForm.initial_variants];
+                                                updatedVariants[vIdx] = { ...vRow, box_barcode: e.target.value };
+                                                setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
+                                              }}
+                                              placeholder="Scan/Type Box Barcode"
+                                            />
+                                          </div>
 
-                                      {/* Box Barcode */}
-                                      <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: '6px 8px' }}>
-                                        <div style={{ fontSize: 10, fontWeight: 800, color: '#475569', textTransform: 'uppercase', marginBottom: 2 }}>Box Barcode</div>
-                                        <input
-                                          type="text"
-                                          className="il-input"
-                                          style={{ height: 28, fontSize: 12, background: '#fff' }}
-                                          value={vRow.box_barcode || ''}
-                                          onChange={e => {
-                                            const updatedVariants = [...variantForm.initial_variants];
-                                            updatedVariants[vIdx] = { ...vRow, box_barcode: e.target.value };
-                                            setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
-                                          }}
-                                          placeholder="Box Barcode"
-                                        />
+                                          {/* Nos in box */}
+                                          <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: '6px 8px' }}>
+                                            <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', marginBottom: 2 }}>Nos in box</div>
+                                            <input
+                                              type="number"
+                                              step="1"
+                                              min="0"
+                                              className="il-input"
+                                              style={{ height: 30, fontSize: 12, fontWeight: 800, color: '#475569', background: '#fff' }}
+                                              value={vRow.custom_pieces_per_box !== undefined ? vRow.custom_pieces_per_box : (form.custom_pieces_per_box || '')}
+                                              onChange={e => {
+                                                const updatedVariants = [...variantForm.initial_variants];
+                                                updatedVariants[vIdx] = { ...vRow, custom_pieces_per_box: e.target.value };
+                                                setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
+                                              }}
+                                              placeholder="Pcs/Box"
+                                            />
+                                          </div>
+                                        </div>
                                       </div>
                                     </div>
 
@@ -4898,7 +4890,7 @@ export default function ItemList() {
                                         {/* Classification & Unit Master */}
                                         <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, padding: 14 }}>
                                           <div style={{ fontSize: 12, fontWeight: 800, color: '#1e293b', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
-                                            <Box size={14} color="#7c3aed" /> General Item Classification & Units
+                                            <Box size={14} color="#7c3aed" /> General Item Classification & Units (Inherited from Template)
                                           </div>
                                           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10 }}>
                                             <div>
@@ -4934,34 +4926,6 @@ export default function ItemList() {
                                             </div>
 
                                             <div>
-                                              <label style={{ fontSize: 11, fontWeight: 700, color: '#475569', display: 'block', marginBottom: 4 }}>Brand</label>
-                                              <SearchableSelectInline
-                                                value={vRow.brand !== undefined ? vRow.brand : form.brand}
-                                                options={brands}
-                                                placeholder="Select Brand"
-                                                onChange={val => {
-                                                  const updatedVariants = [...variantForm.initial_variants];
-                                                  updatedVariants[vIdx] = { ...vRow, brand: val };
-                                                  setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
-                                                }}
-                                              />
-                                            </div>
-
-                                            <div>
-                                              <label style={{ fontSize: 11, fontWeight: 700, color: '#475569', display: 'block', marginBottom: 4 }}>Country of Origin</label>
-                                              <SearchableSelectInline
-                                                value={vRow.country_of_origin !== undefined ? vRow.country_of_origin : form.country_of_origin}
-                                                options={countries}
-                                                placeholder="Select Country"
-                                                onChange={val => {
-                                                  const updatedVariants = [...variantForm.initial_variants];
-                                                  updatedVariants[vIdx] = { ...vRow, country_of_origin: val };
-                                                  setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
-                                                }}
-                                              />
-                                            </div>
-
-                                            <div>
                                               <label style={{ fontSize: 11, fontWeight: 700, color: '#475569', display: 'block', marginBottom: 4 }}>Base UOM</label>
                                               <SearchableSelectInline
                                                 value={vRow.stock_uom !== undefined ? vRow.stock_uom : (form.default_uom || 'Nos')}
@@ -4976,7 +4940,7 @@ export default function ItemList() {
                                             </div>
 
                                             <div>
-                                              <label style={{ fontSize: 11, fontWeight: 700, color: '#475569', display: 'block', marginBottom: 4 }}>Pieces Per Box</label>
+                                              <label style={{ fontSize: 11, fontWeight: 700, color: '#475569', display: 'block', marginBottom: 4 }}>No of units in box</label>
                                               <input
                                                 type="number"
                                                 step="1"
@@ -5004,11 +4968,11 @@ export default function ItemList() {
                                             </div>
                                             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                                               {[
-                                                { key: 'is_stock_item', label: 'Track Stock', desc: 'Enables inventory ledger', def: 1, lockedForExisting: true },
-                                                { key: 'is_sales_item', label: 'Allow Sales', desc: 'Show in POS & Sales Orders', def: 1 },
-                                                { key: 'is_purchase_item', label: 'Allow Purchase', desc: 'Available for procurement', def: 1 },
+                                                { key: 'is_stock_item', label: 'Track Stock', desc: 'Enables inventory ledger', lockedForExisting: true },
+                                                { key: 'is_sales_item', label: 'Allow Sales', desc: 'Show in POS & Sales Orders' },
+                                                { key: 'is_purchase_item', label: 'Allow Purchase', desc: 'Available for procurement' },
                                               ].map(f => {
-                                                const checked = vRow[f.key] !== undefined ? vRow[f.key] === 1 : (form[f.key] !== undefined ? form[f.key] === 1 : f.def === 1);
+                                                const checked = vRow[f.key] !== undefined ? vRow[f.key] === 1 : true;
                                                 const isFieldLocked = f.lockedForExisting && Boolean(vRow.is_existing);
                                                 return (
                                                   <label key={f.key} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', background: isFieldLocked ? '#f1f5f9' : (checked ? '#eff6ff' : '#f8fafc'), borderRadius: 6, cursor: isFieldLocked ? 'not-allowed' : 'pointer', border: `1px solid ${checked ? '#bfdbfe' : '#e2e8f0'}` }}>
@@ -5041,13 +5005,13 @@ export default function ItemList() {
                                             </div>
                                             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                                               {[
-                                                { key: 'custom_loyalty_eligible', label: 'Loyalty Points', desc: 'Earn points on purchase', def: 1 },
-                                                { key: 'custom_allow_discount', label: 'Allow Discount', desc: 'Enable manual overrides', def: 1 },
-                                                { key: 'disabled', label: 'Disable Item', desc: 'Hide from active registries', def: 0 },
+                                                { key: 'custom_loyalty_eligible', label: 'Loyalty Points', desc: 'Earn points on purchase' },
+                                                { key: 'custom_allow_discount', label: 'Allow Discount', desc: 'Enable manual overrides' },
+                                                { key: 'disabled', label: 'Disable Item', desc: 'Hide from active registries' },
                                               ].map(f => {
                                                 const checked = f.key === 'disabled' 
-                                                  ? (vRow.disabled !== undefined ? Boolean(vRow.disabled) : Boolean(form.disabled))
-                                                  : (vRow[f.key] !== undefined ? vRow[f.key] === 1 : (form[f.key] !== undefined ? form[f.key] === 1 : f.def === 1));
+                                                  ? (vRow.disabled !== undefined ? Boolean(vRow.disabled) : false)
+                                                  : (vRow[f.key] !== undefined ? vRow[f.key] === 1 : true);
                                                 return (
                                                   <label key={f.key} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', background: checked ? (f.key === 'disabled' ? '#fee2e2' : '#f5f3ff') : '#f8fafc', borderRadius: 6, cursor: 'pointer', border: `1px solid ${checked ? (f.key === 'disabled' ? '#fca5a5' : '#ddd6fe') : '#e2e8f0'}` }}>
                                                     <input
@@ -5111,67 +5075,69 @@ export default function ItemList() {
                                           </div>
                                         </div>
 
-                                        {/* Branch Visibility & Supplier Mapping */}
+                                        {/* Branch Visibility & Supplier Mapping (Only show Branch Visibility if not cashier) */}
                                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 12 }}>
                                           {/* Branch Visibility */}
-                                          <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, padding: 12 }}>
-                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                                              <span style={{ fontSize: 12, fontWeight: 800, color: '#1e293b', display: 'flex', alignItems: 'center', gap: 6 }}>
-                                                <MapPin size={13} color="#ea580c" /> Branch Visibility
-                                              </span>
-                                              <button
-                                                type="button"
-                                                onClick={() => {
-                                                  const updatedVariants = [...variantForm.initial_variants];
-                                                  const currBranches = updatedVariants[vIdx].branch_availability || [...(form.branch_availability || [])];
-                                                  updatedVariants[vIdx] = {
-                                                    ...vRow,
-                                                    branch_availability: [...currBranches, { warehouse: '' }]
-                                                  };
-                                                  setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
-                                                }}
-                                                style={{ background: '#fff7ed', border: '1px solid #fed7aa', color: '#ea580c', fontSize: 10, fontWeight: 800, padding: '2px 6px', borderRadius: 4, cursor: 'pointer' }}
-                                              >
-                                                + Add Branch
-                                              </button>
-                                            </div>
-                                            {((vRow.branch_availability !== undefined ? vRow.branch_availability : form.branch_availability) || []).length > 0 ? (
-                                              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                                                {((vRow.branch_availability !== undefined ? vRow.branch_availability : form.branch_availability) || []).map((b, bIdx) => (
-                                                  <div key={bIdx} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                                    <div style={{ flex: 1 }}>
-                                                      <SearchableSelectInline
-                                                        value={b.warehouse}
-                                                        options={warehouses.length > 0 ? warehouses : (priceData.warehouse_breakdown?.map(w => ({ label: w.warehouse, value: w.warehouse })) || [])}
-                                                        placeholder="Select Target Warehouse"
-                                                        onChange={val => {
+                                          {!((user_roles || []).includes("Cashier") && !isAdmin) && (
+                                            <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, padding: 12 }}>
+                                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                                                <span style={{ fontSize: 12, fontWeight: 800, color: '#1e293b', display: 'flex', alignItems: 'center', gap: 6 }}>
+                                                  <MapPin size={13} color="#ea580c" /> Branch Visibility
+                                                </span>
+                                                <button
+                                                  type="button"
+                                                  onClick={() => {
+                                                    const updatedVariants = [...variantForm.initial_variants];
+                                                    const currBranches = updatedVariants[vIdx].branch_availability || [...(form.branch_availability || [])];
+                                                    updatedVariants[vIdx] = {
+                                                      ...vRow,
+                                                      branch_availability: [...currBranches, { warehouse: '' }]
+                                                    };
+                                                    setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
+                                                  }}
+                                                  style={{ background: '#fff7ed', border: '1px solid #fed7aa', color: '#ea580c', fontSize: 10, fontWeight: 800, padding: '2px 6px', borderRadius: 4, cursor: 'pointer' }}
+                                                >
+                                                  + Add Branch
+                                                </button>
+                                              </div>
+                                              {((vRow.branch_availability !== undefined ? vRow.branch_availability : form.branch_availability) || []).length > 0 ? (
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                                  {((vRow.branch_availability !== undefined ? vRow.branch_availability : form.branch_availability) || []).map((b, bIdx) => (
+                                                    <div key={bIdx} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                                      <div style={{ flex: 1 }}>
+                                                        <SearchableSelectInline
+                                                          value={b.warehouse}
+                                                          options={warehouses.length > 0 ? warehouses : (priceData.warehouse_breakdown?.map(w => ({ label: w.warehouse, value: w.warehouse })) || [])}
+                                                          placeholder="Select Target Warehouse"
+                                                          onChange={val => {
+                                                            const updatedVariants = [...variantForm.initial_variants];
+                                                            const currBranches = [...((vRow.branch_availability !== undefined ? vRow.branch_availability : form.branch_availability) || [])];
+                                                            currBranches[bIdx] = { ...currBranches[bIdx], warehouse: val };
+                                                            updatedVariants[vIdx] = { ...vRow, branch_availability: currBranches };
+                                                            setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
+                                                          }}
+                                                        />
+                                                      </div>
+                                                      <button
+                                                        type="button"
+                                                        onClick={() => {
                                                           const updatedVariants = [...variantForm.initial_variants];
-                                                          const currBranches = [...((vRow.branch_availability !== undefined ? vRow.branch_availability : form.branch_availability) || [])];
-                                                          currBranches[bIdx] = { ...currBranches[bIdx], warehouse: val };
+                                                          const currBranches = ((vRow.branch_availability !== undefined ? vRow.branch_availability : form.branch_availability) || []).filter((_, i) => i !== bIdx);
                                                           updatedVariants[vIdx] = { ...vRow, branch_availability: currBranches };
                                                           setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
                                                         }}
-                                                      />
+                                                        style={{ background: 'none', border: 'none', color: T.red, cursor: 'pointer', padding: 2 }}
+                                                      >
+                                                        <Trash2 size={12} />
+                                                      </button>
                                                     </div>
-                                                    <button
-                                                      type="button"
-                                                      onClick={() => {
-                                                        const updatedVariants = [...variantForm.initial_variants];
-                                                        const currBranches = ((vRow.branch_availability !== undefined ? vRow.branch_availability : form.branch_availability) || []).filter((_, i) => i !== bIdx);
-                                                        updatedVariants[vIdx] = { ...vRow, branch_availability: currBranches };
-                                                        setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
-                                                      }}
-                                                      style={{ background: 'none', border: 'none', color: T.red, cursor: 'pointer', padding: 2 }}
-                                                    >
-                                                      <Trash2 size={12} />
-                                                    </button>
-                                                  </div>
-                                                ))}
-                                              </div>
-                                            ) : (
-                                              <div style={{ fontSize: 11, color: '#94a3b8', fontStyle: 'italic', textAlign: 'center', padding: 8 }}>Global / Inherit from Template</div>
-                                            )}
-                                          </div>
+                                                  ))}
+                                                </div>
+                                              ) : (
+                                                <div style={{ fontSize: 11, color: '#94a3b8', fontStyle: 'italic', textAlign: 'center', padding: 8 }}>Global / Inherit from Template</div>
+                                              )}
+                                            </div>
+                                          )}
 
                                           {/* Supplier Mapping */}
                                           <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, padding: 12 }}>
@@ -5398,30 +5364,32 @@ export default function ItemList() {
                     ) : <div style={{ padding: '18px', textAlign: 'center', color: T.textMuted, fontSize: 13 }}>No UOM Conversions</div>}
                   </CardSection>
 
-                  <CardSection title="Branch Visibility" icon={<MapPin size={14} />}
-                    action={<button className="il-btn il-btn-ghost" style={{ padding: '4px 9px', fontSize: 12 }} onClick={addBranchRow}><Plus size={12} />Add Branch</button>}
-                  >
-                    {form.branch_availability.length > 0 ? (
-                      <table className="il-table">
-                        <thead><tr><th>Target Warehouse</th><th style={{ width: 40 }}></th></tr></thead>
-                        <tbody>
-                          {form.branch_availability.map((b, i) => (
-                            <tr key={i}>
-                              <td style={{ paddingTop: 8, paddingBottom: 8 }}>
-                                <SearchableSelectInline
-                                  value={b.warehouse}
-                                  options={warehouses.length > 0 ? warehouses : (priceData.warehouse_breakdown?.map(w => ({ label: w.warehouse, value: w.warehouse })) || [])}
-                                  placeholder="Select Branch"
-                                  onChange={val => updateBranchRow(i, val)}
-                                />
-                              </td>
-                              <td><button onClick={() => removeBranchRow(i)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.red, display: 'flex' }}><Trash2 size={13} /></button></td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    ) : <div style={{ padding: '18px', textAlign: 'center', background: T.bg, borderRadius: 12, margin: 10 }}><p style={{ fontSize: 11, fontWeight: 700, color: T.textMuted }}>GLOBAL ALLOCATION</p></div>}
-                  </CardSection>
+                  {!((user_roles || []).includes("Cashier") && !isAdmin) && (
+                    <CardSection title="Branch Visibility" icon={<MapPin size={14} />}
+                      action={<button className="il-btn il-btn-ghost" style={{ padding: '4px 9px', fontSize: 12 }} onClick={addBranchRow}><Plus size={12} />Add Branch</button>}
+                    >
+                      {form.branch_availability.length > 0 ? (
+                        <table className="il-table">
+                          <thead><tr><th>Target Warehouse</th><th style={{ width: 40 }}></th></tr></thead>
+                          <tbody>
+                            {form.branch_availability.map((b, i) => (
+                              <tr key={i}>
+                                <td style={{ paddingTop: 8, paddingBottom: 8 }}>
+                                  <SearchableSelectInline
+                                    value={b.warehouse}
+                                    options={warehouses.length > 0 ? warehouses : (priceData.warehouse_breakdown?.map(w => ({ label: w.warehouse, value: w.warehouse })) || [])}
+                                    placeholder="Select Branch"
+                                    onChange={val => updateBranchRow(i, val)}
+                                  />
+                                </td>
+                                <td><button onClick={() => removeBranchRow(i)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.red, display: 'flex' }}><Trash2 size={13} /></button></td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      ) : <div style={{ padding: '18px', textAlign: 'center', background: T.bg, borderRadius: 12, margin: 10 }}><p style={{ fontSize: 11, fontWeight: 700, color: T.textMuted }}>GLOBAL ALLOCATION</p></div>}
+                    </CardSection>
+                  )}
 
                   <CardSection title="Supplier Mapping" icon={<Users size={14} />}
                     action={<button className="il-btn il-btn-ghost" style={{ padding: '4px 9px', fontSize: 12 }} onClick={addSupplierRow}><Plus size={12} />Add</button>}
