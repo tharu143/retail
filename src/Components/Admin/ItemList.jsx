@@ -491,8 +491,8 @@ const SearchableSelectInline = ({ value, options, onChange, placeholder, style }
   );
 };
 
-/* ========== SEARCHABLE SELECT COMPACT (FOR PRICE LISTS / MINI DROPDOWNS) ========== */
-const SearchableSelectCompact = ({ value, options = [], onChange, placeholder = 'Select Price List...', style }) => {
+/* ========== SEARCHABLE SELECT COMPACT (FOR PRICE LISTS / MINI DROPDOWNS / ATTRIBUTES) ========== */
+const SearchableSelectCompact = ({ value, options = [], onChange, placeholder = 'Select...', onAction, actionLabel, style }) => {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const ref = useRef(null);
@@ -525,20 +525,21 @@ const SearchableSelectCompact = ({ value, options = [], onChange, placeholder = 
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          height: 32,
-          padding: '0 8px',
+          height: 36,
+          padding: '0 10px',
           background: '#ffffff',
-          fontSize: 12,
-          border: `1.5px solid ${open ? T.blue : T.border}`,
+          fontSize: 13,
+          border: `1.5px solid ${open ? '#8b5cf6' : '#cbd5e1'}`,
           borderRadius: 8,
-          boxShadow: open ? `0 0 0 2px ${T.blueLight}` : 'none',
-          userSelect: 'none'
+          boxShadow: open ? '0 0 0 3px rgba(139, 92, 246, 0.15)' : 'none',
+          userSelect: 'none',
+          transition: 'all 0.15s'
         }}
       >
-        <span style={{ color: value ? T.text : T.textMuted, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        <span style={{ color: value ? '#1e293b' : '#94a3b8', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {selectedItem?.label || value || placeholder}
         </span>
-        <ChevronDown size={13} style={{ color: T.textMuted, flexShrink: 0, transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }} />
+        <ChevronDown size={14} style={{ color: '#64748b', flexShrink: 0, transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }} />
       </div>
 
       {open && (
@@ -547,41 +548,68 @@ const SearchableSelectCompact = ({ value, options = [], onChange, placeholder = 
           top: '100%',
           left: 0,
           right: 0,
-          minWidth: 200,
+          minWidth: 220,
           background: '#ffffff',
-          border: `1.5px solid ${T.blue}`,
+          border: '1.5px solid #8b5cf6',
           borderRadius: 8,
           zIndex: 1200,
           marginTop: 4,
-          maxHeight: 220,
+          maxHeight: 240,
           overflow: 'hidden',
           display: 'flex',
           flexDirection: 'column',
-          boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1)'
+          boxShadow: '0 10px 25px -5px rgba(0,0,0,0.12), 0 8px 10px -6px rgba(0,0,0,0.08)'
         }}>
-          <div style={{ padding: 6, borderBottom: `1px solid ${T.borderLight}`, background: '#f8fafc' }}>
+          <div style={{ padding: 6, borderBottom: '1px solid #f1f5f9', background: '#f8fafc', display: 'flex', flexDirection: 'column', gap: 4 }}>
             <input
               style={{
                 width: '100%',
-                height: 28,
-                fontSize: 11,
-                padding: '0 8px',
-                border: `1px solid ${T.border}`,
+                height: 30,
+                fontSize: 12,
+                padding: '0 10px',
+                border: '1px solid #cbd5e1',
                 borderRadius: 6,
                 outline: 'none',
                 background: '#fff'
               }}
               autoFocus
-              placeholder="Search price list..."
+              placeholder="Search / Filter..."
               value={search}
               onChange={e => setSearch(e.target.value)}
               onClick={e => e.stopPropagation()}
             />
+            {onAction && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setOpen(false);
+                  onAction(search);
+                }}
+                style={{
+                  width: '100%',
+                  padding: '6px 8px',
+                  background: '#f5f3ff',
+                  color: '#6d28d9',
+                  border: '1px dashed #8b5cf6',
+                  borderRadius: 6,
+                  fontSize: 11,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 4
+                }}
+              >
+                <Plus size={12} /> {actionLabel || 'Create New'}
+              </button>
+            )}
           </div>
           <div style={{ flex: 1, overflowY: 'auto', maxHeight: 170 }}>
             {filtered.length === 0 ? (
-              <div style={{ padding: '10px 8px', textAlign: 'center', fontSize: 11, color: T.textMuted }}>
-                No price list found
+              <div style={{ padding: '10px 8px', textAlign: 'center', fontSize: 11, color: '#94a3b8' }}>
+                No options found
               </div>
             ) : (
               filtered.map(o => {
@@ -596,13 +624,13 @@ const SearchableSelectCompact = ({ value, options = [], onChange, placeholder = 
                       setSearch('');
                     }}
                     style={{
-                      padding: '7px 10px',
+                      padding: '8px 12px',
                       fontSize: 12,
                       cursor: 'pointer',
-                      background: isSelected ? '#eff6ff' : 'transparent',
-                      color: isSelected ? T.blue : T.text,
+                      background: isSelected ? '#f5f3ff' : 'transparent',
+                      color: isSelected ? '#6d28d9' : '#334155',
                       fontWeight: isSelected ? 700 : 500,
-                      borderBottom: `1px solid #f1f5f9`,
+                      borderBottom: '1px solid #f8fafc',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'space-between'
@@ -611,7 +639,7 @@ const SearchableSelectCompact = ({ value, options = [], onChange, placeholder = 
                     onMouseOut={e => { if (!isSelected) e.currentTarget.style.background = 'transparent'; }}
                   >
                     <span>{o.label}</span>
-                    {isSelected && <span style={{ width: 6, height: 6, borderRadius: '50%', background: T.blue }} />}
+                    {isSelected && <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#7c3aed' }} />}
                   </div>
                 );
               })
@@ -4214,11 +4242,23 @@ export default function ItemList() {
                               <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 10, background: '#fff', padding: '8px 12px', borderRadius: 8, border: '1px solid #e2e8f0' }}>
                                 <span style={{ fontSize: 12, fontWeight: 700, color: '#64748b', width: 24 }}>#{idx + 1}</span>
                                 <div style={{ flex: 1 }}>
-                                  <select
-                                    style={{ width: '100%', height: 38, padding: '0 12px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13, background: '#fff', fontWeight: 600, color: '#1e293b', outline: 'none' }}
+                                  <SearchableSelectCompact
                                     value={attrName}
-                                    onChange={e => {
-                                      const val = e.target.value;
+                                    options={availableAttributes}
+                                    placeholder="Select or Search Attribute (e.g. Size, Colour)..."
+                                    onAction={() => {
+                                      setAttrModalData({
+                                        attribute_name: '',
+                                        attribute_value: '',
+                                        abbr: '',
+                                        targetRowIndex: null,
+                                        isNewAttribute: true,
+                                        attributeIndex: idx
+                                      });
+                                      setShowAddAttrValueModal(true);
+                                    }}
+                                    actionLabel="+ Create New Attribute"
+                                    onChange={val => {
                                       if (val === '__CREATE_NEW__') {
                                         setAttrModalData({
                                           attribute_name: '',
@@ -4231,34 +4271,48 @@ export default function ItemList() {
                                         setShowAddAttrValueModal(true);
                                         return;
                                       }
+                                      
+                                      const nextAttrs = [...(form.attributes || [])];
+                                      nextAttrs[idx] = { attribute: val };
+                                      setForm(p => ({ ...p, attributes: nextAttrs }));
+
+                                      const possibleVals = attributeValuesMap[val] || [];
+                                      const firstVal = possibleVals.length > 0 ? possibleVals[0].attribute_value : '';
+
                                       // Update all initial variants
                                       setVariantForm(vf => {
                                         const updatedVariants = (vf.initial_variants || []).map(v => {
                                           const nextSelected = { ...(v.selected_attributes || {}) };
                                           delete nextSelected[attrName];
                                           if (val && firstVal) nextSelected[val] = firstVal;
-                                          const attrStr = Object.values(nextSelected).filter(Boolean).join('-');
+
+                                          const orderedCodes = [];
+                                          const orderedNames = [];
+                                          nextAttrs.forEach(att => {
+                                            const aName = typeof att === 'object' && att !== null ? att.attribute : att;
+                                            const vVal = nextSelected[aName];
+                                            if (vVal) {
+                                              const pVals = attributeValuesMap[aName] || [];
+                                              const matched = pVals.find(x => x.attribute_value === vVal);
+                                              orderedCodes.push((matched?.abbr || vVal).toUpperCase());
+                                              orderedNames.push(vVal);
+                                            }
+                                          });
+
+                                          const codeSuffix = orderedCodes.join('-');
+                                          const nameSuffix = orderedNames.join(' ');
+
                                           return {
                                             ...v,
                                             selected_attributes: nextSelected,
-                                            variant_item_code: attrStr ? `${form.item_code || 'ITEM'}-${attrStr}`.toUpperCase() : '',
-                                            variant_item_name: attrStr ? `${form.item_name || 'Item'} ${attrStr}` : ''
+                                            variant_item_code: codeSuffix ? `${form.item_code || 'ITEM'}-${codeSuffix}`.toUpperCase() : '',
+                                            variant_item_name: nameSuffix ? `${form.item_name || 'Item'} ${nameSuffix}` : ''
                                           };
                                         });
                                         return { ...vf, initial_variants: updatedVariants };
                                       });
                                     }}
-                                  >
-                                    <option value="">-- Choose Attribute (e.g. Size, Colour) --</option>
-                                    {availableAttributes.map(opt => (
-                                      <option key={opt.value} value={opt.value}>
-                                        {opt.label}
-                                      </option>
-                                    ))}
-                                    <option value="__CREATE_NEW__" style={{ color: '#6d28d9', fontWeight: 700 }}>
-                                      ➕ + Create New Attribute...
-                                    </option>
-                                  </select>
+                                  />
                                 </div>
                                 <button 
                                   type="button" 
@@ -4510,57 +4564,60 @@ export default function ItemList() {
                                         {/* Attribute Selectors */}
                                         {(form.attributes || []).map(a => (typeof a === 'object' && a !== null ? a.attribute : a)).filter(Boolean).map(attrName => {
                                           const possibleVals = attributeValuesMap[attrName] || [];
+                                          const attrOptions = possibleVals.map(val => ({
+                                            label: `${val.attribute_value}${val.abbr ? ` (${val.abbr})` : ''}`,
+                                            value: val.attribute_value
+                                          }));
+
                                           return (
-                                            <div key={attrName} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                                            <div key={attrName} style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 140 }}>
                                               <span style={{ fontSize: 11, fontWeight: 700, color: '#475569' }}>{attrName}:</span>
-                                              <select
-                                                style={{
-                                                  padding: '5px 8px',
-                                                  borderRadius: 6,
-                                                  border: '1.5px solid #cbd5e1',
-                                                  fontSize: 12,
-                                                  background: '#fff',
-                                                  fontWeight: 700,
-                                                  color: '#1e293b',
-                                                  outline: 'none',
-                                                  minWidth: 100
-                                                }}
-                                                value={vRow.selected_attributes?.[attrName] || ''}
-                                                onChange={e => {
-                                                  const nextSelected = { ...(vRow.selected_attributes || {}), [attrName]: e.target.value };
-                                                  const orderedCodes = [];
-                                                  const orderedNames = [];
-                                                  (form.attributes || []).forEach(attr => {
-                                                    const aName = typeof attr === 'object' && attr !== null ? attr.attribute : attr;
-                                                    const val = nextSelected[aName];
-                                                    if (val) {
-                                                      const pVals = attributeValuesMap[aName] || [];
-                                                      const matched = pVals.find(x => x.attribute_value === val);
-                                                      orderedCodes.push((matched?.abbr || val).toUpperCase());
-                                                      orderedNames.push(val);
-                                                    }
-                                                  });
+                                              <div style={{ minWidth: 110, flex: 1 }}>
+                                                <SearchableSelectCompact
+                                                  value={vRow.selected_attributes?.[attrName] || ''}
+                                                  options={attrOptions}
+                                                  placeholder={`Select ${attrName}...`}
+                                                  onAction={(typedVal) => {
+                                                    setAttrModalData({
+                                                      attribute_name: attrName,
+                                                      attribute_value: typedVal || '',
+                                                      abbr: (typedVal || '').slice(0, 3).toUpperCase(),
+                                                      targetRowIndex: vIdx,
+                                                      isNewAttribute: false,
+                                                      attributeIndex: null
+                                                    });
+                                                    setShowAddAttrValueModal(true);
+                                                  }}
+                                                  actionLabel={`+ Add ${attrName} Value`}
+                                                  onChange={val => {
+                                                    const nextSelected = { ...(vRow.selected_attributes || {}), [attrName]: val };
+                                                    const orderedCodes = [];
+                                                    const orderedNames = [];
+                                                    (form.attributes || []).forEach(attr => {
+                                                      const aName = typeof attr === 'object' && attr !== null ? attr.attribute : attr;
+                                                      const vVal = nextSelected[aName];
+                                                      if (vVal) {
+                                                        const pVals = attributeValuesMap[aName] || [];
+                                                        const matched = pVals.find(x => x.attribute_value === vVal);
+                                                        orderedCodes.push((matched?.abbr || vVal).toUpperCase());
+                                                        orderedNames.push(vVal);
+                                                      }
+                                                    });
 
-                                                  const codeSuffix = orderedCodes.join('-');
-                                                  const nameSuffix = orderedNames.join(' ');
+                                                    const codeSuffix = orderedCodes.join('-');
+                                                    const nameSuffix = orderedNames.join(' ');
 
-                                                  const updatedVariants = [...variantForm.initial_variants];
-                                                  updatedVariants[vIdx] = {
-                                                    ...vRow,
-                                                    selected_attributes: nextSelected,
-                                                    variant_item_code: codeSuffix ? `${form.item_code || 'ITEM'}-${codeSuffix}`.toUpperCase() : '',
-                                                    variant_item_name: nameSuffix ? `${form.item_name || 'Item'} ${nameSuffix}` : ''
-                                                  };
-                                                  setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
-                                                }}
-                                              >
-                                                <option value="">-- {String(attrName)} --</option>
-                                                {possibleVals.map(val => (
-                                                  <option key={val.attribute_value} value={val.attribute_value}>
-                                                    {val.attribute_value} {val.abbr ? `(${val.abbr})` : ''}
-                                                  </option>
-                                                ))}
-                                              </select>
+                                                    const updatedVariants = [...variantForm.initial_variants];
+                                                    updatedVariants[vIdx] = {
+                                                      ...vRow,
+                                                      selected_attributes: nextSelected,
+                                                      variant_item_code: codeSuffix ? `${form.item_code || 'ITEM'}-${codeSuffix}`.toUpperCase() : '',
+                                                      variant_item_name: nameSuffix ? `${form.item_name || 'Item'} ${nameSuffix}` : ''
+                                                    };
+                                                    setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
+                                                  }}
+                                                />
+                                              </div>
                                             </div>
                                           );
                                         })}
