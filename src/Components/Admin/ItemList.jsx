@@ -451,22 +451,40 @@ const SearchableSelectInline = ({ value, options, onChange, placeholder, style }
     document.addEventListener('mousedown', click);
     return () => document.removeEventListener('mousedown', click);
   }, []);
-  const filtered = options.filter(o => String(o.label || o.value || '').toLowerCase().includes(search.toLowerCase()));
+  const filtered = (options || []).map(o => typeof o === 'string' ? { label: o, value: o } : o).filter(o => String(o.label || o.value || '').toLowerCase().includes(search.toLowerCase()));
+  const selectedLabel = (options || []).map(o => typeof o === 'string' ? { label: o, value: o } : o).find(o => String(o.value) === String(value))?.label || value;
+
   return (
     <div ref={ref} style={{ position: 'relative', width: '100%', ...style }}>
       <div
         onClick={() => setOpen(!open)}
-        style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', minHeight: 18, border: 'none', background: 'transparent', fontWeight: 600, fontSize: 13, color: value ? T.text : T.textMuted }}
+        className="il-input"
+        style={{
+          cursor: 'pointer',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          height: 32,
+          padding: '0 8px',
+          background: '#ffffff',
+          fontSize: 12,
+          border: `1.5px solid ${open ? '#8b5cf6' : '#cbd5e1'}`,
+          borderRadius: 6,
+          boxShadow: open ? '0 0 0 2px rgba(139, 92, 246, 0.12)' : 'none',
+          userSelect: 'none',
+          transition: 'all 0.15s'
+        }}
       >
-        <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          {options.find(o => String(o.value) === String(value))?.label || placeholder}
+        <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 600, color: value ? '#1e293b' : '#94a3b8' }}>
+          {selectedLabel || placeholder}
         </span>
+        <ChevronDown size={13} style={{ color: '#64748b', flexShrink: 0, transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s', marginLeft: 4 }} />
       </div>
       {open && (
-        <div style={{ position: 'absolute', top: '100%', left: 0, minWidth: 220, background: T.surface, border: `1.5px solid ${T.blue}`, borderRadius: T.radius, zIndex: 1100, marginTop: 4, maxHeight: 220, overflow: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: T.shadowMd }}>
-          <div style={{ padding: 6, borderBottom: `1px solid ${T.borderLight}`, background: T.bg }}>
+        <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, minWidth: 200, background: '#ffffff', border: '1.5px solid #8b5cf6', borderRadius: 8, zIndex: 1200, marginTop: 4, maxHeight: 220, overflow: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: '0 8px 24px rgba(0,0,0,0.12)' }}>
+          <div style={{ padding: 6, borderBottom: '1px solid #f1f5f9', background: '#f8fafc' }}>
             <input
-              style={{ width: '100%', height: 30, fontSize: 12, padding: '0 10px', border: `1px solid ${T.border}`, borderRadius: 7, outline: 'none' }}
+              style={{ width: '100%', height: 28, fontSize: 11, padding: '0 8px', border: '1px solid #cbd5e1', borderRadius: 5, outline: 'none' }}
               autoFocus
               placeholder="Filter..."
               value={search}
@@ -475,11 +493,11 @@ const SearchableSelectInline = ({ value, options, onChange, placeholder, style }
             />
           </div>
           <div style={{ flex: 1, overflowY: 'auto' }}>
-            {filtered.length === 0 ? <div style={{ padding: 10, textAlign: 'center', fontSize: 12, color: T.textMuted }}>No matches</div> : filtered.map(o => (
+            {filtered.length === 0 ? <div style={{ padding: 8, textAlign: 'center', fontSize: 11, color: '#94a3b8' }}>No matches</div> : filtered.map(o => (
               <div
                 key={o.value}
                 onClick={(e) => { e.stopPropagation(); onChange(o.value); setOpen(false); setSearch(''); }}
-                style={{ padding: '9px 12px', fontSize: 12, cursor: 'pointer', background: String(value) === String(o.value) ? T.blueLight : 'transparent', color: String(value) === String(o.value) ? T.blue : T.text, fontWeight: String(value) === String(o.value) ? 600 : 500, borderBottom: `1px solid ${T.borderLight}` }}
+                style={{ padding: '7px 10px', fontSize: 11, cursor: 'pointer', background: String(value) === String(o.value) ? '#f5f3ff' : 'transparent', color: String(value) === String(o.value) ? '#7c3aed' : '#1e293b', fontWeight: String(value) === String(o.value) ? 700 : 500, borderBottom: '1px solid #f8fafc' }}
               >
                 {o.label}
               </div>
@@ -1082,7 +1100,7 @@ export default function ItemList() {
             description: itm.description || prev.description
           }));
 
-          // If template item, fetch all created variants
+          // If template item, fetch all created variants and populate editable cards
           if (itm.has_variants === 1) {
             setLoadingTemplateVariants(true);
             try {
@@ -1093,6 +1111,61 @@ export default function ItemList() {
               if (varRes.data?.message?.status === 'success') {
                 const fetchedVariants = varRes.data.message.data || [];
                 setTemplateVariants(fetchedVariants);
+
+                if (fetchedVariants.length > 0) {
+                  const mappedVariants = fetchedVariants.map((v, idx) => {
+                    const attrMap = {};
+                    (v.attributes || []).forEach(a => {
+                      if (a.attribute && a.attribute_value) {
+                        attrMap[a.attribute] = a.attribute_value;
+                      }
+                    });
+
+                    // Barcodes
+                    let nosBarcode = '';
+                    let boxBarcode = '';
+                    (v.barcodes || []).forEach(b => {
+                      if (b.uom === 'Box') boxBarcode = b.barcode;
+                      else if (!nosBarcode) nosBarcode = b.barcode;
+                    });
+
+                    return {
+                      id: `var-existing-${v.name || idx}-${Date.now()}`,
+                      is_existing: true,
+                      selected_attributes: attrMap,
+                      variant_item_code: v.name,
+                      variant_item_name: v.item_name || '',
+                      variant_barcode: nosBarcode,
+                      nos_barcode: nosBarcode,
+                      box_barcode: boxBarcode,
+                      buying_price: v.buying_price !== undefined ? v.buying_price : '',
+                      selling_price: v.selling_price !== undefined ? v.selling_price : (v.standard_rate || ''),
+                      box_buying_price: v.box_buying_price !== undefined ? v.box_buying_price : '',
+                      box_selling_price: v.box_selling_price !== undefined ? v.box_selling_price : '',
+                      custom_pieces_per_box: v.custom_pieces_per_box !== undefined ? v.custom_pieces_per_box : '',
+                      image: v.image || '',
+                      imagePreview: v.image || '',
+                      use_custom_code: true,
+                      disabled: Boolean(v.disabled),
+                      brand: v.brand || itm.brand || '',
+                      country_of_origin: v.country_of_origin || itm.country_of_origin || '',
+                      item_group: v.item_group || itm.item_group || '',
+                      stock_uom: v.stock_uom || itm.stock_uom || 'Nos',
+                      is_stock_item: v.is_stock_item !== undefined ? v.is_stock_item : 1,
+                      is_sales_item: v.is_sales_item !== undefined ? v.is_sales_item : 1,
+                      is_purchase_item: v.is_purchase_item !== undefined ? v.is_purchase_item : 1,
+                      custom_loyalty_eligible: v.custom_loyalty_eligible !== undefined ? v.custom_loyalty_eligible : 1,
+                      custom_allow_discount: v.custom_allow_discount !== undefined ? v.custom_allow_discount : 1,
+                      branch_availability: v.branch_availability || [],
+                      supplier_items: v.supplier_items || []
+                    };
+                  });
+
+                  setVariantForm({
+                    create_first_variant: true,
+                    initial_variants: mappedVariants
+                  });
+                }
               }
             } catch (vErr) {
               console.warn('Error fetching template variants:', vErr);
@@ -4348,164 +4421,18 @@ export default function ItemList() {
                         </div>
                       )}
 
-                      {/* Existing Variants of this Template (in Edit Mode) */}
-                      {isEditMode && (
-                        <div style={{ background: '#fff', border: '1.5px solid #e2e8f0', borderRadius: 12, padding: '16px', marginTop: 12, marginBottom: 14 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, borderBottom: '1px solid #f1f5f9', paddingBottom: 8 }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                              <Layers size={16} color="#7c3aed" />
-                              <span style={{ fontSize: 13, fontWeight: 800, color: '#1e293b' }}>
-                                Existing Created Variants ({templateVariants.length})
-                              </span>
-                            </div>
-                            {loadingTemplateVariants && <Loader2 size={16} className="spin" color="#7c3aed" />}
-                          </div>
-
-                          {loadingTemplateVariants ? (
-                            <div style={{ padding: '20px', textAlign: 'center' }}>
-                              <Loader2 size={20} className="spin" color="#7c3aed" style={{ margin: '0 auto' }} />
-                            </div>
-                          ) : templateVariants.length > 0 ? (
-                            <div style={{ overflowX: 'auto' }}>
-                              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-                                <thead>
-                                  <tr style={{ background: '#f8fafc', borderBottom: '1.5px solid #e2e8f0', textAlign: 'left', color: '#64748b' }}>
-                                    <th style={{ padding: '8px 10px', fontWeight: 700 }}>Code</th>
-                                    <th style={{ padding: '8px 10px', fontWeight: 700 }}>Name</th>
-                                    <th style={{ padding: '8px 10px', fontWeight: 700 }}>Attributes</th>
-                                    <th style={{ padding: '8px 10px', fontWeight: 700, color: '#0369a1' }}>Buy Price</th>
-                                    <th style={{ padding: '8px 10px', fontWeight: 700, color: '#15803d' }}>Sell Price</th>
-                                    <th style={{ padding: '8px 10px', fontWeight: 700 }}>Barcode</th>
-                                    <th style={{ padding: '8px 10px', fontWeight: 700 }}>Status</th>
-                                    <th style={{ padding: '8px 10px', fontWeight: 700, textAlign: 'right' }}>Actions</th>
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {templateVariants.map((v, idx) => (
-                                    <tr key={v.name || idx} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                                      <td style={{ padding: '8px 10px', fontWeight: 700, color: T.blue, fontFamily: "'DM Mono', monospace" }}>
-                                        {v.name}
-                                      </td>
-                                      <td style={{ padding: '8px 10px', fontWeight: 600, color: T.text }}>
-                                        {v.item_name}
-                                      </td>
-                                      <td style={{ padding: '8px 10px' }}>
-                                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                                          {(v.attributes || []).map((at, ai) => (
-                                            <span key={ai} style={{ fontSize: 10, fontWeight: 700, padding: '2px 6px', background: '#f5f3ff', color: '#7c3aed', borderRadius: 4, border: '1px solid #ddd6fe' }}>
-                                              {at.attribute_value}
-                                            </span>
-                                          ))}
-                                        </div>
-                                      </td>
-                                      <td style={{ padding: '8px 10px', fontWeight: 700, color: '#0369a1' }}>
-                                        {v.buying_price ? `AED ${Number(v.buying_price).toFixed(2)}` : '—'}
-                                      </td>
-                                      <td style={{ padding: '8px 10px', fontWeight: 700, color: '#15803d' }}>
-                                        {v.selling_price ? `AED ${Number(v.selling_price).toFixed(2)}` : '—'}
-                                      </td>
-                                      <td style={{ padding: '8px 10px', fontFamily: "'DM Mono', monospace", fontSize: 11, color: T.textSub }}>
-                                        {v.barcodes && v.barcodes.length > 0 ? v.barcodes[0].barcode : '—'}
-                                      </td>
-                                      <td style={{ padding: '8px 10px' }}>
-                                        <span style={{
-                                          padding: '2px 6px',
-                                          borderRadius: 4,
-                                          fontSize: 10,
-                                          fontWeight: 700,
-                                          background: v.disabled ? '#fee2e2' : '#dcfce7',
-                                          color: v.disabled ? '#b91c1c' : '#15803d'
-                                        }}>
-                                          {v.disabled ? 'Disabled' : 'Active'}
-                                        </span>
-                                      </td>
-                                      <td style={{ padding: '8px 10px', textAlign: 'right' }}>
-                                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                                          <button
-                                            type="button"
-                                            onClick={() => {
-                                              handleRowClick({
-                                                item_code: v.name,
-                                                item_name: v.item_name,
-                                                item_group: form.item_group,
-                                                stock_uom: v.stock_uom,
-                                                standard_rate: v.standard_rate || v.selling_price,
-                                                disabled: v.disabled,
-                                                has_variants: 0,
-                                                image: v.image
-                                              });
-                                              setIsViewMode(false);
-                                              setIsEditMode(true);
-                                            }}
-                                            style={{
-                                              padding: '4px 9px',
-                                              borderRadius: 6,
-                                              background: '#eff6ff',
-                                              border: '1px solid #bfdbfe',
-                                              fontSize: 11,
-                                              fontWeight: 700,
-                                              color: '#1d4ed8',
-                                              cursor: 'pointer',
-                                              display: 'inline-flex',
-                                              alignItems: 'center',
-                                              gap: 4
-                                            }}
-                                            title={`Edit Variant ${v.name}`}
-                                          >
-                                            <Edit2 size={11} /> Edit
-                                          </button>
-                                          <button
-                                            type="button"
-                                            onClick={() => {
-                                              handleRowClick({
-                                                item_code: v.name,
-                                                item_name: v.item_name,
-                                                item_group: form.item_group,
-                                                stock_uom: v.stock_uom,
-                                                standard_rate: v.standard_rate || v.selling_price,
-                                                disabled: v.disabled,
-                                                has_variants: 0,
-                                                image: v.image
-                                              });
-                                            }}
-                                            style={{
-                                              padding: '4px 8px',
-                                              borderRadius: 6,
-                                              background: T.bg,
-                                              border: `1px solid ${T.border}`,
-                                              fontSize: 11,
-                                              fontWeight: 700,
-                                              color: T.textSub,
-                                              cursor: 'pointer'
-                                            }}
-                                            title={`View Variant Details ${v.name}`}
-                                          >
-                                            View →
-                                          </button>
-                                        </div>
-                                      </td>
-                                    </tr>
-                                  ))}
-                                </tbody>
-                              </table>
-                            </div>
-                          ) : (
-                            <div style={{ padding: '16px', textAlign: 'center', color: T.textMuted, fontSize: 12 }}>
-                              No variants created yet for this template. Use the form below to add variants.
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Initial / Additional Variant Creation Section */}
+                      {/* Template Item Variants (Inline Editable for Existing & New Variants) */}
                       {(form.attributes || []).length > 0 && (
                         <div style={{ background: '#fff', border: '1.5px solid #ddd6fe', borderRadius: 12, padding: '16px', marginTop: 10 }}>
                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, borderBottom: '1px solid #f3e8ff', paddingBottom: 10 }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                               <Box size={16} color="#7c3aed" />
                               <span style={{ fontSize: 13, fontWeight: 800, color: '#5b21b6' }}>
-                                {isEditMode ? 'Create / Add Variants to Template' : 'Create Initial Variant(s) Immediately'}
+                                {isEditMode 
+                                  ? `Template Item Variants (${(variantForm.initial_variants || []).length})`
+                                  : `Initial Variant(s) (${(variantForm.initial_variants || []).length})`}
                               </span>
+                              {loadingTemplateVariants && <Loader2 size={15} className="spin" color="#7c3aed" />}
                             </div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                               <button
@@ -4533,14 +4460,18 @@ export default function ItemList() {
 
                                   setVariantForm(vf => ({
                                     ...vf,
+                                    create_first_variant: true,
                                     initial_variants: [
                                       ...(vf.initial_variants || []),
                                       {
                                         id: newId,
+                                        is_existing: false,
                                         selected_attributes: initialAttrs,
                                         variant_item_code: codeSuffix ? `${form.item_code || 'ITEM'}-${codeSuffix}`.toUpperCase() : '',
                                         variant_item_name: nameSuffix ? `${form.item_name || 'Item'} ${nameSuffix}` : '',
                                         variant_barcode: '',
+                                        nos_barcode: '',
+                                        box_barcode: '',
                                         image: '',
                                         imagePreview: '',
                                         use_custom_code: true
@@ -4573,7 +4504,7 @@ export default function ItemList() {
                                   checked={variantForm.create_first_variant} 
                                   onChange={e => setVariantForm({ ...variantForm, create_first_variant: e.target.checked })} 
                                 />
-                                Enable Variant Creation
+                                {isEditMode ? 'Enable Variant Updates' : 'Enable Variant Creation'}
                               </label>
                             </div>
                           </div>
