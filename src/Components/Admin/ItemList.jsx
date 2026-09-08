@@ -3018,8 +3018,35 @@ export default function ItemList() {
                   <button className="il-btn il-btn-danger" style={{ height: 36, padding: '0 12px', borderRadius: 10 }} onClick={() => handleDelete(editingItemCode)}>
                     <Trash2 size={14} />
                   </button>
-
                 </div>
+              )}
+
+              {!isViewMode && (
+                <button
+                  type="button"
+                  onClick={handleSave}
+                  disabled={saving}
+                  style={{
+                    height: 38,
+                    padding: '0 20px',
+                    borderRadius: 10,
+                    background: '#7c3aed',
+                    color: '#ffffff',
+                    border: 'none',
+                    fontWeight: 700,
+                    fontSize: 13,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    cursor: saving ? 'not-allowed' : 'pointer',
+                    boxShadow: '0 2px 8px rgba(124, 58, 237, 0.25)',
+                    opacity: saving ? 0.7 : 1,
+                    transition: 'all 0.15s'
+                  }}
+                >
+                  {saving ? <Loader2 size={15} className="spin" /> : <Save size={15} />}
+                  <span>{saving ? 'Saving...' : 'Save Item'}</span>
+                </button>
               )}
 
               <button
@@ -3689,36 +3716,223 @@ export default function ItemList() {
             {/* ===== EDIT/CREATE FORM ===== */}
             {!isViewMode && (
               <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 16 }}>
-                {/* Has Variants (Template) toggle - Placed at the very top for clear workflow */}
+                {/* Has Variants (Template) toggle & Options Selection - Split Layout matching Reference UI */}
                 {!form.variant_of && (
-                  <div style={{ background: form.has_variants === 1 ? '#f5f3ff' : T.bg, border: `1.5px solid ${form.has_variants === 1 ? '#c4b5fd' : T.border}`, borderRadius: 12, padding: '12px 16px', transition: 'all 0.15s' }}>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}>
-                      <input
-                        type="checkbox"
-                        className="il-check"
-                        checked={form.has_variants === 1}
-                        onChange={e => {
-                          const checked = e.target.checked;
-                          const updatedForm = { ...form, has_variants: checked ? 1 : 0 };
-                          if (checked) {
-                            updatedForm.is_sales_item = 0;
-                            updatedForm.is_purchase_item = 0;
-                            updatedForm.is_stock_item = 0;
-                          }
-                          setForm(updatedForm);
-                        }}
-                        tabIndex={showForm ? 0 : -1}
-                      />
-                      <div>
-                        <div style={{ fontSize: 14, fontWeight: 700, color: form.has_variants === 1 ? '#6d28d9' : T.text }}>Has Variants (Template Item)</div>
-                        <div style={{ fontSize: 12, color: T.textMuted }}>Mark this as an Item Template to configure attributes & initial variants below</div>
-                      </div>
-                    </label>
+                  <div style={{
+                    background: '#ffffff',
+                    border: '1.5px solid #e2e8f0',
+                    borderRadius: 14,
+                    padding: '20px 24px',
+                    display: 'grid',
+                    gridTemplateColumns: '280px 1px 1fr',
+                    gap: 24,
+                    alignItems: 'stretch',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.02)'
+                  }}>
+                    {/* Left Column: Has Variants Checkbox */}
+                    <div style={{ display: 'flex', alignItems: 'flex-start', paddingTop: 2 }}>
+                      <label style={{ display: 'flex', alignItems: 'flex-start', gap: 14, cursor: 'pointer', width: '100%' }}>
+                        <input
+                          type="checkbox"
+                          className="il-check"
+                          checked={form.has_variants === 1}
+                          onChange={e => {
+                            const checked = e.target.checked;
+                            const updatedForm = { ...form, has_variants: checked ? 1 : 0 };
+                            if (checked) {
+                              updatedForm.is_sales_item = 0;
+                              updatedForm.is_purchase_item = 0;
+                              updatedForm.is_stock_item = 0;
+                            }
+                            setForm(updatedForm);
+                          }}
+                          tabIndex={showForm ? 0 : -1}
+                          style={{
+                            width: 22,
+                            height: 22,
+                            accentColor: '#7c3aed',
+                            marginTop: 2,
+                            cursor: 'pointer',
+                            borderRadius: 6
+                          }}
+                        />
+                        <div>
+                          <div style={{ fontSize: 14, fontWeight: 800, color: '#1e293b', lineHeight: 1.3 }}>
+                            Has Variants (Template Item)
+                          </div>
+                          <div style={{ fontSize: 12, color: '#64748b', marginTop: 4, lineHeight: 1.4 }}>
+                            Mark this as an Item Template to configure attributes & initial variants
+                          </div>
+                        </div>
+                      </label>
+                    </div>
+
+                    {/* Vertical Divider */}
+                    <div style={{ background: '#f1f5f9', width: 1, minHeight: '100%' }} />
+
+                    {/* Right Column: Attribute Options Or Placeholder */}
+                    <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                      {form.has_variants !== 1 ? (
+                        <div style={{ fontSize: 13, color: '#94a3b8', fontWeight: 500 }}>
+                          Tick the checkbox to configure item variant options here.
+                        </div>
+                      ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                          {/* Header + Add Option button */}
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <div style={{ width: 26, height: 26, borderRadius: 7, background: '#f5f3ff', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#7c3aed' }}>
+                                <Layers size={14} />
+                              </div>
+                              <div>
+                                <span style={{ fontSize: 14, fontWeight: 800, color: '#1e293b' }}>Item Variants & Options</span>
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setAttrModalData({
+                                  attribute_name: '',
+                                  attribute_value: '',
+                                  abbr: '',
+                                  targetRowIndex: null,
+                                  isNewAttribute: true,
+                                  attributeIndex: null
+                                });
+                                setShowAddAttrValueModal(true);
+                              }}
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 4,
+                                padding: '6px 14px',
+                                borderRadius: 8,
+                                border: '1.5px solid #7c3aed',
+                                background: '#ffffff',
+                                color: '#7c3aed',
+                                fontSize: 12,
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                                transition: 'all 0.15s'
+                              }}
+                            >
+                              <Plus size={13} /> Add Option
+                            </button>
+                          </div>
+
+                          <div style={{ fontSize: 12, color: '#64748b' }}>
+                            Choose options for this item — e.g. size, colour, pack. Multi-select supported.
+                          </div>
+
+                          {/* 3-Column Attributes Grid with Checkboxes */}
+                          <div style={{
+                            display: 'grid',
+                            gridTemplateColumns: 'repeat(3, 1fr)',
+                            gap: 10,
+                            marginTop: 4
+                          }}>
+                            {availableAttributes.map(attr => {
+                              const isSelected = (form.attributes || []).some(a => (a.attribute || a) === attr.value);
+                              return (
+                                <label
+                                  key={attr.value}
+                                  style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 10,
+                                    padding: '10px 14px',
+                                    borderRadius: 10,
+                                    border: isSelected ? '1.5px solid #7c3aed' : '1px solid #e2e8f0',
+                                    background: isSelected ? '#faf5ff' : '#ffffff',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.15s'
+                                  }}
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={isSelected}
+                                    onChange={() => {
+                                      let nextAttrs = [];
+                                      if (isSelected) {
+                                        nextAttrs = (form.attributes || []).filter(a => (a.attribute || a) !== attr.value);
+                                      } else {
+                                        nextAttrs = [...(form.attributes || []), { attribute: attr.value }];
+                                      }
+                                      setForm(p => ({ ...p, attributes: nextAttrs }));
+
+                                      // Update initial variants
+                                      setVariantForm(vf => {
+                                        const currentVars = (vf.initial_variants || []).length > 0
+                                          ? vf.initial_variants
+                                          : (!isSelected && nextAttrs.length > 0 ? [{ id: `var-1-${Date.now()}`, is_existing: false, selected_attributes: {}, variant_barcode: '', nos_barcode: '', box_barcode: '', use_custom_code: true }] : []);
+
+                                        const updatedVariants = currentVars.map(v => {
+                                          const updatedVals = { ...(v.selected_attributes || {}) };
+                                          if (isSelected) {
+                                            delete updatedVals[attr.value];
+                                          } else {
+                                            const possibleVals = attributeValuesMap[attr.value] || [];
+                                            if (possibleVals.length > 0 && !updatedVals[attr.value]) {
+                                              updatedVals[attr.value] = possibleVals[0].attribute_value;
+                                            }
+                                          }
+
+                                          const orderedCodes = [];
+                                          const orderedNames = [];
+                                          nextAttrs.forEach(a => {
+                                            const aName = typeof a === 'object' && a !== null ? a.attribute : a;
+                                            const val = updatedVals[aName];
+                                            if (val) {
+                                              const pVals = attributeValuesMap[aName] || [];
+                                              const matched = pVals.find(x => x.attribute_value === val);
+                                              orderedCodes.push((matched?.abbr || val).toUpperCase());
+                                              orderedNames.push(val);
+                                            }
+                                          });
+
+                                          const codeSuffix = orderedCodes.join('-');
+                                          const nameSuffix = orderedNames.join(' ');
+
+                                          return {
+                                            ...v,
+                                            selected_attributes: updatedVals,
+                                            variant_item_code: codeSuffix ? `${form.item_code || 'ITEM'}-${codeSuffix}`.toUpperCase() : '',
+                                            variant_item_name: nameSuffix ? `${form.item_name || 'Item'} ${nameSuffix}` : ''
+                                          };
+                                        });
+                                        return { ...vf, initial_variants: updatedVariants };
+                                      });
+                                    }}
+                                    style={{
+                                      width: 16,
+                                      height: 16,
+                                      accentColor: '#7c3aed',
+                                      margin: 0,
+                                      cursor: 'pointer'
+                                    }}
+                                  />
+                                  <span style={{ fontSize: 13, fontWeight: 700, color: isSelected ? '#7c3aed' : '#334155' }}>
+                                    {attr.value}
+                                  </span>
+                                </label>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
 
                 {/* Specifications */}
-                <CardSection title="Specifications" icon={<Package size={14} />}>
+                <CardSection 
+                  title="Specifications" 
+                  icon={
+                    <div style={{ width: 24, height: 24, borderRadius: 6, background: '#f5f3ff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: '#7c3aed', marginRight: 4 }}>
+                      <Boxes size={14} />
+                    </div>
+                  }
+                >
                   <div style={{ padding: 20 }}>
                     <div className="il-form-grid">
                       {/* ROW 1: 1. Barcode (Hidden when Has Variants is enabled because each variant has its own barcodes) */}
@@ -4223,252 +4437,14 @@ export default function ItemList() {
                   </CardSection>
                 )}
 
-                {/* Template Attributes & Initial Variant Configuration (Directly under Specifications when Has Variants is checked) */}
-                {Boolean(form.has_variants) && (
-                  <CardSection 
-                    title="Item Variants & Options (e.g. Sizes / Colours / Types)" 
-                    icon={<Layers size={14} />}
-                    style={{ border: '1.5px solid #c4b5fd', background: '#faf5ff' }}
-                    action={<button type="button" className="il-btn il-btn-ghost" style={{ padding: '4px 9px', fontSize: 12, color: '#6d28d9' }} onClick={() => setForm(p => ({ ...p, attributes: [...(p.attributes || []), { attribute: '' }] }))}><Plus size={12} />Add Option</button>}
-                  >
-                    <div style={{ padding: '16px' }}>
-                      <div style={{ fontSize: 12, color: '#6d28d9', fontWeight: 700, marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                        1. Choose Options for this Item (e.g. Size, Colour, Pack)
-                      </div>
-                      
-                      {/* Fast Tag Selector */}
-                      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6, marginBottom: 14, padding: '10px', background: '#fff', borderRadius: 8, border: '1px solid #e9d5ff' }}>
-                        <span style={{ fontSize: 11, fontWeight: 700, color: '#7c3aed', alignSelf: 'center', marginRight: 4 }}>Quick Attributes:</span>
-                        {availableAttributes.map(attr => {
-                          const isSelected = (form.attributes || []).some(a => (a.attribute || a) === attr.value);
-                          return (
-                            <button
-                              key={attr.value}
-                              type="button"
-                              onClick={() => {
-                                let nextAttrs = [];
-                                if (isSelected) {
-                                  nextAttrs = (form.attributes || []).filter(a => (a.attribute || a) !== attr.value);
-                                } else {
-                                  nextAttrs = [...(form.attributes || []), { attribute: attr.value }];
-                                }
-                                setForm(p => ({ ...p, attributes: nextAttrs }));
-                                
-                                // Update all initial variant rows
-                                setVariantForm(vf => {
-                                  const currentVars = (vf.initial_variants || []).length > 0 
-                                    ? vf.initial_variants 
-                                    : (!isSelected && nextAttrs.length > 0 ? [{ id: `var-1-${Date.now()}`, is_existing: false, selected_attributes: {}, variant_barcode: '', nos_barcode: '', box_barcode: '', use_custom_code: true }] : []);
-
-                                  const updatedVariants = currentVars.map(v => {
-                                    const updatedVals = { ...(v.selected_attributes || {}) };
-                                    if (isSelected) {
-                                      delete updatedVals[attr.value];
-                                    } else {
-                                      const possibleVals = attributeValuesMap[attr.value] || [];
-                                      if (possibleVals.length > 0 && !updatedVals[attr.value]) {
-                                        updatedVals[attr.value] = possibleVals[0].attribute_value;
-                                      }
-                                    }
-
-                                    // Order values by template attributes order
-                                    const orderedCodes = [];
-                                    const orderedNames = [];
-                                    nextAttrs.forEach(a => {
-                                      const aName = typeof a === 'object' && a !== null ? a.attribute : a;
-                                      const val = updatedVals[aName];
-                                      if (val) {
-                                        const pVals = attributeValuesMap[aName] || [];
-                                        const matched = pVals.find(x => x.attribute_value === val);
-                                        orderedCodes.push((matched?.abbr || val).toUpperCase());
-                                        orderedNames.push(val);
-                                      }
-                                    });
-
-                                    const codeSuffix = orderedCodes.join('-');
-                                    const nameSuffix = orderedNames.join(' ');
-
-                                    return {
-                                      ...v,
-                                      selected_attributes: updatedVals,
-                                      variant_item_code: codeSuffix ? `${form.item_code || 'ITEM'}-${codeSuffix}`.toUpperCase() : '',
-                                      variant_item_name: nameSuffix ? `${form.item_name || 'Item'} ${nameSuffix}` : ''
-                                    };
-                                  });
-                                  return { ...vf, initial_variants: updatedVariants };
-                                });
-                              }}
-                              style={{
-                                padding: '4px 10px',
-                                fontSize: 11,
-                                fontWeight: 700,
-                                borderRadius: 20,
-                                border: isSelected ? '1.5px solid #7c3aed' : '1px solid #cbd5e1',
-                                background: isSelected ? '#7c3aed' : '#fff',
-                                color: isSelected ? '#fff' : '#475569',
-                                cursor: 'pointer',
-                                transition: 'all 0.15s'
-                              }}
-                            >
-                              {isSelected ? `✓ ${attr.value}` : `+ ${attr.value}`}
-                            </button>
-                          );
-                        })}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setAttrModalData({
-                              attribute_name: '',
-                              attribute_value: '',
-                              abbr: '',
-                              targetRowIndex: null,
-                              isNewAttribute: true,
-                              attributeIndex: null
-                            });
-                            setShowAddAttrValueModal(true);
-                          }}
-                          style={{
-                            padding: '4px 10px',
-                            fontSize: 11,
-                            fontWeight: 800,
-                            borderRadius: 20,
-                            border: '1.5px dashed #7c3aed',
-                            background: '#f5f3ff',
-                            color: '#6d28d9',
-                            cursor: 'pointer',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: 3,
-                            marginLeft: 'auto'
-                          }}
-                        >
-                          <Plus size={11} /> Create New Attribute
-                        </button>
-                      </div>
-
-                      {/* Selected Attributes Dropdowns */}
-                      {(form.attributes || []).length > 0 ? (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
-                          {(form.attributes || []).map((a, idx) => {
-                            const attrName = a.attribute || a;
-                            return (
-                              <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 10, background: '#fff', padding: '8px 12px', borderRadius: 8, border: '1px solid #e2e8f0' }}>
-                                <span style={{ fontSize: 12, fontWeight: 700, color: '#64748b', width: 24 }}>#{idx + 1}</span>
-                                <div style={{ flex: 1 }}>
-                                  <SearchableSelectCompact
-                                    value={attrName}
-                                    options={availableAttributes}
-                                    placeholder="Select or Search Attribute (e.g. Size, Colour)..."
-                                    onAction={() => {
-                                      setAttrModalData({
-                                        attribute_name: '',
-                                        attribute_value: '',
-                                        abbr: '',
-                                        targetRowIndex: null,
-                                        isNewAttribute: true,
-                                        attributeIndex: idx
-                                      });
-                                      setShowAddAttrValueModal(true);
-                                    }}
-                                    actionLabel="+ Create New Attribute"
-                                    onChange={val => {
-                                      if (val === '__CREATE_NEW__') {
-                                        setAttrModalData({
-                                          attribute_name: '',
-                                          attribute_value: '',
-                                          abbr: '',
-                                          targetRowIndex: null,
-                                          isNewAttribute: true,
-                                          attributeIndex: idx
-                                        });
-                                        setShowAddAttrValueModal(true);
-                                        return;
-                                      }
-                                      
-                                      const nextAttrs = [...(form.attributes || [])];
-                                      nextAttrs[idx] = { attribute: val };
-                                      setForm(p => ({ ...p, attributes: nextAttrs }));
-
-                                      const possibleVals = attributeValuesMap[val] || [];
-                                      const firstVal = possibleVals.length > 0 ? possibleVals[0].attribute_value : '';
-
-                                      // Update all initial variants
-                                      setVariantForm(vf => {
-                                        const updatedVariants = (vf.initial_variants || []).map(v => {
-                                          const nextSelected = { ...(v.selected_attributes || {}) };
-                                          delete nextSelected[attrName];
-                                          if (val && firstVal) nextSelected[val] = firstVal;
-
-                                          const orderedCodes = [];
-                                          const orderedNames = [];
-                                          nextAttrs.forEach(att => {
-                                            const aName = typeof att === 'object' && att !== null ? att.attribute : att;
-                                            const vVal = nextSelected[aName];
-                                            if (vVal) {
-                                              const pVals = attributeValuesMap[aName] || [];
-                                              const matched = pVals.find(x => x.attribute_value === vVal);
-                                              orderedCodes.push((matched?.abbr || vVal).toUpperCase());
-                                              orderedNames.push(vVal);
-                                            }
-                                          });
-
-                                          const codeSuffix = orderedCodes.join('-');
-                                          const nameSuffix = orderedNames.join(' ');
-
-                                          return {
-                                            ...v,
-                                            selected_attributes: nextSelected,
-                                            variant_item_code: codeSuffix ? `${form.item_code || 'ITEM'}-${codeSuffix}`.toUpperCase() : '',
-                                            variant_item_name: nameSuffix ? `${form.item_name || 'Item'} ${nameSuffix}` : ''
-                                          };
-                                        });
-                                        return { ...vf, initial_variants: updatedVariants };
-                                      });
-                                    }}
-                                  />
-                                </div>
-                                <button 
-                                  type="button" 
-                                  onClick={() => {
-                                    const updated = form.attributes.filter((_, i) => i !== idx);
-                                    setForm(p => ({ ...p, attributes: updated }));
-                                    setVariantForm(vf => {
-                                      const updatedVariants = (vf.initial_variants || []).map(v => {
-                                        const nextSelected = { ...(v.selected_attributes || {}) };
-                                        delete nextSelected[attrName];
-                                        const attrStr = Object.values(nextSelected).filter(Boolean).join('-');
-                                        return {
-                                          ...v,
-                                          selected_attributes: nextSelected,
-                                          variant_item_code: attrStr ? `${form.item_code || 'ITEM'}-${attrStr}`.toUpperCase() : '',
-                                          variant_item_name: attrStr ? `${form.item_name || 'Item'} ${attrStr}` : ''
-                                        };
-                                      });
-                                      return { ...vf, initial_variants: updatedVariants };
-                                    });
-                                  }} 
-                                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.red, padding: 4 }}
-                                >
-                                  <Trash2 size={14} />
-                                </button>
-                              </div>
-                            );
-                          })}
+                {/* Variant Items List (Inline Editable for Existing & New Variants) */}
+                {Boolean(form.has_variants) && (form.attributes || []).length > 0 && (
+                  <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: 14, padding: '20px 24px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18, borderBottom: '1px solid #f1f5f9', paddingBottom: 14 }}>
+                      <div>
+                        <div style={{ fontSize: 15, fontWeight: 800, color: '#1e293b' }}>
+                          Variant Setup
                         </div>
-                      ) : (
-                        <div style={{ padding: '16px', textAlign: 'center', background: '#fff', borderRadius: 8, border: '1px dashed #c084fc', color: '#7c3aed', fontSize: 12, fontWeight: 600, marginBottom: 16 }}>
-                          ⚠️ Please select at least one Option above (e.g. Size, Colour) to add Variant items.
-                        </div>
-                      )}
-
-                      {/* Variant Items List (Inline Editable for Existing & New Variants) */}
-                      {(form.attributes || []).length > 0 && (
-                        <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: 14, padding: '20px 24px', marginTop: 12, boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18, borderBottom: '1px solid #f1f5f9', paddingBottom: 14 }}>
-                            <div>
-                              <div style={{ fontSize: 15, fontWeight: 800, color: '#1e293b' }}>
-                                Variant Setup
-                              </div>
                               <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>
                                 {isEditMode 
                                   ? `Item variants configured (${(variantForm.initial_variants || []).length})`
@@ -5324,10 +5300,7 @@ export default function ItemList() {
                               </div>
                             </div>
                           )}
-                        </div>
-                      )}
-                    </div>
-                  </CardSection>
+                  </div>
                 )}
 
                 {/* Controls row: Inventory & Sales + Loyalty & Status (Hidden when Has Variants is checked because each variant configures its own) */}
