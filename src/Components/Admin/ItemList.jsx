@@ -1899,6 +1899,10 @@ export default function ItemList() {
                 box_buying_price: boxBPrice || 0,
                 box_selling_price: boxSPrice || 0,
                 custom_pieces_per_box: pcsPerBox || 0,
+                brand: v.brand !== undefined ? v.brand : form.brand || null,
+                country_of_origin: v.country_of_origin !== undefined ? v.country_of_origin : form.country_of_origin || null,
+                item_group: v.item_group !== undefined ? v.item_group : form.item_group || null,
+                stock_uom: v.stock_uom !== undefined ? v.stock_uom : form.default_uom || null,
                 is_stock_item: v.is_stock_item !== undefined ? v.is_stock_item : (form.is_stock_item !== undefined ? form.is_stock_item : 1),
                 is_sales_item: v.is_sales_item !== undefined ? v.is_sales_item : (form.is_sales_item !== undefined ? form.is_sales_item : 1),
                 is_purchase_item: v.is_purchase_item !== undefined ? v.is_purchase_item : (form.is_purchase_item !== undefined ? form.is_purchase_item : 1),
@@ -4845,27 +4849,119 @@ export default function ItemList() {
                                           <tr style={{ background: '#fcfaff', borderBottom: '2px solid #ddd6fe' }}>
                                             <td colSpan={11 + (form.attributes || []).length} style={{ padding: '16px 20px' }}>
                                               <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #e2e8f0', paddingBottom: 8 }}>
                                                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 800, color: '#6d28d9' }}>
                                                     <Sparkles size={15} />
-                                                    <span>Variant Specifications & Advanced Configuration ({vRow.variant_item_code || `Variant #${vIdx + 1}`})</span>
+                                                    <span>Variant Specifications & Master Overrides ({vRow.variant_item_code || `Variant #${vIdx + 1}`})</span>
                                                   </div>
-                                                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                                                    <span style={{ fontSize: 12, fontWeight: 700, color: '#475569' }}>Pieces Per Box:</span>
-                                                    <input
-                                                      type="number"
-                                                      step="1"
-                                                      min="0"
-                                                      className="il-input"
-                                                      style={{ width: 90, height: 30, fontSize: 12, fontWeight: 700, textAlign: 'center' }}
-                                                      value={vRow.custom_pieces_per_box !== undefined ? vRow.custom_pieces_per_box : (form.custom_pieces_per_box || '')}
-                                                      onChange={e => {
-                                                        const updatedVariants = [...variantForm.initial_variants];
-                                                        updatedVariants[vIdx] = { ...vRow, custom_pieces_per_box: e.target.value };
-                                                        setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
-                                                      }}
-                                                      placeholder="0"
-                                                    />
+                                                  <span style={{ fontSize: 11, color: '#64748b', fontStyle: 'italic' }}>
+                                                    * Inherits from template by default; customize any field if needed.
+                                                  </span>
+                                                </div>
+
+                                                {/* Variant Category, Subgroup, Brand, Country, Base UOM, Pieces Per Box */}
+                                                <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, padding: 12 }}>
+                                                  <div style={{ fontSize: 12, fontWeight: 800, color: '#1e293b', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+                                                    <Box size={13} color="#7c3aed" /> General Item Classification & Units
+                                                  </div>
+                                                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10 }}>
+                                                    {/* Main Category */}
+                                                    <div>
+                                                      <label style={{ fontSize: 11, fontWeight: 700, color: '#475569', display: 'block', marginBottom: 4 }}>Main Category</label>
+                                                      <SearchableSelectInline
+                                                        value={vRow.main_group !== undefined ? vRow.main_group : formMainGroup}
+                                                        options={groupHierarchy.map(h => ({ label: h.main_group, value: h.main_group }))}
+                                                        placeholder="Select Main Category"
+                                                        onChange={val => {
+                                                          const updatedVariants = [...variantForm.initial_variants];
+                                                          updatedVariants[vIdx] = { ...vRow, main_group: val, item_group: '' };
+                                                          setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
+                                                        }}
+                                                      />
+                                                    </div>
+
+                                                    {/* Item Subgroup */}
+                                                    <div>
+                                                      <label style={{ fontSize: 11, fontWeight: 700, color: '#475569', display: 'block', marginBottom: 4 }}>Item Subgroup</label>
+                                                      <SearchableSelectInline
+                                                        value={vRow.item_group !== undefined ? vRow.item_group : form.item_group}
+                                                        options={
+                                                          (vRow.main_group || formMainGroup) && groupHierarchy.find(h => h.main_group === (vRow.main_group || formMainGroup))
+                                                            ? (groupHierarchy.find(h => h.main_group === (vRow.main_group || formMainGroup)).subgroups || []).map(s => ({ label: s, value: s }))
+                                                            : itemGroups
+                                                        }
+                                                        placeholder="Select Subgroup"
+                                                        onChange={val => {
+                                                          const updatedVariants = [...variantForm.initial_variants];
+                                                          updatedVariants[vIdx] = { ...vRow, item_group: val };
+                                                          setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
+                                                        }}
+                                                      />
+                                                    </div>
+
+                                                    {/* Brand */}
+                                                    <div>
+                                                      <label style={{ fontSize: 11, fontWeight: 700, color: '#475569', display: 'block', marginBottom: 4 }}>Brand</label>
+                                                      <SearchableSelectInline
+                                                        value={vRow.brand !== undefined ? vRow.brand : form.brand}
+                                                        options={brands}
+                                                        placeholder="Select Brand"
+                                                        onChange={val => {
+                                                          const updatedVariants = [...variantForm.initial_variants];
+                                                          updatedVariants[vIdx] = { ...vRow, brand: val };
+                                                          setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
+                                                        }}
+                                                      />
+                                                    </div>
+
+                                                    {/* Country of Origin */}
+                                                    <div>
+                                                      <label style={{ fontSize: 11, fontWeight: 700, color: '#475569', display: 'block', marginBottom: 4 }}>Country of Origin</label>
+                                                      <SearchableSelectInline
+                                                        value={vRow.country_of_origin !== undefined ? vRow.country_of_origin : form.country_of_origin}
+                                                        options={countries}
+                                                        placeholder="Select Country"
+                                                        onChange={val => {
+                                                          const updatedVariants = [...variantForm.initial_variants];
+                                                          updatedVariants[vIdx] = { ...vRow, country_of_origin: val };
+                                                          setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
+                                                        }}
+                                                      />
+                                                    </div>
+
+                                                    {/* Base UOM */}
+                                                    <div>
+                                                      <label style={{ fontSize: 11, fontWeight: 700, color: '#475569', display: 'block', marginBottom: 4 }}>Base UOM</label>
+                                                      <SearchableSelectInline
+                                                        value={vRow.stock_uom !== undefined ? vRow.stock_uom : (form.default_uom || 'Nos')}
+                                                        options={baseUomOptions}
+                                                        placeholder="Base UOM"
+                                                        onChange={val => {
+                                                          const updatedVariants = [...variantForm.initial_variants];
+                                                          updatedVariants[vIdx] = { ...vRow, stock_uom: val };
+                                                          setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
+                                                        }}
+                                                      />
+                                                    </div>
+
+                                                    {/* Pieces Per Box */}
+                                                    <div>
+                                                      <label style={{ fontSize: 11, fontWeight: 700, color: '#475569', display: 'block', marginBottom: 4 }}>Pieces Per Box</label>
+                                                      <input
+                                                        type="number"
+                                                        step="1"
+                                                        min="0"
+                                                        className="il-input"
+                                                        style={{ height: 32, fontSize: 12, fontWeight: 700 }}
+                                                        value={vRow.custom_pieces_per_box !== undefined ? vRow.custom_pieces_per_box : (form.custom_pieces_per_box || '')}
+                                                        onChange={e => {
+                                                          const updatedVariants = [...variantForm.initial_variants];
+                                                          updatedVariants[vIdx] = { ...vRow, custom_pieces_per_box: e.target.value };
+                                                          setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
+                                                        }}
+                                                        placeholder="e.g. 12"
+                                                      />
+                                                    </div>
                                                   </div>
                                                 </div>
 
