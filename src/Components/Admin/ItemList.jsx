@@ -4523,7 +4523,9 @@ export default function ItemList() {
                                       border: isExpanded ? '1.5px solid #8b5cf6' : '1px solid #e2e8f0',
                                       borderRadius: 12,
                                       boxShadow: isExpanded ? '0 4px 16px rgba(139, 92, 246, 0.12)' : '0 1px 3px rgba(0,0,0,0.02)',
-                                      overflow: 'hidden',
+                                      overflow: 'visible',
+                                      position: 'relative',
+                                      zIndex: (variantForm.initial_variants || []).length - vIdx + 10,
                                       transition: 'all 0.2s ease-in-out'
                                     }}
                                   >
@@ -4533,11 +4535,14 @@ export default function ItemList() {
                                         padding: '12px 16px',
                                         background: isExpanded ? '#f5f3ff' : '#fafafa',
                                         borderBottom: isExpanded ? '1px solid #ddd6fe' : 'none',
+                                        borderRadius: isExpanded ? '12px 12px 0 0' : 12,
                                         display: 'flex',
                                         flexWrap: 'wrap',
                                         alignItems: 'center',
                                         justifyContent: 'space-between',
-                                        gap: 12
+                                        gap: 12,
+                                        position: 'relative',
+                                        zIndex: 5
                                       }}
                                     >
                                       {/* Left: Index badge, Attribute selectors, Variant Code & Name */}
