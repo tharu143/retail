@@ -348,7 +348,7 @@ function Home() {
 
     // ----- Classic Theme Column Config -----
     const DEFAULT_CLASSIC_COLUMNS = [
-        { id: 'item_code', label: 'Item Code', visible: true, width: 140 },
+        { id: 'barcode', label: 'Barcode', visible: true, width: 140 },
         { id: 'description', label: 'Description', visible: true, width: 240 },
         { id: 'uom', label: 'UOM', visible: true, width: 100 },
         { id: 'qty', label: 'Qty', visible: true, width: 60 },
@@ -356,6 +356,7 @@ function Home() {
         { id: 'price', label: 'Price', visible: true, width: 80 },
         { id: 'vat', label: 'VAT (5%)', visible: true, width: 70 },
         { id: 'total', label: 'Total', visible: true, width: 100 },
+        { id: 'item_code', label: 'Item Code', visible: false, width: 130 },
     ];
 
     const [classicColumns, setClassicColumns] = useState(() => loadLocalMatrixConfig('pos_home_matrix_config', DEFAULT_CLASSIC_COLUMNS));
@@ -1722,7 +1723,7 @@ function Home() {
             setNearbyBranches([]);
             return;
         }
-        const itemCode = selectedDetailItem.name || selectedDetailItem.item_code || selectedDetailItem.id;
+        const itemCode = selectedDetailItem.item_code || selectedDetailItem.id || selectedDetailItem.name || selectedDetailItem.item_name;
         if (!itemCode) return;
 
         // 1. Fetch Sales History
@@ -2918,26 +2919,32 @@ function Home() {
                         let filteredResults = results;
                         apiItems = filteredResults;
 
-                        db.items.bulkPut(results.map(item => ({
-                            id: item.name,
-                            name: item.item_name,
-                            image: item.image,
-                            group: item.item_group || "others",
-                            price: item.price_list_rate || 0,
-                            prices: item.prices || {},
-                            uom_conversions: item.uom_conversions || {},
-                            stock_uom: item.stock_uom || 'Nos',
-                            actual_qty: item.actual_qty || 0,
-                            local_qty: item.actual_qty || 0,
-                            total_qty: item.total_qty || item.actual_qty || 0,
-                            warehouse_details: item.warehouse_details || [],
-                            branch_availability: item.branch_availability || [],
-                            barcodes: item.barcodes || [],
-                            modified: item.modified,
-                            custom_pieces_per_box: item.custom_pieces_per_box || 1,
-                            custom_loyalty_eligible: item.custom_loyalty_eligible || 0,
-                            is_bundle: item.is_bundle || 0
-                        }))).catch(e => console.error("Dexie background update failed", e));
+                        db.items.bulkPut(results.map(item => {
+                            const whDetail = (item.warehouse_details || []).find(w => (w.warehouse || w.warehouse_name) === warehouse);
+                            const buyPrice = item.buying_price || whDetail?.buying_price || item.valuation_rate || 0;
+                            return {
+                                id: item.name,
+                                name: item.item_name,
+                                image: item.image,
+                                group: item.item_group || "others",
+                                price: item.price_list_rate || 0,
+                                prices: item.prices || {},
+                                buying_price: buyPrice,
+                                valuation_rate: item.valuation_rate || 0,
+                                uom_conversions: item.uom_conversions || {},
+                                stock_uom: item.stock_uom || 'Nos',
+                                actual_qty: item.actual_qty || 0,
+                                local_qty: item.actual_qty || 0,
+                                total_qty: item.total_qty || item.actual_qty || 0,
+                                warehouse_details: item.warehouse_details || [],
+                                branch_availability: item.branch_availability || [],
+                                barcodes: item.barcodes || [],
+                                modified: item.modified,
+                                custom_pieces_per_box: item.custom_pieces_per_box || 1,
+                                custom_loyalty_eligible: item.custom_loyalty_eligible || 0,
+                                is_bundle: item.is_bundle || 0
+                            };
+                        })).catch(e => console.error("Dexie background update failed", e));
 
                         if (results.length > 0) {
                             const newestModified = results.reduce((max, item) =>
@@ -2972,6 +2979,9 @@ function Home() {
                         finalImage = `${baseUrl}${imagePath}`;
                     }
                 }
+                const whDetail = (item.warehouse_details || []).find(w => (w.warehouse || w.warehouse_name) === warehouse);
+                const currentBuyingPrice = item.buying_price || whDetail?.buying_price || item.valuation_rate || 0;
+
                 return {
                     id: item.id || item.name,
                     item_code: item.item_code || item.id || item.name,
@@ -2982,6 +2992,9 @@ function Home() {
                     description: item.description || "",
                     // Base price (Nos/Piece price) – branch-specific from API
                     price: item.price || item.price_list_rate || 0,
+                    buying_price: currentBuyingPrice,
+                    buy_price: currentBuyingPrice,
+                    valuation_rate: item.valuation_rate || 0,
                     // UOM-keyed price map (e.g. { Nos: 10, Box: 120 }) – branch selling prices
                     prices: item.prices || {},
                     // UOM conversion factors (e.g. { Box: 12, Nos: 1 })
@@ -3634,6 +3647,8 @@ function Home() {
             ? `<option value="Nos">Nos (Each)</option><option value="Box">Box (${item.custom_pieces_per_box} pcs)</option>`
             : `<option value="Nos">Nos (Each)</option>`;
 
+        let pinTimeout = null;
+
         const { value: formValues } = await Swal.fire({
             title: 'Material Request',
             html: `
@@ -3670,32 +3685,89 @@ function Home() {
                         </select>
                     </div>
                 </div>
+                <div style="margin-top: 14px;">
+                    <label style="display:block;font-size:10px;font-weight:900;color:#94a3b8;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:4px;">
+                        Secret Code / Cashier PIN <span style="color: #ef4444;">*</span>
+                    </label>
+                    <input 
+                        type="password" 
+                        id="swal-mr-pin" 
+                        placeholder="••••" 
+                        maxlength="10" 
+                        style="width:100%;padding:10px 12px;border:2px solid #e2e8f0;border-radius:8px;font-size:16px;font-weight:900;color:#0f172a;letter-spacing:0.2em;outline:none;box-sizing:border-box;"
+                        onfocus="this.style.borderColor='#f59e0b';"
+                        onblur="this.style.borderColor='#e2e8f0';"
+                    />
+                    <div id="swal-mr-pin-status" style="margin-top: 6px; min-height: 24px;">
+                        <div style="font-size: 11px; color: #94a3b8; font-style: italic;">Enter PIN to verify employee...</div>
+                    </div>
+                </div>
             </div>`,
             showCancelButton: true,
-            confirmButtonText: '📦 Submit Request',
+            confirmButtonText: '📦 Verify & Submit Request',
             confirmButtonColor: '#f59e0b',
             cancelButtonColor: '#64748b',
             focusConfirm: false,
             didOpen: () => {
                 const qtyInput = document.getElementById('swal-mr-qty');
+                const pinInput = document.getElementById('swal-mr-pin');
+                const statusBox = document.getElementById('swal-mr-pin-status');
+
                 if (qtyInput) { qtyInput.focus(); qtyInput.select(); }
-                // Tab from qty → uom → confirm button
-                document.getElementById('swal-mr-qty')?.addEventListener('keydown', (ev) => {
-                    if (ev.key === 'Tab') { ev.preventDefault(); document.getElementById('swal-mr-uom')?.focus(); }
-                    if (ev.key === 'Enter') { ev.preventDefault(); Swal.clickConfirm(); }
-                });
-                document.getElementById('swal-mr-uom')?.addEventListener('keydown', (ev) => {
-                    if (ev.key === 'Enter') { ev.preventDefault(); Swal.clickConfirm(); }
+
+                pinInput?.addEventListener('input', (e) => {
+                    const val = e.target.value.trim();
+                    if (!val) {
+                        statusBox.innerHTML = `<div style="font-size: 11px; color: #94a3b8; font-style: italic;">Enter PIN to verify employee...</div>`;
+                        return;
+                    }
+
+                    statusBox.innerHTML = `<div style="display: flex; align-items: center; gap: 6px; font-size: 11px; color: #64748b;">⟳ Verifying PIN...</div>`;
+
+                    clearTimeout(pinTimeout);
+                    pinTimeout = setTimeout(async () => {
+                        try {
+                            const res = await fetch(`/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_collector_by_secret_code?secret_code=${encodeURIComponent(val)}`, {
+                                credentials: 'include'
+                            });
+                            const json = await res.json();
+                            const result = json.message || json;
+                            if (result.status === 'success' && result.data) {
+                                statusBox.innerHTML = `
+                                    <div style="display: flex; align-items: center; gap: 6px; background: #ecfdf5; border: 1px solid #a7f3d0; padding: 4px 8px; border-radius: 6px;">
+                                        <span style="color: #059669; font-weight: 900; font-size: 12px;">✓</span>
+                                        <div>
+                                            <span style="font-size: 11px; font-weight: 800; color: #065f46;">${result.data.collector_name}</span>
+                                            <span style="font-size: 10px; color: #047857; margin-left: 4px;">(${result.data.employee})</span>
+                                        </div>
+                                    </div>
+                                `;
+                            } else {
+                                statusBox.innerHTML = `
+                                    <div style="font-size: 11px; color: #ef4444; font-weight: 700; background: #fef2f2; border: 1px solid #fecaca; padding: 4px 8px; border-radius: 6px;">
+                                        ✕ Invalid Secret Key — Employee Not Recognized
+                                    </div>
+                                `;
+                            }
+                        } catch (err) {
+                            statusBox.innerHTML = `<div style="font-size: 11px; color: #ef4444; font-weight: 700;">Verification error</div>`;
+                        }
+                    }, 250);
                 });
             },
             preConfirm: () => {
                 const qty = parseInt(document.getElementById('swal-mr-qty')?.value);
                 const uom = document.getElementById('swal-mr-uom')?.value;
+                const pin = document.getElementById('swal-mr-pin')?.value;
                 if (!qty || qty <= 0) {
                     Swal.showValidationMessage('Please enter a valid quantity (minimum 1)');
                     return false;
                 }
-                return { qty, uom };
+                if (!pin || !pin.trim()) {
+                    Swal.showValidationMessage('Secret Code / Cashier PIN is mandatory');
+                    return false;
+                }
+                return { qty, uom, pin };
             }
         });
 
@@ -3709,7 +3781,8 @@ function Home() {
                         qty: formValues.qty,
                         uom: formValues.uom,
                         from_warehouse: fromWarehouse || '',
-                        to_warehouse: warehouse || ''
+                        to_warehouse: warehouse || '',
+                        secret_key: formValues.pin
                     }
                 });
 
@@ -3726,7 +3799,7 @@ function Home() {
                         showConfirmButton: false
                     });
                 } else {
-                    throw new Error('Failed to generate request');
+                    throw new Error(res?.message || 'Failed to generate request');
                 }
             } catch (err) {
                 Swal.fire('Error', err.message, 'error');
@@ -3974,6 +4047,65 @@ function Home() {
         }));
     };
 
+    const handlePriceBlur = (e, item, idx) => {
+        const inputVal = e?.target?.value !== undefined ? e.target.value : item._price_input_val;
+        if (inputVal === undefined || inputVal === '') return;
+        const sellVal = parseFloat(inputVal) || 0;
+        const isBox = item.uom === 'Box' || item.uom === 'BOX';
+        const factor = isBox ? (item.custom_pieces_per_box || 1) : 1;
+        
+        // Find accurate buying price from item or master items list (Items state)
+        const masterItem = (Items || filteredItems || []).find(it => it.id === item.id || it.item_code === item.id || it.name === item.name);
+        const whDetail = (item.warehouse_details || masterItem?.warehouse_details || []).find(w => (w.warehouse || w.warehouse_name) === warehouse);
+        
+        let minBuyRate = 0;
+        if (isBox) {
+            const buyPriceBox = parseFloat(item.buying_prices?.Box || masterItem?.buying_prices?.Box || 0);
+            if (buyPriceBox > 0) {
+                minBuyRate = buyPriceBox;
+            } else {
+                const buyPriceNos = parseFloat(item.buying_price || item.buy_price || whDetail?.buying_price || masterItem?.buying_price || masterItem?.valuation_rate || item.valuation_rate || 0);
+                minBuyRate = buyPriceNos * factor;
+            }
+        } else {
+            const buyPriceNos = parseFloat(item.buying_prices?.Nos || item.buying_price || item.buy_price || whDetail?.buying_price || masterItem?.buying_price || masterItem?.valuation_rate || item.valuation_rate || 0);
+            minBuyRate = buyPriceNos;
+        }
+
+        if (sellVal > 0 && minBuyRate > 0 && sellVal < minBuyRate) {
+            // Revert back to default / previous valid price
+            const defaultSinglePrice = item.base_unit_price || item.prices?.Piece || item.prices?.Nos || masterItem?.price || minBuyRate;
+            const fallbackPrice = isBox
+                ? (item.prices?.Box || (defaultSinglePrice * factor))
+                : defaultSinglePrice;
+
+            setBillItems(prev => prev.map((i, iIdx) => {
+                if (iIdx === idx || i.id === item.id) {
+                    const updated = { ...i, _price_input_val: undefined, price: fallbackPrice };
+                    if (i.uom === 'Box') {
+                        return { ...updated, prices: { ...i.prices, Box: fallbackPrice }, base_unit_price: fallbackPrice / factor };
+                    } else {
+                        return { ...updated, prices: { ...i.prices, Nos: fallbackPrice, Piece: fallbackPrice }, base_unit_price: fallbackPrice };
+                    }
+                }
+                return i;
+            }));
+
+            if (e?.target) {
+                e.target.value = fallbackPrice.toFixed(2);
+            }
+
+            Swal.fire({
+                icon: 'error',
+                title: isBox ? 'Box Price Restriction Warning' : 'Price Restriction Warning',
+                html: `Row #${idx + 1} (${item.item_name || item.name || item.id}):<br/>` +
+                    `${isBox ? 'Box ' : ''}Selling Price (<b>AED ${sellVal.toFixed(2)}</b>) cannot be LESS than ${isBox ? 'Box ' : ''}Buying Rate (<b>AED ${minBuyRate.toFixed(2)}</b>)!<br/><br/>` +
+                    `<i>Entered value has been reset to AED ${fallbackPrice.toFixed(2)}.</i>`,
+                confirmButtonColor: '#ef4444'
+            });
+        }
+    };
+
     // Category slider
     const groupCategories = (cats, size) => {
         const groups = [];
@@ -3992,6 +4124,59 @@ function Home() {
         }
     };
 
+    // Helper: calculate total bill selling vs total bill cost
+    const getBillCostDetails = useCallback(() => {
+        let totalSelling = 0;
+        let totalCost = 0;
+        const itemBreakdown = [];
+
+        billItems.forEach((item, idx) => {
+            const isBox = item.uom === 'Box' || item.uom === 'BOX';
+            const factor = isBox ? (item.custom_pieces_per_box || 1) : 1;
+            const masterItem = (Items || filteredItems || []).find(it => it.id === item.id || it.item_code === item.id || it.name === item.name);
+            const whDetail = (item.warehouse_details || masterItem?.warehouse_details || []).find(w => (w.warehouse || w.warehouse_name) === warehouse);
+
+            let minBuyRate = 0;
+            if (isBox) {
+                const buyPriceBox = parseFloat(item.buying_prices?.Box || masterItem?.buying_prices?.Box || 0);
+                if (buyPriceBox > 0) {
+                    minBuyRate = buyPriceBox;
+                } else {
+                    const buyPriceNos = parseFloat(item.buying_price || item.buy_price || whDetail?.buying_price || masterItem?.buying_price || masterItem?.valuation_rate || item.valuation_rate || 0);
+                    minBuyRate = buyPriceNos * factor;
+                }
+            } else {
+                const buyPriceNos = parseFloat(item.buying_prices?.Nos || item.buying_price || item.buy_price || whDetail?.buying_price || masterItem?.buying_price || masterItem?.valuation_rate || item.valuation_rate || 0);
+                minBuyRate = buyPriceNos;
+            }
+
+            const itemSellPrice = parseFloat(item.price || 0);
+            const itemQty = parseFloat(item.qty || 1);
+            const lineSelling = itemSellPrice * itemQty;
+            const lineCost = minBuyRate * itemQty;
+
+            totalSelling += lineSelling;
+            totalCost += lineCost;
+
+            itemBreakdown.push({
+                idx,
+                item,
+                isBox,
+                factor,
+                itemSellPrice,
+                itemQty,
+                lineSelling,
+                minBuyRate,
+                lineCost,
+                marginPerUnit: itemSellPrice - minBuyRate,
+                totalMargin: lineSelling - lineCost
+            });
+        });
+
+        const maxAllowedTotalDiscount = Math.max(0, totalSelling - totalCost);
+        return { totalSelling, totalCost, maxAllowedTotalDiscount, itemBreakdown };
+    }, [billItems, Items, filteredItems, warehouse]);
+
     // Discount
     const applyDiscountHandler = async () => {
         const value = parseFloat(discountInput) || 0;
@@ -4000,33 +4185,93 @@ function Home() {
                 Swal.fire('Error', 'Cannot apply discount when loyalty points are redeemed. Reset loyalty first.', 'error');
                 return;
             }
-            try {
-                if (isOffline) {
-                    if (secretKeyInput !== userSecretKey) {
-                        Swal.fire('Unauthorized', 'Incorrect Secret Key (Offline Verification). Discount rejected.', 'error');
-                        return;
-                    }
-                    setDiscountAuthorizedBy("Manager (Offline)");
-                } else {
-                    const res = await POSService.verifyAuthorizationKey(secretKeyInput, 'discount', warehouse);
-                    if (res && res.status === 'error') {
-                        Swal.fire('Unauthorized', res.message || 'Incorrect Secret Key.', 'error');
-                        return;
-                    }
-                    setDiscountAuthorizedBy(res.authorized_by || "Authorized Cashier");
-                }
-            } catch (err) {
-                if (err.message && err.message.includes("Incorrect Secret Key")) {
-                    Swal.fire('Unauthorized', err.message, 'error');
-                    return;
-                }
-                if (secretKeyInput !== userSecretKey) {
-                    Swal.fire('Unauthorized', 'Incorrect Secret Key. Discount rejected.', 'error');
-                    return;
-                }
-                setDiscountAuthorizedBy("Manager (Offline Fallback)");
+
+            // Calculate Effective Discount Percentage on Total Selling
+            const totalSelling = billItems.reduce((sum, it) => sum + (parseFloat(it.price || 0) * parseFloat(it.qty || 1)), 0);
+            const calcDiscountAmt = (discount.type === 'percentage' || discount.type === 'percent')
+                ? (totalSelling * value) / 100
+                : value;
+
+            // RULE 3: ABSOLUTE FLOOR RESTRICTION (Purchase Price takes absolute priority)
+            // Even with Manager Secret Key, final selling price CANNOT be lower than Buying Cost
+            const costDetails = getBillCostDetails();
+            if (costDetails.totalCost > 0 && (totalSelling - calcDiscountAmt) < costDetails.totalCost) {
+                const maxAllowedDisc = Math.max(0, totalSelling - costDetails.totalCost);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Absolute Price Restriction Error',
+                    html: `<b>Sale Below Purchase Price is STRICTLY PROHIBITED!</b><br/><br/>` +
+                        `Cart Selling Value: <b>AED ${totalSelling.toFixed(2)}</b><br/>` +
+                        `Cart Buying Cost: <b>AED ${costDetails.totalCost.toFixed(2)}</b><br/>` +
+                        `Entered Discount: <b>AED ${calcDiscountAmt.toFixed(2)}</b><br/><br/>` +
+                        `Final Sale Amount (AED ${(totalSelling - calcDiscountAmt).toFixed(2)}) is LESS than Purchase Cost (AED ${costDetails.totalCost.toFixed(2)})!<br/><br/>` +
+                        `<i>Maximum allowable discount is <b>AED ${maxAllowedDisc.toFixed(2)}</b>. No Secret Key or Manager override can bypass this rule.</i>`,
+                    confirmButtonColor: '#ef4444'
+                });
+                return;
             }
+
+            let effectivePct = 0;
+            if (discount.type === 'percentage' || discount.type === 'percent') {
+                effectivePct = value;
+            } else {
+                effectivePct = totalSelling > 0 ? (value / totalSelling) * 100 : 0;
+            }
+
+            // 10% Threshold Rule:
+            // If discount is > 10%, Secret Key is mandatory.
+            // If discount is <= 10%, no Secret Key is required.
+            const requiresAuth = effectivePct > 10.0;
+
+            if (requiresAuth) {
+                if (!secretKeyInput || secretKeyInput.trim() === '') {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Authorization Required',
+                        text: `Discounts greater than 10% (${effectivePct.toFixed(1)}%) require a Manager Secret Key. Please enter the Secret Key.`,
+                        confirmButtonColor: '#2563eb'
+                    });
+                    setTimeout(() => {
+                        document.getElementById('cashier-secret-key-input')?.focus();
+                    }, 100);
+                    return;
+                }
+
+                try {
+                    if (isOffline) {
+                        if (secretKeyInput !== userSecretKey) {
+                            Swal.fire('Unauthorized', 'Incorrect Secret Key (Offline Verification). Discount rejected.', 'error');
+                            return;
+                        }
+                        setDiscountAuthorizedBy("Manager (Offline)");
+                    } else {
+                        const res = await POSService.verifyAuthorizationKey(secretKeyInput, 'discount', warehouse);
+                        if (res && res.status === 'error') {
+                            Swal.fire('Unauthorized', res.message || 'Incorrect Secret Key.', 'error');
+                            return;
+                        }
+                        setDiscountAuthorizedBy(res.authorized_by || "Authorized Cashier");
+                    }
+                } catch (err) {
+                    if (err.message && err.message.includes("Incorrect Secret Key")) {
+                        Swal.fire('Unauthorized', err.message, 'error');
+                        return;
+                    }
+                    if (secretKeyInput !== userSecretKey) {
+                        Swal.fire('Unauthorized', 'Incorrect Secret Key. Discount rejected.', 'error');
+                        return;
+                    }
+                    setDiscountAuthorizedBy("Manager (Offline Fallback)");
+                }
+            } else {
+                // <= 10% Discount: No secret key required, record current logged in cashier/user
+                const cashierDisplay = user ? (user.includes('@') ? user.split('@')[0] : user) : "Cashier";
+                setDiscountAuthorizedBy(`Cashier: ${cashierDisplay} (Standard <=10%)`);
+            }
+        } else {
+            setDiscountAuthorizedBy("");
         }
+
         setDiscount(prev => ({ ...prev, value }));
         setShowDiscountModal(false);
         setDiscountInput("");
@@ -4464,6 +4709,83 @@ function Home() {
         if (typeof directMode !== 'string') directMode = null;
         if (paymentLoading) return;
 
+        // Rule 1 & Rule 3: Strictly validate that Selling Price (and Net Price after discount) is NOT lower than Buying Price
+        let totalCartBuyingCost = 0;
+        let totalCartSellingVal = 0;
+
+        for (let idx = 0; idx < billItems.length; idx++) {
+            const item = billItems[idx];
+            const isBox = item.uom === 'Box' || item.uom === 'BOX';
+            const factor = isBox ? (item.custom_pieces_per_box || 1) : 1;
+            
+            const masterItem = (Items || filteredItems || []).find(it => it.id === item.id || it.item_code === item.id || it.name === item.name);
+            const whDetail = (item.warehouse_details || masterItem?.warehouse_details || []).find(w => (w.warehouse || w.warehouse_name) === warehouse);
+            
+            let minBuyRate = 0;
+            if (isBox) {
+                const buyPriceBox = parseFloat(item.buying_prices?.Box || masterItem?.buying_prices?.Box || 0);
+                if (buyPriceBox > 0) {
+                    minBuyRate = buyPriceBox;
+                } else {
+                    const buyPriceNos = parseFloat(item.buying_price || item.buy_price || whDetail?.buying_price || masterItem?.buying_price || masterItem?.valuation_rate || item.valuation_rate || 0);
+                    minBuyRate = buyPriceNos * factor;
+                }
+            } else {
+                const buyPriceNos = parseFloat(item.buying_prices?.Nos || item.buying_price || item.buy_price || whDetail?.buying_price || masterItem?.buying_price || masterItem?.valuation_rate || item.valuation_rate || 0);
+                minBuyRate = buyPriceNos;
+            }
+            const sellPrice = parseFloat(item.price || 0);
+            const itemQty = parseFloat(item.qty || 1);
+
+            totalCartBuyingCost += (minBuyRate * itemQty);
+            totalCartSellingVal += (sellPrice * itemQty);
+
+            // Rule 1: Item unit price check
+            if (sellPrice > 0 && minBuyRate > 0 && sellPrice < minBuyRate) {
+                Swal.fire({
+                    icon: 'error',
+                    title: isBox ? 'Box Price Restriction Error' : 'Price Restriction Error',
+                    html: `Row #${idx + 1} (<b>${item.name || item.id}</b>):<br/>` +
+                        `${isBox ? 'Box ' : ''}Selling Price (<b>AED ${sellPrice.toFixed(2)}</b>) cannot be LESS than ${isBox ? 'Box ' : ''}Buying Rate (<b>AED ${minBuyRate.toFixed(2)}</b>)!<br/><br/>` +
+                        `Please adjust the item rate before completing the payment.`,
+                    confirmButtonColor: '#ef4444'
+                });
+                return;
+            }
+        }
+
+        // Rule 3: Final Invoice Amount after discount vs Total Buying Cost
+        if (discountAmount > 0 && totalCartBuyingCost > 0 && (totalCartSellingVal - discountAmount) < totalCartBuyingCost) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Absolute Price Restriction Error',
+                html: `<b>Payment Blocked: Final Selling Total is Less than Buying Cost!</b><br/><br/>` +
+                    `Cart Total: <b>AED ${totalCartSellingVal.toFixed(2)}</b><br/>` +
+                    `Discount: <b>AED ${discountAmount.toFixed(2)}</b><br/>` +
+                    `Final Payable: <b>AED ${(totalCartSellingVal - discountAmount).toFixed(2)}</b><br/>` +
+                    `Purchase Cost: <b>AED ${totalCartBuyingCost.toFixed(2)}</b><br/><br/>` +
+                    `<i>Sale below purchase price is strictly forbidden by policy. Please reduce or remove the discount.</i>`,
+                confirmButtonColor: '#ef4444'
+            });
+            setPaymentLoading(false);
+            return;
+        }
+
+        // 10% Discount Threshold Authorization Validation
+        const totalCartSelling = billItems.reduce((sum, it) => sum + (parseFloat(it.price || 0) * parseFloat(it.qty || 1)), 0);
+        const effectiveDiscPct = totalCartSelling > 0 ? (discountAmount / totalCartSelling) * 100 : 0;
+        
+        if (effectiveDiscPct > 10.0 && (!discountAuthorizedBy || discountAuthorizedBy.includes("Standard"))) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Discount Authorization Required',
+                text: `The invoice has a discount of ${effectiveDiscPct.toFixed(1)}% (> 10%). Please open the Discount modal (F1) and enter the Manager Secret Key before completing payment.`,
+                confirmButtonColor: '#2563eb'
+            });
+            setPaymentLoading(false);
+            return;
+        }
+
         // Prompt for Reference No for Direct Bank
         if (directMode === 'Bank' && !directRefNo) {
             const { value: refInput, isDismissed } = await Swal.fire({
@@ -4887,6 +5209,9 @@ function Home() {
 
                         const uomSelectHtml = uomOptions.map(u => `<option value="${u}">${u}</option>`).join('');
 
+                        let resolvedEmpData = null;
+                        let pinTimeout = null;
+
                         const { value: formValues } = await Swal.fire({
                             title: 'Request Details',
                             html: `
@@ -4894,30 +5219,102 @@ function Home() {
                                     <label style="font-weight: 700; font-size: 13px; color: #475569;">Quantity</label>
                                     <input type="number" id="swal-input-qty" class="swal2-input" value="1" min="1" style="margin: 8px 0; width: 100%; box-sizing: border-box;">
                                 </div>
-                                <div style="text-align: left;">
+                                <div style="text-align: left; margin-bottom: 14px;">
                                     <label style="font-weight: 700; font-size: 13px; color: #475569;">UOM</label>
-                                    <select id="swal-input-uom" class="swal2-select" style="margin: 8px 0; width: 100%; box-sizing: border-box; height: 50px;">
+                                    <select id="swal-input-uom" class="swal2-select" style="margin: 8px 0; width: 100%; box-sizing: border-box; height: 48px;">
                                         ${uomSelectHtml}
                                     </select>
+                                </div>
+                                <div style="text-align: left;">
+                                    <label style="font-weight: 700; font-size: 13px; color: #1e293b; display: block; margin-bottom: 4px;">
+                                        Secret Code / Cashier PIN <span style="color: #ef4444;">*</span>
+                                    </label>
+                                    <input type="password" id="swal-input-pin" class="swal2-input" placeholder="••••" maxlength="10" style="margin: 0; width: 100%; box-sizing: border-box; height: 44px; font-size: 16px; letter-spacing: 0.25em;">
+                                    
+                                    <div id="swal-pin-status" style="margin-top: 8px; min-height: 28px;">
+                                        <div style="font-size: 11px; color: #94a3b8; font-style: italic;">Enter PIN to verify employee...</div>
+                                    </div>
                                 </div>
                             `,
                             focusConfirm: false,
                             showCancelButton: true,
-                            confirmButtonText: 'Submit Request',
+                            confirmButtonText: 'Verify & Submit Request',
                             confirmButtonColor: '#2563eb',
+                            cancelButtonText: 'Cancel',
+                            didOpen: () => {
+                                const pinInput = document.getElementById('swal-input-pin');
+                                const statusBox = document.getElementById('swal-pin-status');
+                                const confirmBtn = Swal.getConfirmButton();
+
+                                pinInput.addEventListener('input', (e) => {
+                                    const val = e.target.value.trim();
+                                    resolvedEmpData = null;
+
+                                    if (!val) {
+                                        statusBox.innerHTML = `<div style="font-size: 11px; color: #94a3b8; font-style: italic;">Enter PIN to verify employee...</div>`;
+                                        return;
+                                    }
+
+                                    statusBox.innerHTML = `
+                                        <div style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #64748b;">
+                                            <span style="display: inline-block;">⟳</span> Verifying PIN...
+                                        </div>
+                                    `;
+
+                                    clearTimeout(pinTimeout);
+                                    pinTimeout = setTimeout(async () => {
+                                        try {
+                                            const res = await fetch(`/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_collector_by_secret_code?secret_code=${encodeURIComponent(val)}`, {
+                                                credentials: 'include'
+                                            });
+                                            const json = await res.json();
+                                            const result = json.message || json;
+                                            if (result.status === 'success' && result.data) {
+                                                resolvedEmpData = result.data;
+                                                statusBox.innerHTML = `
+                                                    <div style="display: flex; align-items: center; gap: 8px; background: #ecfdf5; border: 1.5px solid #a7f3d0; padding: 6px 10px; border-radius: 8px;">
+                                                        <div style="width: 20px; height: 20px; border-radius: 50%; background: #059669; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 11px;">✓</div>
+                                                        <div>
+                                                            <div style="font-size: 12px; font-weight: 800; color: #065f46;">${result.data.collector_name}</div>
+                                                            <div style="font-size: 10px; color: #047857;">Authorized Cashier (${result.data.employee})</div>
+                                                        </div>
+                                                    </div>
+                                                `;
+                                            } else {
+                                                statusBox.innerHTML = `
+                                                    <div style="font-size: 11px; color: #ef4444; font-weight: 700; background: #fef2f2; border: 1px solid #fecaca; padding: 6px 10px; border-radius: 6px;">
+                                                        ✕ Invalid Secret Key — Employee Not Recognized
+                                                    </div>
+                                                `;
+                                            }
+                                        } catch (err) {
+                                            statusBox.innerHTML = `
+                                                <div style="font-size: 11px; color: #ef4444; font-weight: 700;">
+                                                    Verification error
+                                                </div>
+                                            `;
+                                        }
+                                    }, 250);
+                                });
+                            },
                             preConfirm: () => {
                                 const qty = document.getElementById('swal-input-qty').value;
                                 const uom = document.getElementById('swal-input-uom').value;
+                                const pin = document.getElementById('swal-input-pin').value;
                                 if (!qty || parseFloat(qty) <= 0) {
                                     Swal.showValidationMessage('Please enter a valid quantity');
                                     return false;
                                 }
-                                return { qty, uom };
+                                if (!pin || !pin.trim()) {
+                                    Swal.showValidationMessage('Secret Code / Cashier PIN is mandatory');
+                                    return false;
+                                }
+                                return { qty, uom, pin };
                             }
                         });
 
                         if (formValues) {
-                            const { qty, uom } = formValues;
+                            const { qty, uom, pin } = formValues;
                             Swal.fire({ title: 'Creating Material Request...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
                             try {
                                 const res = await frappeCall({
@@ -4927,7 +5324,8 @@ function Home() {
                                         qty: parseFloat(qty),
                                         from_warehouse: fromWh,
                                         to_warehouse: toWh,
-                                        uom: uom
+                                        uom: uom,
+                                        secret_key: pin
                                     }
                                 });
                                 if (res.status === 'success') {
@@ -5538,193 +5936,278 @@ function Home() {
         );
     };
 
-    const renderDiscountModal = () => (
-        <div
-            className="home-modal-overlay"
-            onClick={() => setShowDiscountModal(false)}
-            style={{
-                position: 'fixed',
-                inset: 0,
-                backgroundColor: 'rgba(15, 23, 42, 0.75)',
-                backdropFilter: 'blur(8px)',
-                display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center',
-                zIndex: 10000
-            }}
-        >
+    const renderDiscountModal = () => {
+        const { totalSelling, totalCost, maxAllowedTotalDiscount } = getBillCostDetails();
+        const enteredVal = parseFloat(discountInput) || 0;
+        const calcDiscountAmt = (discount.type === 'percentage' || discount.type === 'percent')
+            ? (totalSelling * enteredVal) / 100
+            : enteredVal;
+        const finalEstPrice = Math.max(0, totalSelling - calcDiscountAmt);
+        const isExceedingCost = totalCost > 0 && calcDiscountAmt > maxAllowedTotalDiscount;
+        const maxPct = totalSelling > 0 ? ((maxAllowedTotalDiscount / totalSelling) * 100).toFixed(1) : 0;
+
+        return (
             <div
-                className="home-modal"
-                onClick={e => e.stopPropagation()}
+                className="home-modal-overlay"
+                onClick={() => setShowDiscountModal(false)}
                 style={{
-                    width: '100%',
-                    maxWidth: '420px',
-                    backgroundColor: '#ffffff',
-                    borderRadius: '32px',
-                    overflow: 'hidden',
-                    boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)',
+                    position: 'fixed',
+                    inset: 0,
+                    backgroundColor: 'rgba(15, 23, 42, 0.75)',
+                    backdropFilter: 'blur(8px)',
                     display: 'flex',
-                    flexDirection: 'column',
-                    margin: '20px'
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    zIndex: 10000
                 }}
             >
-                <div className="home-modal-header bg-slate-50/80 border-b border-slate-100 p-6 flex justify-between items-center">
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-blue-600 text-white rounded-xl flex items-center justify-center shadow-lg shadow-blue-200">
-                            <Percent size={20} />
+                <div
+                    className="home-modal"
+                    onClick={e => e.stopPropagation()}
+                    style={{
+                        width: '100%',
+                        maxWidth: '460px',
+                        backgroundColor: '#ffffff',
+                        borderRadius: '24px',
+                        overflow: 'hidden',
+                        boxShadow: '0 25px 50px -12px rgba(15, 23, 42, 0.35)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        margin: '20px',
+                        border: '1px solid #e2e8f0'
+                    }}
+                >
+                    {/* Header */}
+                    <div style={{ padding: '18px 24px', background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                            <div style={{ width: '38px', height: '38px', background: '#2563eb', color: '#ffffff', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 12px rgba(37,99,235,0.4)' }}>
+                                <Percent size={18} />
+                            </div>
+                            <div>
+                                <h3 style={{ fontSize: '15px', fontWeight: 900, color: '#ffffff', textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0 }}>Apply Discount</h3>
+                                <span style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 600 }}>Validate rates & prevent cost loss</span>
+                            </div>
                         </div>
-                        <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">Apply Discount</h3>
-                    </div>
-                    <button
-                        className="w-10 h-10 flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-600 rounded-full transition-all"
-                        onClick={() => setShowDiscountModal(false)}
-                    >
-                        <X size={20} />
-                    </button>
-                </div>
-
-                <div className="home-modal-body p-8 flex flex-col gap-6">
-                    {/* Discount Type Toggle */}
-                    <div className="flex bg-slate-100 p-1.5 rounded-2xl">
                         <button
-                            className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-black uppercase tracking-widest text-xs transition-all ${discount.type === 'amount' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
-                            onClick={() => setDiscount({ ...discount, type: 'amount' })}
+                            type="button"
+                            onClick={() => setShowDiscountModal(false)}
+                            style={{ width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '50%', cursor: 'pointer', transition: 'all 0.15s' }}
                         >
-                            <DirhamIcon size={14} /> Dirham
-                        </button>
-                        <button
-                            className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-black uppercase tracking-widest text-xs transition-all ${discount.type === 'percentage' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
-                            onClick={() => setDiscount({ ...discount, type: 'percentage' })}
-                        >
-                            <Percent size={14} /> Percent
+                            <X size={18} />
                         </button>
                     </div>
 
-                    {/* Input Area */}
-                    <div className="relative group">
-                        <div className="absolute inset-y-0 flex items-center pointer-events-none" style={{ left: '24px' }}>
-                            <span className="text-2xl font-black text-blue-500 flex items-center justify-center">{discount.type === 'amount' ? <DirhamIcon size={20} /> : '%'}</span>
-                        </div>
-                        <input
-                            type="number"
-                            placeholder="0.00"
-                            className="w-full pr-8 py-6 bg-slate-50 border-2 border-slate-100 rounded-3xl text-4xl font-black text-slate-900 outline-none focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-50 transition-all placeholder:text-slate-200"
-                            style={{ paddingLeft: '76px' }}
-                            value={discountInput}
-                            onChange={e => setDiscountInput(e.target.value)}
-                            onKeyDown={(e) => {
-                                if (e.key === 'Enter') {
-                                    if (parseFloat(discountInput) > 0) {
-                                        setTimeout(() => {
-                                            document.getElementById('cashier-secret-key-input')?.focus();
-                                        }, 50);
-                                    } else {
-                                        applyDiscountHandler();
-                                    }
-                                }
-                            }}
-                            autoFocus
-                        />
-                    </div>
-
-                    {/* Cashier Secret Key Input (Premium Slate style) */}
-                    {parseFloat(discountInput) > 0 && (
-                        <div className="flex flex-col gap-2 animate-in fade-in slide-in-from-bottom-2">
-                            <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Cashier Secret Key</label>
-                            <div className="relative flex items-center bg-slate-50 border-2 border-slate-100 rounded-3xl overflow-hidden focus-within:border-blue-500 focus-within:bg-white focus-within:ring-4 focus-within:ring-blue-50 transition-all">
-                                <input
-                                    id="cashier-secret-key-input"
-                                    type="password"
-                                    placeholder="••••"
-                                    className="w-full px-6 py-4 bg-transparent text-lg font-black text-slate-900 outline-none placeholder:text-slate-300"
-                                    value={secretKeyInput}
-                                    onChange={e => setSecretKeyInput(e.target.value)}
-                                    onKeyDown={(e) => e.key === 'Enter' && applyDiscountHandler()}
-                                />
+                    <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: '16px', background: '#f8fafc' }}>
+                        
+                        {/* Summary Metrics Box Layout */}
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
+                            <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '14px', padding: '10px 12px', display: 'flex', flexDirection: 'column', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
+                                <span style={{ fontSize: '9px', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Bill Subtotal</span>
+                                <span style={{ fontSize: '14px', fontWeight: 900, color: '#0f172a', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                                    <DirhamIcon size={12} /> {totalSelling.toFixed(2)}
+                                </span>
                             </div>
-                            {/* Live Employee Name feedback */}
-                            {discountPinEmployee && discountPinEmployee.status === 'success' && (
-                                <div className="px-3 py-1.5 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center gap-1.5 text-xs font-bold text-emerald-700 animate-in fade-in slide-in-from-top-1">
-                                    <ShieldCheck size={14} className="text-emerald-600 shrink-0" />
-                                    <span className="truncate">
-                                        Authorized by: <b>{discountPinEmployee.employee_name}</b> {discountPinEmployee.employee_id ? `(${discountPinEmployee.employee_id})` : ''}
-                                    </span>
-                                </div>
-                            )}
-                            {discountPinEmployee && discountPinEmployee.status === 'invalid' && (
-                                <div className="px-3 py-0.5 text-[11px] font-semibold text-rose-500 animate-in fade-in">
-                                    Invalid PIN / Employee not found
-                                </div>
-                            )}
-                        </div>
-                    )}
 
-                    {/* Discount Customer instant creation */}
-                    <div className="flex flex-col gap-2 border-t border-slate-100 pt-4 mt-2">
-                        <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">
-                            {creatingDiscountCust ? "Creating Discount Customer..." : "Create & Select Discount Customer"}
-                        </label>
-                        <div className="relative flex items-center bg-slate-50 border-2 border-slate-100 rounded-3xl overflow-hidden focus-within:border-blue-500 focus-within:bg-white focus-within:ring-4 focus-within:ring-blue-50 transition-all">
-                            <div className="absolute text-slate-400" style={{ left: '20px' }}>
-                                {creatingDiscountCust ? (
-                                    <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
-                                ) : (
-                                    <UserPlus className="w-5 h-5 text-blue-600" />
-                                )}
+                            <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '14px', padding: '10px 12px', display: 'flex', flexDirection: 'column', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
+                                <span style={{ fontSize: '9px', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Buying Cost</span>
+                                <span style={{ fontSize: '14px', fontWeight: 900, color: '#475569', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                                    <DirhamIcon size={12} /> {totalCost.toFixed(2)}
+                                </span>
                             </div>
-                            <input
-                                type="text"
-                                placeholder="Enter name or mobile & press Enter"
-                                className="w-full pr-6 py-4 bg-transparent text-sm font-bold text-slate-900 outline-none placeholder:text-slate-300"
-                                style={{ paddingLeft: '56px' }}
-                                value={discountCustInput}
-                                onChange={e => setDiscountCustInput(e.target.value)}
-                                onKeyDown={(e) => {
-                                    if (e.key === 'Enter') {
-                                        e.preventDefault();
-                                        createDiscountCustomer();
-                                    }
-                                }}
-                                disabled={creatingDiscountCust}
-                            />
-                        </div>
-                    </div>
 
-                    {/* Impact Summary */}
-                    <div className="bg-slate-900 text-white p-5 rounded-3xl shadow-xl relative overflow-hidden">
-                        <div className="absolute top-0 right-0 w-24 h-24 bg-blue-500/10 rounded-full -mr-12 -mt-12 blur-xl"></div>
-                        <div className="flex justify-between items-center relative z-10">
-                            <div className="flex flex-col">
-                                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Current Total</span>
-                                <span className="text-lg font-black flex items-center gap-1"><DirhamIcon size={14} /> {subtotal.toFixed(2)}</span>
-                            </div>
-                            <div className="flex flex-col items-end">
-                                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-400">Final Price</span>
-                                <span className="text-2xl font-black text-blue-400 flex items-center gap-1.5">
-                                    <DirhamIcon size={18} /> {flt(subtotal - ((discount.type === 'percentage' ? subtotal * (parseFloat(discountInput) || 0) / 100 : (parseFloat(discountInput) || 0)))).toFixed(2)}
+                            <div style={{ background: isExceedingCost ? '#fef2f2' : '#f0fdf4', border: `1px solid ${isExceedingCost ? '#fecaca' : '#bbf7d0'}`, borderRadius: '14px', padding: '10px 12px', display: 'flex', flexDirection: 'column' }}>
+                                <span style={{ fontSize: '9px', fontWeight: 800, color: isExceedingCost ? '#b91c1c' : '#15803d', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Max Discount</span>
+                                <span style={{ fontSize: '13px', fontWeight: 900, color: isExceedingCost ? '#dc2626' : '#16a34a', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                                    <DirhamIcon size={11} /> {maxAllowedTotalDiscount.toFixed(2)} <span style={{ fontSize: '10px', opacity: 0.85 }}>({maxPct}%)</span>
                                 </span>
                             </div>
                         </div>
+
+                        {/* Discount Mode Selection (Tabs) */}
+                        <div style={{ display: 'flex', background: '#e2e8f0', padding: '4px', borderRadius: '14px', gap: '4px' }}>
+                            <button
+                                type="button"
+                                style={{
+                                    flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
+                                    padding: '8px 12px', borderRadius: '10px', fontSize: '11px', fontWeight: 800,
+                                    textTransform: 'uppercase', letterSpacing: '0.04em', cursor: 'pointer', border: 'none',
+                                    background: discount.type === 'amount' ? '#ffffff' : 'transparent',
+                                    color: discount.type === 'amount' ? '#2563eb' : '#64748b',
+                                    boxShadow: discount.type === 'amount' ? '0 2px 4px rgba(0,0,0,0.06)' : 'none',
+                                    transition: 'all 0.15s'
+                                }}
+                                onClick={() => setDiscount({ ...discount, type: 'amount' })}
+                            >
+                                <DirhamIcon size={13} /> Flat Amount (AED)
+                            </button>
+                            <button
+                                type="button"
+                                style={{
+                                    flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
+                                    padding: '8px 12px', borderRadius: '10px', fontSize: '11px', fontWeight: 800,
+                                    textTransform: 'uppercase', letterSpacing: '0.04em', cursor: 'pointer', border: 'none',
+                                    background: (discount.type === 'percentage' || discount.type === 'percent') ? '#ffffff' : 'transparent',
+                                    color: (discount.type === 'percentage' || discount.type === 'percent') ? '#2563eb' : '#64748b',
+                                    boxShadow: (discount.type === 'percentage' || discount.type === 'percent') ? '0 2px 4px rgba(0,0,0,0.06)' : 'none',
+                                    transition: 'all 0.15s'
+                                }}
+                                onClick={() => setDiscount({ ...discount, type: 'percentage' })}
+                            >
+                                <Percent size={13} /> Percentage (%)
+                            </button>
+                        </div>
+
+                        {/* Discount Value Input Box */}
+                        <div style={{ background: '#ffffff', border: `2px solid ${isExceedingCost ? '#ef4444' : '#3b82f6'}`, borderRadius: '16px', padding: '12px 16px', display: 'flex', alignItems: 'center', gap: '12px', boxShadow: '0 2px 6px rgba(0,0,0,0.04)' }}>
+                            <div style={{ width: '36px', height: '36px', background: isExceedingCost ? '#fee2e2' : '#eff6ff', color: isExceedingCost ? '#ef4444' : '#2563eb', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: '16px' }}>
+                                {discount.type === 'amount' ? <DirhamIcon size={18} /> : '%'}
+                            </div>
+                            <div style={{ flex: 1 }}>
+                                <label style={{ display: 'block', fontSize: '9.5px', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                                    {discount.type === 'amount' ? 'Enter Discount Amount' : 'Enter Discount Percentage'}
+                                </label>
+                                <input
+                                    type="number"
+                                    placeholder="0.00"
+                                    style={{ width: '100%', border: 'none', outline: 'none', fontSize: '24px', fontWeight: 900, color: isExceedingCost ? '#dc2626' : '#0f172a', background: 'transparent' }}
+                                    value={discountInput}
+                                    onChange={e => setDiscountInput(e.target.value)}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                            if (parseFloat(discountInput) > 0) {
+                                                setTimeout(() => {
+                                                    document.getElementById('cashier-secret-key-input')?.focus();
+                                                }, 50);
+                                            } else {
+                                                applyDiscountHandler();
+                                            }
+                                        }
+                                    }}
+                                    autoFocus
+                                />
+                            </div>
+                        </div>
+
+                        {/* Discount Percentage Badge & Rule Indicator */}
+                        {enteredVal > 0 && (
+                            <div style={{
+                                background: (discount.type === 'percentage' || discount.type === 'percent' ? enteredVal : (totalSelling > 0 ? (calcDiscountAmt / totalSelling) * 100 : 0)) > 10.0 ? '#eff6ff' : '#f0fdf4',
+                                border: `1px solid ${(discount.type === 'percentage' || discount.type === 'percent' ? enteredVal : (totalSelling > 0 ? (calcDiscountAmt / totalSelling) * 100 : 0)) > 10.0 ? '#bfdbfe' : '#bbf7d0'}`,
+                                borderRadius: '12px',
+                                padding: '8px 14px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                fontSize: '11px',
+                                fontWeight: 800
+                            }}>
+                                <span style={{ color: (discount.type === 'percentage' || discount.type === 'percent' ? enteredVal : (totalSelling > 0 ? (calcDiscountAmt / totalSelling) * 100 : 0)) > 10.0 ? '#1e40af' : '#15803d' }}>
+                                    {(discount.type === 'percentage' || discount.type === 'percent' ? enteredVal : (totalSelling > 0 ? (calcDiscountAmt / totalSelling) * 100 : 0)) > 10.0
+                                        ? '🔒 Secret Key Required (> 10% Discount)'
+                                        : '✅ No Secret Key Required (≤ 10% Standard Discount)'}
+                                </span>
+                                <span style={{
+                                    background: (discount.type === 'percentage' || discount.type === 'percent' ? enteredVal : (totalSelling > 0 ? (calcDiscountAmt / totalSelling) * 100 : 0)) > 10.0 ? '#2563eb' : '#16a34a',
+                                    color: '#ffffff',
+                                    padding: '2px 8px',
+                                    borderRadius: '6px',
+                                    fontSize: '10px'
+                                }}>
+                                    {(discount.type === 'percentage' || discount.type === 'percent' ? enteredVal : (totalSelling > 0 ? (calcDiscountAmt / totalSelling) * 100 : 0)).toFixed(1)}%
+                                </span>
+                            </div>
+                        )}
+
+                        {/* Cashier Secret Key Box (Only for > 10% Discount) */}
+                        {enteredVal > 0 && (discount.type === 'percentage' || discount.type === 'percent' ? enteredVal : (totalSelling > 0 ? (calcDiscountAmt / totalSelling) * 100 : 0)) > 10.0 && (
+                            <div style={{ background: '#ffffff', border: '1px solid #bfdbfe', borderRadius: '16px', padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                <label style={{ fontSize: '9.5px', fontWeight: 800, color: '#1e40af', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', justifyContent: 'space-between' }}>
+                                    <span>Manager / Cashier Secret Key</span>
+                                    <span style={{ color: '#ef4444' }}>* Mandatory</span>
+                                </label>
+                                <div style={{ display: 'flex', alignItems: 'center', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '10px', padding: '4px 12px' }}>
+                                    <input
+                                        id="cashier-secret-key-input"
+                                        type="password"
+                                        placeholder="Enter Secret PIN ••••"
+                                        style={{ width: '100%', border: 'none', outline: 'none', background: 'transparent', fontSize: '16px', fontWeight: 800, color: '#0f172a', padding: '6px 0' }}
+                                        value={secretKeyInput}
+                                        onChange={e => setSecretKeyInput(e.target.value)}
+                                        onKeyDown={(e) => e.key === 'Enter' && applyDiscountHandler()}
+                                    />
+                                </div>
+                                {discountPinEmployee && discountPinEmployee.status === 'success' && (
+                                    <div style={{ background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: '8px', padding: '6px 10px', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', fontWeight: 800, color: '#047857' }}>
+                                        <ShieldCheck size={14} />
+                                        <span>Authorized: <b>{discountPinEmployee.employee_name}</b> {discountPinEmployee.employee_id ? `(${discountPinEmployee.employee_id})` : ''}</span>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {/* Create & Select Discount Customer Box */}
+                        <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '16px', padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                            <label style={{ fontSize: '9.5px', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                {creatingDiscountCust ? "Creating Discount Customer..." : "Create & Select Discount Customer"}
+                            </label>
+                            <div style={{ display: 'flex', alignItems: 'center', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '10px', padding: '4px 12px', gap: '8px' }}>
+                                {creatingDiscountCust ? <Loader2 size={16} className="animate-spin text-blue-600" /> : <UserPlus size={16} className="text-blue-600" />}
+                                <input
+                                    type="text"
+                                    placeholder="Enter name or mobile & press Enter"
+                                    style={{ width: '100%', border: 'none', outline: 'none', background: 'transparent', fontSize: '12px', fontWeight: 700, color: '#0f172a', padding: '6px 0' }}
+                                    value={discountCustInput}
+                                    onChange={e => setDiscountCustInput(e.target.value)}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                            e.preventDefault();
+                                            createDiscountCustomer();
+                                        }
+                                    }}
+                                    disabled={creatingDiscountCust}
+                                />
+                            </div>
+                        </div>
+
+                        {/* Net Impact Preview Card */}
+                        <div style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)', borderRadius: '16px', padding: '14px 18px', color: '#ffffff', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 4px 12px rgba(15,23,42,0.2)' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                <span style={{ fontSize: '9px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Effective Discount</span>
+                                <span style={{ fontSize: '16px', fontWeight: 900, color: '#f87171', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
+                                    - <DirhamIcon size={13} /> {calcDiscountAmt.toFixed(2)}
+                                </span>
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+                                <span style={{ fontSize: '9px', fontWeight: 800, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Estimated Payable</span>
+                                <span style={{ fontSize: '20px', fontWeight: 900, color: '#38bdf8', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px' }}>
+                                    <DirhamIcon size={16} /> {finalEstPrice.toFixed(2)}
+                                </span>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    {/* Footer Actions */}
+                    <div style={{ padding: '14px 24px', background: '#f1f5f9', borderTop: '1px solid #e2e8f0', display: 'flex', gap: '12px', alignItems: 'center' }}>
+                        <button
+                            type="button"
+                            onClick={clearDiscount}
+                            style={{ flex: 1, padding: '10px 16px', background: '#ffffff', border: '1px solid #cbd5e1', borderRadius: '12px', fontSize: '11px', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em', cursor: 'pointer', transition: 'all 0.15s' }}
+                        >
+                            Reset
+                        </button>
+                        <button
+                            type="button"
+                            onClick={applyDiscountHandler}
+                            style={{ flex: 2, padding: '10px 16px', background: '#2563eb', border: 'none', borderRadius: '12px', fontSize: '12px', fontWeight: 900, color: '#ffffff', textTransform: 'uppercase', letterSpacing: '0.05em', cursor: 'pointer', boxShadow: '0 4px 12px rgba(37,99,235,0.3)', transition: 'all 0.15s' }}
+                        >
+                            Apply Discount
+                        </button>
                     </div>
                 </div>
-
-                <div className="home-modal-footer p-8 bg-slate-50 flex gap-4 items-center border-t border-slate-100">
-                    <button
-                        className="flex-1 py-4 text-slate-400 font-black uppercase tracking-widest hover:text-slate-600 transition-all text-xs"
-                        onClick={clearDiscount}
-                    >
-                        Reset
-                    </button>
-                    <button
-                        onClick={applyDiscountHandler}
-                        className="flex-[2] py-4 bg-blue-600 text-white rounded-2xl font-black uppercase tracking-[0.2em] shadow-xl shadow-blue-200 hover:bg-blue-700 active:scale-95 transition-all text-sm"
-                    >
-                        Apply Discount
-                    </button>
-                </div>
             </div>
-        </div>
-    );
+        );
+    };
 
     const renderCreateModal = () => (
         <div
@@ -7031,8 +7514,8 @@ function Home() {
                 <div class="divider"></div>
                 <div class="totals">
                     <div class="total-row">
-                        <span>SUB TOTAL</span>
-                        <span>${dirhamSvgHtml}${parseFloat(invoiceData.subtotal || invoiceData.grand_total).toFixed(2)}</span>
+                        <span>SUB TOTAL (EXCL. TAX)</span>
+                        <span>${dirhamSvgHtml}${parseFloat(invoiceData.subtotal !== undefined ? invoiceData.subtotal : invoiceData.net_total || invoiceData.grand_total).toFixed(2)}</span>
                     </div>
                     ${invoiceData.discount_amount > 0 ? `
                         <div class="total-row">
@@ -7042,12 +7525,12 @@ function Home() {
                     ` : ''}
                     ${invoiceData.tax_amount > 0 ? `
                         <div class="total-row">
-                            <span>TAX</span>
+                            <span>VAT (5%)</span>
                             <span>${dirhamSvgHtml}${parseFloat(invoiceData.tax_amount).toFixed(2)}</span>
                         </div>
                     ` : ''}
-                    <div class="total-row grand-total bold">
-                        <span>TOTAL</span>
+                    <div class="total-row grand-total bold" style="font-size: 14px; border-top: 1.5px solid #000; padding-top: 4px; margin-top: 4px;">
+                        <span>TOTAL (INCL. VAT)</span>
                         <span>${dirhamSvgHtml}${parseFloat(invoiceData.grand_total).toFixed(2)}</span>
                     </div>
                     <div style="margin-top: 10px;">
@@ -10422,6 +10905,19 @@ function Home() {
                                                 onClick={() => setSelectedBillIndex(idx)}
                                             >
                                                 <td className={`text-center font-black text-[11px] ${idx === selectedBillIndex ? 'text-sky-800' : 'text-slate-400'}`}>{idx + 1}</td>
+                                                {visibleClassicCols.some(c => c.id === 'barcode') && (
+                                                    <td className="px-2 font-mono font-black text-slate-900 text-center">
+                                                        {(() => {
+                                                            const rawBc = item.barcode || item.barcodes?.[0] || item.custom_ref_sl_no || item.id;
+                                                            const bcStr = typeof rawBc === 'object' && rawBc !== null ? (rawBc.barcode || rawBc.name || '') : String(rawBc || '');
+                                                            return (
+                                                                <span className="classic-cell-text text-emerald-700" title={bcStr}>
+                                                                    {bcStr}
+                                                                </span>
+                                                            );
+                                                        })()}
+                                                    </td>
+                                                )}
                                                 {visibleClassicCols.some(c => c.id === 'item_code') && (
                                                     <td className="px-2 font-black text-slate-900 text-center">
                                                         <span className="classic-cell-text" title={item.name || item.item_name || item.item_code || item.id}>{item.name || item.item_name || item.item_code || item.id}</span>
@@ -10541,6 +11037,7 @@ function Home() {
                                                                 step="0.01"
                                                                 value={item._price_input_val !== undefined ? item._price_input_val : (parseFloat(effectivePrice) || 0).toFixed(2)}
                                                                 onChange={e => setExactPrice(item.id, e.target.value)}
+                                                                onBlur={e => handlePriceBlur(e, item, idx)}
                                                                 className="w-0 flex-1 text-right font-black text-slate-900 focus:bg-sky-200/70 outline-none border-none bg-transparent h-full text-[11px]"
                                                                 onFocus={e => e.target.select()}
                                                                 onClick={e => e.target.select()}
@@ -10550,6 +11047,7 @@ function Home() {
                                                                     }
                                                                     if (e.key === 'Enter' || (e.key === 'Tab' && !e.shiftKey)) {
                                                                         e.preventDefault();
+                                                                        handlePriceBlur(e, item, idx);
                                                                         if (idx === billItems.length - 1) {
                                                                             const el = document.getElementById('legacy-inline-search');
                                                                             el?.focus();
@@ -10607,7 +11105,7 @@ function Home() {
                                         onClick={() => { const el = document.getElementById('legacy-inline-search'); if (el) el.focus(); setSearchContext('inline'); setShowItemDropdown(true); }}
                                     >
                                         <td className="text-center font-bold text-amber-600">{billItems.length + 1}</td>
-                                        <td colSpan={Math.min(2, visibleClassicCols.filter(c => c.id === 'item_code' || c.id === 'description').length) || 1} className="p-0 relative h-10">
+                                        <td colSpan={visibleClassicCols.filter(c => c.id === 'barcode' || c.id === 'item_code' || c.id === 'description').length || 1} className="p-0 relative h-10">
                                             <input
                                                 ref={barcodeInputRef}
                                                 type="text"
@@ -10684,7 +11182,7 @@ function Home() {
                                                 );
                                             })()}
                                         </td>
-                                        {visibleClassicCols.filter(c => c.id !== 'item_code' && c.id !== 'description').map((col, i, arr) => (
+                                        {visibleClassicCols.filter(c => c.id !== 'barcode' && c.id !== 'item_code' && c.id !== 'description').map((col, i, arr) => (
                                             i === arr.length - 1 ? (
                                                 <td key={col.id} className="text-center px-2 font-black text-amber-600 bg-black/5">NEXT ITEM</td>
                                             ) : (

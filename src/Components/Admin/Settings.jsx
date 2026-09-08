@@ -7,7 +7,7 @@ import {
     RefreshCw, Trash2, Settings as SettingsIcon,
     Palette, ShieldAlert, Cpu, HardDrive, 
     CheckCircle2, ChevronRight, LayoutDashboard,
-    RotateCcw, Award, Truck, Package
+    RotateCcw, Award, Truck, Package, Columns, Eye, EyeOff, GripVertical, ChevronUp, ChevronDown, Check
 } from 'lucide-react';
 import { db } from '../../db';
 import { useNavigate } from 'react-router-dom';
@@ -15,8 +15,20 @@ import Swal from 'sweetalert2';
 import '../Admin/SalesOrder.css';
 import { useLegacyTheme } from '../../hooks/useLegacyTheme';
 import { useCustomShortcuts, ACTION_LABELS, getShortcutStringFromEvent } from '../../hooks/useCustomShortcuts';
+import { loadLocalMatrixConfig, fetchUserMatrixConfig, saveUserMatrixConfig } from '../../utils/tableMatrixHelper';
+import { DEFAULT_SI_COLUMNS } from './SalesInvoiceList';
 
-
+const DEFAULT_POS_COLUMNS = [
+    { id: 'barcode', label: 'Barcode', visible: true, width: 140 },
+    { id: 'description', label: 'Description', visible: true, width: 240 },
+    { id: 'uom', label: 'UOM', visible: true, width: 100 },
+    { id: 'qty', label: 'Qty', visible: true, width: 60 },
+    { id: 'pcs', label: 'Pcs', visible: true, width: 60 },
+    { id: 'price', label: 'Price', visible: true, width: 80 },
+    { id: 'vat', label: 'VAT (5%)', visible: true, width: 70 },
+    { id: 'total', label: 'Total', visible: true, width: 100 },
+    { id: 'item_code', label: 'Item Code', visible: false, width: 130 }
+];
 
 const Settings = () => {
     const dispatch = useDispatch();
@@ -27,6 +39,20 @@ const Settings = () => {
     const [warehouses, setWarehouses] = useState([]);
     const [selectedWarehouse, setSelectedWarehouse] = useState(activeWarehouse);
     const [loading, setLoading] = useState(true);
+
+    // Table Column Customizer State
+    const [activeColTab, setActiveColTab] = useState('sales_invoice'); // 'sales_invoice' | 'pos_home'
+    const [siCols, setSiCols] = useState(() => loadLocalMatrixConfig('si_modal_matrix_config', DEFAULT_SI_COLUMNS));
+    const [posCols, setPosCols] = useState(() => loadLocalMatrixConfig('pos_home_matrix_config', DEFAULT_POS_COLUMNS));
+
+    useEffect(() => {
+        fetchUserMatrixConfig('si_modal_matrix_config', DEFAULT_SI_COLUMNS).then(res => {
+            if (res) setSiCols(res);
+        });
+        fetchUserMatrixConfig('pos_home_matrix_config', DEFAULT_POS_COLUMNS).then(res => {
+            if (res) setPosCols(res);
+        });
+    }, []);
 
     // Shortcuts Hook & State
     const { shortcuts, updateShortcut, resetAllShortcuts } = useCustomShortcuts();
@@ -199,6 +225,40 @@ const Settings = () => {
         return saved !== null ? saved === 'true' : true;
     });
 
+    const handleToggleColVisibility = (tableType, colId) => {
+        if (tableType === 'sales_invoice') {
+            setSiCols(prev => prev.map(c => c.id === colId ? { ...c, visible: !c.visible } : c));
+        } else {
+            setPosCols(prev => prev.map(c => c.id === colId ? { ...c, visible: !c.visible } : c));
+        }
+    };
+
+    const handleMoveCol = (tableType, index, direction) => {
+        const list = tableType === 'sales_invoice' ? [...siCols] : [...posCols];
+        const targetIndex = index + direction;
+        if (targetIndex < 0 || targetIndex >= list.length) return;
+        [list[index], list[targetIndex]] = [list[targetIndex], list[index]];
+        if (tableType === 'sales_invoice') setSiCols(list);
+        else setPosCols(list);
+    };
+
+    const handleResetCols = (tableType) => {
+        if (tableType === 'sales_invoice') {
+            setSiCols(DEFAULT_SI_COLUMNS);
+            saveUserMatrixConfig('si_modal_matrix_config', null, DEFAULT_SI_COLUMNS);
+        } else {
+            setPosCols(DEFAULT_POS_COLUMNS);
+            saveUserMatrixConfig('pos_home_matrix_config', null, DEFAULT_POS_COLUMNS);
+        }
+        Swal.fire({
+            icon: 'info',
+            title: 'Columns Reset',
+            text: 'Restored system standard columns.',
+            timer: 1500,
+            showConfirmButton: false
+        });
+    };
+
     const handleSave = () => {
         if (!selectedWarehouse) {
             Swal.fire({
@@ -215,10 +275,15 @@ const Settings = () => {
         handleSavePurchaseWorkflow();
         localStorage.setItem('uom_filter_packing_only', filterPackingUomsOnly ? 'true' : 'false');
         window.dispatchEvent(new Event('uom_setting_changed'));
+
+        // Save Table Column Configurations to both localStorage and DB
+        saveUserMatrixConfig('si_modal_matrix_config', siCols, DEFAULT_SI_COLUMNS);
+        saveUserMatrixConfig('pos_home_matrix_config', posCols, DEFAULT_POS_COLUMNS);
+
         Swal.fire({
             icon: 'success',
             title: 'Settings Applied',
-            text: 'Terminal configuration, UOM filter, and purchase stock workflow updated.',
+            text: 'Terminal configuration, table column customizer, and workflows updated.',
             timer: 2000,
             showConfirmButton: false
         });
@@ -584,6 +649,146 @@ const Settings = () => {
                                         Displays all unit measurements in Base UOM field without filtering.
                                     </p>
                                 </div>
+                            </div>
+                        </div>
+
+                        {/* Table Column Customizer Card (Sales Invoice & POS Classic) */}
+                        <div className="so-table-card" style={{ padding: '1.5rem' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                    <div style={{ background: `${themeColor}15`, color: themeColor, padding: '8px', borderRadius: '10px' }}>
+                                        <Columns size={18} />
+                                    </div>
+                                    <div>
+                                        <h3 style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--so-text-heading)', margin: 0 }}>Sales Table Column Customizer</h3>
+                                        <p style={{ fontSize: '0.7rem', color: 'var(--so-text-muted)', margin: 0 }}>Show, hide, reorder, and configure default fields for Classic Sales screens.</p>
+                                    </div>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => handleResetCols(activeColTab)}
+                                    style={{
+                                        fontSize: '0.65rem',
+                                        fontWeight: 700,
+                                        color: '#64748b',
+                                        background: '#f1f5f9',
+                                        border: 'none',
+                                        padding: '5px 10px',
+                                        borderRadius: '6px',
+                                        cursor: 'pointer'
+                                    }}
+                                    onMouseOver={e => e.currentTarget.style.background = '#e2e8f0'}
+                                    onMouseOut={e => e.currentTarget.style.background = '#f1f5f9'}
+                                >
+                                    Reset to Default
+                                </button>
+                            </div>
+
+                            {/* Screen Selector Tabs */}
+                            <div style={{ display: 'flex', borderBottom: '1.5px solid #e2e8f0', marginBottom: '1rem', gap: '1rem' }}>
+                                <button
+                                    type="button"
+                                    onClick={() => setActiveColTab('sales_invoice')}
+                                    style={{
+                                        background: 'none',
+                                        border: 'none',
+                                        borderBottom: activeColTab === 'sales_invoice' ? `2px solid ${themeColor}` : '2px solid transparent',
+                                        color: activeColTab === 'sales_invoice' ? themeColor : '#64748b',
+                                        fontWeight: 800,
+                                        fontSize: '0.75rem',
+                                        padding: '6px 4px',
+                                        cursor: 'pointer'
+                                    }}
+                                >
+                                    Sales Invoice (Classic)
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setActiveColTab('pos_home')}
+                                    style={{
+                                        background: 'none',
+                                        border: 'none',
+                                        borderBottom: activeColTab === 'pos_home' ? `2px solid ${themeColor}` : '2px solid transparent',
+                                        color: activeColTab === 'pos_home' ? themeColor : '#64748b',
+                                        fontWeight: 800,
+                                        fontSize: '0.75rem',
+                                        padding: '6px 4px',
+                                        cursor: 'pointer'
+                                    }}
+                                >
+                                    POS Home Screen (Classic)
+                                </button>
+                            </div>
+
+                            {/* Column List */}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '340px', overflowY: 'auto', paddingRight: '4px' }}>
+                                {(activeColTab === 'sales_invoice' ? siCols : posCols).map((col, index, arr) => (
+                                    <div
+                                        key={col.id}
+                                        style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'space-between',
+                                            padding: '0.65rem 0.85rem',
+                                            background: col.visible ? '#ffffff' : '#f8fafc',
+                                            border: `1px solid ${col.visible ? '#cbd5e1' : '#e2e8f0'}`,
+                                            borderRadius: '8px',
+                                            opacity: col.visible ? 1 : 0.65
+                                        }}
+                                    >
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                                <button
+                                                    type="button"
+                                                    disabled={index === 0}
+                                                    onClick={() => handleMoveCol(activeColTab, index, -1)}
+                                                    style={{ border: 'none', background: 'transparent', cursor: index === 0 ? 'default' : 'pointer', padding: 0, opacity: index === 0 ? 0.2 : 0.7 }}
+                                                >
+                                                    <ChevronUp size={14} />
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    disabled={index === arr.length - 1}
+                                                    onClick={() => handleMoveCol(activeColTab, index, 1)}
+                                                    style={{ border: 'none', background: 'transparent', cursor: index === arr.length - 1 ? 'default' : 'pointer', padding: 0, opacity: index === arr.length - 1 ? 0.2 : 0.7 }}
+                                                >
+                                                    <ChevronDown size={14} />
+                                                </button>
+                                            </div>
+                                            <div>
+                                                <div style={{ fontSize: '0.75rem', fontWeight: 800, color: col.visible ? '#0f172a' : '#64748b' }}>
+                                                    {col.label}
+                                                    {col.id === 'barcode' && <span style={{ marginLeft: '6px', fontSize: '9px', fontWeight: 900, color: '#059669', background: '#ecfdf5', padding: '1px 5px', borderRadius: '4px' }}>PRIMARY</span>}
+                                                    {col.id === 'item_code' && <span style={{ marginLeft: '6px', fontSize: '9px', fontWeight: 800, color: '#475569', background: '#f1f5f9', padding: '1px 5px', borderRadius: '4px' }}>OPTIONAL</span>}
+                                                </div>
+                                                <div style={{ fontSize: '0.65rem', color: '#94a3b8', fontFamily: 'monospace' }}>ID: {col.id} · Width: {col.width}px</div>
+                                            </div>
+                                        </div>
+
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                            <button
+                                                type="button"
+                                                onClick={() => handleToggleColVisibility(activeColTab, col.id)}
+                                                style={{
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    gap: '5px',
+                                                    padding: '4px 8px',
+                                                    borderRadius: '6px',
+                                                    border: `1px solid ${col.visible ? '#10b98140' : '#cbd5e1'}`,
+                                                    background: col.visible ? '#ecfdf5' : '#f1f5f9',
+                                                    color: col.visible ? '#059669' : '#64748b',
+                                                    fontSize: '0.68rem',
+                                                    fontWeight: 800,
+                                                    cursor: 'pointer'
+                                                }}
+                                            >
+                                                {col.visible ? <Eye size={13} /> : <EyeOff size={13} />}
+                                                <span>{col.visible ? 'VISIBLE' : 'HIDDEN'}</span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
                         </div>
 

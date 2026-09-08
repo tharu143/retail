@@ -2325,8 +2325,56 @@ function PurchaseInvoiceList() {
     }
     const errors = {};
     if (!formData.supplier) errors.supplier = 'Supplier is required';
+    if (!formData.bill_no || !formData.bill_no.trim()) errors.bill_no = 'Invoice Number is required';
+    if (!formData.bill_date) errors.bill_date = 'Invoice Date is required';
+    const suppAmt = parseFloat(formData.custom_supplier_invoice_amount);
+    if (!formData.custom_supplier_invoice_amount || isNaN(suppAmt) || suppAmt <= 0) {
+      errors.custom_supplier_invoice_amount = 'Supplier Invoice Amount is required and must be greater than 0';
+    }
     if (formData.items.filter(i => i.item_code && i.qty > 0).length === 0) errors.items = 'Add at least one item';
     if (formData.update_stock && !formData.accepted_warehouse) errors.accepted_warehouse = 'Accepted Warehouse is required';
+
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+      if (errors.supplier) {
+        Swal.fire({
+          icon: 'warning',
+          title: 'Supplier Required',
+          text: 'Please choose a supplier before saving draft.',
+          confirmButtonColor: '#10b981'
+        });
+      } else if (errors.bill_no) {
+        Swal.fire({
+          icon: 'warning',
+          title: 'Invoice Number Required',
+          text: 'Supplier Invoice Number is mandatory. Please enter the invoice number before saving draft.',
+          confirmButtonColor: '#10b981'
+        });
+      } else if (errors.bill_date) {
+        Swal.fire({
+          icon: 'warning',
+          title: 'Invoice Date Required',
+          text: 'Supplier Invoice Date is mandatory. Please select the invoice date before saving draft.',
+          confirmButtonColor: '#10b981'
+        });
+      } else if (errors.custom_supplier_invoice_amount) {
+        Swal.fire({
+          icon: 'warning',
+          title: 'Supplier Invoice Amount Required',
+          text: 'Supplier Invoice Amount is mandatory (> 0). Please enter the supplier bill amount before saving draft.',
+          confirmButtonColor: '#10b981'
+        });
+      } else if (errors.items) {
+        Swal.fire({
+          icon: 'warning',
+          title: 'Item Required',
+          text: 'Please add at least one item to the invoice before saving draft.',
+          confirmButtonColor: '#10b981'
+        });
+      }
+      return;
+    }
+
     // Validate mandatory Selling Price by UOM
     for (let i = 0; i < formData.items.length; i++) {
       const item = formData.items[i];
@@ -2347,18 +2395,6 @@ function PurchaseInvoiceList() {
           return;
         }
       }
-    }
-
-    if (Object.keys(errors).length > 0) {
-      if (errors.supplier) {
-        Swal.fire({
-          icon: 'warning',
-          title: 'Supplier Required',
-          text: 'Please choose supplier',
-        });
-      }
-      setFormErrors(errors);
-      return;
     }
 
     // Unmatched Confirmation Prompt
@@ -2432,17 +2468,53 @@ function PurchaseInvoiceList() {
     }
     const errors = {};
     if (!formData.supplier) errors.supplier = 'Supplier is required';
+    if (!formData.bill_no || !formData.bill_no.trim()) errors.bill_no = 'Invoice Number is required';
+    if (!formData.bill_date) errors.bill_date = 'Invoice Date is required';
+    const suppAmt = parseFloat(formData.custom_supplier_invoice_amount);
+    if (!formData.custom_supplier_invoice_amount || isNaN(suppAmt) || suppAmt <= 0) {
+      errors.custom_supplier_invoice_amount = 'Supplier Invoice Amount is required and must be greater than 0';
+    }
     if (formData.items.filter(i => i.item_code && i.qty > 0).length === 0) errors.items = 'Add at least one item';
     if (formData.update_stock && !formData.accepted_warehouse) errors.accepted_warehouse = 'Accepted Warehouse is required';
+
     if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
       if (errors.supplier) {
         Swal.fire({
           icon: 'warning',
           title: 'Supplier Required',
-          text: 'Please choose supplier',
+          text: 'Please choose a supplier before submitting.',
+          confirmButtonColor: '#10b981'
+        });
+      } else if (errors.bill_no) {
+        Swal.fire({
+          icon: 'warning',
+          title: 'Invoice Number Required',
+          text: 'Supplier Invoice Number is mandatory. Please enter the invoice number before submitting.',
+          confirmButtonColor: '#10b981'
+        });
+      } else if (errors.bill_date) {
+        Swal.fire({
+          icon: 'warning',
+          title: 'Invoice Date Required',
+          text: 'Supplier Invoice Date is mandatory. Please select the invoice date before submitting.',
+          confirmButtonColor: '#10b981'
+        });
+      } else if (errors.custom_supplier_invoice_amount) {
+        Swal.fire({
+          icon: 'warning',
+          title: 'Supplier Invoice Amount Required',
+          text: 'Supplier Invoice Amount is mandatory (> 0). Please enter the supplier bill amount before submitting.',
+          confirmButtonColor: '#10b981'
+        });
+      } else if (errors.items) {
+        Swal.fire({
+          icon: 'warning',
+          title: 'Item Required',
+          text: 'Please add at least one item to the invoice before submitting.',
+          confirmButtonColor: '#10b981'
         });
       }
-      setFormErrors(errors);
       return;
     }
 
@@ -3336,12 +3408,12 @@ function PurchaseInvoiceList() {
 
         {/* CLASSIC HEADER FORM: ENTRY HEADER BAR DESIGN */}
         <header className="rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-xs shrink-0 mx-2 my-1.5">
-          <div className="grid grid-cols-2 items-end gap-x-4 gap-y-3 md:grid-cols-4 xl:grid-cols-[1.6fr_1.6fr_1fr_1fr_1fr_1fr_1fr_auto]">
+          <div className={`grid grid-cols-2 items-end gap-x-4 gap-y-3 md:grid-cols-4 ${isAdmin ? 'xl:grid-cols-[1.6fr_1.4fr_1fr_1fr_1.1fr_1.1fr_1.2fr_auto]' : 'xl:grid-cols-[2fr_1fr_1fr_1.2fr_1.2fr_1.3fr_auto]'}`}>
 
             {/* 1. Supplier */}
             <div className="flex min-w-0 flex-col gap-1.5 col-span-2 md:col-span-2 xl:col-span-1">
               <span className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
-                Supplier Name
+                Supplier Name <span className="text-red-500 font-bold">*</span>
               </span>
               <div className="relative group w-full" ref={supplierRef}>
                 <CustomSearchDropdown
@@ -3361,14 +3433,14 @@ function PurchaseInvoiceList() {
               </div>
             </div>
 
-            {/* 2. Branch */}
-            <div className="flex min-w-0 flex-col gap-1.5 col-span-2 md:col-span-2 xl:col-span-1">
-              <span className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
-                <Building2 className="size-3 text-slate-400" aria-hidden />
-                Branch
-              </span>
-              <div className="h-10 w-full min-w-0 rounded-md border border-slate-200 bg-slate-50/50 px-3 text-sm font-semibold text-slate-800 outline-none transition-colors flex items-center truncate">
-                {isAdmin ? (
+            {/* 2. Branch Warehouse (Visible ONLY to Administrator / System Manager) */}
+            {isAdmin && (
+              <div className="flex min-w-0 flex-col gap-1.5 col-span-2 md:col-span-2 xl:col-span-1">
+                <span className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+                  <Building2 className="size-3 text-slate-400" aria-hidden />
+                  Branch <span className="text-red-500 font-bold">*</span>
+                </span>
+                <div className="h-10 w-full min-w-0 rounded-md border border-slate-200 bg-slate-50/50 px-3 text-sm font-semibold text-slate-800 outline-none transition-colors flex items-center truncate">
                   <select
                     name="set_warehouse"
                     value={formData.set_warehouse || ''}
@@ -3381,11 +3453,9 @@ function PurchaseInvoiceList() {
                       <option key={w.name} value={w.name}>{w.name}</option>
                     ))}
                   </select>
-                ) : (
-                  <span className="truncate">{formData.set_warehouse || warehouse || 'Main Warehouse'}</span>
-                )}
+                </div>
               </div>
-            </div>
+            )}
 
             {/* 3. Posting Date */}
             <div
@@ -3433,24 +3503,24 @@ function PurchaseInvoiceList() {
               />
             </div>
 
-            {/* 5. Inv # */}
+            {/* 5. Inv # (Mandatory) */}
             <div className="flex min-w-0 flex-col gap-1.5">
               <span className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
                 <Hash className="size-3 text-slate-400" aria-hidden />
-                Inv #
+                Invoice # <span className="text-red-500 font-bold">*</span>
               </span>
               <input
                 type="text"
-                placeholder="5467345"
+                placeholder="e.g. 5467345"
                 value={formData.bill_no || ''}
                 disabled={isViewMode}
                 onChange={e => setFormData(prev => ({ ...prev, bill_no: e.target.value }))}
-                className="h-10 w-full min-w-0 rounded-md border border-slate-200 bg-slate-50/50 px-3 text-sm font-semibold text-slate-800 outline-none transition-colors placeholder:font-normal placeholder:text-slate-400 focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-500/20"
+                className={`h-10 w-full min-w-0 rounded-md border ${formErrors.bill_no ? 'border-red-400 bg-red-50/30' : 'border-slate-200 bg-slate-50/50'} px-3 text-sm font-semibold text-slate-800 outline-none transition-colors placeholder:font-normal placeholder:text-slate-400 focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-500/20`}
                 aria-label="Invoice number"
               />
             </div>
 
-            {/* 6. Supplier Inv Date */}
+            {/* 6. Supplier Inv Date (Mandatory) */}
             <div
               onClick={(e) => {
                 const inp = e.currentTarget.querySelector('input[type="date"]');
@@ -3462,7 +3532,7 @@ function PurchaseInvoiceList() {
             >
               <span className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500 cursor-pointer">
                 <CalendarDays className="size-3 text-slate-400 group-hover:text-emerald-600 transition-colors" aria-hidden />
-                Supplier Inv Date
+                Invoice Date <span className="text-red-500 font-bold">*</span>
               </span>
               <input
                 type="date"
@@ -3476,16 +3546,16 @@ function PurchaseInvoiceList() {
                     due_date: newBillDate && prev.due_date && newBillDate > prev.due_date ? newBillDate : prev.due_date
                   }));
                 }}
-                className="h-10 w-full min-w-0 rounded-md border border-slate-200 bg-slate-50/50 px-3 text-sm font-semibold text-slate-800 outline-none transition-colors focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 cursor-pointer"
+                className={`h-10 w-full min-w-0 rounded-md border ${formErrors.bill_date ? 'border-red-400 bg-red-50/30' : 'border-slate-200 bg-slate-50/50'} px-3 text-sm font-semibold text-slate-800 outline-none transition-colors focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 cursor-pointer`}
                 aria-label="Supplier Invoice date"
               />
             </div>
 
-            {/* 7. Supplier Bill Amt */}
+            {/* 7. Supplier Bill Amt (Mandatory) */}
             <div className="flex min-w-0 flex-col gap-1.5">
               <span className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
                 <Receipt className="size-3 text-slate-400" aria-hidden />
-                Supplier Bill Amt
+                Supplier Inv Amt <span className="text-red-500 font-bold">*</span>
               </span>
               <input
                 type="text" inputMode="decimal"
@@ -3494,7 +3564,7 @@ function PurchaseInvoiceList() {
                 value={formData.custom_supplier_invoice_amount || ''}
                 disabled={isViewMode}
                 onChange={e => setFormData(prev => ({ ...prev, custom_supplier_invoice_amount: e.target.value }))}
-                className="h-10 w-full min-w-0 rounded-md border border-slate-200 bg-slate-50/50 px-3 text-sm font-bold text-right tabular-nums text-emerald-600 outline-none transition-colors placeholder:font-normal placeholder:text-slate-400 focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-500/20"
+                className={`h-10 w-full min-w-0 rounded-md border ${formErrors.custom_supplier_invoice_amount ? 'border-red-400 bg-red-50/30' : 'border-slate-200 bg-slate-50/50'} px-3 text-sm font-bold text-right tabular-nums text-emerald-600 outline-none transition-colors placeholder:font-normal placeholder:text-slate-400 focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-500/20`}
                 aria-label="Supplier Bill amount"
               />
             </div>

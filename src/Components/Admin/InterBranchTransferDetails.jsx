@@ -4,13 +4,14 @@ import { useSelector } from 'react-redux';
 import axios from 'axios';
 import {
     Save, CheckCircle2, XCircle, Package, Building2, User,
-    Search, Trash2, Loader2, AlertTriangle, AlertCircle, ArrowRight, Info, Plus, Scan, MapPin, X, Copy, Edit3, FileText
+    Search, Trash2, Loader2, AlertTriangle, AlertCircle, ArrowRight, ArrowLeftRight, Info, Plus, Scan, MapPin, X, Copy, Edit3, FileText,
+    MessageSquare, Clock, ShieldCheck
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { useLegacyTheme } from '../../hooks/useLegacyTheme';
 import CustomSearchDropdown from '../Purchase/CustomSearchDropdown';
 import Swal from 'sweetalert2';
-import '../Purchase/Purchase.css'; // Import standard PO/PI/PR styles
+import './ibt-details.css'; // Dedicated Inter-Branch Transfer styles
 import DirhamIcon from '../../assets/Currency/DirhamIcon';
 
 const API_PATH = '/api/method/kyle_retail.retail_api.api';
@@ -411,55 +412,47 @@ const BranchAvailabilityModal = ({ isOpen, onClose, itemCode, itemName, currentW
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-fadeIn">
-            <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-md overflow-hidden border border-slate-100 flex flex-col max-h-[80vh]">
-                <div className="p-6 border-b border-slate-50 flex items-center justify-between bg-slate-50/50">
+        <div className="ibt-modal-overlay">
+            <div className="ibt-modal-box">
+                <div className="ibt-modal-header">
                     <div>
-                        <h2 className="text-xl font-black text-slate-800 tracking-tight leading-tight">Available Nearby</h2>
-                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-0.5 flex items-center gap-1.5">
-                            <Package size={10} /> {itemName}
+                        <h2 className="ibt-modal-title">Available Nearby</h2>
+                        <p className="ibt-modal-subtitle">
+                            <Package size={12} /> {itemName}
                         </p>
                     </div>
-                    <button onClick={onClose} className="p-2 hover:bg-white hover:shadow-sm rounded-xl transition-all text-slate-400 hover:text-slate-600">
-                        <X size={18} strokeWidth={3} />
+                    <button onClick={onClose} className="ibt-modal-close-btn" title="Close">
+                        <X size={18} />
                     </button>
                 </div>
 
-                <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-white custom-scrollbar">
+                <div className="ibt-modal-body">
                     {loading ? (
-                        <div className="py-16 text-center space-y-4">
-                            <Loader2 className="animate-spin mx-auto text-blue-500" size={28} />
-                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Locating Inventory...</p>
+                        <div style={{ padding: '3rem 1rem', textAlign: 'center', color: 'var(--ibt-text-muted)' }}>
+                            <Loader2 className="animate-spin" size={28} style={{ margin: '0 auto 0.75rem auto', color: 'var(--ibt-primary)' }} />
+                            <p style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Locating Inventory...</p>
                         </div>
                     ) : branches.length > 0 ? (
                         branches.map((b, idx) => (
-                            <div key={idx} className="group p-4 rounded-2xl border border-slate-100 hover:border-blue-200 hover:bg-blue-50/20 transition-all flex items-center justify-between">
-                                <div className="space-y-0.5">
-                                    <h4 className="text-xs font-black text-slate-700 uppercase tracking-tight">{b.warehouse}</h4>
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-[9px] font-bold text-slate-400 flex items-center gap-1">
-                                            <MapPin size={9} className="text-slate-300" /> {b.distance === 9999 ? 'Nearby' : `${b.distance} km`}
-                                        </span>
+                            <div key={idx} className="ibt-branch-card">
+                                <div className="ibt-branch-card-info">
+                                    <h4 className="ibt-branch-card-title">{b.warehouse}</h4>
+                                    <div className="ibt-branch-card-dist">
+                                        <MapPin size={11} style={{ color: 'var(--ibt-text-muted)' }} /> {b.distance === 9999 ? 'Nearby Branch' : `${b.distance} km`}
                                     </div>
                                 </div>
-                                <div className="flex items-center gap-4">
-                                    <div className="text-right">
-                                        <div className="text-[10px] font-black text-blue-500 uppercase">Price</div>
-                                        <div className="text-sm font-black text-slate-800">
-                                            {b.price?.toFixed(2) || '0.00'}
-                                        </div>
-                                    </div>
-                                    <div className="text-right">
-                                        <div className="text-base font-black text-emerald-600">
-                                            {b.qty} <span className="text-[9px] uppercase ml-0.5">Left</span>
-                                        </div>
+                                <div className="ibt-branch-card-stats">
+                                    <div className="ibt-branch-stat-group">
+                                        <div className="ibt-branch-stat-label">In Stock</div>
+                                        <div className="ibt-branch-stat-val">{b.qty}</div>
                                     </div>
                                     <button
                                         onClick={() => {
                                             onSelectBranch(b.warehouse, b.qty, b.price);
                                             onClose();
                                         }}
-                                        className="px-4 py-2 bg-slate-900 text-white rounded-xl font-black text-[9px] uppercase tracking-widest hover:bg-blue-600 transition-all shadow-md shadow-slate-100"
+                                        className="ibt-btn ibt-btn-primary"
+                                        style={{ height: '2rem', padding: '0 0.85rem', fontSize: '0.75rem' }}
                                     >
                                         Select
                                     </button>
@@ -467,16 +460,16 @@ const BranchAvailabilityModal = ({ isOpen, onClose, itemCode, itemName, currentW
                             </div>
                         ))
                     ) : (
-                        <div className="py-12 text-center flex flex-col items-center gap-3">
-                            <XCircle className="text-slate-200" size={32} />
-                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Out of stock globally</p>
+                        <div style={{ padding: '2.5rem 1rem', textAlign: 'center', color: 'var(--ibt-text-muted)' }}>
+                            <XCircle size={32} style={{ margin: '0 auto 0.5rem auto', color: '#cbd5e1' }} />
+                            <p style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Out of stock globally</p>
                         </div>
                     )}
                 </div>
 
-                <div className="p-4 bg-slate-50 border-t border-slate-100">
-                    <p className="text-[9px] leading-relaxed text-slate-400 font-bold uppercase tracking-tighter text-center">
-                        Select a branch to initiate transfer request
+                <div className="ibt-modal-footer">
+                    <p className="ibt-modal-footer-text">
+                        Select a branch to set as source warehouse
                     </p>
                 </div>
             </div>
@@ -653,19 +646,23 @@ function InterBranchTransferDetails() {
     const handleAddItemRow = () => {
         setDoc(prev => ({
             ...prev,
-            items: [...prev.items, { item_code: '', item_name: '', qty: 1, uom: '', source_stock: 0, rate: 0 }]
+            items: [...(prev.items || []), { item_code: '', item_name: '', qty: 1, uom: '', source_stock: 0, rate: 0 }]
         }));
     };
 
     const handleRemoveItemRow = (idx) => {
-        if (doc.items.length === 1) return;
-        const newItems = [...doc.items];
-        newItems.splice(idx, 1);
+        const newItems = [...(doc.items || [])];
+        if (newItems.length <= 1) {
+            // If only 1 row, clear it out instead of deleting so the user still has an empty row to type in
+            newItems[0] = { item_code: '', item_name: '', qty: 1, uom: '', source_stock: 0, rate: 0 };
+        } else {
+            newItems.splice(idx, 1);
+        }
         setDoc(prev => ({ ...prev, items: newItems }));
     };
 
-    const handleItemSelect = (it, idx) => {
-        const newItems = [...doc.items];
+    const handleItemSelect = async (it, idx) => {
+        const newItems = [...(doc.items || [])];
         newItems[idx] = {
             ...newItems[idx],
             item_code: it.name,
@@ -674,9 +671,25 @@ function InterBranchTransferDetails() {
             rate: it.last_buying_rate || it.valuation_rate || it.rate || 0,
             source_stock: 0
         };
+
+        // If source warehouse is already selected, immediately fetch stock from it
+        if (doc.set_from_warehouse) {
+            try {
+                const r = await axios.get(`${API_PATH}.get_retail_item_details`, {
+                    params: { searchTerm: it.name, warehouse: doc.set_from_warehouse },
+                    headers: { 'X-Frappe-SID': getSession() },
+                    withCredentials: true
+                });
+                const details = r.data?.message?.[0];
+                const whDetail = details?.warehouse_details?.find(w => w.warehouse === doc.set_from_warehouse);
+                newItems[idx].source_stock = whDetail?.actual_qty || 0;
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
         setDoc(prev => ({ ...prev, items: newItems }));
         setActiveItemIndex(idx);
-        setModalOpen(true);
     };
 
     const handleBranchSelectFromModal = (wh, stock, price) => {
@@ -761,21 +774,82 @@ function InterBranchTransferDetails() {
     };
 
     const handleAcceptStock = async () => {
+        let pinTimeout = null;
+
         const { value: secretKey } = await Swal.fire({
-            title: 'Enter Cashier PIN to Receive',
-            input: 'password',
-            inputLabel: 'Secret Key / Authorization PIN',
-            inputPlaceholder: 'Enter your PIN',
-            inputAttributes: {
-                autocapitalize: 'off',
-                autocorrect: 'off'
-            },
+            title: 'Verify & Receive Stock',
+            html: `
+                <div style="text-align: left; font-size: 13px; color: #334155;">
+                    <p style="margin-bottom: 12px; color: #475569; font-weight: 600; line-height: 1.4;">
+                        Confirm physical receipt of transferred stock into <strong>${doc.set_warehouse}</strong>.
+                    </p>
+                    <label style="font-weight: 800; display: block; margin-bottom: 4px; text-transform: uppercase; font-size: 11px; color: #1e293b;">
+                        Secret Code / Cashier PIN <span style="color: #ef4444;">*</span>
+                    </label>
+                    <input type="password" id="swal-receive-pin" class="swal2-input" placeholder="••••" maxlength="10" style="margin: 0; width: 100%; box-sizing: border-box; height: 44px; font-size: 16px; letter-spacing: 0.25em;">
+                    
+                    <div id="swal-receive-pin-status" style="margin-top: 8px; min-height: 30px;">
+                        <div style="font-size: 11px; color: #94a3b8; font-style: italic;">Enter PIN to verify employee...</div>
+                    </div>
+                </div>
+            `,
+            focusConfirm: false,
             showCancelButton: true,
+            confirmButtonColor: '#10b981',
             confirmButtonText: 'Verify & Receive',
-            inputValidator: (value) => {
-                if (!value) {
-                    return 'You need to enter your PIN!';
+            cancelButtonText: 'Cancel',
+            didOpen: () => {
+                const pinInput = document.getElementById('swal-receive-pin');
+                const statusBox = document.getElementById('swal-receive-pin-status');
+
+                pinInput?.focus();
+                pinInput?.addEventListener('input', (e) => {
+                    const val = e.target.value.trim();
+                    if (!val) {
+                        statusBox.innerHTML = `<div style="font-size: 11px; color: #94a3b8; font-style: italic;">Enter PIN to verify employee...</div>`;
+                        return;
+                    }
+
+                    statusBox.innerHTML = `<div style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #64748b;">⟳ Verifying PIN...</div>`;
+
+                    clearTimeout(pinTimeout);
+                    pinTimeout = setTimeout(async () => {
+                        try {
+                            const res = await fetch(`/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_collector_by_secret_code?secret_code=${encodeURIComponent(val)}`, {
+                                credentials: 'include'
+                            });
+                            const json = await res.json();
+                            const result = json.message || json;
+                            if (result.status === 'success' && result.data) {
+                                statusBox.innerHTML = `
+                                    <div style="display: flex; align-items: center; gap: 8px; background: #ecfdf5; border: 1.5px solid #a7f3d0; padding: 6px 10px; border-radius: 8px;">
+                                        <div style="width: 20px; height: 20px; border-radius: 50%; background: #059669; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 11px;">✓</div>
+                                        <div>
+                                            <div style="font-size: 12px; font-weight: 800; color: #065f46;">${result.data.collector_name}</div>
+                                            <div style="font-size: 10px; color: #047857;">Authorized Cashier (${result.data.employee})</div>
+                                        </div>
+                                    </div>
+                                `;
+                            } else {
+                                statusBox.innerHTML = `
+                                    <div style="font-size: 11px; color: #ef4444; font-weight: 700; background: #fef2f2; border: 1px solid #fecaca; padding: 6px 10px; border-radius: 6px;">
+                                        ✕ Invalid Secret Key — Employee Not Recognized
+                                    </div>
+                                `;
+                            }
+                        } catch (err) {
+                            statusBox.innerHTML = `<div style="font-size: 11px; color: #ef4444; font-weight: 700;">Verification error</div>`;
+                        }
+                    }, 250);
+                });
+            },
+            preConfirm: () => {
+                const pin = document.getElementById('swal-receive-pin')?.value;
+                if (!pin || !pin.trim()) {
+                    Swal.showValidationMessage('A valid Secret Code PIN is mandatory to receive stock!');
+                    return false;
                 }
+                return pin;
             }
         });
 
@@ -789,7 +863,7 @@ function InterBranchTransferDetails() {
             }, { withCredentials: true, headers: { 'X-Frappe-SID': getSession() } });
 
             if (res.data?.message?.status === 'success') {
-                Swal.fire('Accepted!', 'Stock entry submitted successfully.', 'success');
+                Swal.fire('Accepted!', 'Stock entry submitted and transfer completed.', 'success');
                 fetchRequest();
             } else {
                 Swal.fire('Failed', res.data?.message?.message || 'Acceptance failed', 'error');
@@ -810,47 +884,45 @@ function InterBranchTransferDetails() {
             return;
         }
 
-        // Note: Rate validation removed — Branch A does not set price; source branch (B) sets it during Accept & Transfer
+        const { value: secretKey } = await Swal.fire({
+            title: 'Authorization Required',
+            input: 'password',
+            inputLabel: 'Enter Cashier PIN / Secret Key to Save',
+            inputPlaceholder: '••••',
+            inputAttributes: {
+                autocapitalize: 'off',
+                autocorrect: 'off',
+                maxlength: 10
+            },
+            showCancelButton: true,
+            confirmButtonText: 'Verify & Save',
+            confirmButtonColor: '#2563eb',
+            cancelButtonText: 'Cancel',
+            inputValidator: (value) => {
+                if (!value || !value.trim()) {
+                    return 'Secret Key PIN is mandatory!';
+                }
+            }
+        });
+
+        if (!secretKey) return;
 
         try {
             setSaving(true);
             const sid = getSession();
             const headers = { 'Content-Type': 'application/json', 'X-Frappe-SID': sid };
-            const companyName = doc.company || localStorage.getItem('company') || 'Kyle Solutions Pvt Ltd';
 
-            const payload = {
-                material_request_type: "Material Transfer",
-                transaction_date: format(new Date(), 'yyyy-MM-dd'),
-                company: companyName,
+            const res = await axios.post(`${API_PATH}.create_or_submit_inter_branch_request`, {
+                items: JSON.stringify(validItems),
                 set_from_warehouse: doc.set_from_warehouse,
                 set_warehouse: doc.set_warehouse,
-                items: validItems.map(it => ({
-                    item_code: it.item_code,
-                    qty: it.qty,
-                    rate: it.rate,
-                    uom: it.uom || 'Nos',
-                    warehouse: doc.set_warehouse,
-                    from_warehouse: doc.set_from_warehouse,
-                    schedule_date: format(new Date(), 'yyyy-MM-dd')
-                })),
-                description: `Inter-Branch Request from ${doc.set_warehouse} to ${doc.set_from_warehouse}`
-            };
+                secret_key: secretKey,
+                docname: isNew ? null : name,
+                submit: 0
+            }, { headers, withCredentials: true });
 
-            let res;
-            if (isNew) {
-                res = await axios.post(`/api/resource/Material Request`, payload, {
-                    headers,
-                    withCredentials: true
-                });
-            } else {
-                res = await axios.put(`/api/resource/Material Request/${name}`, payload, {
-                    headers,
-                    withCredentials: true
-                });
-            }
-
-            const dataName = res.data?.data?.name || res.data?.name;
-            if (dataName) {
+            if (res.data?.message?.status === 'success') {
+                const dataName = res.data.message.name;
                 Swal.fire({
                     title: 'Saved Draft!',
                     text: `Material Request draft ${dataName} has been saved successfully.`,
@@ -863,6 +935,8 @@ function InterBranchTransferDetails() {
                     fetchRequest();
                     setIsViewOnly(true);
                 }
+            } else {
+                Swal.fire('Authentication / Save Failed', res.data?.message?.message || res.data?.message || "Save failed", 'error');
             }
         } catch (err) {
             console.error(err);
@@ -872,53 +946,132 @@ function InterBranchTransferDetails() {
         }
     };
 
-    // ----- SUBMIT DRAFT REQUEST -----
+    // ----- SUBMIT DRAFT REQUEST WITH MANDATORY SECRET KEY -----
     const handleSubmitRequest = async () => {
-        const result = await Swal.fire({
-            title: 'Submit Request?',
-            text: "Submit this stock transfer request to the source branch? Once submitted, it cannot be modified.",
-            icon: 'question',
+        const validItems = doc.items.filter(i => i.item_code && i.qty > 0);
+        if (!doc.set_from_warehouse || validItems.length === 0) {
+            Swal.fire('Required', "Source branch and at least one item with quantity are required.", 'warning');
+            return;
+        }
+
+        let resolvedEmpData = null;
+        let pinTimeout = null;
+
+        const { value: secretKey } = await Swal.fire({
+            title: 'Submit Stock Request',
+            html: `
+                <div style="text-align: left; font-size: 13px; color: #334155;">
+                    <p style="margin-bottom: 14px; color: #475569; font-weight: 600; font-size: 13px; line-height: 1.4;">
+                        Submit this stock transfer request to <strong>${doc.set_from_warehouse}</strong>? Once submitted, it cannot be modified.
+                    </p>
+                    <label style="font-weight: 800; display: block; margin-bottom: 4px; text-transform: uppercase; font-size: 11px; color: #1e293b;">
+                        Secret Code / Cashier PIN <span style="color: #ef4444;">*</span>
+                    </label>
+                    <input type="password" id="swal-submit-pin" class="swal2-input" placeholder="••••" maxlength="10" style="margin: 0; width: 100%; box-sizing: border-box; height: 44px; font-size: 16px; letter-spacing: 0.25em;">
+                    
+                    <div id="swal-submit-pin-status" style="margin-top: 8px; min-height: 30px;">
+                        <div style="font-size: 11px; color: #94a3b8; font-style: italic;">Enter PIN to verify employee...</div>
+                    </div>
+                </div>
+            `,
+            focusConfirm: false,
             showCancelButton: true,
             confirmButtonColor: '#10b981',
-            confirmButtonText: 'Yes, Submit'
+            confirmButtonText: 'Verify & Submit Request',
+            cancelButtonText: 'Cancel',
+            didOpen: () => {
+                const pinInput = document.getElementById('swal-submit-pin');
+                const statusBox = document.getElementById('swal-submit-pin-status');
+
+                pinInput.focus();
+                pinInput.addEventListener('input', (e) => {
+                    const val = e.target.value.trim();
+                    resolvedEmpData = null;
+
+                    if (!val) {
+                        statusBox.innerHTML = `<div style="font-size: 11px; color: #94a3b8; font-style: italic;">Enter PIN to verify employee...</div>`;
+                        return;
+                    }
+
+                    statusBox.innerHTML = `
+                        <div style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #64748b;">
+                            <span style="display: inline-block;">⟳</span> Verifying PIN...
+                        </div>
+                    `;
+
+                    clearTimeout(pinTimeout);
+                    pinTimeout = setTimeout(async () => {
+                        try {
+                            const res = await fetch(`/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_collector_by_secret_code?secret_code=${encodeURIComponent(val)}`, {
+                                credentials: 'include'
+                            });
+                            const json = await res.json();
+                            const result = json.message || json;
+                            if (result.status === 'success' && result.data) {
+                                resolvedEmpData = result.data;
+                                statusBox.innerHTML = `
+                                    <div style="display: flex; align-items: center; gap: 8px; background: #ecfdf5; border: 1.5px solid #a7f3d0; padding: 6px 10px; border-radius: 8px;">
+                                        <div style="width: 20px; height: 20px; border-radius: 50%; background: #059669; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 11px;">✓</div>
+                                        <div>
+                                            <div style="font-size: 12px; font-weight: 800; color: #065f46;">${result.data.collector_name}</div>
+                                            <div style="font-size: 10px; color: #047857;">Authorized Employee (${result.data.employee})</div>
+                                        </div>
+                                    </div>
+                                `;
+                            } else {
+                                statusBox.innerHTML = `
+                                    <div style="font-size: 11px; color: #ef4444; font-weight: 700; background: #fef2f2; border: 1px solid #fecaca; padding: 6px 10px; border-radius: 6px;">
+                                        ✕ Invalid Secret Key — Employee Not Recognized
+                                    </div>
+                                `;
+                            }
+                        } catch (err) {
+                            statusBox.innerHTML = `
+                                <div style="font-size: 11px; color: #ef4444; font-weight: 700;">
+                                    Verification error
+                                </div>
+                            `;
+                        }
+                    }, 250);
+                });
+            },
+            preConfirm: () => {
+                const pin = document.getElementById('swal-submit-pin').value;
+                if (!pin || !pin.trim()) {
+                    Swal.showValidationMessage('A valid Secret Code PIN is mandatory to submit!');
+                    return false;
+                }
+                return pin;
+            }
         });
 
-        if (!result.isConfirmed) return;
+        if (!secretKey) return;
 
         try {
             setSaving(true);
             const sid = getSession();
             const headers = { 'Content-Type': 'application/json', 'X-Frappe-SID': sid };
 
-            const validItems = doc.items.filter(i => i.item_code && i.qty > 0);
-            const companyName = doc.company || localStorage.getItem('company') || 'Kyle Solutions Pvt Ltd';
-            const payload = {
-                material_request_type: "Material Transfer",
-                transaction_date: format(new Date(), 'yyyy-MM-dd'),
-                company: companyName,
+            const res = await axios.post(`${API_PATH}.create_or_submit_inter_branch_request`, {
+                items: JSON.stringify(validItems),
                 set_from_warehouse: doc.set_from_warehouse,
                 set_warehouse: doc.set_warehouse,
-                items: validItems.map(it => ({
-                    item_code: it.item_code,
-                    qty: it.qty,
-                    rate: it.rate,
-                    uom: it.uom || 'Nos',
-                    warehouse: doc.set_warehouse,
-                    from_warehouse: doc.set_from_warehouse,
-                    schedule_date: format(new Date(), 'yyyy-MM-dd')
-                })),
-                docstatus: 1 // SUBMIT DOC
-            };
+                secret_key: secretKey,
+                docname: isNew ? null : name,
+                submit: 1
+            }, { headers, withCredentials: true });
 
-            const res = await axios.put(`/api/resource/Material Request/${name}`, payload, {
-                headers,
-                withCredentials: true
-            });
-
-            const dataName = res.data?.data?.name || res.data?.name;
-            if (dataName) {
-                Swal.fire('Submitted!', `Material Request ${dataName} has been submitted successfully to ${doc.set_from_warehouse}.`, 'success');
-                fetchRequest();
+            if (res.data?.message?.status === 'success') {
+                const dataName = res.data.message.name;
+                const authBy = res.data.message.authorized_by;
+                Swal.fire('Submitted!', `Material Request ${dataName} has been authorized by ${authBy} and submitted successfully to ${doc.set_from_warehouse}.`, 'success');
+                if (isNew) {
+                    navigate(`/interbranchrequest/${dataName}`);
+                } else {
+                    fetchRequest();
+                }
+            } else {
+                Swal.fire('Authorization Failed', res.data?.message?.message || res.data?.message || "Submit failed", 'error');
             }
         } catch (err) {
             console.error(err);
@@ -1078,7 +1231,7 @@ function InterBranchTransferDetails() {
     if (loading) return <div className="p-20 text-center"><Loader2 className="animate-spin mx-auto text-slate-300" size={40} /></div>;
 
     return (
-        <div className="purchase-container po-layout-container text-slate-900 bg-[#f8fafc] min-h-screen">
+        <div className="ibt-page-wrapper">
             <BranchAvailabilityModal
                 isOpen={modalOpen}
                 onClose={() => setModalOpen(false)}
@@ -1106,427 +1259,406 @@ function InterBranchTransferDetails() {
             />
 
             {/* Header Bar */}
-            <div className="po-header-container bg-white border-b border-slate-200 sticky top-0 z-30 px-6 py-4 shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
-                <div className="w-full flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div className="flex items-center gap-4">
-                        <div>
-                            <h1 className="text-base font-black tracking-tight text-slate-800">
-                                {isNew ? 'New Inter-Branch Request' : `Inter-Branch Request: ${name}`}
-                            </h1>
-                            <div className="flex items-center gap-2 mt-0.5">
-                                <div className={`w-1.5 h-1.5 rounded-full ${doc.status === 'Requested' ? 'bg-blue-500' :
-                                        doc.status === 'Dispatched' ? 'bg-amber-500' :
-                                            doc.status === 'Transferred' ? 'bg-emerald-500' :
-                                                doc.status === 'Stopped' ? 'bg-rose-500' : 'bg-slate-300'
-                                    }`} />
-                                <span className="text-[9px] font-black uppercase tracking-wider text-slate-400">{doc.status || 'Draft'}</span>
-                            </div>
-                        </div>
+            {/* Header Bar */}
+            <div className="ibt-header-bar">
+                <div>
+                    <h1 className="ibt-title-heading">
+                        <ArrowLeftRight size={20} style={{ color: 'var(--ibt-primary)' }} />
+                        {isNew ? 'New Inter-Branch Request' : `Inter-Branch Request: ${name}`}
+                    </h1>
+                    <div className="ibt-status-pill">
+                        <div className={`ibt-status-dot ${doc.status === 'Requested' ? 'bg-blue-500' :
+                            doc.status === 'Dispatched' ? 'bg-amber-500' :
+                                doc.status === 'Transferred' ? 'bg-emerald-500' :
+                                    doc.status === 'Stopped' ? 'bg-rose-500' : 'bg-slate-300'
+                            }`} />
+                        <span className="ibt-status-text">{doc.status || 'Draft'}</span>
                     </div>
+                </div>
 
-                    {/* DYNAMIC ACTIONS TOOLBAR */}
-                    <div className="flex flex-wrap items-center gap-3">
+                {/* DYNAMIC ACTIONS TOOLBAR */}
+                <div className="ibt-actions-group">
 
-                        {/* 1. DUPLICATE BUTTON */}
-                        {!isNew && (
+                    {/* 1. DUPLICATE BUTTON */}
+                    {!isNew && (
+                        <button
+                            onClick={handleDuplicate}
+                            className="ibt-btn ibt-btn-secondary"
+                        >
+                            <Copy size={13} /> Duplicate
+                        </button>
+                    )}
+
+                    {/* 2. DELETE DRAFT BUTTON */}
+                    {!isNew && doc.docstatus === 0 && (
+                        <button
+                            onClick={handleDeleteRequest}
+                            disabled={saving}
+                            className="ibt-btn ibt-btn-danger"
+                        >
+                            <Trash2 size={13} /> Delete Draft
+                        </button>
+                    )}
+
+                    {/* 3. EDIT DRAFT BUTTON */}
+                    {!isNew && doc.docstatus === 0 && isViewOnly && (
+                        <button
+                            onClick={() => setIsViewOnly(false)}
+                            className="ibt-btn ibt-btn-secondary"
+                        >
+                            <Edit3 size={13} /> Edit Request
+                        </button>
+                    )}
+
+                    {/* 4. DRAFT PRIMARY CONTROLS (Save & Submit) */}
+                    {(!isNew && doc.docstatus === 0 && !isViewOnly) || isNew ? (
+                        <>
                             <button
-                                onClick={handleDuplicate}
-                                className="po-btn-secondary flex items-center gap-1.5"
-                                style={{ height: '2.25rem', padding: '0 1rem', fontSize: '0.75rem', fontWeight: 900, textTransform: 'uppercase', borderRadius: '0.5rem' }}
-                            >
-                                <Copy size={13} /> Duplicate
-                            </button>
-                        )}
-
-                        {/* 2. DELETE DRAFT BUTTON */}
-                        {!isNew && doc.docstatus === 0 && (
-                            <button
-                                onClick={handleDeleteRequest}
+                                onClick={handleSaveDraft}
                                 disabled={saving}
-                                className="po-btn-secondary border-red-200 text-red-500 hover:bg-red-50 hover:border-red-300 flex items-center gap-1.5"
-                                style={{ height: '2.25rem', padding: '0 1rem', fontSize: '0.75rem', fontWeight: 900, textTransform: 'uppercase', borderRadius: '0.5rem' }}
+                                className="ibt-btn ibt-btn-secondary"
                             >
-                                <Trash2 size={13} /> Delete Draft
+                                {saving ? <Loader2 className="animate-spin" size={13} /> : <Save size={13} />}
+                                {isNew ? 'Save Draft' : 'Save Changes'}
                             </button>
-                        )}
 
-                        {/* 3. EDIT DRAFT BUTTON */}
-                        {!isNew && doc.docstatus === 0 && isViewOnly && (
-                            <button
-                                onClick={() => setIsViewOnly(false)}
-                                className="po-btn-secondary flex items-center gap-1.5"
-                                style={{ height: '2.25rem', padding: '0 1rem', fontSize: '0.75rem', fontWeight: 900, textTransform: 'uppercase', borderRadius: '0.5rem' }}
-                            >
-                                <Edit3 size={13} /> Edit Request
-                            </button>
-                        )}
-
-                        {/* 4. DRAFT PRIMARY CONTROLS (Save & Submit) */}
-                        {(!isNew && doc.docstatus === 0 && !isViewOnly) || isNew ? (
-                            <>
+                            {!isNew && (
                                 <button
-                                    onClick={handleSaveDraft}
+                                    onClick={handleSubmitRequest}
                                     disabled={saving}
-                                    className="po-btn-secondary flex items-center gap-1.5"
-                                    style={{ height: '2.25rem', padding: '0 1.25rem', fontSize: '0.75rem', fontWeight: 900, textTransform: 'uppercase', borderRadius: '0.5rem' }}
+                                    className="ibt-btn ibt-btn-primary"
                                 >
-                                    {saving ? <Loader2 className="animate-spin" size={13} /> : <Save size={13} />}
-                                    {isNew ? 'Save Draft' : 'Save Changes'}
+                                    <CheckCircle2 size={13} /> Submit Request
                                 </button>
+                            )}
+                        </>
+                    ) : null}
 
-                                {!isNew && (
+                    {/* 5. DECISION CONTROLS (For Submitted requests) */}
+                    {!isNew && doc.docstatus === 1 && (doc.status === 'Requested' || doc.status === 'Pending') ? (
+                        <div className="flex items-center gap-2">
+                            {doc.set_from_warehouse === currentWarehouse ? (
+                                <>
                                     <button
-                                        onClick={handleSubmitRequest}
-                                        disabled={saving}
-                                        className="po-btn-primary flex items-center gap-1.5"
-                                        style={{ height: '2.25rem', padding: '0 1.5rem', fontSize: '0.75rem', fontWeight: 900, textTransform: 'uppercase', background: themeColor, borderColor: themeColor, borderRadius: '0.5rem' }}
+                                        onClick={() => handleDecision('reject')}
+                                        disabled={decisionLoading}
+                                        className="ibt-btn ibt-btn-danger"
                                     >
-                                        <CheckCircle2 size={13} /> Submit Request
+                                        <XCircle size={13} /> Stop / Reject
                                     </button>
-                                )}
-                            </>
-                        ) : null}
-
-                        {/* 5. DECISION CONTROLS (For Submitted requests) */}
-                        {!isNew && doc.docstatus === 1 && (doc.status === 'Requested' || doc.status === 'Pending') ? (
-                            <div className="flex items-center gap-3">
-                                {doc.set_from_warehouse === currentWarehouse ? (
-                                    <>
-                                        <button
-                                            onClick={() => handleDecision('reject')}
-                                            disabled={decisionLoading}
-                                            className="po-btn-secondary border-red-200 text-red-500 hover:bg-red-50 hover:border-red-300 flex items-center gap-1.5"
-                                            style={{ height: '2.25rem', padding: '0 1rem', fontSize: '0.75rem', fontWeight: 900, textTransform: 'uppercase', borderRadius: '0.5rem' }}
-                                        >
-                                            <XCircle size={13} /> Stop / Reject
-                                        </button>
-                                        <button
-                                            onClick={() => handleDecision('accept')}
-                                            disabled={decisionLoading}
-                                            className="po-btn-primary flex items-center gap-1.5"
-                                            style={{ height: '2.25rem', padding: '0 1.5rem', fontSize: '0.75rem', fontWeight: 900, textTransform: 'uppercase', background: '#10b981', borderColor: '#10b981', borderRadius: '0.5rem' }}
-                                        >
-                                            <CheckCircle2 size={13} /> Accept & Transfer
-                                        </button>
-                                    </>
-                                ) : (
-                                    <div className="px-4 py-2 bg-blue-50 text-blue-600 rounded-lg font-bold text-[10px] uppercase tracking-widest border border-blue-100 flex items-center gap-1.5">
-                                        <Loader2 size={12} className="animate-spin" /> Awaiting Branch Approval
-                                    </div>
-                                )}
-                            </div>
-                        ) : null}
-
-                        {/* 6. COMPLETED/CANCELLED INDICATORS */}
-                        {!isNew && doc.status === 'Stopped' && (
-                            <div className="px-4 py-2 bg-red-50 text-red-600 rounded-lg font-bold text-[10px] uppercase tracking-widest border border-red-100 flex items-center gap-1.5">
-                                <XCircle size={13} /> Request Stopped
-                            </div>
-                        )}
-                        {!isNew && doc.status === 'Dispatched' && (
-                            <div className="flex items-center gap-3">
-                                {doc.set_warehouse === currentWarehouse ? (
                                     <button
-                                        onClick={handleAcceptStock}
-                                        disabled={acceptingStock}
-                                        className="po-btn-primary flex items-center gap-1.5"
-                                        style={{ height: '2.25rem', padding: '0 1.5rem', fontSize: '0.75rem', fontWeight: 900, textTransform: 'uppercase', background: '#10b981', borderColor: '#10b981', borderRadius: '0.5rem' }}
+                                        onClick={() => handleDecision('accept')}
+                                        disabled={decisionLoading}
+                                        className="ibt-btn ibt-btn-primary"
                                     >
-                                        {acceptingStock ? <Loader2 className="animate-spin" size={13} /> : <CheckCircle2 size={13} />}
-                                        Received
+                                        <CheckCircle2 size={13} /> Accept & Transfer
                                     </button>
-                                ) : (
-                                    <div className="px-4 py-2 bg-amber-50 text-amber-600 rounded-lg font-bold text-[10px] uppercase tracking-widest border border-amber-100 flex items-center gap-1.5">
-                                        <Loader2 size={12} className="animate-spin text-amber-500" /> Awaiting Target Acceptance
-                                    </div>
-                                )}
-                            </div>
-                        )}
-                        {!isNew && doc.status === 'Transferred' && (
-                            <div className="px-4 py-2 bg-emerald-50 text-emerald-600 rounded-lg font-bold text-[10px] uppercase tracking-widest border border-emerald-100 flex items-center gap-1.5">
-                                <CheckCircle2 size={13} /> Transfer Complete
-                            </div>
-                        )}
-                        {/* Stock Entry Link */}
-                        {!isNew && doc.custom_stock_entry && (
-                            <button
-                                onClick={() => navigate(`/stock-entry/${doc.custom_stock_entry}`)}
-                                className="po-btn-secondary flex items-center gap-1.5"
-                                style={{ height: '2.25rem', padding: '0 1rem', fontSize: '0.75rem', fontWeight: 900, textTransform: 'uppercase', borderRadius: '0.5rem', color: '#0f172a', borderColor: '#cbd5e1' }}
-                            >
-                                <FileText size={13} /> View Stock Entry: {doc.custom_stock_entry}
-                            </button>
-                        )}
-                        {/* View Dispatch Prices Button — for Branch A when Dispatched or Transferred */}
-                        {!isNew && (doc.status === 'Dispatched' || doc.status === 'Transferred') && doc.set_warehouse === currentWarehouse && (
-                            <button
-                                onClick={() => setShowDispatchPrices(true)}
-                                className="po-btn-secondary flex items-center gap-1.5"
-                                style={{ height: '2.25rem', padding: '0 1rem', fontSize: '0.75rem', fontWeight: 900, textTransform: 'uppercase', borderRadius: '0.5rem' }}
-                            >
-                                <Info size={13} /> View Dispatch Prices
-                            </button>
-                        )}
-                    </div>
+                                </>
+                            ) : (
+                                <div className="ibt-status-tag-pill ibt-status-tag-blue">
+                                    <Loader2 size={12} className="animate-spin" /> Awaiting Branch Approval
+                                </div>
+                            )}
+                        </div>
+                    ) : null}
+
+                    {/* 6. COMPLETED/CANCELLED INDICATORS */}
+                    {!isNew && doc.status === 'Stopped' && (
+                        <div className="ibt-status-tag-pill ibt-status-tag-rose">
+                            <XCircle size={13} /> Request Stopped
+                        </div>
+                    )}
+                    {!isNew && doc.status === 'Dispatched' && (
+                        <div className="flex items-center gap-2">
+                            {doc.set_warehouse === currentWarehouse ? (
+                                <button
+                                    onClick={handleAcceptStock}
+                                    disabled={acceptingStock}
+                                    className="ibt-btn ibt-btn-primary"
+                                >
+                                    {acceptingStock ? <Loader2 className="animate-spin" size={13} /> : <CheckCircle2 size={13} />}
+                                    Received
+                                </button>
+                            ) : (
+                                <div className="ibt-status-tag-pill ibt-status-tag-amber">
+                                    <Loader2 size={12} className="animate-spin text-amber-500" /> Awaiting Target Acceptance
+                                </div>
+                            )}
+                        </div>
+                    )}
+                    {!isNew && doc.status === 'Transferred' && (
+                        <div className="ibt-status-tag-pill ibt-status-tag-emerald">
+                            <CheckCircle2 size={13} /> Transfer Complete
+                        </div>
+                    )}
+                    {/* Stock Entry Link */}
+                    {!isNew && doc.custom_stock_entry && (
+                        <button
+                            onClick={() => navigate(`/stock-entry/${doc.custom_stock_entry}`)}
+                            className="ibt-btn ibt-btn-secondary"
+                        >
+                            <FileText size={13} /> View Stock Entry: {doc.custom_stock_entry}
+                        </button>
+                    )}
+                    {/* View Dispatch Prices Button */}
+                    {!isNew && (doc.status === 'Dispatched' || doc.status === 'Transferred') && doc.set_warehouse === currentWarehouse && (
+                        <button
+                            onClick={() => setShowDispatchPrices(true)}
+                            className="ibt-btn ibt-btn-secondary"
+                        >
+                            <Info size={13} /> View Dispatch Prices
+                        </button>
+                    )}
                 </div>
             </div>
 
-            <div className="w-full space-y-6 mt-6" style={{ padding: '0 1.5rem' }}>
+            <div className="ibt-content-container">
 
-                {/* Route Selector Card - Redesigned to po-card */}
-                <div className="po-card animate-fadeIn">
-                    <div className="po-card-header">
-                        <h3 className="po-card-title flex items-center gap-2">
-                            <Building2 size={14} style={{ color: themeColor }} />
-                            STOCK ROUTING BRANCHES
-                        </h3>
-                    </div>
-                    <div className="po-card-body grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="space-y-2">
-                            <label className="po-label">Source Branch</label>
-                            {(isNew || (doc.docstatus === 0 && !isViewOnly)) ? (
-                                <div className="relative group">
-                                    <select
-                                        value={doc.set_from_warehouse}
-                                        onChange={(e) => handleSourceWarehouseChange(e.target.value)}
-                                        className="summary-select po-input"
-                                    >
-                                        <option value="">Choose source branch...</option>
-                                        {warehouses.filter(w => w.value !== currentWarehouse).map(w => (
-                                            <option key={w.value} value={w.value}>{w.label || w.value}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                            ) : (
-                                <div className="premium-cell-readonly font-bold flex items-center justify-between">
-                                    <span className="flex items-center gap-2">
-                                        <Building2 size={14} className="text-slate-400" />
-                                        {doc.set_from_warehouse}
+                {/* 1. UNIFIED ROUTE & SUMMARY CARD */}
+                <div className="ibt-card">
+                    <div className="ibt-route-row">
+                        {/* Source Branch */}
+                        <div className="ibt-route-box">
+                            <div className="ibt-route-box-header">
+                                <span className="ibt-route-box-label">
+                                    <Building2 size={13} className="text-amber-500" /> Source Warehouse
+                                </span>
+                                {doc.set_from_warehouse === currentWarehouse && (
+                                    <span className="ibt-tag-amber">
+                                        Your Branch
                                     </span>
-                                    {doc.set_from_warehouse === currentWarehouse && (
-                                        <span className="text-[9px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-black uppercase tracking-widest">
-                                            Source Branch (YOU)
-                                        </span>
-                                    )}
+                                )}
+                            </div>
+                            {(isNew || (doc.docstatus === 0 && !isViewOnly)) ? (
+                                <select
+                                    value={doc.set_from_warehouse}
+                                    onChange={(e) => handleSourceWarehouseChange(e.target.value)}
+                                    className="ibt-route-select"
+                                >
+                                    <option value="">Select source branch...</option>
+                                    {warehouses.filter(w => w.value !== currentWarehouse).map(w => (
+                                        <option key={w.value} value={w.value}>{w.label || w.value}</option>
+                                    ))}
+                                </select>
+                            ) : (
+                                <div className="ibt-route-box-value">
+                                    {doc.set_from_warehouse || '—'}
                                 </div>
                             )}
                         </div>
 
-                        <div className="space-y-2">
-                            <label className="po-label">Destination Branch</label>
-                            <div className="premium-cell-readonly font-bold flex items-center justify-between">
-                                <span className="flex items-center gap-2">
-                                    <Building2 size={14} className="text-slate-400" />
-                                    {doc.set_warehouse || doc.warehouse}
+                        {/* Transfer Direction Arrow */}
+                        <div className="hidden md:flex ibt-route-arrow-col">
+                            <div className="ibt-route-arrow-circle">
+                                <ArrowRight size={16} />
+                            </div>
+                            <span className="ibt-route-arrow-text">Transfer</span>
+                        </div>
+
+                        {/* Destination Branch */}
+                        <div className="ibt-route-box">
+                            <div className="ibt-route-box-header">
+                                <span className="ibt-route-box-label">
+                                    <Building2 size={13} style={{ color: 'var(--ibt-primary)' }} /> Destination Warehouse
                                 </span>
                                 {(doc.set_warehouse === currentWarehouse || doc.warehouse === currentWarehouse) && (
-                                    <span className="text-[9px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-black uppercase tracking-widest">
+                                    <span className="ibt-tag-emerald">
                                         Requesting Branch (YOU)
                                     </span>
                                 )}
                             </div>
+                            <div className="ibt-route-box-value">
+                                {doc.set_warehouse || doc.warehouse || currentWarehouse}
+                            </div>
                         </div>
                     </div>
+
+                    {/* 2. EMPLOYEE AUTHORIZATION TRAIL */}
+                    {!isNew && (
+                        <div className="ibt-auth-strip">
+                            <div className="ibt-auth-item">
+                                <div className="ibt-auth-icon-wrap ibt-auth-icon-blue">
+                                    <User size={15} />
+                                </div>
+                                <div className="min-w-0">
+                                    <div className="ibt-auth-label">Requested By</div>
+                                    <div className="ibt-auth-name">{doc.requested_by_employee_name || 'System'}</div>
+                                </div>
+                            </div>
+                            <div className="ibt-auth-item">
+                                <div className="ibt-auth-icon-wrap ibt-auth-icon-amber">
+                                    <User size={15} />
+                                </div>
+                                <div className="min-w-0">
+                                    <div className="ibt-auth-label">Dispatched By</div>
+                                    <div className="ibt-auth-name">
+                                        {doc.dispatched_by_employee_name || (doc.status === 'Dispatched' || doc.status === 'Transferred' ? 'Branch Staff' : 'Pending')}
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="ibt-auth-item">
+                                <div className="ibt-auth-icon-wrap ibt-auth-icon-emerald">
+                                    <User size={15} />
+                                </div>
+                                <div className="min-w-0">
+                                    <div className="ibt-auth-label">Received By</div>
+                                    <div className="ibt-auth-name">
+                                        {doc.received_by_employee_name || (doc.status === 'Transferred' ? 'Branch Staff' : 'Pending')}
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="ibt-auth-item">
+                                <div className={`ibt-auth-icon-wrap ${doc.status === 'Stopped' ? 'ibt-auth-icon-rose' : 'ibt-auth-icon-muted'}`}>
+                                    {doc.status === 'Stopped' ? <XCircle size={15} /> : <User size={15} />}
+                                </div>
+                                <div className="min-w-0">
+                                    <div className="ibt-auth-label">Rejected By</div>
+                                    <div className="ibt-auth-name">
+                                        {doc.rejected_by_employee_name || doc.custom_rejected_by || (doc.status === 'Stopped' ? 'Source Staff' : '—')}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Rejection Banner if Stopped */}
+                    {(doc.status === 'Stopped' || doc.custom_rejection_reason) && (
+                        <div className="ibt-rejection-banner">
+                            <AlertCircle size={16} className="text-rose-500 shrink-0" />
+                            <div>
+                                <span className="title">Rejection Reason: </span>
+                                <span className="desc">{doc.custom_rejection_reason || 'Stock unavailable at source branch.'}</span>
+                            </div>
+                        </div>
+                    )}
                 </div>
 
-                {/* Employee Audit Trail Card */}
-                {!isNew && (
-                    <div className="po-card animate-fadeIn">
-                        <div className="po-card-header">
-                            <h3 className="po-card-title flex items-center gap-2">
-                                <User size={14} style={{ color: themeColor }} />
-                                EMPLOYEE AUTHORIZATION TRAIL
-                            </h3>
+                {/* 3. PRODUCT ITEMS CARD */}
+                <div className="ibt-card">
+                    <div className="ibt-card-header">
+                        <div className="ibt-card-title">
+                            <Package size={16} />
+                            <span>Requested Products ({doc.items?.length || 0})</span>
                         </div>
-                        <div className="po-card-body grid grid-cols-1 md:grid-cols-4 gap-4">
-                            <div className="p-3 bg-slate-50 rounded-xl border border-slate-150">
-                                <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider block">Requested By</span>
-                                <span className="text-xs font-extrabold text-slate-800 flex items-center gap-1.5 mt-1">
-                                    <User size={13} className="text-blue-500" />
-                                    {doc.requested_by_employee_name || 'System User'}
-                                </span>
-                            </div>
-                            <div className="p-3 bg-slate-50 rounded-xl border border-slate-150">
-                                <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider block">Dispatched / Transferred By</span>
-                                <span className="text-xs font-extrabold text-slate-800 flex items-center gap-1.5 mt-1">
-                                    <User size={13} className="text-amber-500" />
-                                    {doc.dispatched_by_employee_name || (doc.status === 'Dispatched' || doc.status === 'Transferred' ? 'Branch B Staff' : 'Pending Dispatch')}
-                                </span>
-                            </div>
-                            <div className="p-3 bg-slate-50 rounded-xl border border-slate-150">
-                                <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider block">Received By</span>
-                                <span className="text-xs font-extrabold text-slate-800 flex items-center gap-1.5 mt-1">
-                                    <User size={13} className="text-emerald-500" />
-                                    {doc.received_by_employee_name || (doc.status === 'Transferred' ? 'Branch A Staff' : 'Pending Receipt')}
-                                </span>
-                            </div>
-                            <div className={`p-3 rounded-xl border ${doc.status === 'Stopped' ? 'bg-rose-50 border-rose-200' : 'bg-slate-50 border-slate-150'}`}>
-                                <span className={`text-[9px] font-black uppercase tracking-wider block ${doc.status === 'Stopped' ? 'text-rose-500' : 'text-slate-400'}`}>Rejected By</span>
-                                <span className={`text-xs font-extrabold flex items-center gap-1.5 mt-1 ${doc.status === 'Stopped' ? 'text-rose-700' : 'text-slate-800'}`}>
-                                    <User size={13} className={doc.status === 'Stopped' ? 'text-rose-500' : 'text-slate-400'} />
-                                    {doc.rejected_by_employee_name || doc.custom_rejected_by || (doc.status === 'Stopped' ? 'Source Branch Staff' : 'N/A')}
-                                </span>
-                            </div>
-                        </div>
-
-                        {/* Rejection Reason Banner if stopped */}
-                        {(doc.status === 'Stopped' || doc.custom_rejection_reason) && (
-                            <div className="mx-6 mb-4 p-3 bg-rose-50 border border-rose-200 rounded-xl flex items-start gap-3">
-                                <div className="p-1.5 bg-rose-100 text-rose-600 rounded-lg shrink-0 mt-0.5">
-                                    <AlertCircle size={16} />
-                                </div>
-                                <div className="text-xs">
-                                    <span className="font-extrabold text-rose-900 block uppercase tracking-wide text-[10px]">
-                                        Rejection Reason (Recorded by {doc.rejected_by_employee_name || doc.custom_rejected_by || 'Source Branch'}):
-                                    </span>
-                                    <p className="text-rose-700 font-semibold mt-0.5">
-                                        {doc.custom_rejection_reason || 'Stock currently unavailable at source warehouse.'}
-                                    </p>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                )}
-
-                {/* Item Selection Card - Redesigned to po-card with purchase-table */}
-                <div className="po-card animate-fadeIn">
-                    <div className="po-card-header flex items-center justify-between">
-                        <h3 className="po-card-title flex items-center gap-2">
-                            <Package size={14} style={{ color: themeColor }} />
-                            PRODUCT ITEM SELECTION
-                        </h3>
                         {(isNew || (doc.docstatus === 0 && !isViewOnly)) && (
                             <button
                                 onClick={handleAddItemRow}
-                                className="po-btn-secondary flex items-center gap-1"
-                                style={{ height: '1.75rem', fontSize: '0.65rem', padding: '0 0.75rem', borderRadius: '0.375rem' }}
+                                className="ibt-btn ibt-btn-secondary"
+                                style={{ height: '2rem', padding: '0 0.75rem', fontSize: '0.75rem' }}
                             >
-                                <Plus size={12} /> Add Row
+                                <Plus size={13} /> Add Product
                             </button>
                         )}
                     </div>
 
-                    <div className="purchase-table-container">
-                        <table className="purchase-table">
+                    <div className="ibt-table-wrap">
+                        <table className="ibt-items-table">
                             <thead>
                                 <tr>
-                                    <th className="purchase-th" style={{ padding: '0.75rem 1.5rem' }}>Product Details</th>
-                                    <th className="purchase-th text-center" style={{ width: '140px' }}>Quantity</th>
-                                    {/* Only show rate column when viewing existing dispatched/transferred requests */}
+                                    <th>Product Details</th>
+                                    <th style={{ width: '160px', textAlign: 'center' }}>Quantity</th>
                                     {(!isNew && doc.docstatus > 0 && (doc.status === 'Dispatched' || doc.status === 'Transferred')) && (
-                                        <th className="purchase-th text-right" style={{ width: '180px' }}>Source Selling Price</th>
+                                        <th style={{ width: '180px', textAlign: 'right' }}>Selling Price</th>
                                     )}
-                                    {/* Show rate input only for Draft view-only mode (not new request creation) */}
-                                    {(!isNew && doc.docstatus === 0 && isViewOnly) && (
-                                        <th className="purchase-th text-right" style={{ width: '180px' }}>Request price / unit</th>
-                                    )}
-                                    <th className="purchase-th text-right" style={{ width: '180px' }}>Source Stock</th>
-                                    {(isNew || (doc.docstatus === 0 && !isViewOnly)) && <th className="purchase-th text-center" style={{ width: '60px' }}></th>}
+                                    <th style={{ width: '180px', textAlign: 'right' }}>Source Stock</th>
+                                    {(isNew || (doc.docstatus === 0 && !isViewOnly)) && <th style={{ width: '50px' }}></th>}
                                 </tr>
                             </thead>
                             <tbody>
                                 {doc.items.map((item, idx) => (
-                                    <tr key={idx} className="hover:bg-slate-50/50">
-                                        {/* column 1: product details */}
-                                        <td className="purchase-td" style={{ padding: '0.5rem 1.5rem' }}>
-                                            <div className="premium-cell-container">
-                                                <div className="premium-cell-box">
-                                                    {(isNew || (doc.docstatus === 0 && !isViewOnly)) ? (
-                                                        <CustomSearchDropdown
-                                                            placeholder="Search item..."
-                                                            optionsLabel="item_name"
-                                                            value={item.item_code ? { name: item.item_code, item_name: item.item_name } : null}
-                                                            fetchData={async (q) => {
-                                                                const r = await axios.get(`${API_PATH}.get_retail_item_details`, {
-                                                                    params: { searchTerm: q },
-                                                                    headers: { 'X-Frappe-SID': getSession() }
-                                                                });
-                                                                return r.data?.message || [];
-                                                            }}
-                                                            onSelect={(it) => handleItemSelect(it, idx)}
-                                                        />
-                                                    ) : (
-                                                        <div className="premium-cell-readonly font-bold">{item.item_name}</div>
-                                                    )}
+                                    <tr key={idx}>
+                                        {/* Product Details */}
+                                        <td>
+                                            {(isNew || (doc.docstatus === 0 && !isViewOnly)) ? (
+                                                <div style={{ maxWidth: '400px' }}>
+                                                    <CustomSearchDropdown
+                                                        placeholder="Search product..."
+                                                        optionsLabel="item_name"
+                                                        value={item.item_code ? { name: item.item_code, item_name: item.item_name } : null}
+                                                        fetchData={async (q) => {
+                                                            const r = await axios.get(`${API_PATH}.get_retail_item_details`, {
+                                                                params: { searchTerm: q },
+                                                                headers: { 'X-Frappe-SID': getSession() }
+                                                            });
+                                                            return r.data?.message || [];
+                                                        }}
+                                                        onSelect={(it) => handleItemSelect(it, idx)}
+                                                    />
                                                 </div>
-                                                {item.item_code && (
-                                                    <div className="flex flex-wrap items-center gap-2 mt-1">
-                                                        <span className="premium-subtext">{item.item_code}</span>
+                                            ) : (
+                                                <div>
+                                                    <div className="ibt-item-name">{item.item_name}</div>
+                                                    <div className="ibt-item-meta">
+                                                        <span className="ibt-item-code-badge">
+                                                            {item.item_code}
+                                                        </span>
                                                         {item.last_purchase_supplier && (
-                                                            <span className="text-[8px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100">
+                                                            <span className="ibt-item-supplier-badge">
                                                                 Supplier: {item.last_purchase_supplier}
                                                             </span>
                                                         )}
                                                     </div>
-                                                )}
-                                            </div>
-                                        </td>
-
-                                        {/* column 2: quantity */}
-                                        <td className="purchase-td text-center">
-                                            <div className="premium-cell-container">
-                                                <div className="premium-cell-box">
-                                                    {(isNew || (doc.docstatus === 0 && !isViewOnly)) ? (
-                                                        <input
-                                                            type="number"
-                                                            className="po-input text-center font-bold"
-                                                            value={item.qty === 0 ? '' : item.qty}
-                                                            placeholder="0"
-                                                            onChange={(e) => handleQtyChange(e.target.value, idx)}
-                                                            onFocus={(e) => e.target.select()}
-                                                        />
-                                                    ) : (
-                                                        <div className="premium-cell-readonly premium-cell-readonly-center font-bold">{item.qty}</div>
-                                                    )}
                                                 </div>
-                                                <span className="premium-subtext">{item.uom || 'Nos'}</span>
-                                            </div>
+                                            )}
                                         </td>
 
-                                        {/* column 3: rate / price — only for dispatched/transferred (read-only) */}
+                                        {/* Quantity */}
+                                        <td style={{ textAlign: 'center' }}>
+                                            {(isNew || (doc.docstatus === 0 && !isViewOnly)) ? (
+                                                <div className="ibt-qty-cell">
+                                                    <input
+                                                        type="number"
+                                                        className="ibt-qty-input"
+                                                        value={item.qty === 0 ? '' : item.qty}
+                                                        placeholder="0"
+                                                        onChange={(e) => handleQtyChange(e.target.value, idx)}
+                                                        onFocus={(e) => e.target.select()}
+                                                    />
+                                                    <span style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--ibt-text-muted)' }}>
+                                                        {item.uom || 'Nos'}
+                                                    </span>
+                                                </div>
+                                            ) : (
+                                                <div className="ibt-qty-badge-static">
+                                                    <span>{item.qty}</span>
+                                                    <span style={{ fontSize: '0.7rem', opacity: 0.85 }}>{item.uom || 'Nos'}</span>
+                                                </div>
+                                            )}
+                                        </td>
+
+                                        {/* Selling Price (Dispatched / Transferred) */}
                                         {(!isNew && doc.docstatus > 0 && (doc.status === 'Dispatched' || doc.status === 'Transferred')) && (
-                                            <td className="purchase-td text-right">
-                                                <div className="premium-cell-container">
-                                                    <div className="premium-cell-box">
-                                                        <div className="premium-cell-readonly premium-cell-readonly-right font-bold flex items-center justify-end gap-1"><DirhamIcon size={12} /> {parseFloat(item.rate || 0).toFixed(2)}</div>
+                                            <td>
+                                                <div className="ibt-price-cell">
+                                                    <div className="ibt-price-val">
+                                                        <DirhamIcon size={13} /> {parseFloat(item.rate || 0).toFixed(2)}
                                                     </div>
-                                                    <span className="premium-subtext flex items-center gap-1"><DirhamIcon size={8} /> per {item.uom || 'Nos'}</span>
-                                                </div>
-                                            </td>
-                                        )}
-                                        {/* Show rate for Draft view-only (not new) */}
-                                        {(!isNew && doc.docstatus === 0 && isViewOnly) && (
-                                            <td className="purchase-td text-right">
-                                                <div className="premium-cell-container">
-                                                    <div className="premium-cell-box">
-                                                        <div className="premium-cell-readonly premium-cell-readonly-right font-bold flex items-center justify-end gap-1"><DirhamIcon size={12} /> {parseFloat(item.rate || 0).toFixed(2)}</div>
-                                                    </div>
-                                                    <span className="premium-subtext flex items-center gap-1"><DirhamIcon size={8} /> per Unit</span>
+                                                    <div className="ibt-price-sub">per {item.uom || 'Nos'}</div>
                                                 </div>
                                             </td>
                                         )}
 
-                                        {/* column 4: source stock */}
-                                        <td className="purchase-td text-right">
-                                            <div className="premium-cell-container">
-                                                <div className="premium-cell-box">
-                                                    <div className={`premium-cell-readonly premium-cell-readonly-right font-bold ${item.source_stock >= item.qty ? 'text-emerald-600' : 'text-rose-500'}`}>
-                                                        {item.source_stock || 0}
-                                                    </div>
-                                                </div>
-                                                <span className="premium-subtext">at {doc.set_from_warehouse?.replace(' - KSPL', '') || 'Source'}</span>
+                                        {/* Source Stock */}
+                                        <td>
+                                            <div className="ibt-stock-cell">
+                                                <span className={item.source_stock >= item.qty ? 'ibt-stock-pill-ok' : 'ibt-stock-pill-low'}>
+                                                    {item.source_stock || 0} in stock
+                                                </span>
+                                                <span className="ibt-stock-location-sub">
+                                                    at {doc.set_from_warehouse?.replace(' - KSPL', '') || 'Source'}
+                                                </span>
                                             </div>
                                         </td>
 
-                                        {/* column 5: delete action row */}
+                                        {/* Delete Action */}
                                         {(isNew || (doc.docstatus === 0 && !isViewOnly)) && (
-                                            <td className="purchase-td text-center" style={{ verticalAlign: 'middle' }}>
+                                            <td style={{ textAlign: 'center' }}>
                                                 <button
                                                     onClick={() => handleRemoveItemRow(idx)}
-                                                    className="text-slate-300 hover:text-rose-500 transition-all"
-                                                    style={{ border: 'none', background: 'transparent', cursor: 'pointer' }}
+                                                    className="ibt-delete-btn"
+                                                    title="Remove item"
                                                 >
-                                                    <Trash2 size={16} />
+                                                    <Trash2 size={15} />
                                                 </button>
                                             </td>
                                         )}
@@ -1534,111 +1666,99 @@ function InterBranchTransferDetails() {
                                 ))}
                             </tbody>
                         </table>
-                    </div>           
+                    </div>
                 </div>
 
-                {/* Set Local Price lists for Transferred Items */}
+                {/* 4. SET LOCAL PRICE LISTS (When Transferred) */}
                 {doc.status === 'Transferred' && doc.set_warehouse === currentWarehouse && (
-                    <div className="po-card shadow-xl shadow-blue-50/50 space-y-6 animate-fadeIn" style={{ border: '1px solid #bfdbfe' }}>
-                        <div className="po-card-header bg-blue-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-4 py-4">
-                            <div className="flex items-center gap-3">
-                                <div className="p-2 bg-blue-500 rounded-xl text-white">
-                                    <Save size={18} />
-                                </div>
+                    <div className="ibt-card">
+                        <div className="ibt-card-header">
+                            <div className="ibt-card-title">
+                                <Save size={16} />
                                 <div>
-                                    <h3 className="text-sm font-bold text-slate-800 uppercase tracking-tight">Set Your Local Selling Price</h3>
-                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Update local price list to start selling</p>
+                                    <span>Set Your Local Selling Price</span>
+                                    <div style={{ fontSize: '0.68rem', color: 'var(--ibt-text-muted)', textTransform: 'none', fontWeight: 600, marginTop: '2px' }}>
+                                        Update local price list to start selling at your counter
+                                    </div>
                                 </div>
                             </div>
                             <button
                                 onClick={handleUpdateSellingPrices}
                                 disabled={updatingPrices}
-                                className="po-btn-primary flex items-center gap-2"
-                                style={{ height: '2.25rem', padding: '0 1.5rem', fontSize: '0.75rem', fontWeight: 900, textTransform: 'uppercase', background: '#2563eb', borderColor: '#2563eb', borderRadius: '0.5rem' }}
+                                className="ibt-btn ibt-btn-primary"
                             >
                                 {updatingPrices ? <Loader2 className="animate-spin" size={14} /> : <CheckCircle2 size={14} />}
                                 Update Price List
                             </button>
                         </div>
 
-                        <div className="po-card-body grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <div className="ibt-prices-grid">
                             {doc.items.map((item, idx) => (
-                                <div key={idx} className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-3">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center text-[10px] font-black text-slate-400 border border-slate-100">
+                                <div key={idx} className="ibt-price-item-card">
+                                    <div className="ibt-price-card-header">
+                                        <div className="ibt-price-idx-badge">
                                             {idx + 1}
                                         </div>
-                                        <div className="flex-1 min-w-0">
-                                            <p className="text-xs font-black text-slate-700 truncate">{item.item_name}</p>
-                                            <p className="text-[9px] font-bold text-slate-400 uppercase">{item.item_code}</p>
+                                        <div className="min-w-0 flex-1">
+                                            <div className="ibt-item-name" style={{ fontSize: '0.825rem' }}>{item.item_name}</div>
+                                            <div className="ibt-item-code-badge" style={{ display: 'inline-block', marginTop: '2px' }}>{item.item_code}</div>
                                         </div>
                                     </div>
 
-                                    {/* Read-Only Source Prices */}
-                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', padding: '8px', backgroundColor: '#ffffff', borderRadius: '8px', border: '1px solid #f1f5f9' }}>
+                                    {/* Source Benchmark Prices */}
+                                    <div className="ibt-benchmark-bar">
                                         <div>
-                                            <div style={{ fontSize: '7.5px', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase' }}>Source Buying</div>
-                                            <div style={{ fontSize: '11px', fontWeight: 800, color: '#475569' }}>
-                                                AED {(sourcePrices[item.item_code]?.buying_price || 0).toFixed(2)}
-                                            </div>
+                                            <div className="ibt-benchmark-label">Source Buying</div>
+                                            <div className="ibt-benchmark-val">AED {(sourcePrices[item.item_code]?.buying_price || 0).toFixed(2)}</div>
                                         </div>
                                         <div>
-                                            <div style={{ fontSize: '7.5px', fontWeight: 900, color: '#94a3b8', textTransform: 'uppercase' }}>Source Selling</div>
-                                            <div style={{ fontSize: '11px', fontWeight: 800, color: '#475569' }}>
-                                                AED {(sourcePrices[item.item_code]?.selling_price || 0).toFixed(2)}
-                                            </div>
+                                            <div className="ibt-benchmark-label">Source Selling</div>
+                                            <div className="ibt-benchmark-val">AED {(sourcePrices[item.item_code]?.selling_price || 0).toFixed(2)}</div>
                                         </div>
                                     </div>
 
-                                    {/* Local Selling Price input for Nos */}
-                                    <div className="relative group/sp" style={{ marginTop: '10px' }}>
-                                        <input
-                                            type="number"
-                                            className="w-full pl-4 pr-12 py-2 bg-white border-2 border-slate-200 rounded-xl font-black text-xs outline-none focus:border-blue-500 transition-all"
-                                            value={sellingPrices[item.item_code]?.Nos || ''}
-                                            placeholder="0.00"
-                                            onChange={(e) => {
-                                                const nosVal = parseFloat(e.target.value) || 0;
-                                                const pcsPerBox = itemPcsPerBox[item.item_code] || 1;
-                                                setSellingPrices(prev => ({
-                                                    ...prev,
-                                                    [item.item_code]: {
-                                                        ...prev[item.item_code],
-                                                        Nos: nosVal,
-                                                        Box: nosVal * pcsPerBox
-                                                    }
-                                                }));
-                                            }}
-                                        />
-                                        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[9px] font-black text-slate-300 uppercase">Nos</span>
-                                        <label className="absolute -top-2 left-3 px-2 bg-white text-[7px] font-black text-blue-500 uppercase tracking-widest">Selling Price (Nos)</label>
-                                    </div>
-
-                                    {/* Local Selling Price input for Box — auto-calculated from Nos × pieces_per_box */}
-                                    <div className="relative group/sp" style={{ marginTop: '10px' }}>
-                                        <input
-                                            type="number"
-                                            className="w-full pl-4 pr-12 py-2 bg-white border-2 border-slate-200 rounded-xl font-black text-xs outline-none focus:border-blue-500 transition-all"
-                                            value={sellingPrices[item.item_code]?.Box || ''}
-                                            placeholder="0.00"
-                                            onChange={(e) => {
-                                                const boxVal = parseFloat(e.target.value) || 0;
-                                                const pcsPerBox = itemPcsPerBox[item.item_code] || 1;
-                                                setSellingPrices(prev => ({
-                                                    ...prev,
-                                                    [item.item_code]: {
-                                                        ...prev[item.item_code],
-                                                        Box: boxVal,
-                                                        Nos: pcsPerBox > 0 ? boxVal / pcsPerBox : 0
-                                                    }
-                                                }));
-                                            }}
-                                        />
-                                        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[9px] font-black text-slate-300 uppercase">Box</span>
-                                        <label className="absolute -top-2 left-3 px-2 bg-white text-[7px] font-black text-blue-500 uppercase tracking-widest">Selling Price (Box)</label>
-                                        {(itemPcsPerBox[item.item_code] || 0) > 1 && (
-                                            <p className="text-[7px] font-bold text-slate-400 mt-0.5 ml-1">{itemPcsPerBox[item.item_code]} pcs/box — auto-linked with Nos</p>
-                                        )}
+                                    {/* Price Inputs */}
+                                    <div className="space-y-2">
+                                        <div className="ibt-price-field">
+                                            <label>Local Price (Nos)</label>
+                                            <input
+                                                type="number"
+                                                value={sellingPrices[item.item_code]?.Nos || ''}
+                                                placeholder="0.00"
+                                                onChange={(e) => {
+                                                    const nosVal = parseFloat(e.target.value) || 0;
+                                                    const pcsPerBox = itemPcsPerBox[item.item_code] || 1;
+                                                    setSellingPrices(prev => ({
+                                                        ...prev,
+                                                        [item.item_code]: {
+                                                            ...prev[item.item_code],
+                                                            Nos: nosVal,
+                                                            Box: nosVal * pcsPerBox
+                                                        }
+                                                    }));
+                                                }}
+                                            />
+                                        </div>
+                                        <div className="ibt-price-field">
+                                            <label>Local Price (Box)</label>
+                                            <input
+                                                type="number"
+                                                value={sellingPrices[item.item_code]?.Box || ''}
+                                                placeholder="0.00"
+                                                onChange={(e) => {
+                                                    const boxVal = parseFloat(e.target.value) || 0;
+                                                    const pcsPerBox = itemPcsPerBox[item.item_code] || 1;
+                                                    setSellingPrices(prev => ({
+                                                        ...prev,
+                                                        [item.item_code]: {
+                                                            ...prev[item.item_code],
+                                                            Box: boxVal,
+                                                            Nos: pcsPerBox > 0 ? boxVal / pcsPerBox : 0
+                                                        }
+                                                    }));
+                                                }}
+                                            />
+                                        </div>
                                     </div>
                                 </div>
                             ))}
@@ -1646,39 +1766,63 @@ function InterBranchTransferDetails() {
                     </div>
                 )}
 
-                {/* Status Guide Footer */}
-                {doc.status === 'Transferred' ? (
-                    <div className="p-6 bg-emerald-50 rounded-2xl border border-emerald-100 flex gap-4 animate-fadeIn">
-                        <CheckCircle2 size={20} className="text-emerald-500 shrink-0" />
-                        <div className="space-y-1">
-                            <p className="text-xs font-bold text-emerald-950 uppercase tracking-wide">Transfer Complete</p>
-                            <p className="text-xs text-emerald-700 leading-relaxed font-semibold">
-                                Material transfer stock entry has been successfully submitted. Local branch levels are synchronized.
-                            </p>
+                {/* 5. ACTIVITY NOTES & AUDIT TIMELINE */}
+                {!isNew && (
+                    <div className="ibt-card">
+                        <div className="ibt-card-header">
+                            <div className="ibt-card-title">
+                                <MessageSquare size={16} />
+                                <span>Activity Notes & Audit Trail</span>
+                            </div>
+                            <span className="ibt-card-badge">
+                                {(doc.comments || []).length} Event(s)
+                            </span>
                         </div>
-                    </div>
-                ) : !isNew && (
-                    <div className="p-6 bg-blue-50/50 rounded-2xl border border-blue-100 flex gap-4">
-                        <Info size={20} className="text-blue-400 shrink-0" />
-                        <div className="space-y-1">
-                            <p className="text-xs font-bold text-blue-950 uppercase tracking-wide">Request Processing</p>
-                            <p className="text-xs text-blue-700 leading-relaxed font-semibold">
-                                This is an internal stock transfer request. The source warehouse must approve this document to generate the final delivery note.
-                            </p>
+
+                        <div className="ibt-timeline-container">
+                            {(!doc.comments || doc.comments.length === 0) ? (
+                                <div style={{ textAlign: 'center', padding: '1.5rem', fontSize: '0.8rem', color: 'var(--ibt-text-muted)' }}>
+                                    No activity records available for this request.
+                                </div>
+                            ) : (
+                                <div className="ibt-timeline-list">
+                                    {doc.comments.map((c, cIdx) => {
+                                        const isReject = c.content?.toLowerCase().includes('reject');
+                                        const isReceived = c.content?.toLowerCase().includes('received');
+                                        const isAccept = c.content?.toLowerCase().includes('accept') || c.content?.toLowerCase().includes('dispatch');
+                                        const isRequest = c.content?.toLowerCase().includes('request');
+
+                                        const dotClass = isReject ? 'reject' : isAccept ? 'pending' : isRequest ? 'request' : isReceived ? '' : '';
+
+                                        return (
+                                            <div key={c.name || cIdx} className="ibt-timeline-row">
+                                                <div className={`ibt-timeline-dot ${dotClass}`} />
+                                                <div className="ibt-timeline-card">
+                                                    <div className="ibt-timeline-card-header">
+                                                        <span className="ibt-timeline-content">
+                                                            {c.content}
+                                                        </span>
+                                                        {c.creation && (
+                                                            <span className="ibt-timeline-date">
+                                                                {format(new Date(c.creation), 'MMM dd, yyyy · hh:mm a')}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <div className="ibt-timeline-meta">
+                                                        <span>Status Event</span>
+                                                        {c.comment_by && <span>· {c.comment_by}</span>}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
                         </div>
                     </div>
                 )}
 
             </div>
-
-            <style dangerouslySetInnerHTML={{
-                __html: `
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        .animate-fadeIn { animation: fadeIn 0.3s ease-out forwards; }
-        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
-      `}} />
         </div>
     );
 }

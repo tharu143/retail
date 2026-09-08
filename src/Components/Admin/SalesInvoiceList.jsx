@@ -18,8 +18,9 @@ import CustomSearchDropdown from '../Purchase/CustomSearchDropdown';
 import ColumnConfigModal from '../Purchase/ColumnConfigModal';
 import { loadLocalMatrixConfig, fetchUserMatrixConfig, saveUserMatrixConfig } from '../../utils/tableMatrixHelper';
 
-const DEFAULT_SI_COLUMNS = [
-  { id: 'item_details', label: 'Item Details', visible: true, width: 220 },
+export const DEFAULT_SI_COLUMNS = [
+  { id: 'barcode', label: 'Barcode', visible: true, width: 140 },
+  { id: 'item_name', label: 'Item Name', visible: true, width: 220 },
   { id: 'custom_box_qty', label: 'Box Qty', visible: true, width: 90 },
   { id: 'uom', label: 'UOM', visible: true, width: 90 },
   { id: 'custom_pieces_per_box', label: 'Pcs/Box', visible: true, width: 80 },
@@ -27,7 +28,10 @@ const DEFAULT_SI_COLUMNS = [
   { id: 'rate', label: 'Rate (Nos)', visible: true, width: 100 },
   { id: 'qty', label: 'Total Qty', visible: true, width: 90 },
   { id: 'is_tax_inclusive', label: 'Tax', visible: true, width: 100 },
-  { id: 'amount', label: 'Amount', visible: true, width: 130 }
+  { id: 'amount', label: 'Amount', visible: true, width: 130 },
+  { id: 'item_code', label: 'Item Code', visible: false, width: 130 },
+  { id: 'custom_ref_sl_no', label: 'Ref / Serial #', visible: false, width: 110 },
+  { id: 'discount_amount', label: 'Discount', visible: false, width: 90 }
 ];
 
 const loadSIColumnConfig = () => {
@@ -2457,14 +2461,62 @@ const SalesInvoiceList = () => {
                           <tr key={i} className="border-b border-slate-100 hover:bg-emerald-50/30 transition-colors">
                             <td className="text-center font-bold text-slate-400 text-xs py-2 border-r border-slate-100">{i + 1}</td>
                             {activeCols.map(col => {
-                              if (col.id === 'item_details') {
+                              if (col.id === 'barcode') {
+                                return (
+                                  <td key={col.id} className="px-2 py-1 border-r border-slate-100 align-middle">
+                                    {!isViewOnly && !isReturnMode ? (
+                                      <input
+                                        type="text"
+                                        value={item.barcode || itemQueries[`barcode_${i}`] || ''}
+                                        onChange={(e) => {
+                                          const q = e.target.value;
+                                          setItemQueries(prev => ({ ...prev, [`barcode_${i}`]: q }));
+                                          updateItem(i, 'barcode', q);
+                                          if (q.length >= 3) searchItems(q);
+                                        }}
+                                        onKeyDown={async (e) => {
+                                          if (e.key === 'Enter' && (e.target.value || '').trim()) {
+                                            e.preventDefault();
+                                            const bc = e.target.value.trim();
+                                            try {
+                                              const checkRes = await axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.check_barcode_exists', {
+                                                params: { barcode: bc }
+                                              });
+                                              if (checkRes.data?.message?.exists) {
+                                                const itemCode = checkRes.data.message.item;
+                                                const itemRes = await axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_items_si', {
+                                                  params: { query: itemCode }
+                                                });
+                                                const matched = itemRes.data?.message?.[0];
+                                                if (matched) {
+                                                  selectItem(i, { ...matched, barcode: bc });
+                                                }
+                                              }
+                                            } catch (err) { }
+                                          }
+                                        }}
+                                        placeholder="Scan/Type Barcode"
+                                        className="h-8 px-2 bg-slate-50 border border-slate-200 rounded-md font-mono font-black text-xs text-emerald-700 outline-none w-full focus:bg-white focus:border-emerald-500"
+                                      />
+                                    ) : (
+                                      <span className="font-mono font-bold text-xs text-emerald-700">
+                                        {(() => {
+                                          const raw = item.barcode || item.barcodes?.[0] || item.item_code || '—';
+                                          return typeof raw === 'object' && raw !== null ? (raw.barcode || raw.name || '—') : String(raw);
+                                        })()}
+                                      </span>
+                                    )}
+                                  </td>
+                                );
+                              }
+                              if (col.id === 'item_name' || col.id === 'item_details') {
                                 return (
                                   <td key={col.id} className="px-2 py-1 border-r border-slate-100 align-middle">
                                     {!isViewOnly && !isReturnMode ? (
                                       <div className="relative group">
                                         <input
                                           type="text"
-                                          value={itemQueries[i] || ''}
+                                          value={itemQueries[i] !== undefined ? itemQueries[i] : (item.item_name || '')}
                                           onChange={(e) => {
                                             const q = e.target.value;
                                             setItemQueries(prev => ({ ...prev, [i]: q }));
@@ -2480,7 +2532,7 @@ const SalesInvoiceList = () => {
                                             });
                                             setActiveItemRow(i);
                                           }}
-                                          placeholder="Search item..."
+                                          placeholder="Search item name or barcode..."
                                           className="h-8 px-2 bg-slate-50 border border-slate-200 rounded-md text-xs font-bold text-slate-800 outline-none w-full focus:bg-white focus:border-emerald-500"
                                         />
                                         {activeItemRow === i && dropdownPosition && itemQueries[i] && allItems.length > 0 && createPortal(
@@ -2490,39 +2542,89 @@ const SalesInvoiceList = () => {
                                               position: 'fixed',
                                               top: dropdownPosition.top + 'px',
                                               left: dropdownPosition.left + 'px',
-                                              width: dropdownPosition.width + 'px',
+                                              width: Math.max(260, dropdownPosition.width) + 'px',
                                               zIndex: 9999
                                             }}
                                           >
                                             {allItems
-                                              .filter(it =>
-                                                it.item_name?.toLowerCase().includes((itemQueries[i] || '').toLowerCase()) ||
-                                                it.item_code?.toLowerCase().includes((itemQueries[i] || '').toLowerCase())
-                                              )
+                                              .filter(it => {
+                                                const q = (itemQueries[i] || '').toLowerCase();
+                                                const bcStr = typeof it.barcode === 'object' && it.barcode !== null ? it.barcode.barcode : (it.barcode || '');
+                                                return (
+                                                  it.item_name?.toLowerCase().includes(q) ||
+                                                  it.item_code?.toLowerCase().includes(q) ||
+                                                  String(bcStr).toLowerCase().includes(q)
+                                                );
+                                              })
                                               .slice(0, 20)
-                                              .map(it => (
-                                                <div
-                                                  key={it.item_code}
-                                                  onClick={() => {
-                                                    selectItem(i, it);
-                                                    setDropdownPosition(null);
-                                                  }}
-                                                  className="so-dropdown-item"
-                                                >
-                                                  <div style={{ fontWeight: 700 }}>{it.item_name}</div>
-                                                  <div style={{ fontSize: '0.65rem', opacity: 0.6 }}>{it.item_code}</div>
-                                                </div>
-                                              ))}
+                                              .map(it => {
+                                                const bcDisplay = typeof it.barcode === 'object' && it.barcode !== null ? it.barcode.barcode : it.barcode;
+                                                return (
+                                                  <div
+                                                    key={it.item_code}
+                                                    onClick={() => {
+                                                      selectItem(i, it);
+                                                      setDropdownPosition(null);
+                                                    }}
+                                                    className="so-dropdown-item"
+                                                  >
+                                                    <div style={{ fontWeight: 700 }}>{it.item_name}</div>
+                                                    <div style={{ fontSize: '0.65rem', opacity: 0.7, display: 'flex', gap: '8px' }}>
+                                                      {bcDisplay && <span style={{ color: '#059669', fontFamily: 'monospace' }}>BC: {bcDisplay}</span>}
+                                                      <span>{it.item_code}</span>
+                                                    </div>
+                                                  </div>
+                                                );
+                                              })}
                                           </div>,
                                           document.body
                                         )}
                                       </div>
                                     ) : (
                                       <div>
-                                        <span className="font-black text-slate-900 text-xs leading-tight">{item.item_name}</span>
-                                        <span className="block font-bold text-[9px] text-emerald-600 uppercase tracking-widest mt-0.5">{item.item_code}</span>
+                                        <span className="font-black text-slate-900 text-xs leading-tight">{item.item_name || item.item_code}</span>
+                                        {item.barcode && (
+                                          <span className="block font-mono font-bold text-[9px] text-emerald-600 uppercase tracking-widest mt-0.5">
+                                            {typeof item.barcode === 'object' ? (item.barcode.barcode || item.barcode.name) : item.barcode}
+                                          </span>
+                                        )}
                                       </div>
                                     )}
+                                  </td>
+                                );
+                              }
+                              if (col.id === 'item_code') {
+                                return (
+                                  <td key={col.id} className="px-2 py-1 text-center border-r border-slate-100 align-middle text-xs font-mono font-bold text-slate-600">
+                                    {item.item_code || '—'}
+                                  </td>
+                                );
+                              }
+                              if (col.id === 'custom_ref_sl_no') {
+                                return (
+                                  <td key={col.id} className="px-2 py-1 text-center border-r border-slate-100 align-middle">
+                                    <input
+                                      type="text"
+                                      value={item.custom_ref_sl_no || ''}
+                                      onChange={(e) => updateItem(i, 'custom_ref_sl_no', e.target.value)}
+                                      disabled={isViewOnly || isReturnMode}
+                                      placeholder="Ref #"
+                                      className="w-full h-8 px-1 text-center font-bold text-xs text-slate-700 bg-transparent border-none outline-none focus:bg-emerald-50/40"
+                                    />
+                                  </td>
+                                );
+                              }
+                              if (col.id === 'discount_amount') {
+                                return (
+                                  <td key={col.id} className="px-2 py-1 text-right border-r border-slate-100 align-middle">
+                                    <input
+                                      type="number"
+                                      value={item.discount_amount || ''}
+                                      onChange={(e) => updateItem(i, 'discount_amount', parseFloat(e.target.value) || 0)}
+                                      disabled={isViewOnly || isReturnMode}
+                                      placeholder="0.00"
+                                      className="w-full h-8 px-1 text-right font-bold text-xs text-slate-700 bg-transparent border-none outline-none focus:bg-emerald-50/40"
+                                    />
                                   </td>
                                 );
                               }
