@@ -4377,6 +4377,7 @@ export default function ItemList() {
                                     <th style={{ padding: '8px 10px', fontWeight: 700, color: '#15803d' }}>Sell Price</th>
                                     <th style={{ padding: '8px 10px', fontWeight: 700 }}>Barcode</th>
                                     <th style={{ padding: '8px 10px', fontWeight: 700 }}>Status</th>
+                                    <th style={{ padding: '8px 10px', fontWeight: 700, textAlign: 'right' }}>Actions</th>
                                   </tr>
                                 </thead>
                                 <tbody>
@@ -4417,6 +4418,71 @@ export default function ItemList() {
                                         }}>
                                           {v.disabled ? 'Disabled' : 'Active'}
                                         </span>
+                                      </td>
+                                      <td style={{ padding: '8px 10px', textAlign: 'right' }}>
+                                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              handleRowClick({
+                                                item_code: v.name,
+                                                item_name: v.item_name,
+                                                item_group: form.item_group,
+                                                stock_uom: v.stock_uom,
+                                                standard_rate: v.standard_rate || v.selling_price,
+                                                disabled: v.disabled,
+                                                has_variants: 0,
+                                                image: v.image
+                                              });
+                                              setIsViewMode(false);
+                                              setIsEditMode(true);
+                                            }}
+                                            style={{
+                                              padding: '4px 9px',
+                                              borderRadius: 6,
+                                              background: '#eff6ff',
+                                              border: '1px solid #bfdbfe',
+                                              fontSize: 11,
+                                              fontWeight: 700,
+                                              color: '#1d4ed8',
+                                              cursor: 'pointer',
+                                              display: 'inline-flex',
+                                              alignItems: 'center',
+                                              gap: 4
+                                            }}
+                                            title={`Edit Variant ${v.name}`}
+                                          >
+                                            <Edit2 size={11} /> Edit
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              handleRowClick({
+                                                item_code: v.name,
+                                                item_name: v.item_name,
+                                                item_group: form.item_group,
+                                                stock_uom: v.stock_uom,
+                                                standard_rate: v.standard_rate || v.selling_price,
+                                                disabled: v.disabled,
+                                                has_variants: 0,
+                                                image: v.image
+                                              });
+                                            }}
+                                            style={{
+                                              padding: '4px 8px',
+                                              borderRadius: 6,
+                                              background: T.bg,
+                                              border: `1px solid ${T.border}`,
+                                              fontSize: 11,
+                                              fontWeight: 700,
+                                              color: T.textSub,
+                                              cursor: 'pointer'
+                                            }}
+                                            title={`View Variant Details ${v.name}`}
+                                          >
+                                            View →
+                                          </button>
+                                        </div>
                                       </td>
                                     </tr>
                                   ))}
