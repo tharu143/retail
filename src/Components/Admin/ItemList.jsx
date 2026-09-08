@@ -4,7 +4,7 @@ import {
   Plus, Search, X, Save, Upload, Package, Camera, ChevronLeft,
   Users, AlertCircle, Trash2, ChevronDown, Palette, Loader2, ChevronRight,
   Edit2, ShoppingCart, Barcode, Tag, Box, Boxes, Info, ShieldCheck, Scale, MapPin, Activity, FileText, Calendar,
-  LayoutGrid, List, TrendingUp, Warehouse, DollarSign, BarChart2, RefreshCw, Zap, Layers
+  LayoutGrid, List, TrendingUp, Warehouse, DollarSign, BarChart2, RefreshCw, Zap, Layers, Sparkles
 } from 'lucide-react';
 import axios from 'axios';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
