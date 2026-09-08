@@ -4,7 +4,7 @@ import {
   Plus, Search, X, Save, Upload, Package, Camera, ChevronLeft,
   Users, AlertCircle, Trash2, ChevronDown, Palette, Loader2, ChevronRight,
   Edit2, ShoppingCart, Barcode, Tag, Box, Boxes, Info, ShieldCheck, Scale, MapPin, Activity, FileText, Calendar,
-  LayoutGrid, List, TrendingUp, Warehouse, DollarSign, BarChart2, RefreshCw, Zap, Layers, Sparkles
+  LayoutGrid, List, TrendingUp, Warehouse, DollarSign, BarChart2, RefreshCw, Zap, Layers, Sparkles, Scan, Copy
 } from 'lucide-react';
 import axios from 'axios';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
@@ -152,19 +152,78 @@ const GlobalStyle = () => (
     .anim-in { animation: fadeUp 0.2s ease-out both; }
     .spin { animation: spin 0.8s linear infinite; }
     .il-group-tabs-scroll { overflow-x: auto; scrollbar-width: none; -ms-overflow-style: none; display: flex; gap: 8px; padding: 4px; }
-    .il-group-tabs-scroll::-webkit-scrollbar { display: none; }
-    
-    /* Custom SweetAlert Styles */
-    .swal2-container { z-index: 20000 !important; }
-    .swal2-popup-custom { border-radius: 32px !important; padding: 2rem !important; font-family: 'DM Sans', sans-serif !important; z-index: 20001 !important; }
-    .swal2-title-custom { font-size: 28px !important; font-weight: 800 !important; color: #1e293b !important; margin-bottom: 0.5rem !important; }
-    .swal2-text-custom { font-size: 16px !important; font-weight: 500 !important; color: #64748b !important; line-height: 1.6 !important; margin-bottom: 2rem !important; padding: 0 1rem !important; }
-    .swal2-confirm-btn-custom { background-color: #ef4444 !important; color: white !important; padding: 14px 40px !important; border-radius: 12px !important; font-size: 15px !important; font-weight: 700 !important; border: none !important; margin: 0 10px !important; cursor: pointer; transition: all 0.2s; }
-    .swal2-confirm-btn-custom:hover { background-color: #dc2626 !important; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2); }
-    .swal2-cancel-btn-custom { background-color: #94a3b8 !important; color: white !important; padding: 14px 40px !important; border-radius: 12px !important; font-size: 15px !important; font-weight: 700 !important; border: none !important; margin: 0 10px !important; cursor: pointer; transition: all 0.2s; }
-    .swal2-cancel-btn-custom:hover { background-color: #64748b !important; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(148, 163, 184, 0.2); }
-    .swal2-actions-custom { margin-top: 1rem !important; }
-    .swal2-icon-custom { border-color: #fdba74 !important; color: #f97316 !important; }
+    .il-switch { position: relative; display: inline-flex; align-items: center; cursor: pointer; user-select: none; }
+    .il-switch input { opacity: 0; width: 0; height: 0; position: absolute; }
+    .il-switch-track { position: relative; width: 38px; height: 22px; background-color: #cbd5e1; border-radius: 20px; transition: background-color 0.25s ease; flex-shrink: 0; }
+    .il-switch input:checked + .il-switch-track { background-color: #2563eb; }
+    .il-switch input:checked + .il-switch-track.purple { background-color: #7c3aed; }
+    .il-switch input:disabled + .il-switch-track { opacity: 0.5; cursor: not-allowed; }
+    .il-switch-thumb { position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; background-color: #ffffff; border-radius: 50%; transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
+    .il-switch input:checked + .il-switch-track .il-switch-thumb { transform: translateX(16px); }
+
+    /* SweetAlert Custom Popup & Buttons */
+    .swal2-container { z-index: 30000 !important; }
+    .swal2-popup.swal2-popup-custom {
+      border-radius: 20px !important;
+      padding: 24px 28px !important;
+      font-family: 'Gilroy', sans-serif !important;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.15) !important;
+      border: 1px solid #e2e8f0 !important;
+    }
+    .swal2-title.swal2-title-custom {
+      font-size: 20px !important;
+      font-weight: 800 !important;
+      color: #0f172a !important;
+      margin-bottom: 8px !important;
+    }
+    .swal2-html-container.swal2-text-custom {
+      font-size: 14px !important;
+      font-weight: 500 !important;
+      color: #64748b !important;
+      margin: 8px 0 20px !important;
+      line-height: 1.5 !important;
+    }
+    .swal2-actions.swal2-actions-custom {
+      display: flex !important;
+      gap: 12px !important;
+      justify-content: center !important;
+      margin-top: 14px !important;
+      width: 100% !important;
+    }
+    .swal2-confirm-btn-custom {
+      background: linear-gradient(135deg, #ef4444, #dc2626) !important;
+      color: #ffffff !important;
+      font-family: 'Gilroy', sans-serif !important;
+      font-size: 13px !important;
+      font-weight: 700 !important;
+      padding: 10px 22px !important;
+      border-radius: 12px !important;
+      border: none !important;
+      cursor: pointer !important;
+      transition: all 0.2s ease !important;
+      box-shadow: 0 4px 14px rgba(239, 68, 68, 0.3) !important;
+    }
+    .swal2-confirm-btn-custom:hover {
+      background: linear-gradient(135deg, #dc2626, #b91c1c) !important;
+      transform: translateY(-1px) !important;
+      box-shadow: 0 6px 18px rgba(239, 68, 68, 0.4) !important;
+    }
+    .swal2-cancel-btn-custom {
+      background: #f1f5f9 !important;
+      color: #475569 !important;
+      font-family: 'Gilroy', sans-serif !important;
+      font-size: 13px !important;
+      font-weight: 700 !important;
+      padding: 10px 20px !important;
+      border-radius: 12px !important;
+      border: 1.5px solid #e2e8f0 !important;
+      cursor: pointer !important;
+      transition: all 0.2s ease !important;
+    }
+    .swal2-cancel-btn-custom:hover {
+      background: #e2e8f0 !important;
+      color: #1e293b !important;
+    }
   `}</style>
 );
 
@@ -4404,18 +4463,19 @@ export default function ItemList() {
 
                       {/* Variant Items List (Inline Editable for Existing & New Variants) */}
                       {(form.attributes || []).length > 0 && (
-                        <div style={{ background: '#fff', border: '1.5px solid #ddd6fe', borderRadius: 12, padding: '16px', marginTop: 10 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, borderBottom: '1px solid #f3e8ff', paddingBottom: 10 }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                              <Box size={16} color="#7c3aed" />
-                              <span style={{ fontSize: 13, fontWeight: 800, color: '#5b21b6' }}>
+                        <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: 14, padding: '20px 24px', marginTop: 12, boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18, borderBottom: '1px solid #f1f5f9', paddingBottom: 14 }}>
+                            <div>
+                              <div style={{ fontSize: 15, fontWeight: 800, color: '#1e293b' }}>
+                                Variant Setup
+                              </div>
+                              <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>
                                 {isEditMode 
-                                  ? `Item Variants (${(variantForm.initial_variants || []).length})`
-                                  : `Variant Items to Create (${(variantForm.initial_variants || []).length})`}
-                              </span>
-                              {loadingTemplateVariants && <Loader2 size={15} className="spin" color="#7c3aed" />}
+                                  ? `Item variants configured (${(variantForm.initial_variants || []).length})`
+                                  : `Variant items to create (${(variantForm.initial_variants || []).length})`}
+                              </div>
                             </div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
                               <button
                                 type="button"
                                 onClick={() => {
@@ -4464,288 +4524,256 @@ export default function ItemList() {
                                   }));
                                 }}
                                 style={{
-                                  display: 'flex',
+                                  display: 'inline-flex',
                                   alignItems: 'center',
-                                  gap: 5,
-                                  padding: '5px 12px',
-                                  background: '#f5f3ff',
-                                  border: '1.5px solid #8b5cf6',
-                                  color: '#6d28d9',
+                                  gap: 6,
+                                  padding: '7px 16px',
+                                  background: '#2563eb',
+                                  border: 'none',
+                                  color: '#fff',
                                   borderRadius: 8,
-                                  fontSize: 12,
-                                  fontWeight: 800,
-                                  cursor: 'pointer'
+                                  fontSize: 13,
+                                  fontWeight: 700,
+                                  cursor: 'pointer',
+                                  boxShadow: '0 2px 6px rgba(37,99,235,0.25)',
+                                  transition: 'all 0.15s'
                                 }}
                               >
                                 <Plus size={14} />
-                                <span>+ Add Variant</span>
+                                <span>Add Variant</span>
                               </button>
-
-                              <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 12, fontWeight: 700, color: '#6d28d9' }}>
-                                <input 
-                                  type="checkbox"
-                                  className="il-check"
-                                  checked={variantForm.create_first_variant} 
-                                  onChange={e => setVariantForm({ ...variantForm, create_first_variant: e.target.checked })} 
-                                />
-                                {isEditMode ? 'Enable Variant Updates' : 'Enable Variant Creation'}
-                              </label>
                             </div>
                           </div>
 
                           {variantForm.create_first_variant && (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                               {(variantForm.initial_variants || []).map((vRow, vIdx) => {
                                 const pcsBox = Number(vRow.custom_pieces_per_box !== undefined ? vRow.custom_pieces_per_box : (form.custom_pieces_per_box || 0));
-                                const isExpanded = Boolean(vRow._isExpanded);
+                                const isExpanded = vRow._isExpanded !== undefined ? Boolean(vRow._isExpanded) : true;
 
                                 return (
                                   <div
                                     key={vRow.id || vIdx}
                                     style={{
-                                      background: '#fff',
-                                      border: isExpanded ? '1.5px solid #8b5cf6' : '1px solid #e2e8f0',
+                                      background: '#ffffff',
+                                      border: '1px solid #e2e8f0',
                                       borderRadius: 12,
-                                      boxShadow: isExpanded ? '0 4px 16px rgba(139, 92, 246, 0.12)' : '0 1px 3px rgba(0,0,0,0.02)',
-                                      overflow: 'visible',
+                                      padding: '16px 20px',
+                                      boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
                                       position: 'relative',
                                       zIndex: (variantForm.initial_variants || []).length - vIdx + 10,
-                                      transition: 'all 0.2s ease-in-out'
+                                      display: 'flex',
+                                      flexDirection: 'column',
+                                      gap: 16
                                     }}
                                   >
-                                    {/* Variant Card Top Row - Compact & Responsive */}
-                                    <div
-                                      style={{
-                                        padding: '12px 16px',
-                                        background: isExpanded ? '#f5f3ff' : '#fafafa',
-                                        borderBottom: isExpanded ? '1px solid #ddd6fe' : 'none',
-                                        borderRadius: isExpanded ? '12px 12px 0 0' : 12,
-                                        display: 'flex',
-                                        flexWrap: 'wrap',
-                                        alignItems: 'center',
-                                        justifyContent: 'space-between',
-                                        gap: 12,
-                                        position: 'relative',
-                                        zIndex: 5
-                                      }}
-                                    >
-                                      {/* Left: Index badge, Attribute selectors, Variant Code & Name */}
-                                      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10, flex: 1, minWidth: 280 }}>
-                                        <span style={{
-                                          width: 24,
-                                          height: 24,
-                                          borderRadius: '50%',
-                                          background: isExpanded ? '#8b5cf6' : '#64748b',
-                                          color: '#fff',
-                                          fontSize: 11,
-                                          fontWeight: 800,
-                                          display: 'flex',
-                                          alignItems: 'center',
-                                          justifyContent: 'center',
-                                          flexShrink: 0
-                                        }}>
-                                          {vIdx + 1}
-                                        </span>
+                                    {/* Variant Header Row: Clean 3-Column Grid with Variant Sequence Number */}
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(220px, 1.2fr) minmax(260px, 1.4fr) minmax(200px, 1.2fr)', gap: 14, alignItems: 'center' }}>
+                                      {/* Dynamic Attribute Selectors */}
+                                      {(form.attributes || []).map(a => (typeof a === 'object' && a !== null ? a.attribute : a)).filter(Boolean).map(attrName => {
+                                        const possibleVals = attributeValuesMap[attrName] || [];
+                                        const attrOptions = possibleVals.map(val => ({
+                                          label: `${val.attribute_value}${val.abbr ? ` (${val.abbr})` : ''}`,
+                                          value: val.attribute_value
+                                        }));
 
-                                        {/* Attribute Selectors */}
-                                        {(form.attributes || []).map(a => (typeof a === 'object' && a !== null ? a.attribute : a)).filter(Boolean).map(attrName => {
-                                          const possibleVals = attributeValuesMap[attrName] || [];
-                                          const attrOptions = possibleVals.map(val => ({
-                                            label: `${val.attribute_value}${val.abbr ? ` (${val.abbr})` : ''}`,
-                                            value: val.attribute_value
-                                          }));
-
-                                          return (
-                                            <div key={attrName} style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 140 }}>
-                                              <span style={{ fontSize: 11, fontWeight: 700, color: '#475569' }}>{attrName}:</span>
-                                              <div style={{ minWidth: 110, flex: 1 }}>
-                                                <SearchableSelectCompact
-                                                  disabled={Boolean(vRow.is_existing)}
-                                                  value={vRow.selected_attributes?.[attrName] || ''}
-                                                  options={attrOptions}
-                                                  placeholder={`Select ${attrName}...`}
-                                                  onAction={(typedVal) => {
-                                                    setAttrModalData({
-                                                      attribute_name: attrName,
-                                                      attribute_value: typedVal || '',
-                                                      abbr: (typedVal || '').slice(0, 3).toUpperCase(),
-                                                      targetRowIndex: vIdx,
-                                                      isNewAttribute: false,
-                                                      attributeIndex: null
-                                                    });
-                                                    setShowAddAttrValueModal(true);
-                                                  }}
-                                                  actionLabel={`+ Add ${attrName} Value`}
-                                                  onChange={val => {
-                                                    const nextSelected = { ...(vRow.selected_attributes || {}), [attrName]: val };
-                                                    const orderedCodes = [];
-                                                    const orderedNames = [];
-                                                    (form.attributes || []).forEach(attr => {
-                                                      const aName = typeof attr === 'object' && attr !== null ? attr.attribute : attr;
-                                                      const vVal = nextSelected[aName];
-                                                      if (vVal) {
-                                                        const pVals = attributeValuesMap[aName] || [];
-                                                        const matched = pVals.find(x => x.attribute_value === vVal);
-                                                        orderedCodes.push((matched?.abbr || vVal).toUpperCase());
-                                                        orderedNames.push(vVal);
-                                                      }
-                                                    });
-
-                                                    const codeSuffix = orderedCodes.join('-');
-                                                    const nameSuffix = orderedNames.join(' ');
-
-                                                    const updatedVariants = [...variantForm.initial_variants];
-                                                    updatedVariants[vIdx] = {
-                                                      ...vRow,
-                                                      selected_attributes: nextSelected,
-                                                      variant_item_code: codeSuffix ? `${form.item_code || 'ITEM'}-${codeSuffix}`.toUpperCase() : '',
-                                                      variant_item_name: nameSuffix ? `${form.item_name || 'Item'} ${nameSuffix}` : ''
-                                                    };
-                                                    setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
-                                                  }}
-                                                />
-                                              </div>
+                                        return (
+                                          <div key={attrName} className="il-form-field">
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                                              <span style={{ fontSize: 10, fontWeight: 800, background: '#eff6ff', color: '#2563eb', padding: '1px 6px', borderRadius: 4, border: '1px solid #bfdbfe' }}>
+                                                #{vIdx + 1}
+                                              </span>
+                                              <label style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.4px', margin: 0 }}>{attrName}</label>
                                             </div>
-                                          );
-                                        })}
+                                            <SearchableSelectCompact
+                                              disabled={Boolean(vRow.is_existing)}
+                                              value={vRow.selected_attributes?.[attrName] || ''}
+                                              options={attrOptions}
+                                              placeholder={`Select ${attrName}...`}
+                                              onAction={(typedVal) => {
+                                                setAttrModalData({
+                                                  attribute_name: attrName,
+                                                  attribute_value: typedVal || '',
+                                                  abbr: (typedVal || '').slice(0, 3).toUpperCase(),
+                                                  targetRowIndex: vIdx,
+                                                  isNewAttribute: false,
+                                                  attributeIndex: null
+                                                });
+                                                setShowAddAttrValueModal(true);
+                                              }}
+                                              actionLabel={`+ Add ${attrName} Value`}
+                                              onChange={val => {
+                                                const nextSelected = { ...(vRow.selected_attributes || {}), [attrName]: val };
+                                                const orderedCodes = [];
+                                                const orderedNames = [];
+                                                (form.attributes || []).forEach(attr => {
+                                                  const aName = typeof attr === 'object' && attr !== null ? attr.attribute : attr;
+                                                  const vVal = nextSelected[aName];
+                                                  if (vVal) {
+                                                    const pVals = attributeValuesMap[aName] || [];
+                                                    const matched = pVals.find(x => x.attribute_value === vVal);
+                                                    orderedCodes.push((matched?.abbr || vVal).toUpperCase());
+                                                    orderedNames.push(vVal);
+                                                  }
+                                                });
 
-                                        {/* Code Input */}
+                                                const codeSuffix = orderedCodes.join('-');
+                                                const nameSuffix = orderedNames.join(' ');
+
+                                                const updatedVariants = [...variantForm.initial_variants];
+                                                updatedVariants[vIdx] = {
+                                                  ...vRow,
+                                                  selected_attributes: nextSelected,
+                                                  variant_item_code: codeSuffix ? `${form.item_code || 'ITEM'}-${codeSuffix}`.toUpperCase() : '',
+                                                  variant_item_name: nameSuffix ? `${form.item_name || 'Item'} ${nameSuffix}` : ''
+                                                };
+                                                setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
+                                              }}
+                                            />
+                                          </div>
+                                        );
+                                      })}
+
+                                      {/* Variant Type / Name */}
+                                      <div className="il-form-field">
+                                        <label style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 4 }}>VARIANT NAME / TYPE</label>
                                         <input
                                           type="text"
                                           className="il-input"
-                                          readOnly={Boolean(vRow.is_existing)}
-                                          style={{
-                                            flex: 1,
-                                            minWidth: 200,
-                                            height: 36,
-                                            fontSize: 13,
-                                            fontWeight: 800,
-                                            fontFamily: "'DM Mono', monospace",
-                                            color: '#6d28d9',
-                                            padding: '0 10px',
-                                            border: '1.5px solid #cbd5e1',
-                                            borderRadius: 8,
-                                            background: vRow.is_existing ? '#f1f5f9' : '#fff',
-                                            cursor: vRow.is_existing ? 'not-allowed' : 'text'
-                                          }}
-                                          value={vRow.variant_item_code || ''}
-                                          onChange={e => {
-                                            if (vRow.is_existing) return;
-                                            const updatedVariants = [...variantForm.initial_variants];
-                                            updatedVariants[vIdx] = { ...vRow, variant_item_code: e.target.value };
-                                            setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
-                                          }}
-                                          placeholder="Variant Code *"
-                                          title={vRow.is_existing ? "Existing Variant Code (Locked)" : "Variant Item Code"}
-                                        />
-
-                                        {/* Name Input */}
-                                        <input
-                                          type="text"
-                                          className="il-input"
-                                          style={{
-                                            flex: 1.2,
-                                            minWidth: 220,
-                                            height: 36,
-                                            fontSize: 13,
-                                            fontWeight: 600,
-                                            padding: '0 10px',
-                                            border: '1.5px solid #cbd5e1',
-                                            borderRadius: 8,
-                                            background: '#fff'
-                                          }}
+                                          style={{ height: 38, fontSize: 13, fontWeight: 600, background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: '0 12px' }}
                                           value={vRow.variant_item_name || ''}
                                           onChange={e => {
                                             const updatedVariants = [...variantForm.initial_variants];
                                             updatedVariants[vIdx] = { ...vRow, variant_item_name: e.target.value };
                                             setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
                                           }}
-                                          placeholder="Variant Item Name"
-                                          title="Variant Item Name"
+                                          placeholder="e.g. Ruled (RUL)"
                                         />
                                       </div>
 
-                                      {/* Right: Quick Action Buttons & Details Toggle */}
-                                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                        {/* Toggle Full Specs Drawer */}
-                                        <button
-                                          type="button"
-                                          onClick={() => {
-                                            const updatedVariants = [...variantForm.initial_variants];
-                                            updatedVariants[vIdx] = { ...vRow, _isExpanded: !isExpanded };
-                                            setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
-                                          }}
-                                          style={{
-                                            display: 'inline-flex',
-                                            alignItems: 'center',
-                                            gap: 5,
-                                            padding: '6px 12px',
-                                            borderRadius: 8,
-                                            border: `1.5px solid ${isExpanded ? '#7c3aed' : '#cbd5e1'}`,
-                                            background: isExpanded ? '#7c3aed' : '#fff',
-                                            color: isExpanded ? '#fff' : '#475569',
-                                            fontSize: 12,
-                                            fontWeight: 800,
-                                            cursor: 'pointer',
-                                            height: 34,
-                                            boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
-                                          }}
-                                        >
-                                          <Sparkles size={13} />
-                                          <span>{isExpanded ? 'Hide Specs' : 'Expand Specs'}</span>
-                                          <ChevronDown size={13} style={{ transform: isExpanded ? 'rotate(180deg)' : 'none', transition: '0.2s' }} />
-                                        </button>
-
-                                        {/* Delete Button */}
-                                        {(variantForm.initial_variants || []).length > 1 && !vRow.is_existing && (
-                                          <button
-                                            type="button"
-                                            onClick={() => {
-                                              setVariantForm(vf => ({
-                                                ...vf,
-                                                initial_variants: vf.initial_variants.filter((_, i) => i !== vIdx)
-                                              }));
+                                      {/* Item Code & Expand Toggle */}
+                                      <div className="il-form-field">
+                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                                          <label style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.4px', margin: 0 }}>ITEM CODE</label>
+                                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                            {(variantForm.initial_variants || []).length > 1 && !vRow.is_existing && (
+                                              <button
+                                                type="button"
+                                                onClick={() => {
+                                                  setVariantForm(vf => ({
+                                                    ...vf,
+                                                    initial_variants: vf.initial_variants.filter((_, i) => i !== vIdx)
+                                                  }));
+                                                }}
+                                                style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', padding: 0, display: 'inline-flex', alignItems: 'center', gap: 2, fontSize: 11, fontWeight: 600 }}
+                                                title="Remove variant"
+                                              >
+                                                <Trash2 size={12} /> Remove
+                                              </button>
+                                            )}
+                                            <button
+                                              type="button"
+                                              onClick={() => {
+                                                const updatedVariants = [...variantForm.initial_variants];
+                                                updatedVariants[vIdx] = { ...vRow, _isExpanded: !isExpanded };
+                                                setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
+                                              }}
+                                              style={{
+                                                background: isExpanded ? '#eff6ff' : '#f1f5f9',
+                                                border: `1px solid ${isExpanded ? '#bfdbfe' : '#cbd5e1'}`,
+                                                color: isExpanded ? '#2563eb' : '#475569',
+                                                cursor: 'pointer',
+                                                padding: '2px 8px',
+                                                borderRadius: 6,
+                                                display: 'inline-flex',
+                                                alignItems: 'center',
+                                                gap: 4,
+                                                fontSize: 11,
+                                                fontWeight: 700
+                                              }}
+                                              title={isExpanded ? "Collapse specifications" : "Expand specifications"}
+                                            >
+                                              {isExpanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+                                              {isExpanded ? 'Collapse' : 'Details'}
+                                            </button>
+                                          </div>
+                                        </div>
+                                        <div style={{ position: 'relative' }}>
+                                          <input
+                                            type="text"
+                                            className="il-input"
+                                            readOnly={Boolean(vRow.is_existing)}
+                                            style={{
+                                              height: 38,
+                                              fontSize: 13,
+                                              fontWeight: 700,
+                                              fontFamily: "'DM Mono', monospace",
+                                              color: '#1e293b',
+                                              background: vRow.is_existing ? '#f1f5f9' : '#f8fafc',
+                                              border: '1px solid #e2e8f0',
+                                              borderRadius: 8,
+                                              padding: '0 32px 0 12px'
                                             }}
-                                            style={{ background: '#fef2f2', border: '1px solid #fecaca', color: T.red, borderRadius: 8, cursor: 'pointer', padding: '6px 8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                                            title="Remove variant"
-                                          >
-                                            <Trash2 size={15} />
-                                          </button>
-                                        )}
+                                            value={vRow.variant_item_code || ''}
+                                            onChange={e => {
+                                              if (vRow.is_existing) return;
+                                              const updatedVariants = [...variantForm.initial_variants];
+                                              updatedVariants[vIdx] = { ...vRow, variant_item_code: e.target.value };
+                                              setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
+                                            }}
+                                            placeholder="ITEM-RUL"
+                                          />
+                                          {vRow.variant_item_code && (
+                                            <button
+                                              type="button"
+                                              onClick={() => {
+                                                navigator.clipboard.writeText(vRow.variant_item_code || '');
+                                              }}
+                                              style={{
+                                                position: 'absolute',
+                                                right: 8,
+                                                top: '50%',
+                                                transform: 'translateY(-50%)',
+                                                background: 'none',
+                                                border: 'none',
+                                                cursor: 'pointer',
+                                                color: '#94a3b8',
+                                                padding: 2,
+                                                display: 'flex',
+                                                alignItems: 'center'
+                                              }}
+                                              title="Copy Item Code"
+                                            >
+                                              <Copy size={14} />
+                                            </button>
+                                          )}
+                                        </div>
                                       </div>
                                     </div>
 
-                                    {/* Middle Row: Excel-Inspired Structured Pricing & Barcode Grid (Nos Column vs Box Column) */}
-                                    <div
-                                      style={{
-                                        padding: '14px 18px',
-                                        background: '#fafafa',
-                                        borderBottom: isExpanded ? '1px solid #e2e8f0' : 'none',
-                                        display: 'grid',
-                                        gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-                                        gap: 14
-                                      }}
-                                    >
-                                      {/* Column 1: NOS UNIT SPECS */}
-                                      <div style={{ background: '#fff', border: '1.5px solid #bae6fd', borderRadius: 10, padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 8, boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #e0f2fe', paddingBottom: 6 }}>
-                                          <span style={{ fontSize: 12, fontWeight: 800, color: '#0369a1', display: 'flex', alignItems: 'center', gap: 6 }}>
-                                            <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#0284c7' }} />
-                                            Nos Unit ({vRow.stock_uom || form.default_uom || 'Nos'})
-                                          </span>
-                                          <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 6px', background: '#e0f2fe', color: '#0369a1', borderRadius: 4 }}>Base Unit</span>
+                                    {/* Expanded Details Section */}
+                                    {isExpanded && (
+                                      <>
+                                        {/* Middle Row: Two Clean Cards - Nos Unit (Blue Left Accent) & Box Package (Amber Left Accent) */}
+                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: 14 }}>
+                                      {/* Column 1: Nos Unit */}
+                                      <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderLeft: '3.5px solid #2563eb', borderRadius: 10, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                          <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b' }}>
+                                            Nos Unit <span style={{ fontSize: 11, color: '#64748b', fontWeight: 500 }}>({vRow.stock_uom || form.default_uom || 'Nos'})</span>
+                                          </div>
+                                          <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', background: '#eff6ff', color: '#2563eb', borderRadius: 4, border: '1px solid #bfdbfe' }}>Base Unit</span>
                                         </div>
 
-                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                                          {/* Buying price Nos */}
-                                          <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: '6px 8px' }}>
-                                            <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', marginBottom: 2 }}>Buying price Nos</div>
+                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1.4fr', gap: 8, alignItems: 'flex-end' }}>
+                                          <div>
+                                            <label style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: 4 }}>BUYING PRICE NOS</label>
                                             <input
                                               type="number"
                                               step="any"
                                               min="0"
                                               className="il-input"
-                                              style={{ height: 30, fontSize: 12, fontWeight: 800, color: '#0369a1', background: '#fff', border: '1px solid #cbd5e1' }}
+                                              style={{ height: 34, fontSize: 13, fontWeight: 700, color: '#1e293b', background: '#ffffff', border: '1px solid #cbd5e1', borderRadius: 6 }}
                                               value={vRow.buying_price !== undefined ? vRow.buying_price : (form.buying_price || '')}
                                               onChange={e => {
                                                 const updatedVariants = [...variantForm.initial_variants];
@@ -4756,15 +4784,14 @@ export default function ItemList() {
                                             />
                                           </div>
 
-                                          {/* Selling price Nos */}
-                                          <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: '6px 8px' }}>
-                                            <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', marginBottom: 2 }}>Selling price Nos</div>
+                                          <div>
+                                            <label style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: 4 }}>SELLING PRICE NOS</label>
                                             <input
                                               type="number"
                                               step="any"
                                               min="0"
                                               className="il-input"
-                                              style={{ height: 30, fontSize: 12, fontWeight: 800, color: '#16a34a', background: '#fff', border: '1px solid #cbd5e1' }}
+                                              style={{ height: 34, fontSize: 13, fontWeight: 700, color: '#16a34a', background: '#ffffff', border: '1px solid #cbd5e1', borderRadius: 6 }}
                                               value={vRow.selling_price !== undefined ? vRow.selling_price : (form.selling_price || '')}
                                               onChange={e => {
                                                 const updatedVariants = [...variantForm.initial_variants];
@@ -4774,46 +4801,46 @@ export default function ItemList() {
                                               placeholder="0.00"
                                             />
                                           </div>
-                                        </div>
 
-                                        {/* Barcode Nos */}
-                                        <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: '6px 8px' }}>
-                                          <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', marginBottom: 2 }}>Barcode Nos</div>
-                                          <input
-                                            type="text"
-                                            className="il-input"
-                                            style={{ height: 30, fontSize: 12, fontWeight: 700, fontFamily: "'DM Mono', monospace", background: '#fff' }}
-                                            value={vRow.nos_barcode !== undefined ? vRow.nos_barcode : (vRow.variant_barcode || '')}
-                                            onChange={e => {
-                                              const updatedVariants = [...variantForm.initial_variants];
-                                              updatedVariants[vIdx] = { ...vRow, nos_barcode: e.target.value, variant_barcode: e.target.value };
-                                              setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
-                                            }}
-                                            placeholder="Scan/Type Nos Barcode"
-                                          />
+                                          <div>
+                                            <label style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: 4 }}>BARCODE NOS</label>
+                                            <div style={{ position: 'relative' }}>
+                                              <input
+                                                type="text"
+                                                className="il-input"
+                                                style={{ height: 34, fontSize: 12, fontWeight: 600, fontFamily: "'DM Mono', monospace", background: '#ffffff', border: '1px solid #cbd5e1', borderRadius: 6, paddingRight: 28 }}
+                                                value={vRow.nos_barcode !== undefined ? vRow.nos_barcode : (vRow.variant_barcode || '')}
+                                                onChange={e => {
+                                                  const updatedVariants = [...variantForm.initial_variants];
+                                                  updatedVariants[vIdx] = { ...vRow, nos_barcode: e.target.value, variant_barcode: e.target.value };
+                                                  setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
+                                                }}
+                                                placeholder="Scan / Type Nos Barcode"
+                                              />
+                                              <Scan size={14} style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', pointerEvents: 'none' }} />
+                                            </div>
+                                          </div>
                                         </div>
                                       </div>
 
-                                      {/* Column 2: BOX UNIT SPECS */}
-                                      <div style={{ background: '#fff', border: '1.5px solid #fde68a', borderRadius: 10, padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 8, boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #fef3c7', paddingBottom: 6 }}>
-                                          <span style={{ fontSize: 12, fontWeight: 800, color: '#b45309', display: 'flex', alignItems: 'center', gap: 6 }}>
-                                            <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#d97706' }} />
-                                            Box Package ({pcsBox ? `${pcsBox} ${vRow.stock_uom || form.default_uom || 'Nos'}` : 'Box'})
-                                          </span>
-                                          <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 6px', background: '#fef3c7', color: '#b45309', borderRadius: 4 }}>Box Unit</span>
+                                      {/* Column 2: Box Package */}
+                                      <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderLeft: '3.5px solid #d97706', borderRadius: 10, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                          <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b' }}>
+                                            Box Package <span style={{ fontSize: 11, color: '#64748b', fontWeight: 500 }}>(Box)</span>
+                                          </div>
+                                          <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', background: '#fffbeb', color: '#b45309', borderRadius: 4, border: '1px solid #fde68a' }}>Box Unit</span>
                                         </div>
 
-                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                                          {/* Buying price Box */}
-                                          <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: '6px 8px' }}>
-                                            <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', marginBottom: 2 }}>Buying price Box</div>
+                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1.3fr 0.9fr', gap: 8, alignItems: 'flex-end' }}>
+                                          <div>
+                                            <label style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: 4 }}>BUYING PRICE BOX</label>
                                             <input
                                               type="number"
                                               step="any"
                                               min="0"
                                               className="il-input"
-                                              style={{ height: 30, fontSize: 12, fontWeight: 800, color: '#b45309', background: '#fff', border: '1px solid #cbd5e1' }}
+                                              style={{ height: 34, fontSize: 13, fontWeight: 700, color: '#1e293b', background: '#ffffff', border: '1px solid #cbd5e1', borderRadius: 6 }}
                                               value={vRow.box_buying_price !== undefined ? vRow.box_buying_price : (form.box_buying_price || '')}
                                               onChange={e => {
                                                 const updatedVariants = [...variantForm.initial_variants];
@@ -4824,15 +4851,14 @@ export default function ItemList() {
                                             />
                                           </div>
 
-                                          {/* Selling price Box */}
-                                          <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: '6px 8px' }}>
-                                            <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', marginBottom: 2 }}>Selling price Box</div>
+                                          <div>
+                                            <label style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: 4 }}>SELLING PRICE BOX</label>
                                             <input
                                               type="number"
                                               step="any"
                                               min="0"
                                               className="il-input"
-                                              style={{ height: 30, fontSize: 12, fontWeight: 800, color: '#d97706', background: '#fff', border: '1px solid #cbd5e1' }}
+                                              style={{ height: 34, fontSize: 13, fontWeight: 700, color: '#d97706', background: '#ffffff', border: '1px solid #cbd5e1', borderRadius: 6 }}
                                               value={vRow.box_selling_price !== undefined ? vRow.box_selling_price : (form.box_selling_price || '')}
                                               onChange={e => {
                                                 const updatedVariants = [...variantForm.initial_variants];
@@ -4842,59 +4868,67 @@ export default function ItemList() {
                                               placeholder="0.00"
                                             />
                                           </div>
-                                        </div>
 
-                                        <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: 8 }}>
-                                          {/* Barcode Box */}
-                                          <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: '6px 8px' }}>
-                                            <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', marginBottom: 2 }}>Barcode Box</div>
-                                            <input
-                                              type="text"
-                                              className="il-input"
-                                              style={{ height: 30, fontSize: 12, fontWeight: 700, fontFamily: "'DM Mono', monospace", background: '#fff' }}
-                                              value={vRow.box_barcode || ''}
-                                              onChange={e => {
-                                                const updatedVariants = [...variantForm.initial_variants];
-                                                updatedVariants[vIdx] = { ...vRow, box_barcode: e.target.value };
-                                                setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
-                                              }}
-                                              placeholder="Scan/Type Box Barcode"
-                                            />
+                                          <div>
+                                            <label style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: 4 }}>BARCODE BOX</label>
+                                            <div style={{ position: 'relative' }}>
+                                              <input
+                                                type="text"
+                                                className="il-input"
+                                                style={{ height: 34, fontSize: 12, fontWeight: 600, fontFamily: "'DM Mono', monospace", background: '#ffffff', border: '1px solid #cbd5e1', borderRadius: 6, paddingRight: 28 }}
+                                                value={vRow.box_barcode || ''}
+                                                onChange={e => {
+                                                  const updatedVariants = [...variantForm.initial_variants];
+                                                  updatedVariants[vIdx] = { ...vRow, box_barcode: e.target.value };
+                                                  setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
+                                                }}
+                                                placeholder="Scan / Type Box Barcode"
+                                              />
+                                              <Scan size={14} style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', pointerEvents: 'none' }} />
+                                            </div>
                                           </div>
 
-                                          {/* Nos in box */}
-                                          <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: '6px 8px' }}>
-                                            <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', marginBottom: 2 }}>Nos in box</div>
+                                          <div>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                                              <label style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', margin: 0 }}>NOS IN BOX</label>
+                                              <span style={{ fontSize: 9, color: '#94a3b8', fontWeight: 600 }}>Pcs / Box</span>
+                                            </div>
                                             <input
                                               type="number"
                                               step="1"
                                               min="0"
                                               className="il-input"
-                                              style={{ height: 30, fontSize: 12, fontWeight: 800, color: '#475569', background: '#fff' }}
+                                              style={{ height: 34, fontSize: 13, fontWeight: 700, color: '#1e293b', background: '#ffffff', border: '1px solid #cbd5e1', borderRadius: 6 }}
                                               value={vRow.custom_pieces_per_box !== undefined ? vRow.custom_pieces_per_box : (form.custom_pieces_per_box || '')}
                                               onChange={e => {
                                                 const updatedVariants = [...variantForm.initial_variants];
                                                 updatedVariants[vIdx] = { ...vRow, custom_pieces_per_box: e.target.value };
                                                 setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
                                               }}
-                                              placeholder="Pcs/Box"
+                                              placeholder="e.g. 12"
                                             />
                                           </div>
                                         </div>
                                       </div>
                                     </div>
 
-                                    {/* Expanded Full Specifications & Overrides Drawer */}
-                                    {isExpanded && (
-                                      <div style={{ padding: '16px', background: '#fcfaff', display: 'flex', flexDirection: 'column', gap: 14 }}>
-                                        {/* Classification & Unit Master */}
-                                        <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, padding: 14 }}>
-                                          <div style={{ fontSize: 12, fontWeight: 800, color: '#1e293b', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
-                                            <Box size={14} color="#7c3aed" /> General Item Classification & Units (Inherited from Template)
+                                    {/* Full Specifications Section: Classification, UOM, Toggles & Supplier */}
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 14, paddingTop: 6 }}>
+                                      {/* General Item Classification & Units Header */}
+                                      <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: 10, padding: '16px 18px' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+                                          <div>
+                                            <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b' }}>General Item Classification & Units</div>
+                                            <div style={{ fontSize: 11, color: '#64748b', marginTop: 1 }}>Inherited from template — override as needed</div>
                                           </div>
-                                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10 }}>
-                                            <div>
-                                              <label style={{ fontSize: 11, fontWeight: 700, color: '#475569', display: 'block', marginBottom: 4 }}>Main Category</label>
+                                        </div>
+
+                                        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.4fr) minmax(0, 1fr)', gap: 16, alignItems: 'start' }}>
+                                          {/* Left: 2x2 Grid (Row 1: Main Category, Item Subgroup; Row 2: Base UOM, Units in Box) */}
+                                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                                            {/* Row 1, Col 1: Main Category */}
+                                            <div className="il-form-field">
+                                              <label style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: 4 }}>MAIN CATEGORY</label>
                                               <SearchableSelectInline
                                                 value={vRow.main_group !== undefined ? vRow.main_group : formMainGroup}
                                                 options={groupHierarchy.map(h => ({ label: h.main_group, value: h.main_group }))}
@@ -4907,8 +4941,9 @@ export default function ItemList() {
                                               />
                                             </div>
 
-                                            <div>
-                                              <label style={{ fontSize: 11, fontWeight: 700, color: '#475569', display: 'block', marginBottom: 4 }}>Item Subgroup</label>
+                                            {/* Row 1, Col 2: Item Subgroup */}
+                                            <div className="il-form-field">
+                                              <label style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: 4 }}>ITEM SUBGROUP</label>
                                               <SearchableSelectInline
                                                 value={vRow.item_group !== undefined ? vRow.item_group : form.item_group}
                                                 options={
@@ -4925,8 +4960,9 @@ export default function ItemList() {
                                               />
                                             </div>
 
-                                            <div>
-                                              <label style={{ fontSize: 11, fontWeight: 700, color: '#475569', display: 'block', marginBottom: 4 }}>Base UOM</label>
+                                            {/* Row 2, Col 1: Base UOM */}
+                                            <div className="il-form-field">
+                                              <label style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: 4 }}>BASE UOM</label>
                                               <SearchableSelectInline
                                                 value={vRow.stock_uom !== undefined ? vRow.stock_uom : (form.default_uom || 'Nos')}
                                                 options={baseUomOptions}
@@ -4939,14 +4975,15 @@ export default function ItemList() {
                                               />
                                             </div>
 
-                                            <div>
-                                              <label style={{ fontSize: 11, fontWeight: 700, color: '#475569', display: 'block', marginBottom: 4 }}>No of units in box</label>
+                                            {/* Row 2, Col 2: No of units in box */}
+                                            <div className="il-form-field">
+                                              <label style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: 4 }}>NO OF UNITS IN BOX</label>
                                               <input
                                                 type="number"
                                                 step="1"
                                                 min="0"
                                                 className="il-input"
-                                                style={{ height: 32, fontSize: 12, fontWeight: 700 }}
+                                                style={{ height: 34, fontSize: 13, fontWeight: 600, background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: 6 }}
                                                 value={vRow.custom_pieces_per_box !== undefined ? vRow.custom_pieces_per_box : (form.custom_pieces_per_box || '')}
                                                 onChange={e => {
                                                   const updatedVariants = [...variantForm.initial_variants];
@@ -4957,267 +4994,334 @@ export default function ItemList() {
                                               />
                                             </div>
                                           </div>
-                                        </div>
 
-                                        {/* Cards Grid: Inventory, Loyalty, UOM */}
-                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 12 }}>
-                                          {/* Inventory & Sales */}
-                                          <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, padding: 12 }}>
-                                            <div style={{ fontSize: 12, fontWeight: 800, color: '#1e293b', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
-                                              <BarChart2 size={13} color="#2563eb" /> Inventory & Sales
+                                          {/* Right: UOM Conversions Table Widget */}
+                                          <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: '12px 14px' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                                              <span style={{ fontSize: 11, fontWeight: 800, color: '#334155' }}>UOM Conversions</span>
+                                              <span style={{ fontSize: 10, fontWeight: 700, color: '#2563eb' }}>Auto</span>
                                             </div>
-                                            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                                              {[
-                                                { key: 'is_stock_item', label: 'Track Stock', desc: 'Enables inventory ledger', lockedForExisting: true },
-                                                { key: 'is_sales_item', label: 'Allow Sales', desc: 'Show in POS & Sales Orders' },
-                                                { key: 'is_purchase_item', label: 'Allow Purchase', desc: 'Available for procurement' },
-                                              ].map(f => {
-                                                const checked = vRow[f.key] !== undefined ? vRow[f.key] === 1 : true;
-                                                const isFieldLocked = f.lockedForExisting && Boolean(vRow.is_existing);
-                                                return (
-                                                  <label key={f.key} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', background: isFieldLocked ? '#f1f5f9' : (checked ? '#eff6ff' : '#f8fafc'), borderRadius: 6, cursor: isFieldLocked ? 'not-allowed' : 'pointer', border: `1px solid ${checked ? '#bfdbfe' : '#e2e8f0'}` }}>
-                                                    <input
-                                                      type="checkbox"
-                                                      className="il-check"
-                                                      disabled={isFieldLocked}
-                                                      checked={checked}
-                                                      onChange={e => {
-                                                        if (isFieldLocked) return;
-                                                        const updatedVariants = [...variantForm.initial_variants];
-                                                        updatedVariants[vIdx] = { ...vRow, [f.key]: e.target.checked ? 1 : 0 };
-                                                        setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
-                                                      }}
-                                                    />
-                                                    <div>
-                                                      <div style={{ fontSize: 12, fontWeight: 700, color: '#1e293b' }}>{f.label} {isFieldLocked && <span style={{ fontSize: 10, color: '#64748b', fontWeight: 600 }}>(Locked)</span>}</div>
-                                                      <div style={{ fontSize: 10, color: '#64748b' }}>{f.desc}</div>
-                                                    </div>
-                                                  </label>
-                                                );
-                                              })}
-                                            </div>
-                                          </div>
-
-                                          {/* Loyalty & Status */}
-                                          <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, padding: 12 }}>
-                                            <div style={{ fontSize: 12, fontWeight: 800, color: '#1e293b', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
-                                              <Tag size={13} color="#7c3aed" /> Loyalty & Status
-                                            </div>
-                                            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                                              {[
-                                                { key: 'custom_loyalty_eligible', label: 'Loyalty Points', desc: 'Earn points on purchase' },
-                                                { key: 'custom_allow_discount', label: 'Allow Discount', desc: 'Enable manual overrides' },
-                                                { key: 'disabled', label: 'Disable Item', desc: 'Hide from active registries' },
-                                              ].map(f => {
-                                                const checked = f.key === 'disabled' 
-                                                  ? (vRow.disabled !== undefined ? Boolean(vRow.disabled) : false)
-                                                  : (vRow[f.key] !== undefined ? vRow[f.key] === 1 : true);
-                                                return (
-                                                  <label key={f.key} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', background: checked ? (f.key === 'disabled' ? '#fee2e2' : '#f5f3ff') : '#f8fafc', borderRadius: 6, cursor: 'pointer', border: `1px solid ${checked ? (f.key === 'disabled' ? '#fca5a5' : '#ddd6fe') : '#e2e8f0'}` }}>
-                                                    <input
-                                                      type="checkbox"
-                                                      className="il-check"
-                                                      checked={checked}
-                                                      onChange={e => {
-                                                        const updatedVariants = [...variantForm.initial_variants];
-                                                        if (f.key === 'disabled') {
-                                                          updatedVariants[vIdx] = { ...vRow, disabled: e.target.checked };
-                                                        } else {
-                                                          updatedVariants[vIdx] = { ...vRow, [f.key]: e.target.checked ? 1 : 0 };
-                                                        }
-                                                        setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
-                                                      }}
-                                                    />
-                                                    <div>
-                                                      <div style={{ fontSize: 12, fontWeight: 700, color: f.key === 'disabled' && checked ? '#b91c1c' : '#1e293b' }}>{f.label}</div>
-                                                      <div style={{ fontSize: 10, color: '#64748b' }}>{f.desc}</div>
-                                                    </div>
-                                                  </label>
-                                                );
-                                              })}
-                                            </div>
-                                          </div>
-
-                                          {/* UOM Conversions */}
-                                          <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, padding: 12 }}>
-                                            <div style={{ fontSize: 12, fontWeight: 800, color: '#1e293b', marginBottom: 4, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                                              <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                                <Scale size={13} color="#059669" /> UOM Conversions
-                                              </span>
-                                              <span style={{ fontSize: 9, fontWeight: 800, padding: '1px 6px', background: '#ecfdf5', color: '#059669', borderRadius: 4, border: '1px solid #a7f3d0' }}>Auto</span>
-                                            </div>
-                                            <div style={{ fontSize: 10, color: '#64748b', fontStyle: 'italic', marginBottom: 6 }}>
-                                              Base: {vRow.stock_uom || form.default_uom || 'Nos'} | Box Factor: {pcsBox}
+                                            <div style={{ fontSize: 10, color: '#64748b', marginBottom: 8 }}>
+                                              Base: {vRow.stock_uom || form.default_uom || 'Nos'} | Box Factor: {pcsBox || 0}
                                             </div>
                                             <table style={{ width: '100%', fontSize: 11, borderCollapse: 'collapse' }}>
                                               <thead>
-                                                <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', color: '#64748b', textAlign: 'left' }}>
-                                                  <th style={{ padding: '4px 6px' }}>UOM</th>
-                                                  <th style={{ padding: '4px 6px', textAlign: 'right' }}>Factor</th>
-                                                  <th style={{ padding: '4px 6px', textAlign: 'center' }}>Type</th>
+                                                <tr style={{ color: '#64748b', textAlign: 'left', borderBottom: '1px solid #e2e8f0' }}>
+                                                  <th style={{ padding: '4px 6px', fontWeight: 600 }}>UOM</th>
+                                                  <th style={{ padding: '4px 6px', fontWeight: 600 }}>FACTOR</th>
+                                                  <th style={{ padding: '4px 6px', textAlign: 'right', fontWeight: 600 }}>TYPE</th>
                                                 </tr>
                                               </thead>
                                               <tbody>
-                                                <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
-                                                  <td style={{ padding: '4px 6px', fontWeight: 700, color: '#2563eb' }}>{vRow.stock_uom || form.default_uom || 'Nos'}</td>
-                                                  <td style={{ padding: '4px 6px', textAlign: 'right', fontWeight: 700 }}>1 {vRow.stock_uom || form.default_uom || 'Nos'}</td>
-                                                  <td style={{ padding: '4px 6px', textAlign: 'center' }}><span style={{ fontSize: 9, fontWeight: 700, padding: '1px 5px', background: '#eff6ff', color: '#2563eb', borderRadius: 3 }}>Base</span></td>
+                                                <tr>
+                                                  <td style={{ padding: '5px 6px', fontWeight: 700, color: '#1e293b' }}>{vRow.stock_uom || form.default_uom || 'Nos'}</td>
+                                                  <td style={{ padding: '5px 6px', color: '#475569' }}>1 {vRow.stock_uom || form.default_uom || 'Nos'}</td>
+                                                  <td style={{ padding: '5px 6px', textAlign: 'right' }}>
+                                                    <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 6px', background: '#eff6ff', color: '#2563eb', borderRadius: 3 }}>Base</span>
+                                                  </td>
                                                 </tr>
                                                 {pcsBox > 0 && (
                                                   <tr>
-                                                    <td style={{ padding: '4px 6px', fontWeight: 700, color: '#16a34a' }}>Box</td>
-                                                    <td style={{ padding: '4px 6px', textAlign: 'right', fontWeight: 700 }}>{pcsBox} {vRow.stock_uom || form.default_uom || 'Nos'}</td>
-                                                    <td style={{ padding: '4px 6px', textAlign: 'center' }}><span style={{ fontSize: 9, fontWeight: 700, padding: '1px 5px', background: '#f0fdf4', color: '#16a34a', borderRadius: 3 }}>Box</span></td>
+                                                    <td style={{ padding: '5px 6px', fontWeight: 700, color: '#1e293b' }}>Box</td>
+                                                    <td style={{ padding: '5px 6px', color: '#475569' }}>{pcsBox} {vRow.stock_uom || form.default_uom || 'Nos'}</td>
+                                                    <td style={{ padding: '5px 6px', textAlign: 'right' }}>
+                                                      <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 6px', background: '#fef3c7', color: '#b45309', borderRadius: 3 }}>Box</span>
+                                                    </td>
                                                   </tr>
                                                 )}
                                               </tbody>
                                             </table>
                                           </div>
                                         </div>
+                                      </div>
 
-                                        {/* Branch Visibility & Supplier Mapping (Only show Branch Visibility if not cashier) */}
-                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 12 }}>
-                                          {/* Branch Visibility */}
-                                          {!((user_roles || []).includes("Cashier") && !isAdmin) && (
-                                            <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, padding: 12 }}>
-                                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                                                <span style={{ fontSize: 12, fontWeight: 800, color: '#1e293b', display: 'flex', alignItems: 'center', gap: 6 }}>
-                                                  <MapPin size={13} color="#ea580c" /> Branch Visibility
-                                                </span>
-                                                <button
-                                                  type="button"
-                                                  onClick={() => {
-                                                    const updatedVariants = [...variantForm.initial_variants];
-                                                    const currBranches = updatedVariants[vIdx].branch_availability || [...(form.branch_availability || [])];
-                                                    updatedVariants[vIdx] = {
-                                                      ...vRow,
-                                                      branch_availability: [...currBranches, { warehouse: '' }]
-                                                    };
-                                                    setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
-                                                  }}
-                                                  style={{ background: '#fff7ed', border: '1px solid #fed7aa', color: '#ea580c', fontSize: 10, fontWeight: 800, padding: '2px 6px', borderRadius: 4, cursor: 'pointer' }}
-                                                >
-                                                  + Add Branch
-                                                </button>
-                                              </div>
-                                              {((vRow.branch_availability !== undefined ? vRow.branch_availability : form.branch_availability) || []).length > 0 ? (
-                                                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                                                  {((vRow.branch_availability !== undefined ? vRow.branch_availability : form.branch_availability) || []).map((b, bIdx) => (
-                                                    <div key={bIdx} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                                      <div style={{ flex: 1 }}>
-                                                        <SearchableSelectInline
-                                                          value={b.warehouse}
-                                                          options={warehouses.length > 0 ? warehouses : (priceData.warehouse_breakdown?.map(w => ({ label: w.warehouse, value: w.warehouse })) || [])}
-                                                          placeholder="Select Target Warehouse"
-                                                          onChange={val => {
-                                                            const updatedVariants = [...variantForm.initial_variants];
-                                                            const currBranches = [...((vRow.branch_availability !== undefined ? vRow.branch_availability : form.branch_availability) || [])];
-                                                            currBranches[bIdx] = { ...currBranches[bIdx], warehouse: val };
-                                                            updatedVariants[vIdx] = { ...vRow, branch_availability: currBranches };
-                                                            setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
-                                                          }}
-                                                        />
-                                                      </div>
-                                                      <button
-                                                        type="button"
-                                                        onClick={() => {
-                                                          const updatedVariants = [...variantForm.initial_variants];
-                                                          const currBranches = ((vRow.branch_availability !== undefined ? vRow.branch_availability : form.branch_availability) || []).filter((_, i) => i !== bIdx);
-                                                          updatedVariants[vIdx] = { ...vRow, branch_availability: currBranches };
-                                                          setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
-                                                        }}
-                                                        style={{ background: 'none', border: 'none', color: T.red, cursor: 'pointer', padding: 2 }}
-                                                      >
-                                                        <Trash2 size={12} />
-                                                      </button>
-                                                    </div>
-                                                  ))}
+                                      {/* Bottom 3-Card Row: Inventory & Sales, Loyalty & Status, Supplier Mapping */}
+                                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 14 }}>
+                                        {/* 1. Inventory & Sales Switches */}
+                                        <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: 10, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                                          <div style={{ fontSize: 11, fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 2 }}>
+                                            INVENTORY & SALES
+                                          </div>
+                                          {[
+                                            { key: 'is_stock_item', label: 'Track Stock', desc: 'Enables inventory ledger', lockedForExisting: true },
+                                            { key: 'is_sales_item', label: 'Allow Sales', desc: 'Show in POS & Sales Orders' },
+                                            { key: 'is_purchase_item', label: 'Allow Purchase', desc: 'Available for procurement' },
+                                          ].map(f => {
+                                            const checked = vRow[f.key] !== undefined ? vRow[f.key] === 1 : true;
+                                            const isFieldLocked = f.lockedForExisting && Boolean(vRow.is_existing);
+                                            return (
+                                              <div key={f.key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 0' }}>
+                                                <div>
+                                                  <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b' }}>
+                                                    {f.label} {isFieldLocked && <span style={{ fontSize: 10, color: '#64748b' }}>(Locked)</span>}
+                                                  </div>
+                                                  <div style={{ fontSize: 11, color: '#94a3b8' }}>{f.desc}</div>
                                                 </div>
-                                              ) : (
-                                                <div style={{ fontSize: 11, color: '#94a3b8', fontStyle: 'italic', textAlign: 'center', padding: 8 }}>Global / Inherit from Template</div>
-                                              )}
-                                            </div>
-                                          )}
+                                                <label className="il-switch">
+                                                  <input
+                                                    type="checkbox"
+                                                    disabled={isFieldLocked}
+                                                    checked={checked}
+                                                    onChange={e => {
+                                                      if (isFieldLocked) return;
+                                                      const updatedVariants = [...variantForm.initial_variants];
+                                                      updatedVariants[vIdx] = { ...vRow, [f.key]: e.target.checked ? 1 : 0 };
+                                                      setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
+                                                    }}
+                                                  />
+                                                  <span className="il-switch-track">
+                                                    <span className="il-switch-thumb" />
+                                                  </span>
+                                                </label>
+                                              </div>
+                                            );
+                                          })}
+                                        </div>
 
-                                          {/* Supplier Mapping */}
-                                          <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, padding: 12 }}>
-                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                                              <span style={{ fontSize: 12, fontWeight: 800, color: '#1e293b', display: 'flex', alignItems: 'center', gap: 6 }}>
-                                                <Users size={13} color="#0284c7" /> Supplier Mapping
-                                              </span>
-                                              <button
-                                                type="button"
-                                                onClick={() => {
-                                                  const updatedVariants = [...variantForm.initial_variants];
-                                                  const currSups = updatedVariants[vIdx].supplier_items || [...(form.supplier_items || [])];
-                                                  updatedVariants[vIdx] = {
-                                                    ...vRow,
-                                                    supplier_items: [...currSups, { supplier: '', supplier_part_no: '' }]
-                                                  };
-                                                  setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
-                                                }}
-                                                style={{ background: '#f0f9ff', border: '1px solid #bae6fd', color: '#0284c7', fontSize: 10, fontWeight: 800, padding: '2px 6px', borderRadius: 4, cursor: 'pointer' }}
-                                              >
-                                                + Add Supplier
-                                              </button>
-                                            </div>
-                                            {((vRow.supplier_items !== undefined ? vRow.supplier_items : form.supplier_items) || []).length > 0 ? (
-                                              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                                                {((vRow.supplier_items !== undefined ? vRow.supplier_items : form.supplier_items) || []).map((s, sIdx) => (
-                                                  <div key={sIdx} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                                    <div style={{ flex: 1 }}>
-                                                      <SearchableSelectInline
-                                                        value={s.supplier}
-                                                        options={suppliers.map(sup => ({ label: sup.supplier_name, value: sup.name }))}
-                                                        placeholder="Select Supplier"
-                                                        onChange={val => {
-                                                          const updatedVariants = [...variantForm.initial_variants];
-                                                          const currSups = [...((vRow.supplier_items !== undefined ? vRow.supplier_items : form.supplier_items) || [])];
-                                                          currSups[sIdx] = { ...currSups[sIdx], supplier: val };
-                                                          updatedVariants[vIdx] = { ...vRow, supplier_items: currSups };
-                                                          setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
-                                                        }}
-                                                      />
-                                                    </div>
-                                                    <input
-                                                      type="text"
-                                                      className="il-input"
-                                                      style={{ flex: 1, height: 30, fontSize: 11 }}
-                                                      placeholder="Supplier SKU / Part No"
-                                                      value={s.supplier_part_no || ''}
-                                                      onChange={e => {
+                                        {/* 2. Loyalty & Status Switches */}
+                                        <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: 10, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                                          <div style={{ fontSize: 11, fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 2 }}>
+                                            LOYALTY & STATUS
+                                          </div>
+                                          {[
+                                            { key: 'custom_loyalty_eligible', label: 'Loyalty Points', desc: 'Earn points on purchase' },
+                                            { key: 'custom_allow_discount', label: 'Allow Discount', desc: 'Enable manual overrides' },
+                                            { key: 'disabled', label: 'Disable Item', desc: 'Hide from active registries' },
+                                          ].map(f => {
+                                            const checked = f.key === 'disabled' 
+                                              ? (vRow.disabled !== undefined ? Boolean(vRow.disabled) : false)
+                                              : (vRow[f.key] !== undefined ? vRow[f.key] === 1 : true);
+                                            return (
+                                              <div key={f.key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 0' }}>
+                                                <div>
+                                                  <div style={{ fontSize: 13, fontWeight: 700, color: f.key === 'disabled' && checked ? '#b91c1c' : '#1e293b' }}>{f.label}</div>
+                                                  <div style={{ fontSize: 11, color: '#94a3b8' }}>{f.desc}</div>
+                                                </div>
+                                                <label className="il-switch">
+                                                  <input
+                                                    type="checkbox"
+                                                    checked={checked}
+                                                    onChange={e => {
+                                                      const updatedVariants = [...variantForm.initial_variants];
+                                                      if (f.key === 'disabled') {
+                                                        updatedVariants[vIdx] = { ...vRow, disabled: e.target.checked };
+                                                      } else {
+                                                        updatedVariants[vIdx] = { ...vRow, [f.key]: e.target.checked ? 1 : 0 };
+                                                      }
+                                                      setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
+                                                    }}
+                                                  />
+                                                  <span className="il-switch-track" style={{ backgroundColor: checked && f.key === 'disabled' ? '#ef4444' : undefined }}>
+                                                    <span className="il-switch-thumb" />
+                                                  </span>
+                                                </label>
+                                              </div>
+                                            );
+                                          })}
+                                        </div>
+
+                                        {/* 3. Supplier Mapping Card */}
+                                        <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: 10, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                            <span style={{ fontSize: 11, fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.4px' }}>
+                                              SUPPLIER MAPPING
+                                            </span>
+                                            <button
+                                              type="button"
+                                              onClick={() => {
+                                                const updatedVariants = [...variantForm.initial_variants];
+                                                const currSups = updatedVariants[vIdx].supplier_items || [...(form.supplier_items || [])];
+                                                updatedVariants[vIdx] = {
+                                                  ...vRow,
+                                                  supplier_items: [...currSups, { supplier: '', supplier_part_no: '' }]
+                                                };
+                                                setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
+                                              }}
+                                              style={{ background: '#2563eb', border: 'none', color: '#fff', fontSize: 11, fontWeight: 700, padding: '4px 10px', borderRadius: 6, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                                            >
+                                              <Plus size={12} /> Add Supplier
+                                            </button>
+                                          </div>
+                                          {((vRow.supplier_items !== undefined ? vRow.supplier_items : form.supplier_items) || []).length > 0 ? (
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                              {((vRow.supplier_items !== undefined ? vRow.supplier_items : form.supplier_items) || []).map((s, sIdx) => (
+                                                <div key={sIdx} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                                  <div style={{ flex: 1.2 }}>
+                                                    <SearchableSelectInline
+                                                      value={s.supplier}
+                                                      options={suppliers.map(sup => ({ label: sup.supplier_name, value: sup.name }))}
+                                                      placeholder="Select Supplier"
+                                                      onChange={val => {
                                                         const updatedVariants = [...variantForm.initial_variants];
                                                         const currSups = [...((vRow.supplier_items !== undefined ? vRow.supplier_items : form.supplier_items) || [])];
-                                                        currSups[sIdx] = { ...currSups[sIdx], supplier_part_no: e.target.value };
+                                                        currSups[sIdx] = { ...currSups[sIdx], supplier: val };
                                                         updatedVariants[vIdx] = { ...vRow, supplier_items: currSups };
                                                         setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
                                                       }}
                                                     />
+                                                  </div>
+                                                  <input
+                                                    type="text"
+                                                    className="il-input"
+                                                    style={{ flex: 1, height: 32, fontSize: 12, background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: 6 }}
+                                                    placeholder="Supplier SKU / Part No"
+                                                    value={s.supplier_part_no || ''}
+                                                    onChange={e => {
+                                                      const updatedVariants = [...variantForm.initial_variants];
+                                                      const currSups = [...((vRow.supplier_items !== undefined ? vRow.supplier_items : form.supplier_items) || [])];
+                                                      currSups[sIdx] = { ...currSups[sIdx], supplier_part_no: e.target.value };
+                                                      updatedVariants[vIdx] = { ...vRow, supplier_items: currSups };
+                                                      setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
+                                                    }}
+                                                  />
+                                                  <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                      const updatedVariants = [...variantForm.initial_variants];
+                                                      const currSups = [...((vRow.supplier_items !== undefined ? vRow.supplier_items : form.supplier_items) || [])];
+                                                      updatedVariants[vIdx] = { ...vRow, supplier_items: currSups.filter((_, i) => i !== sIdx) };
+                                                      setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
+                                                    }}
+                                                    style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', padding: 2 }}
+                                                  >
+                                                    <Trash2 size={13} />
+                                                  </button>
+                                                </div>
+                                              ))}
+                                            </div>
+                                          ) : (
+                                            <div style={{ textAlign: 'center', padding: '16px 8px', color: '#94a3b8', fontSize: 11 }}>
+                                              <Users size={20} style={{ margin: '0 auto 4px', opacity: 0.4, display: 'block' }} />
+                                              <span style={{ fontWeight: 600 }}>No suppliers linked</span>
+                                              <div style={{ fontSize: 10, marginTop: 2 }}>Add a supplier to map this variant.</div>
+                                            </div>
+                                          )}
+                                        </div>
+                                      </div>
+
+                                      {/* Branch Visibility (Only show Branch Visibility if not cashier) */}
+                                      {!((user_roles || []).includes("Cashier") && !isAdmin) && (
+                                        <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: 10, padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                            <MapPin size={14} color="#ea580c" />
+                                            <span style={{ fontSize: 12, fontWeight: 700, color: '#334155' }}>Branch Visibility:</span>
+                                            {((vRow.branch_availability !== undefined ? vRow.branch_availability : form.branch_availability) || []).length > 0 ? (
+                                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                                                {((vRow.branch_availability !== undefined ? vRow.branch_availability : form.branch_availability) || []).map((b, bIdx) => (
+                                                  <span key={bIdx} style={{ fontSize: 11, fontWeight: 700, background: '#fff7ed', border: '1px solid #fed7aa', color: '#ea580c', padding: '2px 8px', borderRadius: 6, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                                                    {b.warehouse}
                                                     <button
                                                       type="button"
                                                       onClick={() => {
                                                         const updatedVariants = [...variantForm.initial_variants];
-                                                        const currSups = ((vRow.supplier_items !== undefined ? vRow.supplier_items : form.supplier_items) || []).filter((_, i) => i !== sIdx);
-                                                        updatedVariants[vIdx] = { ...vRow, supplier_items: currSups };
+                                                        const currBranches = ((vRow.branch_availability !== undefined ? vRow.branch_availability : form.branch_availability) || []).filter((_, i) => i !== bIdx);
+                                                        updatedVariants[vIdx] = { ...vRow, branch_availability: currBranches };
                                                         setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
                                                       }}
-                                                      style={{ background: 'none', border: 'none', color: T.red, cursor: 'pointer', padding: 2 }}
+                                                      style={{ background: 'none', border: 'none', color: '#ea580c', cursor: 'pointer', padding: 0 }}
                                                     >
-                                                      <Trash2 size={12} />
+                                                      ×
                                                     </button>
-                                                  </div>
+                                                  </span>
                                                 ))}
                                               </div>
                                             ) : (
-                                              <div style={{ fontSize: 11, color: '#94a3b8', fontStyle: 'italic', textAlign: 'center', padding: 8 }}>No suppliers linked</div>
+                                              <span style={{ fontSize: 11, color: '#64748b', fontStyle: 'italic' }}>Global / Inherit from Template</span>
                                             )}
                                           </div>
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              const updatedVariants = [...variantForm.initial_variants];
+                                              const currBranches = updatedVariants[vIdx].branch_availability || [...(form.branch_availability || [])];
+                                              updatedVariants[vIdx] = {
+                                                ...vRow,
+                                                branch_availability: [...currBranches, { warehouse: '' }]
+                                              };
+                                              setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
+                                            }}
+                                            style={{ background: '#fff7ed', border: '1px solid #fed7aa', color: '#ea580c', fontSize: 11, fontWeight: 700, padding: '3px 8px', borderRadius: 6, cursor: 'pointer' }}
+                                          >
+                                            + Add Branch
+                                          </button>
                                         </div>
-                                      </div>
-                                    )}
-                                  </div>
-                                );
-                              })}
+                                      )}
+                                    </div>
+                                  </>
+                                )}
+                              </div>
+                            );
+                          })}
+
+                              {/* Bottom Add Variant Action Row */}
+                              <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 6 }}>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const newId = `var-${(variantForm.initial_variants || []).length + 1}-${Date.now()}`;
+                                    const initialAttrs = {};
+                                    const orderedCodes = [];
+                                    const orderedNames = [];
+
+                                    (form.attributes || []).forEach(a => {
+                                      const attrName = typeof a === 'object' && a !== null ? a.attribute : a;
+                                      const possibleVals = attributeValuesMap[attrName] || [];
+                                      if (possibleVals.length > 0) {
+                                        const firstVal = possibleVals[0].attribute_value;
+                                        initialAttrs[attrName] = firstVal;
+                                        orderedCodes.push((possibleVals[0].abbr || firstVal).toUpperCase());
+                                        orderedNames.push(firstVal);
+                                      }
+                                    });
+
+                                    const codeSuffix = orderedCodes.join('-');
+                                    const nameSuffix = orderedNames.join(' ');
+
+                                    setVariantForm(vf => ({
+                                      ...vf,
+                                      create_first_variant: true,
+                                      initial_variants: [
+                                        ...(vf.initial_variants || []),
+                                        {
+                                          id: newId,
+                                          is_existing: false,
+                                          selected_attributes: initialAttrs,
+                                          variant_item_code: codeSuffix ? `${form.item_code || 'ITEM'}-${codeSuffix}`.toUpperCase() : '',
+                                          variant_item_name: nameSuffix ? `${form.item_name || 'Item'} ${nameSuffix}` : '',
+                                          variant_barcode: '',
+                                          nos_barcode: '',
+                                          box_barcode: '',
+                                          image: '',
+                                          imagePreview: '',
+                                          use_custom_code: true,
+                                          is_stock_item: 1,
+                                          is_sales_item: 1,
+                                          is_purchase_item: 1
+                                        }
+                                      ]
+                                    }));
+                                  }}
+                                  style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: 8,
+                                    padding: '10px 24px',
+                                    background: '#f8fafc',
+                                    border: '1.5px dashed #2563eb',
+                                    color: '#2563eb',
+                                    borderRadius: 10,
+                                    fontSize: 13,
+                                    fontWeight: 700,
+                                    cursor: 'pointer',
+                                    width: '100%',
+                                    justifyContent: 'center',
+                                    transition: 'all 0.15s'
+                                  }}
+                                >
+                                  <Plus size={16} />
+                                  <span>+ Add Another Variant</span>
+                                </button>
+                              </div>
                             </div>
                           )}
                         </div>
@@ -5226,197 +5330,201 @@ export default function ItemList() {
                   </CardSection>
                 )}
 
-                {/* Controls row: Inventory & Sales + Loyalty & Status */}
-                <div className="il-form-grid-2">
-                  {/* Inventory & Sales */}
-                  <CardSection title="Inventory & Sales" icon={<BarChart2 size={14} />}>
-                    <div style={{ padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-                      {[
-                        { key: 'is_stock_item', label: 'Track Stock', desc: 'Enables inventory ledger' },
-                        { key: 'is_sales_item', label: 'Allow Sales', desc: 'Show in POS & Sales Orders' },
-                        { key: 'is_purchase_item', label: 'Allow Purchase', desc: 'Available for procurement' },
-                      ].map(f => (
-                        <label
-                          key={f.key}
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 10,
-                            padding: '10px 12px',
-                            background: form[f.key] === 1 ? T.blueLight : T.bg,
-                            borderRadius: 9,
-                            cursor: 'pointer',
-                            border: `1.5px solid ${form[f.key] === 1 ? T.blueMid : T.border}`,
-                            transition: 'all 0.15s'
-                          }}
-                        >
-                          <input
-                            type="checkbox"
-                            className="il-check"
-                            checked={form[f.key] === 1}
-                            onChange={e => setForm({ ...form, [f.key]: e.target.checked ? 1 : 0 })}
-                          />
-                          <div>
-                            <div style={{ fontSize: 13, fontWeight: 700, color: T.text }}>{f.label}</div>
-                            <div style={{ fontSize: 11, color: T.textMuted }}>{f.desc}</div>
-                          </div>
-                        </label>
-                      ))}
-                    </div>
-                  </CardSection>
-
-                  {/* Loyalty & Status */}
-                  <CardSection title="Loyalty & Status" icon={<Tag size={14} />}>
-                    <div style={{ padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-                      {[
-                        { key: 'custom_loyalty_eligible', label: 'Loyalty Points', desc: 'Earn points on purchase' },
-                        { key: 'custom_allow_discount', label: 'Allow Discount', desc: 'Enable manual overrides' },
-                        { key: 'disabled', label: 'Disable Item', desc: 'Hide from active registries' }
-                      ].map(f => {
-                        const isChecked = f.key === 'disabled' ? Boolean(form.disabled) : form[f.key] === 1;
-                        return (
-                          <label
-                            key={f.key}
-                            style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: 10,
-                              padding: '10px 12px',
-                              background: isChecked ? (f.key === 'disabled' ? '#fee2e2' : T.blueLight) : T.bg,
-                              borderRadius: 9,
-                              cursor: 'pointer',
-                              border: `1.5px solid ${isChecked ? (f.key === 'disabled' ? '#fca5a5' : T.blueMid) : T.border}`,
-                              transition: 'all 0.15s'
-                            }}
-                          >
-                            <input
-                              type="checkbox"
-                              className="il-check"
-                              checked={isChecked}
-                              onChange={e => {
-                                if (f.key === 'disabled') {
-                                  setForm({ ...form, disabled: e.target.checked });
-                                } else {
-                                  setForm({ ...form, [f.key]: e.target.checked ? 1 : 0 });
-                                }
+                {/* Controls row: Inventory & Sales + Loyalty & Status (Hidden when Has Variants is checked because each variant configures its own) */}
+                {!Boolean(form.has_variants) && (
+                  <>
+                    <div className="il-form-grid-2">
+                      {/* Inventory & Sales */}
+                      <CardSection title="Inventory & Sales" icon={<BarChart2 size={14} />}>
+                        <div style={{ padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                          {[
+                            { key: 'is_stock_item', label: 'Track Stock', desc: 'Enables inventory ledger' },
+                            { key: 'is_sales_item', label: 'Allow Sales', desc: 'Show in POS & Sales Orders' },
+                            { key: 'is_purchase_item', label: 'Allow Purchase', desc: 'Available for procurement' },
+                          ].map(f => (
+                            <label
+                              key={f.key}
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 10,
+                                padding: '10px 12px',
+                                background: form[f.key] === 1 ? T.blueLight : T.bg,
+                                borderRadius: 9,
+                                cursor: 'pointer',
+                                border: `1.5px solid ${form[f.key] === 1 ? T.blueMid : T.border}`,
+                                transition: 'all 0.15s'
                               }}
-                            />
-                            <div>
-                              <div style={{ fontSize: 13, fontWeight: 700, color: f.key === 'disabled' && isChecked ? '#b91c1c' : T.text }}>
-                                {f.label}
+                            >
+                              <input
+                                type="checkbox"
+                                className="il-check"
+                                checked={form[f.key] === 1}
+                                onChange={e => setForm({ ...form, [f.key]: e.target.checked ? 1 : 0 })}
+                              />
+                              <div>
+                                <div style={{ fontSize: 13, fontWeight: 700, color: T.text }}>{f.label}</div>
+                                <div style={{ fontSize: 11, color: T.textMuted }}>{f.desc}</div>
                               </div>
-                              <div style={{ fontSize: 11, color: T.textMuted }}>{f.desc}</div>
-                            </div>
-                          </label>
-                        );
-                      })}
-                    </div>
-                  </CardSection>
-                </div>
-
-                {/* UOM + Suppliers */}
-                <div className="il-form-grid-2">
-                  <CardSection 
-                    title="UOM Conversions (Auto-Calculated)" 
-                    icon={<Scale size={14} />}
-                    badge={<span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', background: '#ecfdf5', color: '#059669', borderRadius: 6, border: '1px solid #a7f3d0' }}>Auto Synced</span>}
-                  >
-                    {form.uoms.length > 0 ? (
-                      <div style={{ padding: '6px 12px' }}>
-                        <div style={{ fontSize: 11, color: T.textMuted, marginBottom: 8, fontStyle: 'italic' }}>
-                          * Generated automatically from <b>Base UOM ({form.default_uom || 'Nos'})</b> and <b>Pieces Per Box ({form.custom_pieces_per_box || 0})</b>.
-                        </div>
-                        <table className="il-table" style={{ width: '100%' }}>
-                          <thead>
-                            <tr style={{ background: T.bg }}>
-                              <th style={{ padding: '8px 10px', fontSize: 11, fontWeight: 700, color: T.textMuted }}>UOM UNIT</th>
-                              <th style={{ padding: '8px 10px', textAlign: 'right', fontSize: 11, fontWeight: 700, color: T.textMuted }}>CONVERSION FACTOR</th>
-                              <th style={{ padding: '8px 10px', textAlign: 'center', fontSize: 11, fontWeight: 700, color: T.textMuted }}>TYPE</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {form.uoms.map((u, i) => (
-                              <tr key={i} style={{ borderBottom: `1px solid ${T.borderLight}` }}>
-                                <td style={{ padding: '8px 10px', fontWeight: 700, color: u.uom === (form.default_uom || 'Nos') ? T.blue : '#059669' }}>
-                                  {u.uom}
-                                </td>
-                                <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 800, fontFamily: "'DM Mono', monospace", color: T.text }}>
-                                  {u.conversion_factor} {form.default_uom || 'Nos'}
-                                </td>
-                                <td style={{ padding: '8px 10px', textAlign: 'center' }}>
-                                  <span style={{
-                                    fontSize: 10,
-                                    fontWeight: 700,
-                                    padding: '2px 8px',
-                                    borderRadius: 4,
-                                    background: u.uom === (form.default_uom || 'Nos') ? '#eff6ff' : '#f0fdf4',
-                                    color: u.uom === (form.default_uom || 'Nos') ? '#2563eb' : '#16a34a',
-                                    border: `1px solid ${u.uom === (form.default_uom || 'Nos') ? '#bfdbfe' : '#bbf7d0'}`
-                                  }}>
-                                    {u.uom === (form.default_uom || 'Nos') ? 'Base Unit' : 'Box Package'}
-                                  </span>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    ) : <div style={{ padding: '18px', textAlign: 'center', color: T.textMuted, fontSize: 13 }}>No UOM Conversions</div>}
-                  </CardSection>
-
-                  {!((user_roles || []).includes("Cashier") && !isAdmin) && (
-                    <CardSection title="Branch Visibility" icon={<MapPin size={14} />}
-                      action={<button className="il-btn il-btn-ghost" style={{ padding: '4px 9px', fontSize: 12 }} onClick={addBranchRow}><Plus size={12} />Add Branch</button>}
-                    >
-                      {form.branch_availability.length > 0 ? (
-                        <table className="il-table">
-                          <thead><tr><th>Target Warehouse</th><th style={{ width: 40 }}></th></tr></thead>
-                          <tbody>
-                            {form.branch_availability.map((b, i) => (
-                              <tr key={i}>
-                                <td style={{ paddingTop: 8, paddingBottom: 8 }}>
-                                  <SearchableSelectInline
-                                    value={b.warehouse}
-                                    options={warehouses.length > 0 ? warehouses : (priceData.warehouse_breakdown?.map(w => ({ label: w.warehouse, value: w.warehouse })) || [])}
-                                    placeholder="Select Branch"
-                                    onChange={val => updateBranchRow(i, val)}
-                                  />
-                                </td>
-                                <td><button onClick={() => removeBranchRow(i)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.red, display: 'flex' }}><Trash2 size={13} /></button></td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      ) : <div style={{ padding: '18px', textAlign: 'center', background: T.bg, borderRadius: 12, margin: 10 }}><p style={{ fontSize: 11, fontWeight: 700, color: T.textMuted }}>GLOBAL ALLOCATION</p></div>}
-                    </CardSection>
-                  )}
-
-                  <CardSection title="Supplier Mapping" icon={<Users size={14} />}
-                    action={<button className="il-btn il-btn-ghost" style={{ padding: '4px 9px', fontSize: 12 }} onClick={addSupplierRow}><Plus size={12} />Add</button>}
-                  >
-                    {form.supplier_items.length > 0 ? (
-                      <table className="il-table">
-                        <thead><tr><th>Supplier</th><th>Part No</th><th style={{ width: 40 }}></th></tr></thead>
-                        <tbody>
-                          {form.supplier_items.map((s, i) => (
-                            <tr key={i}>
-                              <td style={{ paddingTop: 8, paddingBottom: 8 }}>
-                                <SearchableSelectInline
-                                  value={s.supplier}
-                                  options={suppliers.map(sup => ({ label: sup.supplier_name, value: sup.name }))}
-                                  placeholder="Select"
-                                  onChange={val => updateSupplierRow(i, 'supplier', val)}
-                                />
-                              </td>
-                              <td style={{ paddingTop: 8, paddingBottom: 8 }}><input style={{ border: 'none', background: 'transparent', fontWeight: 600, width: '100%', outline: 'none', fontFamily: 'DM Sans, sans-serif', fontSize: 13 }} value={s.supplier_part_no} onChange={e => updateSupplierRow(i, 'supplier_part_no', e.target.value)} placeholder="SKU / Part no" /></td>
-                              <td><button onClick={() => removeSupplierRow(i)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.red, display: 'flex' }}><Trash2 size={13} /></button></td>
-                            </tr>
+                            </label>
                           ))}
-                        </tbody>
-                      </table>
-                    ) : <div style={{ padding: '18px', textAlign: 'center', color: T.textMuted, fontSize: 13 }}>No suppliers linked</div>}
-                  </CardSection>
-                </div>
+                        </div>
+                      </CardSection>
+
+                      {/* Loyalty & Status */}
+                      <CardSection title="Loyalty & Status" icon={<Tag size={14} />}>
+                        <div style={{ padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                          {[
+                            { key: 'custom_loyalty_eligible', label: 'Loyalty Points', desc: 'Earn points on purchase' },
+                            { key: 'custom_allow_discount', label: 'Allow Discount', desc: 'Enable manual overrides' },
+                            { key: 'disabled', label: 'Disable Item', desc: 'Hide from active registries' }
+                          ].map(f => {
+                            const isChecked = f.key === 'disabled' ? Boolean(form.disabled) : form[f.key] === 1;
+                            return (
+                              <label
+                                key={f.key}
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: 10,
+                                  padding: '10px 12px',
+                                  background: isChecked ? (f.key === 'disabled' ? '#fee2e2' : T.blueLight) : T.bg,
+                                  borderRadius: 9,
+                                  cursor: 'pointer',
+                                  border: `1.5px solid ${isChecked ? (f.key === 'disabled' ? '#fca5a5' : T.blueMid) : T.border}`,
+                                  transition: 'all 0.15s'
+                                }}
+                              >
+                                <input
+                                  type="checkbox"
+                                  className="il-check"
+                                  checked={isChecked}
+                                  onChange={e => {
+                                    if (f.key === 'disabled') {
+                                      setForm({ ...form, disabled: e.target.checked });
+                                    } else {
+                                      setForm({ ...form, [f.key]: e.target.checked ? 1 : 0 });
+                                    }
+                                  }}
+                                />
+                                <div>
+                                  <div style={{ fontSize: 13, fontWeight: 700, color: f.key === 'disabled' && isChecked ? '#b91c1c' : T.text }}>
+                                    {f.label}
+                                  </div>
+                                  <div style={{ fontSize: 11, color: T.textMuted }}>{f.desc}</div>
+                                </div>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      </CardSection>
+                    </div>
+
+                    {/* UOM + Suppliers */}
+                    <div className="il-form-grid-2">
+                      <CardSection 
+                        title="UOM Conversions (Auto-Calculated)" 
+                        icon={<Scale size={14} />}
+                        badge={<span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', background: '#ecfdf5', color: '#059669', borderRadius: 6, border: '1px solid #a7f3d0' }}>Auto Synced</span>}
+                      >
+                        {form.uoms.length > 0 ? (
+                          <div style={{ padding: '6px 12px' }}>
+                            <div style={{ fontSize: 11, color: T.textMuted, marginBottom: 8, fontStyle: 'italic' }}>
+                              * Generated automatically from <b>Base UOM ({form.default_uom || 'Nos'})</b> and <b>Pieces Per Box ({form.custom_pieces_per_box || 0})</b>.
+                            </div>
+                            <table className="il-table" style={{ width: '100%' }}>
+                              <thead>
+                                <tr style={{ background: T.bg }}>
+                                  <th style={{ padding: '8px 10px', fontSize: 11, fontWeight: 700, color: T.textMuted }}>UOM UNIT</th>
+                                  <th style={{ padding: '8px 10px', textAlign: 'right', fontSize: 11, fontWeight: 700, color: T.textMuted }}>CONVERSION FACTOR</th>
+                                  <th style={{ padding: '8px 10px', textAlign: 'center', fontSize: 11, fontWeight: 700, color: T.textMuted }}>TYPE</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {form.uoms.map((u, i) => (
+                                  <tr key={i} style={{ borderBottom: `1px solid ${T.borderLight}` }}>
+                                    <td style={{ padding: '8px 10px', fontWeight: 700, color: u.uom === (form.default_uom || 'Nos') ? T.blue : '#059669' }}>
+                                      {u.uom}
+                                    </td>
+                                    <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 800, fontFamily: "'DM Mono', monospace", color: T.text }}>
+                                      {u.conversion_factor} {form.default_uom || 'Nos'}
+                                    </td>
+                                    <td style={{ padding: '8px 10px', textAlign: 'center' }}>
+                                      <span style={{
+                                        fontSize: 10,
+                                        fontWeight: 700,
+                                        padding: '2px 8px',
+                                        borderRadius: 4,
+                                        background: u.uom === (form.default_uom || 'Nos') ? '#eff6ff' : '#f0fdf4',
+                                        color: u.uom === (form.default_uom || 'Nos') ? '#2563eb' : '#16a34a',
+                                        border: `1px solid ${u.uom === (form.default_uom || 'Nos') ? '#bfdbfe' : '#bbf7d0'}`
+                                      }}>
+                                        {u.uom === (form.default_uom || 'Nos') ? 'Base Unit' : 'Box Package'}
+                                      </span>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        ) : <div style={{ padding: '18px', textAlign: 'center', color: T.textMuted, fontSize: 13 }}>No UOM Conversions</div>}
+                      </CardSection>
+
+                      {!((user_roles || []).includes("Cashier") && !isAdmin) && (
+                        <CardSection title="Branch Visibility" icon={<MapPin size={14} />}
+                          action={<button className="il-btn il-btn-ghost" style={{ padding: '4px 9px', fontSize: 12 }} onClick={addBranchRow}><Plus size={12} />Add Branch</button>}
+                        >
+                          {form.branch_availability.length > 0 ? (
+                            <table className="il-table">
+                              <thead><tr><th>Target Warehouse</th><th style={{ width: 40 }}></th></tr></thead>
+                              <tbody>
+                                {form.branch_availability.map((b, i) => (
+                                  <tr key={i}>
+                                    <td style={{ paddingTop: 8, paddingBottom: 8 }}>
+                                      <SearchableSelectInline
+                                        value={b.warehouse}
+                                        options={warehouses.length > 0 ? warehouses : (priceData.warehouse_breakdown?.map(w => ({ label: w.warehouse, value: w.warehouse })) || [])}
+                                        placeholder="Select Branch"
+                                        onChange={val => updateBranchRow(i, val)}
+                                      />
+                                    </td>
+                                    <td><button onClick={() => removeBranchRow(i)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.red, display: 'flex' }}><Trash2 size={13} /></button></td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          ) : <div style={{ padding: '18px', textAlign: 'center', background: T.bg, borderRadius: 12, margin: 10 }}><p style={{ fontSize: 11, fontWeight: 700, color: T.textMuted }}>GLOBAL ALLOCATION</p></div>}
+                        </CardSection>
+                      )}
+
+                      <CardSection title="Supplier Mapping" icon={<Users size={14} />}
+                        action={<button className="il-btn il-btn-ghost" style={{ padding: '4px 9px', fontSize: 12 }} onClick={addSupplierRow}><Plus size={12} />Add</button>}
+                      >
+                        {form.supplier_items.length > 0 ? (
+                          <table className="il-table">
+                            <thead><tr><th>Supplier</th><th>Part No</th><th style={{ width: 40 }}></th></tr></thead>
+                            <tbody>
+                              {form.supplier_items.map((s, i) => (
+                                <tr key={i}>
+                                  <td style={{ paddingTop: 8, paddingBottom: 8 }}>
+                                    <SearchableSelectInline
+                                      value={s.supplier}
+                                      options={suppliers.map(sup => ({ label: sup.supplier_name, value: sup.name }))}
+                                      placeholder="Select"
+                                      onChange={val => updateSupplierRow(i, 'supplier', val)}
+                                    />
+                                  </td>
+                                  <td style={{ paddingTop: 8, paddingBottom: 8 }}><input style={{ border: 'none', background: 'transparent', fontWeight: 600, width: '100%', outline: 'none', fontFamily: 'DM Sans, sans-serif', fontSize: 13 }} value={s.supplier_part_no} onChange={e => updateSupplierRow(i, 'supplier_part_no', e.target.value)} placeholder="SKU / Part no" /></td>
+                                  <td><button onClick={() => removeSupplierRow(i)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.red, display: 'flex' }}><Trash2 size={13} /></button></td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        ) : <div style={{ padding: '18px', textAlign: 'center', color: T.textMuted, fontSize: 13 }}>No suppliers linked</div>}
+                      </CardSection>
+                    </div>
+                  </>
+                )}
 
                 {/* Product Image */}
                 <CardSection title="Product Image" icon={<Upload size={14} />}>
