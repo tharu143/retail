@@ -154,6 +154,11 @@ function Dashboard() {
     }
   }, [activeItem]);
 
+  // Dashboard Theme State (dark / light)
+  const [dashboardTheme, setDashboardTheme] = useState(() => {
+    return localStorage.getItem('dashboardTheme') || 'dark';
+  });
+
   // Dashboard Global State
   const [metrics, setMetrics] = useState(null);
 
@@ -385,7 +390,25 @@ function Dashboard() {
         return <InventoryLogisticsDashboard branchMetrics={metrics} startDate={startDate} setStartDate={setStartDate} endDate={endDate} setEndDate={setEndDate} isAdmin={isAdmin} branches={branches} />;
       case 'home':
       default:
-        return <DashboardHome user={user} sections={sections} setActiveItem={setActiveItem} allMetrics={metrics} loading={loading} startDate={startDate} setStartDate={setStartDate} endDate={endDate} setEndDate={setEndDate} isAdmin={isAdmin} branches={branches} selectedBranch={selectedBranch} setSelectedBranch={setSelectedBranch} />;
+        return (
+          <DashboardHome 
+            user={user} 
+            sections={sections} 
+            setActiveItem={setActiveItem} 
+            allMetrics={metrics} 
+            loading={loading} 
+            startDate={startDate} 
+            setStartDate={setStartDate} 
+            endDate={endDate} 
+            setEndDate={setEndDate} 
+            isAdmin={isAdmin} 
+            branches={branches} 
+            selectedBranch={selectedBranch} 
+            setSelectedBranch={setSelectedBranch} 
+            dashboardTheme={dashboardTheme}
+            setDashboardTheme={setDashboardTheme}
+          />
+        );
     }
   };
 
@@ -399,7 +422,7 @@ function Dashboard() {
       />
 
       {/* Right Dynamic Content Panel */}
-      <main className="right-content-panel">
+      <main className={`right-content-panel ${dashboardTheme === 'dark' ? 'dark' : ''}`}>
         {renderContent()}
       </main>
     </div>
@@ -407,11 +430,12 @@ function Dashboard() {
 }
 
 // Inner Component for Dashboard Homepage
-function DashboardHome({ user, sections, setActiveItem, allMetrics, loading, startDate, setStartDate, endDate, setEndDate, isAdmin, branches, selectedBranch, setSelectedBranch }) {
+function DashboardHome({ user, sections, setActiveItem, allMetrics, loading, startDate, setStartDate, endDate, setEndDate, isAdmin, branches, selectedBranch, setSelectedBranch, dashboardTheme, setDashboardTheme }) {
   const activeBranchKey = isAdmin ? selectedBranch : (branches[0]?.name || '___GLOBAL___');
   const activeMetrics = allMetrics?.[activeBranchKey] || allMetrics?.['___GLOBAL___'] || {};
   const metricsData = activeMetrics.metrics || {};
   const chartsData = activeMetrics.charts || {};
+  const isDark = dashboardTheme === 'dark';
 
   const handleQuickFilter = (range) => {
     const today = new Date();
@@ -483,21 +507,22 @@ function DashboardHome({ user, sections, setActiveItem, allMetrics, loading, sta
   // Doughnut calculations
   const modeData = chartsData.mode_of_payments || [];
   const totalModeVal = modeData.reduce((acc, curr) => acc + (curr.value || 0), 0) || 1;
-  const pieColors = ['#4f46e5', '#10b981', '#f59e0b', '#ec4899', '#3b82f6'];
+  const pieColors = isDark 
+    ? ['#38bdf8', '#34d399', '#fbbf24', '#f472b6', '#818cf8'] 
+    : ['#4f46e5', '#10b981', '#f59e0b', '#ec4899', '#3b82f6'];
 
   // Real data only — no fallback dummy data
   const itemsToRender = chartsData.top_items || [];
   const cashiersToRender = chartsData.top_cashiers || [];
 
-
   return (
-    <div className="dashboard-modern-container">
+    <div className={`dashboard-modern-container ${isDark ? 'dark' : ''}`}>
         
         {/* Top Header Block matching vnivesh layout */}
         <div className="exec-header-row">
           <h1 className="exec-title">Dashboard</h1>
           
-          <div style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', flexWrap: 'wrap' }}>
             <div className="exec-quick-filters">
               {['Yesterday', 'Today', 'Week', 'Month', 'Year'].map(range => (
                 <button
@@ -510,18 +535,19 @@ function DashboardHome({ user, sections, setActiveItem, allMetrics, loading, sta
               ))}
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
               <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
                 <input 
                   type="text" 
                   placeholder="Search for metrics..." 
+                  className="exec-search-input"
                   style={{
                     padding: '0.5rem 1rem 0.5rem 2.2rem',
                     borderRadius: '0.75rem',
                     border: '1px solid #cbd5e1',
                     fontSize: '0.85rem',
                     fontWeight: 600,
-                    width: '200px',
+                    width: '180px',
                     outline: 'none',
                     background: '#ffffff'
                   }}
@@ -529,10 +555,33 @@ function DashboardHome({ user, sections, setActiveItem, allMetrics, loading, sta
                 <svg style={{ position: 'absolute', left: '0.75rem', width: '1rem', height: '1rem', color: '#94a3b8' }} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
               </div>
 
-              <div style={{ width: '38px', height: '38px', background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b', cursor: 'pointer' }}>
+              {/* Theme Toggle Pill (Dark Command Center / Modern Light) */}
+              <button
+                onClick={() => {
+                  const newTheme = isDark ? 'light' : 'dark';
+                  setDashboardTheme(newTheme);
+                  localStorage.setItem('dashboardTheme', newTheme);
+                }}
+                className={`theme-toggle-pill ${isDark ? 'dark' : ''}`}
+                title="Toggle Light / Dark Dashboard Theme"
+              >
+                {isDark ? (
+                  <>
+                    <Sun size={15} color="#38bdf8" />
+                    <span>Light</span>
+                  </>
+                ) : (
+                  <>
+                    <Moon size={15} color="#475569" />
+                    <span>Dark</span>
+                  </>
+                )}
+              </button>
+
+              <div className="exec-icon-btn" style={{ width: '38px', height: '38px', background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b', cursor: 'pointer' }}>
                 <Bell size={18} style={{ margin: 'auto' }} />
               </div>
-              <div style={{ width: '38px', height: '38px', background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b', cursor: 'pointer' }}>
+              <div className="exec-icon-btn" style={{ width: '38px', height: '38px', background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b', cursor: 'pointer' }}>
                 <Clock size={18} style={{ margin: 'auto' }} />
               </div>
             </div>
@@ -578,17 +627,17 @@ function DashboardHome({ user, sections, setActiveItem, allMetrics, loading, sta
                     <AreaChart data={chartsData.sales_trend || []}>
                       <defs>
                         <linearGradient id="execSalesGrad" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#4f46e5" stopOpacity={0.4} />
-                          <stop offset="95%" stopColor="#4f46e5" stopOpacity={0.0} />
+                          <stop offset="5%" stopColor={isDark ? "#38bdf8" : "#4f46e5"} stopOpacity={isDark ? 0.5 : 0.4} />
+                          <stop offset="95%" stopColor={isDark ? "#38bdf8" : "#4f46e5"} stopOpacity={0.0} />
                         </linearGradient>
                       </defs>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={isDark ? "rgba(255,255,255,0.06)" : "#f1f5f9"} />
                       <XAxis 
                         dataKey="date" 
                         hide={false}
                         axisLine={false}
                         tickLine={false}
-                        tick={{ fill: '#94a3b8', fontSize: 9 }}
+                        tick={{ fill: isDark ? '#64748b' : '#94a3b8', fontSize: 9 }}
                         tickFormatter={(val) => {
                           try {
                             const d = new Date(val);
@@ -599,10 +648,16 @@ function DashboardHome({ user, sections, setActiveItem, allMetrics, loading, sta
                         }}
                       />
                       <Tooltip 
-                        contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }} 
+                        contentStyle={{ 
+                          borderRadius: '8px', 
+                          border: isDark ? '1px solid rgba(255,255,255,0.1)' : '1px solid #e2e8f0', 
+                          backgroundColor: isDark ? '#0f172a' : '#ffffff',
+                          color: isDark ? '#f8fafc' : '#0f172a',
+                          boxShadow: '0 4px 6px -1px rgba(0,0,0,0.2)' 
+                        }} 
                         formatter={(val) => [`AED ${parseFloat(val).toFixed(2)}`, 'Sales']}
                       />
-                      <Area type="monotone" dataKey="sales" stroke="#4f46e5" strokeWidth={3} fill="url(#execSalesGrad)" />
+                      <Area type="monotone" dataKey="sales" stroke={isDark ? "#38bdf8" : "#4f46e5"} strokeWidth={3} fill="url(#execSalesGrad)" />
                     </AreaChart>
                   </ResponsiveContainer>
                 </div>
@@ -744,7 +799,7 @@ function DashboardHome({ user, sections, setActiveItem, allMetrics, loading, sta
                               </div>
                             </div>
                           </td>
-                          <td style={{ textAlign: 'right', fontWeight: 800, color: '#0f172a' }}>{item.qty}</td>
+                          <td style={{ textAlign: 'right', fontWeight: 800 }}>{item.qty}</td>
                         </tr>
                       );
                     })}
@@ -777,8 +832,12 @@ function DashboardHome({ user, sections, setActiveItem, allMetrics, loading, sta
                       </tr>
                     ) : cashiersToRender.map((emp, idx) => {
                       const initials = (emp.name || 'E').split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
-                      const bgColors = ['#f0fdf4', '#eff6ff', '#fff7ed', '#faf5ff', '#fef2f2'];
-                      const textColors = ['#16a34a', '#3b82f6', '#ea580c', '#9333ea', '#ef4444'];
+                      const bgColors = isDark 
+                        ? ['rgba(22, 163, 74, 0.2)', 'rgba(59, 130, 246, 0.2)', 'rgba(234, 88, 12, 0.2)', 'rgba(147, 51, 234, 0.2)', 'rgba(239, 68, 68, 0.2)']
+                        : ['#f0fdf4', '#eff6ff', '#fff7ed', '#faf5ff', '#fef2f2'];
+                      const textColors = isDark
+                        ? ['#4ade80', '#60a5fa', '#fb923c', '#c084fc', '#f87171']
+                        : ['#16a34a', '#3b82f6', '#ea580c', '#9333ea', '#ef4444'];
                       
                       return (
                         <tr key={idx}>
@@ -793,7 +852,7 @@ function DashboardHome({ user, sections, setActiveItem, allMetrics, loading, sta
                               </div>
                             </div>
                           </td>
-                          <td style={{ textAlign: 'right', fontWeight: 800, color: '#0f172a' }}>
+                          <td style={{ textAlign: 'right', fontWeight: 800 }}>
                             AED {parseFloat(emp.sales || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </td>
                         </tr>

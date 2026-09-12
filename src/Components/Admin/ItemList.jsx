@@ -111,10 +111,10 @@ const GlobalStyle = () => (
     .il-sync-row:hover { background: ${T.bg}; }
     .il-sync-row.selected { background: ${T.blueLight}; border-color: ${T.blue}30; }
     .il-sync-footer { padding: 16px 24px; border-top: 1px solid ${T.border}; display: flex; align-items: center; gap: 12px; flex-shrink: 0; background: ${T.bg}; border-radius: 0 0 0 0; }
-    .il-modal-panel { position: fixed; top: 56px; bottom: 0; left: 280px; right: 0; z-index: 10000; background: ${T.bg}; display: flex; flex-direction: column; overflow: hidden; transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+    .il-modal-panel { position: fixed; top: 48px; bottom: 0; left: 280px; right: 0; z-index: 10000; background: ${T.bg}; display: flex; flex-direction: column; overflow: hidden; transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
     .sidebar-nav.collapsed ~ .right-content-panel .il-modal-panel { left: 80px; }
     @media (max-width: 768px) {
-      .il-modal-panel { left: 0 !important; }
+      .il-modal-panel { top: 48px !important; left: 0 !important; }
     }
     .il-modal-header { background: ${T.surface}; border-bottom: 1.5px solid ${T.border}; padding: 0 28px; height: 60px; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-shrink: 0; }
     .il-modal-body { flex: 1; overflow-y: auto; padding: 24px 28px; }
