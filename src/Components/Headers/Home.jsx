@@ -5859,11 +5859,7 @@ function Home() {
                                                             type="button"
                                                             onClick={() => {
                                                                 setShowItemDetailModal(false);
-                                                                if (s.doctype === 'Sales Invoice') {
-                                                                    navigate('/salesinvoice', { state: { invoiceId: s.invoice_name, invoice_name: s.invoice_name } });
-                                                                } else {
-                                                                    navigate('/invoicelist', { state: { invoiceId: s.invoice_name, invoice_name: s.invoice_name } });
-                                                                }
+                                                                navigate(`/salesinvoice?name=${encodeURIComponent(s.invoice_name)}`, { state: { invoiceId: s.invoice_name, invoice_name: s.invoice_name } });
                                                             }}
                                                             style={{
                                                                 background: 'none',

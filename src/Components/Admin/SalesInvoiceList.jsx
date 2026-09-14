@@ -640,13 +640,13 @@ const SalesInvoiceList = () => {
         }
       };
       fetchMappedDN();
-    } else if (params.get('invoice') || params.get('name')) {
-      const invoiceName = params.get('invoice') || params.get('name');
+    } else if (params.get('invoice') || params.get('name') || location.state?.invoiceId || location.state?.invoice_name) {
+      const invoiceName = params.get('invoice') || params.get('name') || location.state?.invoiceId || location.state?.invoice_name;
       if (invoiceName && invoiceName !== 'new' && !invoiceName.startsWith('DN-') && !invoiceName.startsWith('SO-')) {
         loadInvoiceForEdit(invoiceName);
       }
     }
-  }, [location.search, navigate]);
+  }, [location.search, location.state, navigate]);
 
   // Load master data
   useEffect(() => {
