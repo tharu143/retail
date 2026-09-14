@@ -6318,7 +6318,11 @@ function Home() {
                                     placeholder={`${getCountryRule(countryCodePrefix).maxLen}-digit mobile number`}
                                     value={createForm.phone}
                                     onChange={e => {
-                                        const val = e.target.value.replace(/\D/g, '');
+                                        let val = e.target.value.replace(/\D/g, '');
+                                        // Strip leading 0 so entering 0501234567 immediately becomes 501234567 (full 9 digits)
+                                        while (val.startsWith('0')) {
+                                            val = val.slice(1);
+                                        }
                                         const rule = getCountryRule(countryCodePrefix);
                                         if (val.length <= rule.maxLen) {
                                             setCreateForm({ ...createForm, phone: val });
