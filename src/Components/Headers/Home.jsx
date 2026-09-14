@@ -10728,7 +10728,11 @@ function Home() {
                                             setActiveCustomerIndex(-1);
                                             const val = e.target.value;
                                             if (/^[\d+]*$/.test(val)) {
-                                                const cleaned = val.replace(/\D/g, '');
+                                                let cleaned = val.replace(/\D/g, '');
+                                                // Strip leading 0 so 0501234567 becomes 501234567 (allowing full 9 digits)
+                                                while (cleaned.startsWith('0')) {
+                                                    cleaned = cleaned.slice(1);
+                                                }
                                                 const rule = getCountryRule(countryCodePrefix);
                                                 const restricted = cleaned.slice(0, rule.maxLen);
                                                 setCustomerMobile(restricted);
