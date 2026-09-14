@@ -228,7 +228,7 @@ const GlobalStyle = () => (
 );
 
 /* ==================== UI COMPONENTS ==================== */
-const DashboardDocRow = ({ title, count, docs, search, fromDate, toDate }) => {
+const DashboardDocRow = ({ title, count, docs, search, fromDate, toDate, navigate }) => {
   const [isOpen, setIsOpen] = useState(false);
 
   const filteredDocs = useMemo(() => {
@@ -240,6 +240,21 @@ const DashboardDocRow = ({ title, count, docs, search, fromDate, toDate }) => {
       return nameMatch && dateMatch;
     }).sort((a, b) => (b.posting_date || b.modified || '').localeCompare(a.posting_date || a.modified || ''));
   }, [docs, search, fromDate, toDate]);
+
+  const handleDocClick = (doc) => {
+    const docName = doc.parent || doc.name;
+    if (!docName || !navigate) return;
+
+    if (title.toLowerCase().includes('purchase invoice') || docName.startsWith('PINV-') || docName.startsWith('PI-') || docName.startsWith('ACC-PINV-')) {
+      navigate(`/purchaseinvoice?name=${encodeURIComponent(docName)}`);
+    } else if (title.toLowerCase().includes('sales invoice') || docName.startsWith('SINV-') || docName.startsWith('ACC-SINV-') || docName.startsWith('POS-')) {
+      navigate(`/salesinvoice?name=${encodeURIComponent(docName)}`);
+    } else if (title.toLowerCase().includes('sales order') || docName.startsWith('SO-') || docName.startsWith('SAL-ORD-')) {
+      navigate(`/salesorder?name=${encodeURIComponent(docName)}`);
+    } else if (title.toLowerCase().includes('purchase order') || docName.startsWith('PO-') || docName.startsWith('PUR-ORD-')) {
+      navigate(`/purchaseorder?name=${encodeURIComponent(docName)}`);
+    }
+  };
 
   return (
     <div style={{ background: '#fff', border: `1px solid ${T.border}`, borderRadius: 12, overflow: 'hidden', transition: 'all 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
@@ -272,7 +287,21 @@ const DashboardDocRow = ({ title, count, docs, search, fromDate, toDate }) => {
                   {filteredDocs.map((doc, idx) => (
                     <tr key={idx} style={{ cursor: 'default' }}>
                       <td style={{ paddingLeft: 20 }}>
-                        <div style={{ fontWeight: 600, color: T.blue, fontSize: 13, fontFamily: "'DM Mono', monospace" }}>{doc.name || doc.parent}</div>
+                        <div
+                          onClick={(e) => { e.stopPropagation(); handleDocClick(doc); }}
+                          style={{
+                            fontWeight: 700,
+                            color: T.blue,
+                            fontSize: 13,
+                            fontFamily: "'DM Mono', monospace",
+                            cursor: 'pointer',
+                            textDecoration: 'underline',
+                            textUnderlineOffset: 2
+                          }}
+                          title="Click to open invoice"
+                        >
+                          {doc.name || doc.parent}
+                        </div>
                         <div style={{ fontSize: 10, color: T.green, fontWeight: 700, textTransform: 'uppercase' }}>{doc.status || 'Submitted'}</div>
                       </td>
                       <td style={{ fontSize: 12, color: T.textSub, fontFamily: "'DM Mono', monospace" }}>{doc.posting_date || doc.modified?.split(' ')?.[0] || '—'}</td>
@@ -989,6 +1018,9 @@ export default function ItemList() {
   const [loadingTemplateVariants, setLoadingTemplateVariants] = useState(false);
   const [productBundleData, setProductBundleData] = useState(null);
   const [loadingProductBundle, setLoadingProductBundle] = useState(false);
+  const [itemTransactionsStatus, setItemTransactionsStatus] = useState({ checked: false, has_transactions: false, can_delete: true, reason: '', loading: false });
+  const [itemPurchaseSalesData, setItemPurchaseSalesData] = useState({ purchases: [], sales: [] });
+  const [loadingPurchaseSales, setLoadingPurchaseSales] = useState(false);
 
   // ── Branch Sync Selection ──
   const [selectedItems, setSelectedItems] = useState([]);
@@ -1107,12 +1139,53 @@ export default function ItemList() {
   const fetchItemDashboardDetails = async (code) => {
     try {
       setLoadingDashboard(true);
+      setItemTransactionsStatus(prev => ({ ...prev, loading: true }));
+      
+      // Check for submitted transactions in parallel
+      axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.check_item_has_transactions', {
+        params: { item_code: code },
+        withCredentials: true
+      }).then(txRes => {
+        if (txRes.data?.message?.status === 'success') {
+          const msg = txRes.data.message;
+          setItemTransactionsStatus({
+            checked: true,
+            has_transactions: msg.has_transactions,
+            can_delete: msg.can_delete,
+            reason: msg.reason || '',
+            transactions: msg.transactions || [],
+            loading: false
+          });
+        }
+      }).catch(txErr => {
+        console.warn('Failed to check item transactions:', txErr);
+        setItemTransactionsStatus({ checked: true, has_transactions: false, can_delete: true, reason: '', loading: false });
+      });
+
+      // Fetch 2-Column Purchase vs Sales item transactions
+      setLoadingPurchaseSales(true);
+      axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_item_purchase_sales_transactions', {
+        params: { item_code: code, limit: 50 },
+        withCredentials: true
+      }).then(psRes => {
+        if (psRes.data?.message?.status === 'success') {
+          setItemPurchaseSalesData({
+            purchases: psRes.data.message.purchases || [],
+            sales: psRes.data.message.sales || []
+          });
+        }
+      }).catch(err => {
+        console.warn('Failed to load item purchase/sales transactions:', err);
+      }).finally(() => {
+        setLoadingPurchaseSales(false);
+      });
+
       const res = await axios.get('/api/method/kyle_retail.retail_api.api.get_item_dashboard_details', { params: { item_code: code, warehouse: !isAdmin ? warehouse : undefined }, withCredentials: true });
       const result = res.data?.message || {};
       setDashboardData(result);
       if (result.item_details) {
         const item = result.item_details;
-        setForm(prev => ({ ...prev, brand: item.brand || '', valuation_rate: item.valuation_rate || 0, uoms: item.uoms || [], hsn_code: item.hsn_code || '', country_of_origin: item.country_of_origin || '', custom_loyalty_eligible: item.custom_loyalty_eligible || 0, custom_allow_discount: item.custom_allow_discount || 0, is_stock_item: item.is_stock_item || 0, is_sales_item: item.is_sales_item || 0, is_purchase_item: item.is_purchase_item || 0, supplier_items: item.supplier_items || [], description: item.description || prev.description }));
+        setForm(prev => ({ ...prev, brand: item.brand || '', valuation_rate: item.valuation_rate || 0, uoms: item.uoms || [], hsn_code: item.hsn_code || '', custom_loyalty_eligible: item.custom_loyalty_eligible || 0, custom_allow_discount: item.custom_allow_discount || 0, is_stock_item: item.is_stock_item || 0, is_sales_item: item.is_sales_item || 0, is_purchase_item: item.is_purchase_item || 0, supplier_items: item.supplier_items || [], description: item.description || prev.description }));
         if (item.barcodes) setBarcodes(item.barcodes);
         if (item.branch_availability) setForm(prev => ({ ...prev, branch_availability: item.branch_availability }));
       }
@@ -1757,10 +1830,42 @@ export default function ItemList() {
     if (!code?.trim()) return;
     code = code.trim();
     const uom = uomToUse || barcodeUom || form.default_uom || 'Nos';
-    if (barcodes.some(b => b.barcode === code)) { alert('Barcode already added'); return; }
+    if (barcodes.some(b => b.barcode === code)) {
+      Swal.fire({
+        icon: 'info',
+        title: 'Barcode Already Added',
+        text: `Barcode "${code}" is already in this item's barcode list.`,
+        timer: 1800,
+        showConfirmButton: false
+      });
+      return;
+    }
     try {
       const res = await axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.check_barcode_exists', { params: { barcode: code }, withCredentials: true });
-      if (res.data?.message?.exists) { alert(`Already used by: ${res.data.message.item}`); return; }
+      if (res.data?.message?.exists) {
+        const existingItemCode = res.data.message.item;
+        const confirmResult = await Swal.fire({
+          icon: 'question',
+          title: 'Existing Item Found',
+          html: `<p style="font-size: 14px; color: #334155; margin-bottom: 8px;">Barcode <b>${code}</b> is already linked to Item Master:</p><p style="font-size: 16px; font-weight: 800; color: #2563eb;">${existingItemCode}</p><p style="font-size: 12px; color: #64748b; margin-top: 8px;">Would you like to open this Item Master now?</p>`,
+          showCancelButton: true,
+          confirmButtonText: '⚡ Open Item Master',
+          cancelButtonText: 'Stay Here',
+          confirmButtonColor: '#2563eb',
+          cancelButtonColor: '#64748b'
+        });
+
+        if (confirmResult.isConfirmed) {
+          // Find item in items list or fetch directly
+          const found = items.find(it => it.item_code === existingItemCode || it.name === existingItemCode);
+          if (found) {
+            handleRowClick(found);
+          } else {
+            handleRowClick({ item_code: existingItemCode, item_name: existingItemCode });
+          }
+        }
+        return;
+      }
     } catch { }
     setBarcodes(p => [...p, { barcode: code, uom }]);
     setBarcodeInput(''); setIsScanning(false);
@@ -2180,9 +2285,48 @@ export default function ItemList() {
   };
 
   const handleDelete = async (code) => {
-    if (!window.confirm(`Delete ${code}?`)) return;
-    try { await axios.delete(`/api/resource/Item/${code}`, { withCredentials: true }); setShowForm(false); fetchItems(); }
-    catch { alert('Delete failed'); }
+    if (itemTransactionsStatus.has_transactions) {
+      return Swal.fire({
+        icon: 'error',
+        title: 'Cannot Delete Item',
+        html: `<p style="font-size: 13px; color: #475569;">${itemTransactionsStatus.reason || 'This item has submitted transactions and cannot be deleted.'}</p>`,
+        confirmButtonColor: '#7c3aed'
+      });
+    }
+
+    const confirmRes = await Swal.fire({
+      title: 'Delete Item?',
+      text: `Are you sure you want to permanently delete "${code}"? This action cannot be undone.`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#ef4444',
+      cancelButtonColor: '#64748b',
+      confirmButtonText: 'Yes, Delete'
+    });
+
+    if (!confirmRes.isConfirmed) return;
+
+    try {
+      setSaving(true);
+      await axios.delete(`/api/resource/Item/${encodeURIComponent(code)}`, { withCredentials: true });
+      Swal.fire({
+        icon: 'success',
+        title: 'Deleted',
+        text: `Item "${code}" was deleted successfully.`,
+        timer: 1500,
+        showConfirmButton: false
+      });
+      setShowForm(false);
+      fetchItems();
+    } catch (err) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Delete Failed',
+        text: err.response?.data?._server_messages || err.response?.data?.message || err.message || 'Item could not be deleted because it is linked to transactions or other records.'
+      });
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleRowClick = async (item) => {
@@ -3015,7 +3159,25 @@ export default function ItemList() {
                   >
                     <Edit2 size={14} /> <span style={{ fontSize: 11, fontWeight: 800 }}>Edit</span>
                   </button>
-                  <button className="il-btn il-btn-danger" style={{ height: 36, padding: '0 12px', borderRadius: 10 }} onClick={() => handleDelete(editingItemCode)}>
+                  <button
+                    className="il-btn il-btn-danger"
+                    style={{
+                      height: 36,
+                      padding: '0 12px',
+                      borderRadius: 10,
+                      opacity: itemTransactionsStatus.has_transactions ? 0.5 : 1,
+                      cursor: itemTransactionsStatus.has_transactions ? 'not-allowed' : 'pointer',
+                      background: itemTransactionsStatus.has_transactions ? '#f1f5f9' : undefined,
+                      borderColor: itemTransactionsStatus.has_transactions ? '#cbd5e1' : undefined,
+                      color: itemTransactionsStatus.has_transactions ? '#94a3b8' : undefined
+                    }}
+                    onClick={() => handleDelete(editingItemCode)}
+                    title={
+                      itemTransactionsStatus.has_transactions
+                        ? (itemTransactionsStatus.reason || 'Cannot delete: Item has submitted transactions')
+                        : 'Delete Item'
+                    }
+                  >
                     <Trash2 size={14} />
                   </button>
                 </div>
@@ -3448,11 +3610,254 @@ export default function ItemList() {
 
                 {/* DASHBOARD */}
                 {activeTab === 'Dashboard' && (
-                  <div className="anim-in" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                  <div className="anim-in" style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+                    {/* ===== 2-COLUMN PURCHASE VS SALES TRANSACTIONS DASHBOARD ===== */}
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+                        <div>
+                          <div style={{ fontSize: 16, fontWeight: 800, color: T.text, display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <TrendingUp size={18} style={{ color: T.blue }} />
+                            <span>Purchase vs Sales Transactions</span>
+                          </div>
+                          <div style={{ fontSize: 12, color: T.textMuted, marginTop: 2 }}>
+                            Direct side-by-side view for <strong>{editingItemCode}</strong>. Click any invoice number to view details.
+                          </div>
+                        </div>
+                        {loadingPurchaseSales && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: T.blue, fontWeight: 700 }}>
+                            <Loader2 size={14} className="spin" />
+                            <span>Loading transactions...</span>
+                          </div>
+                        )}
+                      </div>
+
+                      <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: '1fr 1fr',
+                        gap: 18,
+                        alignItems: 'start'
+                      }}>
+                        {/* COLUMN 1: PURCHASE TRANSACTIONS */}
+                        <div style={{
+                          background: '#ffffff',
+                          border: '1.5px solid #fed7aa',
+                          borderRadius: 14,
+                          overflow: 'hidden',
+                          boxShadow: '0 2px 8px rgba(249, 115, 22, 0.05)'
+                        }}>
+                          <div style={{
+                            padding: '12px 18px',
+                            background: 'linear-gradient(135deg, #fff7ed, #ffedd5)',
+                            borderBottom: '1.5px solid #fed7aa',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between'
+                          }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <div style={{
+                                width: 28,
+                                height: 28,
+                                borderRadius: 8,
+                                background: '#ea580c',
+                                color: '#ffffff',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                fontWeight: 800,
+                                fontSize: 11
+                              }}>
+                                PI
+                              </div>
+                              <div>
+                                <span style={{ fontSize: 14, fontWeight: 800, color: '#9a3412' }}>Purchase</span>
+                                <span style={{ fontSize: 11, color: '#c2410c', marginLeft: 6, fontWeight: 600 }}>({itemPurchaseSalesData.purchases?.length || 0} Invoices)</span>
+                              </div>
+                            </div>
+                            <span style={{ fontSize: 11, fontWeight: 800, color: '#c2410c', background: '#ffffff', padding: '3px 9px', borderRadius: 20, border: '1px solid #fed7aa' }}>
+                              BUYING
+                            </span>
+                          </div>
+
+                          <div style={{ maxHeight: 380, overflowY: 'auto' }}>
+                            <table className="il-table" style={{ margin: 0 }}>
+                              <thead style={{ position: 'sticky', top: 0, background: '#fafafa', zIndex: 2 }}>
+                                <tr>
+                                  <th style={{ padding: '10px 14px', fontSize: 11, fontWeight: 800, color: '#475569' }}>Invoice No.</th>
+                                  <th style={{ padding: '10px 10px', fontSize: 11, fontWeight: 800, color: '#475569', textAlign: 'right' }}>Quantity</th>
+                                  <th style={{ padding: '10px 10px', fontSize: 11, fontWeight: 800, color: '#475569', textAlign: 'right' }}>Rate</th>
+                                  <th style={{ padding: '10px 14px', fontSize: 11, fontWeight: 800, color: '#475569', textAlign: 'right' }}>Amount</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {loadingPurchaseSales ? (
+                                  <tr>
+                                    <td colSpan={4} style={{ padding: '36px', textAlign: 'center' }}>
+                                      <Loader2 size={20} className="spin" style={{ color: '#ea580c', margin: '0 auto' }} />
+                                    </td>
+                                  </tr>
+                                ) : !itemPurchaseSalesData.purchases || itemPurchaseSalesData.purchases.length === 0 ? (
+                                  <tr>
+                                    <td colSpan={4} style={{ padding: '36px', textAlign: 'center', color: T.textMuted, fontSize: 12 }}>
+                                      No purchase transactions recorded
+                                    </td>
+                                  </tr>
+                                ) : (
+                                  itemPurchaseSalesData.purchases.map((row, idx) => (
+                                    <tr key={idx} style={{ transition: 'background 0.1s' }}>
+                                      <td style={{ padding: '10px 14px' }}>
+                                        <div
+                                          onClick={() => navigate(`/purchaseinvoice?name=${encodeURIComponent(row.invoice_no)}`)}
+                                          style={{
+                                            fontWeight: 700,
+                                            color: '#ea580c',
+                                            fontSize: 12,
+                                            fontFamily: "'DM Mono', monospace",
+                                            cursor: 'pointer',
+                                            textDecoration: 'underline',
+                                            textUnderlineOffset: 2
+                                          }}
+                                          title={`Open Purchase Invoice ${row.invoice_no}`}
+                                        >
+                                          {row.invoice_no}
+                                        </div>
+                                        <div style={{ fontSize: 10, color: T.textMuted, marginTop: 1 }}>
+                                          {row.date || '—'} {row.party_name ? `• ${row.party_name}` : ''}
+                                        </div>
+                                      </td>
+                                      <td style={{ padding: '10px 10px', textAlign: 'right', fontWeight: 700, color: T.text }}>
+                                        {Number(row.qty || 0).toLocaleString()} <span style={{ fontSize: 10, color: T.textMuted, fontWeight: 500 }}>{row.uom || form.default_uom || 'Nos'}</span>
+                                      </td>
+                                      <td style={{ padding: '10px 10px', textAlign: 'right', fontWeight: 600, color: T.textSub, fontSize: 12 }}>
+                                        {Number(row.rate || 0).toFixed(2)}
+                                      </td>
+                                      <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 800, color: '#c2410c', fontSize: 12 }}>
+                                        {Number(row.amount || (row.qty * row.rate) || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                      </td>
+                                    </tr>
+                                  ))
+                                )}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+
+                        {/* COLUMN 2: SALES TRANSACTIONS */}
+                        <div style={{
+                          background: '#ffffff',
+                          border: '1.5px solid #bbf7d0',
+                          borderRadius: 14,
+                          overflow: 'hidden',
+                          boxShadow: '0 2px 8px rgba(34, 197, 94, 0.05)'
+                        }}>
+                          <div style={{
+                            padding: '12px 18px',
+                            background: 'linear-gradient(135deg, #f0fdf4, #dcfce7)',
+                            borderBottom: '1.5px solid #bbf7d0',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between'
+                          }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <div style={{
+                                width: 28,
+                                height: 28,
+                                borderRadius: 8,
+                                background: '#16a34a',
+                                color: '#ffffff',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                fontWeight: 800,
+                                fontSize: 11
+                              }}>
+                                SI
+                              </div>
+                              <div>
+                                <span style={{ fontSize: 14, fontWeight: 800, color: '#166534' }}>Sales</span>
+                                <span style={{ fontSize: 11, color: '#15803d', marginLeft: 6, fontWeight: 600 }}>({itemPurchaseSalesData.sales?.length || 0} Invoices)</span>
+                              </div>
+                            </div>
+                            <span style={{ fontSize: 11, fontWeight: 800, color: '#15803d', background: '#ffffff', padding: '3px 9px', borderRadius: 20, border: '1px solid #bbf7d0' }}>
+                              SELLING
+                            </span>
+                          </div>
+
+                          <div style={{ maxHeight: 380, overflowY: 'auto' }}>
+                            <table className="il-table" style={{ margin: 0 }}>
+                              <thead style={{ position: 'sticky', top: 0, background: '#fafafa', zIndex: 2 }}>
+                                <tr>
+                                  <th style={{ padding: '10px 14px', fontSize: 11, fontWeight: 800, color: '#475569' }}>Invoice No.</th>
+                                  <th style={{ padding: '10px 10px', fontSize: 11, fontWeight: 800, color: '#475569', textAlign: 'right' }}>Quantity</th>
+                                  <th style={{ padding: '10px 10px', fontSize: 11, fontWeight: 800, color: '#475569', textAlign: 'right' }}>Rate</th>
+                                  <th style={{ padding: '10px 14px', fontSize: 11, fontWeight: 800, color: '#475569', textAlign: 'right' }}>Amount</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {loadingPurchaseSales ? (
+                                  <tr>
+                                    <td colSpan={4} style={{ padding: '36px', textAlign: 'center' }}>
+                                      <Loader2 size={20} className="spin" style={{ color: '#16a34a', margin: '0 auto' }} />
+                                    </td>
+                                  </tr>
+                                ) : !itemPurchaseSalesData.sales || itemPurchaseSalesData.sales.length === 0 ? (
+                                  <tr>
+                                    <td colSpan={4} style={{ padding: '36px', textAlign: 'center', color: T.textMuted, fontSize: 12 }}>
+                                      No sales transactions recorded
+                                    </td>
+                                  </tr>
+                                ) : (
+                                  itemPurchaseSalesData.sales.map((row, idx) => (
+                                    <tr key={idx} style={{ transition: 'background 0.1s' }}>
+                                      <td style={{ padding: '10px 14px' }}>
+                                        <div
+                                          onClick={() => navigate(`/salesinvoice?name=${encodeURIComponent(row.invoice_no)}`)}
+                                          style={{
+                                            fontWeight: 700,
+                                            color: '#16a34a',
+                                            fontSize: 12,
+                                            fontFamily: "'DM Mono', monospace",
+                                            cursor: 'pointer',
+                                            textDecoration: 'underline',
+                                            textUnderlineOffset: 2
+                                          }}
+                                          title={`Open Sales Invoice ${row.invoice_no}`}
+                                        >
+                                          {row.invoice_no}
+                                        </div>
+                                        <div style={{ fontSize: 10, color: T.textMuted, marginTop: 1 }}>
+                                          {row.date || '—'} {row.party_name ? `• ${row.party_name}` : ''}
+                                        </div>
+                                      </td>
+                                      <td style={{ padding: '10px 10px', textAlign: 'right', fontWeight: 700, color: T.text }}>
+                                        {Number(row.qty || 0).toLocaleString()} <span style={{ fontSize: 10, color: T.textMuted, fontWeight: 500 }}>{row.uom || form.default_uom || 'Nos'}</span>
+                                      </td>
+                                      <td style={{ padding: '10px 10px', textAlign: 'right', fontWeight: 600, color: T.textSub, fontSize: 12 }}>
+                                        {Number(row.rate || 0).toFixed(2)}
+                                      </td>
+                                      <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 800, color: '#15803d', fontSize: 12 }}>
+                                        {Number(row.amount || (row.qty * row.rate) || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                      </td>
+                                    </tr>
+                                  ))
+                                )}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={{ height: 1, background: T.borderLight, margin: '4px 0' }}></div>
+
+                    {/* ===== DETAILED DOCUMENT CATEGORIES EXPLORER ===== */}
                     {loadingDashboard ? (
-                      <div style={{ padding: '80px', textAlign: 'center' }}><Loader2 size={28} style={{ color: T.blue, margin: '0 auto' }} className="spin" /></div>
+                      <div style={{ padding: '40px', textAlign: 'center' }}><Loader2 size={28} style={{ color: T.blue, margin: '0 auto' }} className="spin" /></div>
                     ) : (
                       <>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <div style={{ fontSize: 14, fontWeight: 800, color: T.text }}>Document History & Related Records</div>
+                        </div>
+
                         {/* Search & Date Bar */}
                         <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 20px', background: T.surface, border: `1px solid ${T.border}`, borderRadius: 12 }}>
                           <div style={{ position: 'relative', flex: 1 }}>
@@ -3519,6 +3924,7 @@ export default function ItemList() {
                                   search={connectionSearch}
                                   fromDate={fromDate}
                                   toDate={toDate}
+                                  navigate={navigate}
                                 />
                               ));
                             })()}

@@ -1220,10 +1220,13 @@ export default function SalesOrderList() {
 
       // Arrow Up/Down navigation inside table inputs
       if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        const isDropdownOpen = !!document.querySelector('.so-dropdown') || !!document.querySelector('.custom-dropdown-portal');
+        if (isDropdownOpen && !e.altKey && !e.ctrlKey) return;
+
         if (inItemsTable && activeEl && activeEl.tagName === 'INPUT') {
-          const isSearchInput = activeEl.placeholder === 'SKU or Name...';
-          const isDropdownOpen = document.querySelector('.so-dropdown');
-          if (isSearchInput && isDropdownOpen && !e.altKey && !e.ctrlKey) return;
+          if (activeEl.type === 'number' && !e.altKey && !e.ctrlKey) {
+            return;
+          }
 
           const td = activeEl.closest('td');
           const tr = activeEl.closest('tr');
@@ -2559,7 +2562,22 @@ export default function SalesOrderList() {
               </div>
               <div className="so-field">
                 <label className="so-label">Mobile Number</label>
-                <input className="so-input" value={newCustomer.mobile_no} onChange={e => setNewCustomer({ ...newCustomer, mobile_no: e.target.value })} placeholder="Enter mobile number..." />
+                <input
+                  className="so-input"
+                  value={newCustomer.mobile_no}
+                  onChange={e => {
+                    let val = e.target.value.trim();
+                    if (val.startsWith('+9710')) {
+                      val = '+971' + val.slice(5).replace(/^0+/, '');
+                    } else if (val.startsWith('+971 0')) {
+                      val = '+971 ' + val.slice(6).replace(/^0+/, '');
+                    } else if (val.startsWith('0')) {
+                      val = '+971 ' + val.replace(/^0+/, '');
+                    }
+                    setNewCustomer({ ...newCustomer, mobile_no: val });
+                  }}
+                  placeholder="+971 50 --- ----"
+                />
               </div>
             </div>
             <div className="so-modal-footer" style={{ padding: '1.25rem 2rem', background: '#f8fafc', borderTop: '1px solid #e2e8f0', display: 'flex', gap: '1rem' }}>

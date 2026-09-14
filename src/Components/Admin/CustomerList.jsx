@@ -272,16 +272,57 @@ const countryPhoneCodes = {
   'zimbabwe': '+263'
 };
 
-const getUpdatedPhone = (currentPhone, newCode) => {
-  if (!currentPhone) return newCode;
-  if (!newCode) return currentPhone;
-  if (currentPhone.startsWith(newCode)) return currentPhone;
+const sanitizeMobileNo = (value, defaultCode = '+971') => {
+  if (!value) return '';
+  let str = String(value).trim();
+  
+  // Find which country code it starts with
+  let matchedCode = '';
   for (const code of Object.values(countryPhoneCodes)) {
-    if (code && currentPhone.startsWith(code)) {
-      return currentPhone.replace(code, newCode);
+    if (code && str.startsWith(code)) {
+      if (code.length > matchedCode.length) {
+        matchedCode = code;
+      }
     }
   }
-  return newCode + currentPhone;
+
+  if (matchedCode) {
+    let rest = str.slice(matchedCode.length);
+    // Remove leading 0 from the local number part (e.g., +9710501234567 -> +971501234567)
+    while (rest.startsWith('0')) {
+      rest = rest.slice(1);
+    }
+    return matchedCode + (rest ? (rest.startsWith(' ') ? rest : ' ' + rest.trim()) : '');
+  }
+
+  // If starts with 0 and no country code, strip leading 0 and attach default country code
+  if (str.startsWith('0')) {
+    let rest = str;
+    while (rest.startsWith('0')) {
+      rest = rest.slice(1);
+    }
+    return defaultCode ? `${defaultCode} ${rest}` : rest;
+  }
+
+  return str;
+};
+
+const getUpdatedPhone = (currentPhone, newCode) => {
+  if (!currentPhone) return newCode ? `${newCode} ` : '';
+  if (!newCode) return currentPhone;
+
+  let currentRest = currentPhone;
+  for (const code of Object.values(countryPhoneCodes)) {
+    if (code && currentRest.startsWith(code)) {
+      currentRest = currentRest.slice(code.length).trim();
+      break;
+    }
+  }
+  // Remove any leading zero from rest
+  while (currentRest.startsWith('0')) {
+    currentRest = currentRest.slice(1);
+  }
+  return currentRest ? `${newCode} ${currentRest}` : `${newCode} `;
 };
 
 function CustomerList() {
@@ -1388,8 +1429,16 @@ function CustomerList() {
                       className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
                       style={{ borderColor: '#cbd5e1', outline: 'none' }}
                       value={form.mobile_no}
-                      onChange={e => setForm({ ...form, mobile_no: e.target.value })}
-                      placeholder="+971 -- --- ----"
+                      onChange={e => {
+                        const val = e.target.value;
+                        const code = form.custom_phone_code || countryPhoneCodes[(form.country || '').toLowerCase().trim()] || '+971';
+                        setForm({ ...form, mobile_no: sanitizeMobileNo(val, code) });
+                      }}
+                      onBlur={() => {
+                        const code = form.custom_phone_code || countryPhoneCodes[(form.country || '').toLowerCase().trim()] || '+971';
+                        setForm(prev => ({ ...prev, mobile_no: sanitizeMobileNo(prev.mobile_no, code) }));
+                      }}
+                      placeholder="+971 50 --- ----"
                     />
                   </div>
 

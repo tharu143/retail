@@ -178,6 +178,20 @@
   box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2) !important;
 }
 
+.fav-pin-btn {
+  opacity: 0.35;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.sidebar-sub-item:hover .fav-pin-btn {
+  opacity: 0.9;
+}
+
+.fav-pin-btn:hover {
+  transform: scale(1.2);
+  opacity: 1 !important;
+}
+
 /* Sidebar Dark Theme Overrides */
 .sidebar-nav.dark {
   background-color: #0f172a !important;

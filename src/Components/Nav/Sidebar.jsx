@@ -32,7 +32,8 @@ import {
   RotateCcw,
   Home,
   Sun,
-  Moon
+  Moon,
+  Star
 } from 'lucide-react';
 
 const routeMap = {
@@ -217,7 +218,32 @@ function Sidebar({ activeItem: propsActiveItem, setActiveItem: propsSetActiveIte
     localStorage.setItem('sidebarTheme', nextTheme);
   };
 
+  const [favouriteItems, setFavouriteItems] = useState(() => {
+    try {
+      const saved = localStorage.getItem('user_favourite_doctypes');
+      if (saved) return JSON.parse(saved);
+    } catch { }
+    return ['Sales Invoice', 'Item List', 'Purchase Invoice', 'Customer'];
+  });
+
+  const toggleFavourite = (e, itemName) => {
+    e.stopPropagation();
+    setFavouriteItems(prev => {
+      let next;
+      if (prev.includes(itemName)) {
+        next = prev.filter(it => it !== itemName);
+      } else {
+        next = [...prev, itemName];
+      }
+      try {
+        localStorage.setItem('user_favourite_doctypes', JSON.stringify(next));
+      } catch { }
+      return next;
+    });
+  };
+
   const [expandedSections, setExpandedSections] = useState({
+    'Favourites': true,
     'Procurement': true,
     'Sales & Returns': false,
     'Stock Management': false,
@@ -317,6 +343,83 @@ function Sidebar({ activeItem: propsActiveItem, setActiveItem: propsSetActiveIte
           <span>Dashboard Home</span>
         </div>
 
+        {/* ========== FAVOURITES SECTION ========== */}
+        <div className="sidebar-section">
+          <div
+            onClick={() => toggleSection('Favourites')}
+            className={`sidebar-section-toggle ${expandedSections['Favourites'] ? 'expanded' : ''}`}
+            title={isCollapsed ? "Favourites" : ""}
+            style={{ color: '#d97706' }}
+          >
+            <div className="sidebar-section-title">
+              <Star size={18} className="fill-amber-400 text-amber-500" />
+              <span style={{ fontWeight: 800 }}>Favourites</span>
+              {favouriteItems.length > 0 && !isCollapsed && (
+                <span style={{
+                  fontSize: 10,
+                  fontWeight: 800,
+                  padding: '1px 6px',
+                  borderRadius: 10,
+                  background: '#fef3c7',
+                  color: '#92400e',
+                  marginLeft: 4
+                }}>
+                  {favouriteItems.length}
+                </span>
+              )}
+            </div>
+            <ChevronRight
+              size={14}
+              className={`sidebar-arrow ${expandedSections['Favourites'] ? 'expanded' : ''}`}
+            />
+          </div>
+
+          {expandedSections['Favourites'] && !isCollapsed && (
+            <div className="sidebar-sub-links">
+              {favouriteItems.length === 0 ? (
+                <div style={{ padding: '8px 12px', fontSize: 11, color: '#94a3b8', fontStyle: 'italic' }}>
+                  No favourites pinned. Click ⭐ on any menu item to pin it here.
+                </div>
+              ) : (
+                favouriteItems.map((itemName, fIdx) => {
+                  const itemMeta = routeMap[itemName];
+                  const SubIcon = itemMeta ? itemMeta.icon : Star;
+
+                  return (
+                    <div
+                      key={`fav-${fIdx}`}
+                      onClick={() => handleItemClick(itemName)}
+                      className={`sidebar-sub-item ${activeItem === itemName ? 'active' : ''}`}
+                      style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingRight: 8 }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', overflow: 'hidden' }}>
+                        <SubIcon size={14} />
+                        <span style={{ whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>{itemName}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={(e) => toggleFavourite(e, itemName)}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          padding: 2,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          color: '#f59e0b'
+                        }}
+                        title="Remove from Favourites"
+                      >
+                        <Star size={13} className="fill-amber-400 text-amber-500" />
+                      </button>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          )}
+        </div>
+
         {/* Section dropdowns */}
         {sections.map((section, idx) => {
           const SectionIcon = section.icon;
@@ -345,15 +448,40 @@ function Sidebar({ activeItem: propsActiveItem, setActiveItem: propsSetActiveIte
                     const itemMeta = routeMap[itemName];
                     if (!itemMeta) return null;
                     const SubIcon = itemMeta.icon;
+                    const isFav = favouriteItems.includes(itemName);
 
                     return (
                       <div
                         key={itemIdx}
                         onClick={() => handleItemClick(itemName)}
                         className={`sidebar-sub-item ${activeItem === itemName ? 'active' : ''}`}
+                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingRight: 8 }}
                       >
-                        <SubIcon size={14} />
-                        <span>{itemName}</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', overflow: 'hidden' }}>
+                          <SubIcon size={14} />
+                          <span style={{ whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>{itemName}</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={(e) => toggleFavourite(e, itemName)}
+                          className="fav-pin-btn"
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            padding: 2,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            opacity: isFav ? 1 : 0.4,
+                            transition: 'all 0.15s'
+                          }}
+                          title={isFav ? "Unpin from Favourites" : "Pin to Favourites"}
+                        >
+                          <Star
+                            size={13}
+                            className={isFav ? "fill-amber-400 text-amber-500" : "text-slate-400 hover:text-amber-500"}
+                          />
+                        </button>
                       </div>
                     );
                   })}

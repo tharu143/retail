@@ -188,6 +188,7 @@ const SalesInvoiceList = () => {
   const [bundleSearchTerm, setBundleSearchTerm] = useState('');
   const [bundleItemGroup, setBundleItemGroup] = useState('All');
   const [bundleItemGroupsList, setBundleItemGroupsList] = useState(['All']);
+  const [showPrimaryInfo, setShowPrimaryInfo] = useState(true);
 
   // Fetch Product Bundles for Sales Invoice modal
   const fetchBundlesForSI = async () => {
@@ -253,7 +254,8 @@ const SalesInvoiceList = () => {
       custom_box_price: 0,
       custom_ref_sl_no: '',
       use_box_entry: false,
-      uom_list: []
+      uom_list: [],
+      is_tax_inclusive: true
     }));
 
     setForm(prev => ({
@@ -635,15 +637,14 @@ const SalesInvoiceList = () => {
           console.error('Failed to map DN', err);
         } finally {
           setLoading(false);
-          // Clear param
-          navigate('/salesinvoice', { replace: true });
         }
       };
       fetchMappedDN();
-    } else if (params.get('invoice')) {
-      const invoiceName = params.get('invoice');
-      loadInvoiceForEdit(invoiceName);
-      navigate('/salesinvoice', { replace: true });
+    } else if (params.get('invoice') || params.get('name')) {
+      const invoiceName = params.get('invoice') || params.get('name');
+      if (invoiceName && invoiceName !== 'new' && !invoiceName.startsWith('DN-') && !invoiceName.startsWith('SO-')) {
+        loadInvoiceForEdit(invoiceName);
+      }
     }
   }, [location.search, navigate]);
 
@@ -1836,10 +1837,18 @@ const SalesInvoiceList = () => {
 
       // Arrow Up/Down navigation inside table inputs
       if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        // If an autocomplete/search dropdown is open, let native or dropdown arrow navigation handle it
+        const isAnyDropdownOpen = !!document.querySelector('.so-dropdown');
+        if (isAnyDropdownOpen && !e.altKey && !e.ctrlKey) {
+          return;
+        }
+
         if (inItemsTable && activeEl && activeEl.tagName === 'INPUT') {
-          const isSearchInput = activeEl.placeholder === 'Search item...';
-          const isDropdownOpen = document.querySelector('.so-dropdown');
-          if (isSearchInput && isDropdownOpen && !e.altKey && !e.ctrlKey) return;
+          // If the input is a select or actively showing options, do not trigger row jump
+          if (activeEl.type === 'number' && !e.altKey && !e.ctrlKey) {
+            // Let number inputs increment/decrement natively or ignore unintended jump
+            return;
+          }
 
           const td = activeEl.closest('td');
           const tr = activeEl.closest('tr');
@@ -2151,13 +2160,23 @@ const SalesInvoiceList = () => {
                   <span className="so-shortcut-key" style={{ background: '#10b981', color: '#fff', fontSize: '9px', fontWeight: 900, padding: '1px 5px', borderRadius: '4px' }}>CTRL+↵</span>
                   <span className="so-shortcut-label" style={{ fontSize: '11px', fontWeight: 900, color: '#0f172a' }}>SUBMIT</span>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => setShowPrimaryInfo(p => !p)}
+                  className="px-2.5 py-1 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-[11px] border border-slate-300 flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs"
+                  title={showPrimaryInfo ? "Collapse Primary Info" : "Expand Primary Info"}
+                >
+                  {showPrimaryInfo ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                  <span>{showPrimaryInfo ? 'HIDE INFO' : 'SHOW INFO'}</span>
+                </button>
               </div>
             </div>
 
-            {/* 2. CLASSIC HEADER FORM */}
-            <div className="classic-header-form" style={{ background: '#ffffff', borderBottom: '1px solid #e2e8f0', padding: '0.6rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.6rem', flexShrink: 0 }}>
-              {/* Row 1 */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', width: '100%' }}>
+            {/* 2. CLASSIC HEADER FORM (Collapsible) */}
+            {showPrimaryInfo && (
+              <div className="classic-header-form" style={{ background: '#ffffff', borderBottom: '1px solid #e2e8f0', padding: '0.6rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.6rem', flexShrink: 0 }}>
+                {/* Row 1 */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', width: '100%' }}>
                 {/* Customer Selection */}
                 <div className="classic-field flex items-center gap-3 relative flex-1">
                   <label className="uppercase font-black text-[11px] text-slate-500 tracking-tight whitespace-nowrap">CUSTOMER</label>
@@ -2331,6 +2350,7 @@ const SalesInvoiceList = () => {
                 </div>
               </div>
             </div>
+            )}
 
             {/* 3. CLASSIC MAIN BODY: TABLE + BOTTOM CONTROLS */}
             <div className="flex-1 flex flex-col overflow-hidden bg-slate-100 p-2">

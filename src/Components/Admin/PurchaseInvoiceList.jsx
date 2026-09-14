@@ -241,6 +241,7 @@ function PurchaseInvoiceList() {
   const [showQuickItemModal, setShowQuickItemModal] = useState(false);
   const [quickItemInitialCode, setQuickItemInitialCode] = useState('');
   const [quickItemTargetRow, setQuickItemTargetRow] = useState(null);
+  const [showPrimaryInfo, setShowPrimaryInfo] = useState(true);
 
   const handleSupplierCreate = async (name) => {
     try {
@@ -1013,16 +1014,28 @@ function PurchaseInvoiceList() {
 
             return { ...prev, items };
           });
+
+          // Focus to UOM field of the scanned item row
+          setTimeout(() => {
+            const uomSelects = document.querySelectorAll('select[data-field="uom"], table select');
+            if (uomSelects && uomSelects.length > 0) {
+              const lastUom = uomSelects[uomSelects.length - 1];
+              if (lastUom) lastUom.focus();
+            }
+          }, 150);
         } else {
           alert('Item not found for barcode: ' + code);
+          setBarcodeInput('');
+          barcodeRef.current?.focus();
         }
       } catch (err) {
         console.error('Barcode fetch error:', err);
         alert('Error fetching item by barcode');
+        setBarcodeInput('');
+        barcodeRef.current?.focus();
       } finally {
         setBarcodeLoading(false);
-        setBarcodeInput(''); // Clear input after scan
-        barcodeRef.current?.focus(); // Refocus for next scan
+        setBarcodeInput('');
       }
     }
   };
@@ -3128,11 +3141,14 @@ function PurchaseInvoiceList() {
 
       // Arrow Up/Down navigation inside table inputs
       if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        const isDropdownOpen = !!document.querySelector('.custom-dropdown-portal') || !!document.querySelector('.so-dropdown');
+        // If dropdown is open, let dropdown navigation handle arrow keys
+        if (isDropdownOpen && !e.altKey && !e.ctrlKey) return;
+
         if (inItemsTable && activeEl && activeEl.tagName === 'INPUT') {
-          const isSearchInput = activeEl.placeholder === 'Search item...';
-          const isDropdownOpen = document.querySelector('.custom-dropdown-portal');
-          // If search input and dropdown is open, only block if they do not hold Alt/Ctrl
-          if (isSearchInput && isDropdownOpen && !e.altKey && !e.ctrlKey) return;
+          if (activeEl.type === 'number' && !e.altKey && !e.ctrlKey) {
+            return;
+          }
 
           const td = activeEl.closest('td');
           const tr = activeEl.closest('tr');
@@ -5055,11 +5071,21 @@ function PurchaseInvoiceList() {
                 </div>
               )}
 
-              {/* Basic Details Card */}
+              {/* Basic Details Card (Collapsible) */}
               <div className="so-card">
-                <div className="so-card-header">
-                  <p className="so-card-title">Basic Details</p>
+                <div className="so-card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <p className="so-card-title">Basic Details (Supplier & Invoice Info)</p>
+                  <button
+                    type="button"
+                    onClick={() => setShowPrimaryInfo(p => !p)}
+                    className="px-2.5 py-1 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-[11px] border border-slate-300 flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs"
+                    title={showPrimaryInfo ? "Collapse Basic Details" : "Expand Basic Details"}
+                  >
+                    {showPrimaryInfo ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                    <span>{showPrimaryInfo ? 'HIDE DETAILS' : 'SHOW DETAILS'}</span>
+                  </button>
                 </div>
+                {showPrimaryInfo && (
                 <div className="so-card-body">
                   <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
                     {/* Column 1: Supplier, Posting Date, Supplier Invoice No, Payment Type */}
@@ -5282,6 +5308,7 @@ function PurchaseInvoiceList() {
                     </div>
                   </div>
                 </div>
+                )}
               </div>
 
 
