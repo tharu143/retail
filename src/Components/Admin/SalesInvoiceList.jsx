@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import axios from 'axios';
 import Swal from 'sweetalert2';
 import {
-  Plus, X, Search, Filter, ChevronDown, FileText,
+  Plus, X, Search, Filter, ChevronDown, ChevronUp, FileText,
   Loader2, ChevronLeft, ChevronRight, ArrowLeft, Palette, Truck,
   Zap, Link as LinkIcon, Edit2, CheckCircle2, Save, Printer, Settings
 } from 'lucide-react';
