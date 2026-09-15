@@ -115,9 +115,9 @@ function PurchaseInvoiceList() {
   // Theme toggle (synced across pages)
   const [piTheme, setPiTheme] = useState(localStorage.getItem('legacySubTheme') || 'green');
   const isGreen = piTheme === 'green';
-  const themeColor = isGreen ? '#10b981' : '#0ea5e9';
-  const themeColorHover = isGreen ? '#059669' : '#0284c7';
-  const themeLight = isGreen ? '#f0fdf4' : '#f0f9ff';
+  const themeColor = isGreen ? '#10b981' : '#0082f6';
+  const themeColorHover = isGreen ? '#059669' : '#0070d8';
+  const themeLight = isGreen ? '#f0fdf4' : '#ebf4fe';
 
   // ----- Column Config -----
   const [columnConfig, setColumnConfig] = useState(() => loadLocalMatrixConfig('pi_column_config', DEFAULT_PI_COLUMNS));
@@ -6178,81 +6178,154 @@ function PurchaseInvoiceList() {
             <span className="so-page-tab" onClick={() => navigate('/purchasereport')} style={{ cursor: 'pointer' }}>Reports</span>
           </div>
           <div className="so-page-header">
-            <div className="so-page-left">
-              <h1 className="so-page-title">Purchase Invoice Management</h1>
-              <p className="so-page-subtitle">{total} total record(s) found</p>
+            <div>
+              <h1 className="so-page-title" style={{ display: 'flex', alignItems: 'center', gap: '10px', margin: 0 }}>
+                <Package size={22} style={{ color: themeColor || '#0082f6' }} strokeWidth={2.5} />
+                <span style={{ fontFamily: "'Outfit', 'Gilroy', sans-serif", fontSize: '22px', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.01em', textTransform: 'uppercase' }}>
+                  PURCHASE INVOICE MANAGEMENT
+                </span>
+              </h1>
+              <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#64748b', fontWeight: 500 }}>
+                Manage and track all purchase invoices
+              </p>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               {/* Theme Toggle */}
               <button
+                type="button"
                 onClick={() => setPiTheme(isGreen ? 'blue' : 'green')}
                 style={{
-                  display: 'flex', alignItems: 'center', gap: '0.4rem',
-                  padding: '0.45rem 0.9rem', background: '#f8fafc',
-                  border: `1.5px solid ${themeColor}`, borderRadius: '0.375rem',
-                  fontSize: '0.75rem', fontWeight: 700, color: themeColor,
-                  cursor: 'pointer', transition: 'all 0.2s',
-                  textTransform: 'uppercase', letterSpacing: '0.04em'
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  height: '38px',
+                  padding: '0 16px',
+                  background: '#ffffff',
+                  color: themeColor || '#0082f6',
+                  border: `1.5px solid ${themeColor || '#0082f6'}`,
+                  borderRadius: '8px',
+                  fontSize: '12px',
+                  fontWeight: 800,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.04em',
+                  cursor: 'pointer',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+                  transition: 'all 0.15s ease-in-out',
+                  boxSizing: 'border-box'
                 }}
                 title="Toggle Theme"
               >
-                <Palette size={13} />
-                {piTheme.toUpperCase()}
+                <Palette size={14} />
+                <span>{piTheme.toUpperCase()}</span>
               </button>
 
               <ListCustomizer
                 doctype="Purchase Invoice"
                 onSave={cols => setCustomColumns(cols)}
-                themeColor={themeColor}
+                themeColor={themeColor || '#0082f6'}
+                btnStyle={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  height: '38px',
+                  padding: '0 16px',
+                  background: '#ffffff',
+                  color: themeColor || '#0082f6',
+                  border: `1.5px solid ${themeColor || '#0082f6'}`,
+                  borderRadius: '8px',
+                  fontSize: '12px',
+                  fontWeight: 800,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.04em',
+                  cursor: 'pointer',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+                  transition: 'all 0.15s ease-in-out',
+                  boxSizing: 'border-box'
+                }}
               />
 
-              <button onClick={() => setSearchParams({ name: 'new' })} className="so-btn-primary">
-                <Plus size={16} /> Create Invoice
+              <button
+                type="button"
+                onClick={() => setSearchParams({ name: 'new' })}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  height: '38px',
+                  padding: '0 16px',
+                  background: themeColor || '#0082f6',
+                  color: '#ffffff',
+                  border: `1.5px solid ${themeColor || '#0082f6'}`,
+                  borderRadius: '8px',
+                  fontSize: '12px',
+                  fontWeight: 800,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.04em',
+                  cursor: 'pointer',
+                  boxShadow: '0 2px 4px rgba(0, 130, 246, 0.25)',
+                  transition: 'all 0.15s ease-in-out',
+                  boxSizing: 'border-box'
+                }}
+              >
+                <Plus size={16} />
+                <span>CREATE INVOICE</span>
               </button>
             </div>
           </div>
         </div>
 
-        <div className="so-layout" style={{ flexDirection: 'column', display: isModalOpen ? 'none' : 'flex' }}>
+        <div className="so-layout" style={{ flexDirection: 'column', display: isModalOpen ? 'none' : 'flex', background: '#f8fafc', padding: '1.5rem 2rem' }}>
           {/* Top Filters Bar */}
           <div className="so-filter-bar" style={{
-            background: 'white',
-            padding: '1.25rem 2rem',
-            borderBottom: '1px solid var(--so-border)',
+            background: '#f8fafc',
+            padding: '0 0 1.25rem 0',
+            borderBottom: 'none',
             display: 'flex',
             flexWrap: 'wrap',
             gap: '1.25rem',
-            alignItems: 'flex-end'
+            alignItems: 'flex-end',
+            marginBottom: '0.5rem'
           }}>
             <div style={{ flex: '1 1 180px' }}>
-              <label className="so-filter-label">Invoice Number</label>
-              <input
-                type="text"
-                placeholder="Search invoice..."
-                value={filterName}
-                onChange={e => setFilterName(e.target.value)}
-                className="so-filter-input"
-              />
+              <label className="so-filter-label" style={{ fontSize: '12px', fontWeight: 800, color: '#334155', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: '6px' }}>INVOICE NUMBER</label>
+              <div style={{ position: 'relative' }}>
+                <Search size={14} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', zIndex: 2 }} />
+                <input
+                  type="text"
+                  placeholder="Search invoice..."
+                  value={filterName}
+                  onChange={e => setFilterName(e.target.value)}
+                  className="so-filter-input so-filter-input-icon"
+                  style={{ width: '100%', height: '38px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none', background: '#fff', paddingLeft: '2.5rem' }}
+                />
+              </div>
             </div>
 
             <div style={{ flex: '1 1 180px' }}>
-              <label className="so-filter-label">Supplier</label>
-              <input
-                type="text"
-                placeholder="Search supplier..."
-                value={filterSupplier}
-                onChange={e => setFilterSupplier(e.target.value)}
-                className="so-filter-input"
-              />
+              <label className="so-filter-label" style={{ fontSize: '12px', fontWeight: 800, color: '#334155', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: '6px' }}>SUPPLIER</label>
+              <div style={{ position: 'relative' }}>
+                <Search size={14} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', zIndex: 2 }} />
+                <input
+                  type="text"
+                  placeholder="Search supplier..."
+                  value={filterSupplier}
+                  onChange={e => setFilterSupplier(e.target.value)}
+                  className="so-filter-input so-filter-input-icon"
+                  style={{ width: '100%', height: '38px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none', background: '#fff', paddingLeft: '2.5rem' }}
+                />
+              </div>
             </div>
 
             <div style={{ flex: '1 1 140px' }}>
-              <label className="so-filter-label">Status</label>
+              <label className="so-filter-label" style={{ fontSize: '12px', fontWeight: 800, color: '#334155', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: '6px' }}>STATUS</label>
               <select
                 value={filterStatus}
                 onChange={e => setFilterStatus(e.target.value)}
                 className="so-filter-input"
-                style={{ padding: '0.45rem' }}
+                style={{ width: '100%', height: '38px', padding: '0 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none', background: '#fff', fontWeight: 600, color: '#0f172a' }}
               >
                 <option value="">All Statuses</option>
                 <option value="Draft">Draft</option>
@@ -6265,38 +6338,60 @@ function PurchaseInvoiceList() {
             </div>
 
             <div style={{ flex: '1 1 150px' }}>
-              <label className="so-filter-label">From Date</label>
+              <label className="so-filter-label" style={{ fontSize: '12px', fontWeight: 800, color: '#334155', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: '6px' }}>FROM DATE</label>
               <input
                 type="date"
                 value={filterDateFrom}
                 onChange={e => setFilterDateFrom(e.target.value)}
                 className="so-filter-input"
+                style={{ width: '100%', height: '38px', padding: '0 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none', color: filterDateFrom ? '#0f172a' : '#64748b', fontWeight: 500 }}
                 onFocus={(e) => { try { e.target.showPicker(); } catch (err) { } }}
                 onClick={(e) => { try { e.target.showPicker(); } catch (err) { } }}
               />
             </div>
 
             <div style={{ flex: '1 1 150px' }}>
-              <label className="so-filter-label">To Date</label>
+              <label className="so-filter-label" style={{ fontSize: '12px', fontWeight: 800, color: '#334155', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: '6px' }}>TO DATE</label>
               <input
                 type="date"
                 value={filterDateTo}
                 onChange={e => setFilterDateTo(e.target.value)}
                 className="so-filter-input"
+                style={{ width: '100%', height: '38px', padding: '0 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none', color: filterDateTo ? '#0f172a' : '#64748b', fontWeight: 500 }}
                 onFocus={(e) => { try { e.target.showPicker(); } catch (err) { } }}
                 onClick={(e) => { try { e.target.showPicker(); } catch (err) { } }}
               />
             </div>
 
-            <button onClick={clearFilters} className="so-clear-btn" style={{ margin: 0, height: '38px' }}>
-              Clear
+            <button
+              type="button"
+              onClick={clearFilters}
+              style={{
+                height: '38px',
+                padding: '0 18px',
+                borderRadius: '8px',
+                border: '1px solid #cbd5e1',
+                background: '#fff',
+                fontSize: '12px',
+                fontWeight: 600,
+                color: '#475569',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+                transition: 'all 0.15s ease'
+              }}
+            >
+              {(filterName || filterSupplier || filterStatus || filterDateFrom || filterDateTo) ? <X size={14} /> : null}
+              <span>CLEAR</span>
             </button>
           </div>
 
           {/* Table Area */}
-          <div className="so-content" style={{ padding: '1.5rem 2rem' }}>
-            <p className="so-list-meta" style={{ marginBottom: '1rem', fontWeight: 600 }}>{total} record(s) found</p>
-            <div className="so-table-card">
+          <div className="so-content" style={{ padding: 0 }}>
+            <p className="so-list-meta" style={{ marginBottom: '0.75rem', fontWeight: 600, color: '#64748b', fontSize: '13px' }}>{total} record(s) found</p>
+            <div className="so-table-card" style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)' }}>
               {loading ? (
                 <div style={{ padding: '4rem', textAlign: 'center' }}>
                   <Loader2 size={32} className="so-spinner" style={{ margin: '0 auto' }} />
@@ -6308,12 +6403,12 @@ function PurchaseInvoiceList() {
                     <table className="so-table">
                       <thead>
                         <tr>
-                          <th>Invoice Number</th>
-                          <th>Supplier</th>
-                          <th>Branch / Warehouse</th>
-                          <th>Date</th>
-                          <th>Status</th>
-                          <th style={{ textAlign: 'right' }}>Amount</th>
+                          <th>INVOICE NUMBER</th>
+                          <th>SUPPLIER</th>
+                          <th>BRANCH / WAREHOUSE</th>
+                          <th>DATE</th>
+                          <th>STATUS</th>
+                          <th style={{ textAlign: 'right' }}>AMOUNT</th>
                           {customColumns.map(col => (
                             <th key={col}>{col.replace(/_/g, ' ').toUpperCase()}</th>
                           ))}

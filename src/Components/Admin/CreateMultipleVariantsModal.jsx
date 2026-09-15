@@ -393,7 +393,7 @@ export default function CreateMultipleVariantsModal({ isOpen, onClose, onVariant
                             <button
                               type="button"
                               onClick={() => handleSelectAllForAttr(attr.attribute, allVals)}
-                              style={{ background: '#f5f3ff', border: '1px solid #ddd6fe', color: '#6d28d9', fontSize: '0.72rem', fontWeight: 700, padding: '3px 8px', borderRadius: 6, cursor: 'pointer' }}
+                              style={{ background: '#f0f2fe', border: '1px solid #c3cde4', color: '#0082f6', fontSize: '0.72rem', fontWeight: 700, padding: '3px 8px', borderRadius: 6, cursor: 'pointer' }}
                             >
                               Select All
                             </button>
@@ -518,14 +518,14 @@ export default function CreateMultipleVariantsModal({ isOpen, onClose, onVariant
               {/* STEP 2: Combinations Generation & Custom Code / Rate Override */}
               {variantRows.length > 0 && (
                 <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 14 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f5f3ff', padding: '12px 16px', borderRadius: 12, border: '1px solid #ddd6fe' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f0f2fe', padding: '12px 16px', borderRadius: 12, border: '1px solid #c3cde4' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <Sparkles size={18} color="#7c3aed" />
-                      <span style={{ fontSize: '0.88rem', fontWeight: 800, color: '#5b21b6' }}>
+                      <Sparkles size={18} color="#0082f6" />
+                      <span style={{ fontSize: '0.88rem', fontWeight: 800, color: '#0082f6' }}>
                         2. Generated Variants Matrix ({variantRows.length} combinations)
                       </span>
                     </div>
-                    <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#6d28d9', background: '#fff', padding: '3px 10px', borderRadius: 20, border: '1px solid #c4b5fd' }}>
+                    <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#0082f6', background: '#fff', padding: '3px 10px', borderRadius: 20, border: '1px solid #93c5fd' }}>
                       Ready to create in ERPNext
                     </span>
                   </div>

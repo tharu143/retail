@@ -1264,7 +1264,7 @@ function InterBranchTransferDetails() {
                 <div>
                     <h1 className="ibt-title-heading">
                         <ArrowLeftRight size={20} style={{ color: 'var(--ibt-primary)' }} />
-                        {isNew ? 'New Inter-Branch Request' : `Inter-Branch Request: ${name}`}
+                        {isNew ? 'NEW INTER-BRANCH REQUEST' : `INTER-BRANCH REQUEST: ${name}`}
                     </h1>
                     <div className="ibt-status-pill">
                         <div className={`ibt-status-dot ${doc.status === 'Requested' ? 'bg-blue-500' :

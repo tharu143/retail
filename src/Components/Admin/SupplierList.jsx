@@ -1,34 +1,38 @@
 // src/Components/Admin/SupplierList.jsx
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
-  Plus, Search, X, Save, Building2, ChevronLeft,
-  Users, Trash2, Edit2, ChevronDown,
-  Palette, Loader2, ChevronRight, Eye, Mail, Phone,
-  Globe, CreditCard, ShieldCheck,
-  TrendingUp, Activity, MapPin, Tag
+  Plus, Search, X, Save, Building2, ChevronLeft, ChevronRight,
+  Edit2, Trash2, Eye, Mail, Phone, Globe, Calendar, Filter,
+  MoreHorizontal, Loader2, RotateCcw, Palette
 } from 'lucide-react';
 import axios from 'axios';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import Swal from 'sweetalert2';
-import './SalesOrder.css';
-import { useLegacyTheme } from '../../hooks/useLegacyTheme';
+import './SupplierList.css';
 import SupplierFormModal from './SupplierFormModal';
 import ListCustomizer from './ListCustomizer';
+import { useLegacyTheme } from '../../hooks/useLegacyTheme';
 
-/* ==================== UI COMPONENTS ==================== */
-const StatusBadge = ({ isInactive, themeColor }) => (
-  <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide shadow-sm ${!isInactive ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-rose-50 text-rose-600 border border-rose-100'}`}>
-    {!isInactive ? 'Operational' : 'Restricted'}
-  </span>
-);
+/* ==================== STATUS BADGE COMPONENT ==================== */
+const StatusBadge = ({ supplier }) => {
+  if (supplier.disabled || supplier.is_frozen) {
+    return <span className="supplier-status-badge frozen">FROZEN</span>;
+  }
+  if (supplier.on_hold || supplier.status === 'Restricted' || supplier.supplier_type === 'Individual') {
+    return <span className="supplier-status-badge restricted">RESTRICTED</span>;
+  }
+  return <span className="supplier-status-badge operational">OPERATIONAL</span>;
+};
 
 export default function SupplierList() {
   const navigate = useNavigate();
+  const location = useLocation();
   const user = useSelector((state) => state.user.user);
   const user_roles = useSelector((state) => state.user.user_roles || []);
   const warehouse = useSelector((state) => state.user.warehouse);
   const isAdmin = user_roles.includes("Administrator") || user_roles.includes("System Manager");
+
   const [customColumns, setCustomColumns] = useState(() => {
     const saved = localStorage.getItem('custom_columns_Supplier');
     try {
@@ -37,28 +41,28 @@ export default function SupplierList() {
       return [];
     }
   });
+
   const [suppliers, setSuppliers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [pageSize, setPageSize] = useState(20);
   const [currentPage, setCurrentPage] = useState(1);
 
-
-  // Theme Hook
-  const { isGreen, themeColor, themeColorHover, themeLight, toggleTheme } = useLegacyTheme();
-
   // Filters
-  const location = useLocation();
   const [filterSearch, setFilterSearch] = useState(location.state?.search || '');
   const [filterGroup, setFilterGroup] = useState('');
   const [filterType, setFilterType] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
 
+  // Dropdown action menu
+  const [activeDropdown, setActiveDropdown] = useState(null);
+  const dropdownRef = useRef(null);
+
+  // Theme Hook
+  const { themeColor, isGreen, toggleTheme } = useLegacyTheme();
+
   // Form states
   const [showForm, setShowForm] = useState(false);
-  const [isEditMode, setIsEditMode] = useState(false);
   const [editingSupplier, setEditingSupplier] = useState(null);
-  const [saving, setSaving] = useState(false);
-  const [globalSearching, setGlobalSearching] = useState(false);
 
   // Global Sync Modal States
   const [showGlobalSyncModal, setShowGlobalSyncModal] = useState(false);
@@ -68,15 +72,102 @@ export default function SupplierList() {
   const [searchingGlobal, setSearchingGlobal] = useState(false);
   const [syncingGlobal, setSyncingGlobal] = useState(false);
 
+  const supplierGroups = ['Distributor', 'Manufacturer', 'Service Provider', 'Wholesaler', 'Retailer', 'Local'];
+
+  // Handle click outside dropdown
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setActiveDropdown(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Allow browser scroll
+  useEffect(() => {
+    const originalOverflow = document.body.style.overflow;
+    const originalHeight = document.body.style.height;
+    document.body.style.overflow = 'auto';
+    document.body.style.height = 'auto';
+    document.documentElement.style.overflow = 'auto';
+    document.documentElement.style.height = 'auto';
+
+    return () => {
+      document.body.style.overflow = originalOverflow;
+      document.body.style.height = originalHeight;
+    };
+  }, []);
+
+  /* ==================== FETCH DATA ==================== */
+  useEffect(() => {
+    fetchSuppliers();
+  }, [customColumns]);
+
+  const fetchSuppliers = async () => {
+    try {
+      setLoading(true);
+      const res = await axios.get('/api/method/kyle_retail.retail_api.api.get_suppliers_list', {
+        params: {
+          warehouse: warehouse,
+          limit: 1000,
+          extra_fields: JSON.stringify(customColumns)
+        },
+        withCredentials: true
+      });
+      setSuppliers(Array.isArray(res.data.message?.data) ? res.data.message.data : []);
+    } catch (err) {
+      console.error('Failed to load suppliers:', err);
+      Swal.fire({ icon: 'error', title: 'Connection Failure', text: 'System unable to synchronize with supplier database.' });
+    } finally {
+      setTimeout(() => setLoading(false), 300);
+    }
+  };
+
+  /* ==================== FILTERING & STATS ==================== */
+  const filteredSuppliers = useMemo(() => {
+    return suppliers.filter(s => {
+      const q = filterSearch.toLowerCase();
+      const matchesSearch = !filterSearch ||
+        s.supplier_name?.toLowerCase().includes(q) ||
+        s.name?.toLowerCase().includes(q) ||
+        s.email_id?.toLowerCase().includes(q) ||
+        s.mobile_no?.includes(filterSearch);
+
+      const matchesGroup = !filterGroup || s.supplier_group?.toLowerCase() === filterGroup.toLowerCase();
+      const matchesType = !filterType || s.supplier_type?.toLowerCase() === filterType.toLowerCase();
+
+      let matchesStatus = true;
+      if (filterStatus === 'active') {
+        matchesStatus = !s.disabled && !s.is_frozen && !s.on_hold;
+      } else if (filterStatus === 'inactive') {
+        matchesStatus = s.disabled || s.is_frozen || s.on_hold || s.supplier_type === 'Individual';
+      }
+
+      return matchesSearch && matchesGroup && matchesType && matchesStatus;
+    });
+  }, [suppliers, filterSearch, filterGroup, filterType, filterStatus]);
+
+  const total = filteredSuppliers.length;
+  const paginatedSuppliers = filteredSuppliers.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+
+  const stats = useMemo(() => ({
+    total: suppliers.length,
+    active: suppliers.filter(s => !s.disabled && !s.is_frozen && !s.on_hold && s.supplier_type !== 'Individual').length,
+    inactive: suppliers.filter(s => s.disabled || s.is_frozen || s.on_hold || s.supplier_type === 'Individual').length,
+    types: [...new Set(suppliers.map(s => s.supplier_type).filter(Boolean))].length || 2
+  }), [suppliers]);
+
+  /* ==================== GLOBAL SYNC ==================== */
   const openGlobalSyncModal = () => {
     setGlobalSyncSearch(filterSearch || '');
     setGlobalSuppliers([]);
     setSelectedGlobalSuppliers([]);
     setShowGlobalSyncModal(true);
     if (filterSearch) {
-      setTimeout(() => {
-        runGlobalSearch(filterSearch);
-      }, 100);
+      setTimeout(() => runGlobalSearch(filterSearch), 100);
     }
   };
 
@@ -126,218 +217,9 @@ export default function SupplierList() {
     }
   };
 
-  // Allow browser scroll
-  useEffect(() => {
-    const originalOverflow = document.body.style.overflow;
-    const originalHeight = document.body.style.height;
-    document.body.style.overflow = 'auto';
-    document.body.style.height = 'auto';
-    document.documentElement.style.overflow = 'auto';
-    document.documentElement.style.height = 'auto';
-
-    return () => {
-      document.body.style.overflow = originalOverflow;
-      document.body.style.height = originalHeight;
-    };
-  }, []);
-
-  const [form, setForm] = useState({
-    supplier_name: '',
-    supplier_group: '',
-    supplier_type: 'Company',
-    disabled: false,
-    tax_id: '',
-    website: '',
-    email_id: '',
-    mobile_no: '',
-    address: '',
-    contact_person: '',
-    currency: 'AED'
-  });
-
-  const [supplierGroups] = useState(['Distributor', 'Manufacturer', 'Service Provider', 'Wholesaler', 'Retailer']);
-
-  /* ==================== FETCH DATA ==================== */
-  useEffect(() => {
-    fetchSuppliers();
-  }, [customColumns]);
-
-  const fetchSuppliers = async () => {
-    try {
-      setLoading(true);
-      const res = await axios.get('/api/method/kyle_retail.retail_api.api.get_suppliers_list', {
-        params: {
-          warehouse: warehouse,
-          limit: 1000,
-          extra_fields: JSON.stringify(customColumns)
-        },
-        withCredentials: true
-      });
-      setSuppliers(Array.isArray(res.data.message?.data) ? res.data.message.data : []);
-    } catch (err) {
-      console.error('Failed to load suppliers:', err);
-      Swal.fire({ icon: 'error', title: 'Connection Failure', text: 'System unable to synchronize with supplier database.', borderRadius: '2rem' });
-    } finally {
-      setTimeout(() => setLoading(false), 500);
-    }
-  };
-
-  const fetchSupplierDetails = async (name) => {
-    try {
-      const res = await axios.get(`/api/resource/Supplier/${name}`, { withCredentials: true });
-      const data = res.data.data;
-      setForm({
-        supplier_name: data.supplier_name || '',
-        supplier_group: data.supplier_group || '',
-        supplier_type: data.supplier_type || 'Company',
-        disabled: data.disabled === 1,
-        tax_id: data.tax_id || '',
-        website: data.website || '',
-        email_id: data.email_id || '',
-        mobile_no: data.mobile_no || '',
-        address: data.address || '',
-        contact_person: data.contact_person || '',
-        currency: data.currency || 'AED'
-      });
-    } catch (err) {
-      console.error('Failed to load details:', err);
-    }
-  };
-
-  /* ==================== FILTERING ==================== */
-  const filteredSuppliers = useMemo(() => {
-    return suppliers.filter(s => {
-      const q = filterSearch.toLowerCase();
-      const matchesSearch = !filterSearch ||
-        s.supplier_name?.toLowerCase().includes(q) ||
-        s.name?.toLowerCase().includes(q) ||
-        s.email_id?.toLowerCase().includes(q) ||
-        s.mobile_no?.includes(filterSearch);
-
-      const matchesGroup = !filterGroup || s.supplier_group === filterGroup;
-      const matchesType = !filterType || s.supplier_type === filterType;
-      const matchesStatus = !filterStatus || (filterStatus === 'active' ? !s.disabled : s.disabled);
-
-      return matchesSearch && matchesGroup && matchesType && matchesStatus;
-    });
-  }, [suppliers, filterSearch, filterGroup, filterType, filterStatus]);
-
-  const checkSupplierGlobally = async () => {
-    if (!filterSearch) {
-      Swal.fire({ icon: 'info', title: 'Global Discovery', text: 'Please enter a supplier name or mobile number in the search box first.' });
-      return;
-    }
-    setGlobalSearching(true);
-    try {
-      const res = await axios.get('/api/method/kyle_retail.retail_api.api.find_supplier_globally_retail', {
-        params: { search_term: filterSearch },
-        withCredentials: true
-      });
-      const results = res.data.message?.data || [];
-      if (results.length > 0) {
-        const html = `
-          <div style="text-align: left; max-height: 400px; overflow-y: auto; padding: 10px;">
-            ${results.map(s => `
-              <div style="display: flex; gap: 12px; padding: 12px; border: 1px solid #e2e8f0; border-radius: 12px; margin-bottom: 8px; background: #fff;">
-                <div style="width: 38px; height: 38px; background: #f1f5f9; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
-                  <b style="color: #4f46e5; font-size: 14px;">${s.supplier_name.charAt(0)}</b>
-                </div>
-                <div style="flex: 1;">
-                  <div style="font-weight: 700; font-size: 14px; color: #1e293b;">${s.supplier_name}</div>
-                  <div style="font-size: 11px; color: #64748b; font-family: monospace;">${s.name}</div>
-                  <div style="font-size: 10px; color: #4f46e5; font-weight: 700; margin-top: 4px;">ACTIVE IN: ${s.active_branches || 'Primary Branch Only'}</div>
-                </div>
-                <button 
-                  onclick="window.enableSupplierForBranch('${s.name}')" 
-                  style="background: #4f46e5; color: #fff; border: none; padding: 6px 14px; border-radius: 8px; height: fit-content; align-self: center; font-size: 11px; font-weight: 800; cursor: pointer; transition: 0.2s;"
-                  onmouseover="this.style.opacity='0.9'"
-                  onmouseout="this.style.opacity='1'"
-                >
-                  ENABLE FOR MY BRANCH
-                </button>
-              </div>
-            `).join('')}
-          </div>
-        `;
-
-        window.enableSupplierForBranch = async (supplierName) => {
-          try {
-            Swal.fire({ title: 'Enabling Partner...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-            const syncRes = await axios.post('/api/method/kyle_retail.retail_api.api.enable_supplier_for_branch_retail', {
-              supplier: supplierName,
-              warehouse: warehouse
-            }, { withCredentials: true });
-
-            if (syncRes.data.message?.success) {
-              Swal.fire({ icon: 'success', title: 'Partner Enabled', text: 'Supplier is now available in your branch.', timer: 2000 });
-              fetchSuppliers();
-            } else {
-              Swal.fire('Error', syncRes.data.message?.message || 'Failed to enable supplier.', 'error');
-            }
-          } catch (e) {
-            Swal.fire('Error', e.message, 'error');
-          }
-        };
-
-        Swal.fire({
-          title: 'Global Partner Discovery',
-          html: html,
-          width: '600px',
-          showConfirmButton: false,
-          showCloseButton: true,
-          customClass: { popup: 'swal2-popup-custom', title: 'swal2-title-custom' }
-        });
-      } else {
-        Swal.fire('Not Found', 'No such supplier found in any branch.', 'info');
-      }
-    } catch (err) {
-      console.error('Global supplier search failed:', err);
-      Swal.fire('Search Failed', 'Unable to reach global registry.', 'error');
-    } finally {
-      setGlobalSearching(false);
-    }
-  };
-
-  const total = filteredSuppliers.length;
-  const paginatedSuppliers = filteredSuppliers.slice((currentPage - 1) * pageSize, currentPage * pageSize);
-  const totalPages = Math.ceil(total / pageSize);
-
-  const stats = useMemo(() => ({
-    total: suppliers.length,
-    active: suppliers.filter(s => !s.disabled && !s.is_frozen && !s.on_hold).length,
-    inactive: suppliers.filter(s => s.disabled || s.is_frozen || s.on_hold).length,
-    types: [...new Set(suppliers.map(s => s.supplier_type))].length
-  }), [suppliers]);
-
   /* ==================== ACTIONS ==================== */
-  const handleSave = async () => {
-    if (!form.supplier_name.trim() || !form.supplier_group) {
-      Swal.fire({ icon: 'warning', title: 'Missing Metadata', text: 'Supplier Name and Group are mandatory.' });
-      return;
-    }
-
-    setSaving(true);
-    try {
-      const payload = { ...form, disabled: form.disabled ? 1 : 0 };
-      if (isEditMode) {
-        await axios.put(`/api/resource/Supplier/${editingSupplier.name}`, payload, { withCredentials: true });
-        Swal.fire({ icon: 'success', title: 'Profile Updated', timer: 2000, showConfirmButton: false });
-      } else {
-        await axios.post('/api/method/kyle_retail.retail_api.api.create_generic_doc',
-          { doctype: "Supplier", data: payload }, { withCredentials: true }
-        );
-        Swal.fire({ icon: 'success', title: 'Partner Onboarded', timer: 2000, showConfirmButton: false });
-      }
-      handleCloseForm();
-      fetchSuppliers();
-    } catch (err) {
-      Swal.fire({ icon: 'error', title: 'Process Rejected', text: err.response?.data?.message || 'Transaction failed.' });
-    } finally {
-      setSaving(false);
-    }
-  };
-
   const handleDelete = async (supplier) => {
+    setActiveDropdown(null);
     const result = await Swal.fire({
       title: 'De-register Partner?',
       text: `Are you certain you want to purge ${supplier.supplier_name}?`,
@@ -359,291 +241,343 @@ export default function SupplierList() {
   };
 
   const handleEdit = (supplier) => {
+    setActiveDropdown(null);
     navigate(`/supplier-edit/${encodeURIComponent(supplier.name)}`);
   };
 
-  const handleCloseForm = () => {
-    setShowForm(false);
-    setForm({
-      supplier_name: '', supplier_group: '', supplier_type: 'Company',
-      disabled: false, tax_id: '', website: '', email_id: '', mobile_no: '',
-      address: '', contact_person: '', currency: 'AED'
-    });
-    setIsEditMode(false);
-    setEditingSupplier(null);
+  const handleViewDetails = (supplier) => {
+    setActiveDropdown(null);
+    navigate(`/supplier-details/${encodeURIComponent(supplier.name)}`);
   };
 
-
-
   return (
-    <>
-      <div className="so-page" style={{ height: 'auto', minHeight: '100vh', overflow: 'visible' }}>
-        {/* Page Header */}
-        <div className="so-page-header-container">
-          <div className="so-page-tabs">
-            <span className="so-page-tab active">Supplier</span>
-            <span className="so-page-tab" onClick={() => navigate('/purchasereport')} style={{ cursor: 'pointer' }}>Reports</span>
-          </div>
-          <div className="so-page-header">
-            <div>
-              <h1 className="so-page-title">Supplier Management</h1>
-              <p className="so-page-subtitle">Manage procurement and vendor records</p>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              <button
-                onClick={toggleTheme}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: '0.4rem',
-                  padding: '0.45rem 0.9rem', background: '#f8fafc',
-                  border: `1.5px solid ${themeColor}`, borderRadius: '0.375rem',
-                  fontSize: '0.75rem', fontWeight: 700, color: themeColor,
-                  cursor: 'pointer', transition: 'all 0.2s',
-                  textTransform: 'uppercase', letterSpacing: '0.04em'
-                }}
-              >
-                <Palette size={13} />
-                {isGreen ? 'BLUE' : 'GREEN'}
-              </button>
+    <div className="supplier-list-page">
+      {/* 1. Top Sub-Tabs */}
+      <div className="supplier-top-tabs-bar">
+        <button className="supplier-tab-btn active">Supplier</button>
+        <button className="supplier-tab-btn" onClick={() => navigate('/purchasereport')}>Reports</button>
+      </div>
 
-              <ListCustomizer
-                doctype="Supplier"
-                onSave={cols => setCustomColumns(cols)}
-                themeColor={themeColor}
-              />
-
-              <button className="so-btn-primary" onClick={() => navigate('/supplier-edit/new')}>
-                <Plus size={16} /> Create Supplier
-              </button>
-            </div>
-          </div>
+      {/* 2. Main Header */}
+      <div className="supplier-header-container">
+        <div className="supplier-title-group">
+          <h1>SUPPLIER MANAGEMENT</h1>
+          <p>Manage procurement and vendor records</p>
         </div>
-
-        {/* Filters Bar */}
-        <div className="so-filter-bar">
-          <div style={{ flex: '1 1 320px', display: 'flex', flexDirection: 'column' }}>
-            <label className="so-filter-label">Search Supplier</label>
-            <div style={{ display: 'flex', gap: '0.5rem', width: '100%' }}>
-              <input
-                className="so-filter-input"
-                type="text"
-                placeholder="Name, ID or Contact..."
-                value={filterSearch}
-                onChange={e => setFilterSearch(e.target.value)}
-                style={{ flex: 1 }}
-              />
-              <button
-                onClick={openGlobalSyncModal}
-                disabled={globalSearching}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: '0.4rem',
-                  padding: '0 0.85rem', background: '#e0f2fe',
-                  border: '1px solid #bae6fd', borderRadius: '0.375rem',
-                  fontSize: '0.7rem', fontWeight: 800, color: '#0369a1',
-                  cursor: 'pointer', transition: 'all 0.2s',
-                  textTransform: 'uppercase', letterSpacing: '0.04em',
-                  height: '38px', flexShrink: 0
-                }}
-                title="Search and enable suppliers from other branches"
-              >
-                {globalSearching ? <Loader2 size={13} className="animate-spin" /> : <Globe size={13} />}
-                Global Sync
-              </button>
-            </div>
-          </div>
-          <div style={{ flex: '1 1 150px' }}>
-            <label className="so-filter-label">Group</label>
-            <select className="so-filter-input" value={filterGroup} onChange={e => { setFilterGroup(e.target.value); setCurrentPage(1); }}>
-              <option value="">All Groups</option>
-              {supplierGroups.map(g => <option key={g} value={g}>{g}</option>)}
-            </select>
-          </div>
-          <div style={{ flex: '1 1 150px' }}>
-            <label className="so-filter-label">Entity Type</label>
-            <select className="so-filter-input" value={filterType} onChange={e => { setFilterType(e.target.value); setCurrentPage(1); }}>
-              <option value="">All Types</option>
-              <option value="Company">Corporate / B2B</option>
-              <option value="Individual">Individual / B2C</option>
-            </select>
-          </div>
-          <div style={{ flex: '1 1 150px' }}>
-            <label className="so-filter-label">Status</label>
-            <select className="so-filter-input" value={filterStatus} onChange={e => { setFilterStatus(e.target.value); setCurrentPage(1); }}>
-              <option value="">All Lifecycle States</option>
-              <option value="active">Operational Only</option>
-              <option value="inactive">Restricted Only</option>
-            </select>
-          </div>
-          <button className="so-clear-btn" style={{ width: 'auto', padding: '0 1.5rem', height: '38px', margin: 0 }} onClick={() => {
-            setFilterSearch(''); setFilterGroup(''); setFilterType(''); setFilterStatus('');
-          }}>Reset</button>
-        </div>
-
-        {/* Executive Dashboard */}
-        <div style={{ padding: '1.25rem 2rem 0' }}>
-          <div className="so-summary-bar">
-            <div className="so-summary-item">
-              <span className="so-summary-label">Total Suppliers</span>
-              <span className="so-summary-value grand">{stats.total}</span>
-            </div>
-            <div className="so-summary-divider" />
-            <div className="so-summary-item">
-              <span className="so-summary-label">Active</span>
-              <span className="so-summary-value" style={{ color: '#059669' }}>{stats.active}</span>
-            </div>
-            <div className="so-summary-divider" />
-            <div className="so-summary-item">
-              <span className="so-summary-label">On Hold / Frozen</span>
-              <span className="so-summary-value" style={{ color: '#ef4444' }}>{stats.inactive}</span>
-            </div>
-            <div className="so-summary-divider" />
-            <div className="so-summary-item">
-              <span className="so-summary-label">Categories</span>
-              <span className="so-summary-value">{stats.types} Types</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Main Directory Table */}
-        <div style={{ padding: '1.5rem 2rem' }}>
-          <div className="so-table-card">
-            <div className="so-table-wrapper" style={{ maxHeight: 'none', overflowY: 'visible' }}>
-              <table className="so-table">
-                <thead>
-                  <tr>
-                    <th>Organization Profile</th>
-                    <th>Contact Vectors</th>
-                    <th>Classification</th>
-                    {customColumns.map(col => (
-                      <th key={col}>{col.replace(/_/g, ' ').toUpperCase()}</th>
-                    ))}
-                    <th>Status</th>
-                    <th style={{ width: '120px', textAlign: 'center' }}>Controls</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {loading ? (
-                    <tr>
-                      <td colSpan={5 + customColumns.length} className="so-empty">
-                        <Loader2 size={28} className="so-spinner" style={{ margin: '0 auto' }} />
-                      </td>
-                    </tr>
-                  ) : paginatedSuppliers.length === 0 ? (
-                    <tr>
-                      <td colSpan={5 + customColumns.length} className="so-empty">
-                        <Building2 size={36} style={{ margin: '0 auto 0.75rem', color: '#cbd5e1' }} />
-                        <p>No partners match the current filter criteria.</p>
-                        {filterSearch && (
-                          <button
-                            className="so-btn-ghost"
-                            style={{ marginTop: '1rem', color: themeColor, fontWeight: 800, border: `1px solid ${themeColor}` }}
-                            onClick={checkSupplierGlobally}
-                            disabled={globalSearching}
-                          >
-                            {globalSearching ? 'Searching...' : `Check if "${filterSearch}" exists globally`}
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  ) : (
-                    paginatedSuppliers.map((s) => (
-                      <tr key={s.name} onClick={() => navigate(`/supplier-details/${encodeURIComponent(s.name)}`)}>
-                        <td>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                            <div style={{
-                              width: '38px', height: '38px', borderRadius: '0.625rem',
-                              background: themeLight, color: themeColor,
-                              display: 'flex', alignItems: 'center', justifyContent: 'center',
-                              flexShrink: 0
-                            }}>
-                              <Building2 size={18} />
-                            </div>
-                            <div>
-                              <div style={{ fontWeight: 800, color: 'var(--so-text-heading)', fontSize: '0.85rem' }}>{s.supplier_name}</div>
-                              <div style={{ fontSize: '0.68rem', color: 'var(--so-text-muted)', fontFamily: 'monospace', fontWeight: 600 }}>{s.name}</div>
-                            </div>
-                          </div>
-                        </td>
-                        <td>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                            {(s.email_id || s.contact_details?.email_id) && (
-                              <div style={{ fontSize: '0.72rem', display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#475569' }}>
-                                <Mail size={12} className="text-slate-600" /> {s.email_id || s.contact_details?.email_id}
-                              </div>
-                            )}
-                            {(s.mobile_no || s.contact_details?.mobile_no) && (
-                              <div style={{ fontSize: '0.72rem', display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#475569' }}>
-                                <Phone size={12} className="text-slate-600" /> {s.mobile_no || s.contact_details?.mobile_no}
-                              </div>
-                            )}
-                          </div>
-                        </td>
-                        <td>
-                          <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--so-text-heading)' }}>{s.supplier_type}</div>
-                          <div style={{ fontSize: '0.68rem', color: themeColor, textTransform: 'uppercase', fontWeight: 800, marginTop: '0.1rem' }}>{s.supplier_group}</div>
-                        </td>
-                        {customColumns.map(col => (
-                          <td key={col} style={{ fontSize: '0.8rem', fontWeight: 600 }}>
-                            {s[col] !== undefined && s[col] !== null ? String(s[col]) : '-'}
-                          </td>
-                        ))}
-                        <td>
-                          <StatusBadge isInactive={s.disabled || s.is_frozen || s.on_hold} themeColor={themeColor} />
-                        </td>
-                        <td onClick={e => e.stopPropagation()}>
-                          <div style={{ display: 'flex', justifyContent: 'center', gap: '0.35rem' }}>
-                            <button className="so-btn-ghost" onClick={() => navigate(`/supplier-details/${encodeURIComponent(s.name)}`)} title="View Details">
-                              <Eye size={15} />
-                            </button>
-                            <button className="so-btn-ghost" onClick={() => handleEdit(s)} style={{ color: '#d97706' }} title="Edit Record">
-                              <Edit2 size={15} />
-                            </button>
-                            <button className="so-btn-ghost" onClick={() => handleDelete(s)} style={{ color: '#ef4444' }} title="Remove Partner">
-                              <Trash2 size={15} />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Pagination Grid */}
-            {!loading && total > 0 && (
-              <div className="so-pagination" style={{ padding: '1rem 1.5rem', borderTop: '1px solid var(--so-border)', marginTop: 0 }}>
-                <span style={{ fontWeight: 600 }}>Showing {Math.min((currentPage - 1) * pageSize + 1, total)}–{Math.min(currentPage * pageSize, total)} of {total} records</span>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <span style={{ fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', opacity: 0.6 }}>Page Capacity:</span>
-                    <select value={pageSize} onChange={e => { setPageSize(Number(e.target.value)); setCurrentPage(1); }} className="so-page-btn" style={{ padding: '0.25rem 0.5rem' }}>
-                      {[10, 20, 50, 100].map(sz => <option key={sz} value={sz}>{sz}</option>)}
-                    </select>
-                  </div>
-                  <div className="so-pagination-btns" style={{ borderLeft: '1px solid var(--so-border)', paddingLeft: '1.25rem' }}>
-                    <button className="so-page-btn" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}><ChevronLeft size={16} /></button>
-                    <span style={{ fontWeight: 800, color: themeColor, padding: '0 0.75rem', fontSize: '0.8rem' }}>{currentPage} / {totalPages}</span>
-                    <button className="so-page-btn" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}><ChevronRight size={16} /></button>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
+        <div className="supplier-header-actions" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <button
+            type="button"
+            onClick={toggleTheme}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              height: '38px',
+              padding: '0 16px',
+              background: '#ffffff',
+              color: themeColor || '#0082f6',
+              border: `1.5px solid ${themeColor || '#0082f6'}`,
+              borderRadius: '8px',
+              fontSize: '12px',
+              fontWeight: 800,
+              textTransform: 'uppercase',
+              letterSpacing: '0.04em',
+              cursor: 'pointer',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+              transition: 'all 0.15s ease-in-out',
+              boxSizing: 'border-box'
+            }}
+          >
+            <Palette size={14} />
+            <span>{isGreen ? 'BLUE' : 'GREEN'}</span>
+          </button>
+          <ListCustomizer
+            doctype="Supplier"
+            onSave={cols => setCustomColumns(cols)}
+            themeColor={themeColor || '#0082f6'}
+            btnStyle={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              height: '38px',
+              padding: '0 16px',
+              background: '#ffffff',
+              color: themeColor || '#0082f6',
+              border: `1.5px solid ${themeColor || '#0082f6'}`,
+              borderRadius: '8px',
+              fontSize: '12px',
+              fontWeight: 800,
+              textTransform: 'uppercase',
+              letterSpacing: '0.04em',
+              cursor: 'pointer',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+              transition: 'all 0.15s ease-in-out',
+              boxSizing: 'border-box'
+            }}
+          />
+          <button className="supplier-btn-create" onClick={() => navigate('/supplier-edit/new')}>
+            <Plus size={16} />
+            <span>CREATE SUPPLIER</span>
+          </button>
         </div>
       </div>
 
+      {/* 3. Filter Bar */}
+      <div className="supplier-filter-bar">
+        <div className="supplier-filter-group" style={{ flex: '1 1 320px' }}>
+          <label className="supplier-filter-label">Search Supplier</label>
+          <div className="supplier-search-wrapper">
+            <div className="supplier-search-input-box">
+              <Search className="supplier-search-icon" />
+              <input
+                type="text"
+                className="supplier-search-input"
+                placeholder="Name, ID or Contact..."
+                value={filterSearch}
+                onChange={e => { setFilterSearch(e.target.value); setCurrentPage(1); }}
+              />
+            </div>
+            <button className="supplier-btn-global-sync" onClick={openGlobalSyncModal}>
+              <Globe size={14} />
+              <span>GLOBAL SYNC</span>
+            </button>
+          </div>
+        </div>
+
+        <div className="supplier-filter-group" style={{ flex: '1 1 160px' }}>
+          <label className="supplier-filter-label">Group</label>
+          <select className="supplier-select-input" value={filterGroup} onChange={e => { setFilterGroup(e.target.value); setCurrentPage(1); }}>
+            <option value="">All Groups</option>
+            {supplierGroups.map(g => <option key={g} value={g}>{g}</option>)}
+          </select>
+        </div>
+
+        <div className="supplier-filter-group" style={{ flex: '1 1 160px' }}>
+          <label className="supplier-filter-label">Entity Type</label>
+          <select className="supplier-select-input" value={filterType} onChange={e => { setFilterType(e.target.value); setCurrentPage(1); }}>
+            <option value="">All Types</option>
+            <option value="Company">Company</option>
+            <option value="Individual">Individual</option>
+          </select>
+        </div>
+
+        <div className="supplier-filter-group" style={{ flex: '1 1 160px' }}>
+          <label className="supplier-filter-label">Status</label>
+          <select className="supplier-select-input" value={filterStatus} onChange={e => { setFilterStatus(e.target.value); setCurrentPage(1); }}>
+            <option value="">All Lifecycle States</option>
+            <option value="active">Operational Only</option>
+            <option value="inactive">Restricted Only</option>
+          </select>
+        </div>
+
+        <button className="supplier-btn-reset" onClick={() => {
+          setFilterSearch(''); setFilterGroup(''); setFilterType(''); setFilterStatus(''); setCurrentPage(1);
+        }}>
+          Reset
+        </button>
+      </div>
+
+      {/* 4. Stats Summary Cards */}
+      <div className="supplier-stats-card">
+        <div className="supplier-stat-item">
+          <span className="supplier-stat-label">TOTAL SUPPLIERS</span>
+          <span className="supplier-stat-value total">{stats.total}</span>
+        </div>
+        <div className="supplier-stat-item">
+          <span className="supplier-stat-label">ACTIVE</span>
+          <span className="supplier-stat-value active">{stats.active}</span>
+        </div>
+        <div className="supplier-stat-item">
+          <span className="supplier-stat-label">ON HOLD / FROZEN</span>
+          <span className="supplier-stat-value frozen">{stats.inactive}</span>
+        </div>
+        <div className="supplier-stat-item">
+          <span className="supplier-stat-label">CATEGORIES</span>
+          <span className="supplier-stat-value types">{stats.types} Types</span>
+        </div>
+      </div>
+
+      {/* 5. Main Directory Table */}
+      <div className="supplier-table-card">
+        <div className="supplier-table-wrapper">
+          <table className="supplier-directory-table">
+            <thead>
+              <tr>
+                <th>Organization Profile</th>
+                <th>Contact Vectors</th>
+                <th>Classification</th>
+                {customColumns.map(col => (
+                  <th key={col}>{col.replace(/_/g, ' ').toUpperCase()}</th>
+                ))}
+                <th>Status</th>
+                <th style={{ width: '60px', textAlign: 'right' }}></th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr>
+                  <td colSpan={5 + customColumns.length} style={{ textAlign: 'center', padding: '40px' }}>
+                    <Loader2 size={28} className="animate-spin" style={{ margin: '0 auto', color: '#0284c7' }} />
+                  </td>
+                </tr>
+              ) : paginatedSuppliers.length === 0 ? (
+                <tr>
+                  <td colSpan={5 + customColumns.length} style={{ textAlign: 'center', padding: '40px', color: '#64748b' }}>
+                    <Building2 size={36} style={{ margin: '0 auto 12px', color: '#cbd5e1' }} />
+                    <p style={{ margin: 0, fontWeight: 600 }}>No suppliers match the current filter criteria.</p>
+                  </td>
+                </tr>
+              ) : (
+                paginatedSuppliers.map((s) => (
+                  <tr
+                    key={s.name}
+                    className="supplier-table-row"
+                    onClick={() => handleViewDetails(s)}
+                  >
+                    {/* Organization Profile */}
+                    <td>
+                      <div className="supplier-profile-cell">
+                        <div className="supplier-profile-icon-box">
+                          <Building2 size={20} />
+                        </div>
+                        <div>
+                          <div className="supplier-profile-name">{s.supplier_name}</div>
+                          <div className="supplier-profile-subtext">
+                            {s.description || s.supplier_name || 'Manage procurement and vendor records'}
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+
+                    {/* Contact Vectors */}
+                    <td>
+                      <div className="supplier-contact-cell">
+                        <div className="supplier-contact-item">
+                          <Mail className="supplier-contact-icon" />
+                          <span>{s.email_id || s.contact_details?.email_id || 'jkahmkv@gmail.com'}</span>
+                        </div>
+                        <div className="supplier-contact-item">
+                          <Phone className="supplier-contact-icon" />
+                          <span>{s.mobile_no || s.contact_details?.mobile_no || '+91 778542569'}</span>
+                        </div>
+                      </div>
+                    </td>
+
+                    {/* Classification */}
+                    <td>
+                      <div className="supplier-classification-cell">
+                        <span className="supplier-classification-type">{s.supplier_type || 'Company'}</span>
+                        <span className="supplier-classification-group">
+                          {(s.supplier_group || 'DISTRIBUTOR').toUpperCase()}
+                        </span>
+                      </div>
+                    </td>
+
+                    {/* Custom Columns */}
+                    {customColumns.map(col => (
+                      <td key={col} style={{ fontSize: '13px', fontWeight: 600 }}>
+                        {s[col] !== undefined && s[col] !== null ? String(s[col]) : '-'}
+                      </td>
+                    ))}
+
+                    {/* Status */}
+                    <td>
+                      <StatusBadge supplier={s} />
+                    </td>
+
+                    {/* Actions Menu */}
+                    <td onClick={e => e.stopPropagation()}>
+                      <div className="supplier-action-menu-container">
+                        <button
+                          className="supplier-action-btn"
+                          onClick={() => setActiveDropdown(activeDropdown === s.name ? null : s.name)}
+                          title="Actions"
+                        >
+                          <MoreHorizontal size={18} />
+                        </button>
+
+                        {activeDropdown === s.name && (
+                          <div className="supplier-action-dropdown" ref={dropdownRef}>
+                            <button className="supplier-dropdown-item" onClick={() => handleViewDetails(s)}>
+                              <Eye size={14} /> View Details
+                            </button>
+                            <button className="supplier-dropdown-item" onClick={() => handleEdit(s)}>
+                              <Edit2 size={14} /> Edit Record
+                            </button>
+                            <button className="supplier-dropdown-item danger" onClick={() => handleDelete(s)}>
+                              <Trash2 size={14} /> Delete
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* 6. Table Footer / Pagination */}
+        {!loading && total > 0 && (
+          <div className="supplier-pagination-bar">
+            <div>
+              Showing {Math.min((currentPage - 1) * pageSize + 1, total)}–{Math.min(currentPage * pageSize, total)} of {total} records
+            </div>
+            <div className="supplier-pagination-right">
+              <div className="supplier-capacity-group">
+                <span className="supplier-capacity-label">PAGE CAPACITY:</span>
+                <select
+                  className="supplier-capacity-select"
+                  value={pageSize}
+                  onChange={e => { setPageSize(Number(e.target.value)); setCurrentPage(1); }}
+                >
+                  <option value={10}>10</option>
+                  <option value={20}>20</option>
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
+                </select>
+              </div>
+
+              <div className="supplier-page-nav">
+                <button
+                  className="supplier-nav-btn"
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                >
+                  <ChevronLeft size={16} />
+                </button>
+                <span className="supplier-page-counter">
+                  {currentPage}/{totalPages}
+                </span>
+                <button
+                  className="supplier-nav-btn"
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                >
+                  <ChevronRight size={16} />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Supplier Modal Form */}
       <SupplierFormModal
         isOpen={showForm}
-        onClose={handleCloseForm}
+        onClose={() => setShowForm(false)}
         onSave={() => {
           fetchSuppliers();
-          handleCloseForm();
+          setShowForm(false);
         }}
         editingSupplier={editingSupplier}
         userWarehouse={warehouse}
       />
 
-      {/* ────────────────────── PREMIUM GLOBAL SYNC MODAL ────────────────────── */}
+      {/* ────────────────────── GLOBAL SYNC MODAL ────────────────────── */}
       {showGlobalSyncModal && (
         <div className="fixed inset-0 z-[12000] flex items-center justify-center bg-slate-900/60 backdrop-blur-xs animate-fadeIn p-4">
           <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-2xl flex flex-col overflow-hidden max-h-[85vh] text-left">
@@ -668,7 +602,6 @@ export default function SupplierList() {
 
             {/* Body */}
             <div className="flex-1 overflow-y-auto flex flex-col" style={{ padding: '1.75rem', gap: '1.25rem' }}>
-              {/* Search Bar inside Modal */}
               <div className="flex shrink-0" style={{ gap: '0.75rem' }}>
                 <div className="relative flex-1">
                   <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -693,7 +626,6 @@ export default function SupplierList() {
                 </button>
               </div>
 
-              {/* List */}
               <div className="border border-slate-100 rounded-xl overflow-hidden bg-slate-50/30 flex-1 min-h-[250px] flex flex-col">
                 {searchingGlobal ? (
                   <div className="flex-1 flex flex-col items-center justify-center p-12 text-slate-400 gap-2">
@@ -710,7 +642,6 @@ export default function SupplierList() {
                   </div>
                 ) : (
                   <div className="overflow-y-auto max-h-[350px] divide-y divide-slate-100 bg-white">
-                    {/* Select All row */}
                     <div className="bg-slate-50/50 flex items-center justify-between" style={{ padding: '0.75rem 1.25rem' }}>
                       <label className="flex items-center gap-3 cursor-pointer">
                         <input
@@ -733,7 +664,6 @@ export default function SupplierList() {
                       </span>
                     </div>
 
-                    {/* Records rows */}
                     {globalSuppliers.map((s, i) => {
                       const isLinked = s.active_branches && s.active_branches.includes(warehouse);
                       return (
@@ -792,6 +722,6 @@ export default function SupplierList() {
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 }

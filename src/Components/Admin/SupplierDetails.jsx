@@ -4,7 +4,8 @@ import {
   AlertCircle, Globe, Tag, Receipt, Layers, ShoppingCart,
   ArrowRight, Settings, Edit2, Save, X, Package, CreditCard,
   ShieldCheck, Activity, TrendingUp, Calendar, Hash, FileText,
-  Search, Filter, Lock, Unlock, AlertTriangle, CheckSquare, Square, User, RefreshCw
+  Search, Filter, Lock, Unlock, AlertTriangle, CheckSquare, Square, User, RefreshCw,
+  Eye, Landmark, Share2, Database, UploadCloud, Paperclip
 } from 'lucide-react';
 import Swal from 'sweetalert2';
 import axios from 'axios';
@@ -130,7 +131,7 @@ const SupplierDetails = () => {
   const [saving, setSaving] = useState(false);
   const [supplier, setSupplier] = useState(null);
   const [dashboardData, setDashboardData] = useState(null);
-  const [activeTab, setActiveTab] = useState('Dashboard'); // Dashboard, General, Addresses, Contacts, Settings
+  const [activeTab, setActiveTab] = useState('General'); // Dashboard, General, Addresses, Contacts, Settings
   const [isEditing, setIsEditing] = useState(false);
 
   const [form, setForm] = useState({
@@ -250,17 +251,6 @@ const SupplierDetails = () => {
         });
       }
       const dash = dashRes.data.message || dashRes.data;
-      if (data.default_price_list) {
-        if (!dash.connections) dash.connections = {};
-        if (!dash.connections['Procurement']) dash.connections['Procurement'] = [];
-        // Only add if not already present
-        if (!dash.connections['Procurement'].find(c => c.doctype === 'Price List')) {
-          dash.connections['Procurement'].push({
-            doctype: 'Price List',
-            count: 1
-          });
-        }
-      }
       setDashboardData(dash);
       if (dash?.connections && Object.keys(dash.connections).length > 0) {
         setActiveModule(Object.keys(dash.connections)[0]);
@@ -279,14 +269,14 @@ const SupplierDetails = () => {
         axios.get('/api/resource/Address', {
           params: {
             filters: JSON.stringify([['Dynamic Link', 'link_name', '=', name], ['Dynamic Link', 'link_doctype', '=', 'Supplier']]),
-            fields: JSON.stringify(['name', 'address_title', 'address_type', 'city', 'country', 'address_line1']),
+            fields: JSON.stringify(['name', 'address_title', 'address_type', 'city', 'country', 'address_line1', 'address_line2', 'state', 'pincode', 'email_id', 'phone', 'county']),
             limit_page_length: 50
           }
         }),
         axios.get('/api/resource/Contact', {
           params: {
             filters: JSON.stringify([['Dynamic Link', 'link_name', '=', name], ['Dynamic Link', 'link_doctype', '=', 'Supplier']]),
-            fields: JSON.stringify(['name', 'first_name', 'last_name', 'designation', 'email_id', 'mobile_no']),
+            fields: JSON.stringify(['name', 'salutation', 'first_name', 'middle_name', 'last_name', 'designation', 'email_id', 'mobile_no', 'company_name', 'is_primary_contact']),
             limit_page_length: 50
           }
         })
@@ -429,175 +419,333 @@ const SupplierDetails = () => {
   const currConnections = dashboardData?.connections?.[activeModule] || [];
 
   return (
-    <>
-      <div className="supplier-page-container">
+    <div className="sd-container">
+      {/* 1. TOP SUPPLIER HEADER CARD */}
+      <div className="sd-header-card">
+        <div className="sd-header-left">
+          {/* Avatar Box */}
+          <div className="sd-avatar-box">
+            {supplier.supplier_name ? supplier.supplier_name.charAt(0).toUpperCase() : 'S'}
+          </div>
 
-        {/* Profile Header Overlay Card */}
-        <div className="profile-header-container">
-          {/* Header row with buttons */}
-          <div className="header-actions-row">
-            <div className="left-controls-group" />
-            <div className="right-controls-group">
-              <button
-                onClick={toggleTheme}
-                className="btn-modern-secondary"
-                style={{ borderColor: themeColor, color: themeColor }}
-                title={`Switch to ${isGreen ? 'Blue' : 'Green'} Theme`}
+          <div className="sd-title-area">
+            <h1 className="sd-title">
+              {supplier.supplier_name}
+            </h1>
+
+            {/* Dynamic Metadata Badges */}
+            <div className="sd-badges-row">
+              {/* Status Badge */}
+              <div className={`sd-badge ${isActive ? 'sd-badge-active' : 'sd-badge-disabled'}`}>
+                <span className={`sd-badge-dot ${isActive ? 'active' : 'disabled'}`}></span>
+                <span>{isActive ? 'Active' : 'Disabled'}</span>
+              </div>
+
+              {/* Group Badge */}
+              <div className="sd-badge">
+                <Users size={13} style={{ color: '#0082f6' }} />
+                <span className="sd-badge-label">Group</span>
+                <span className="sd-badge-val">{supplier.supplier_group || '—'}</span>
+              </div>
+
+              {/* Country Badge */}
+              <div className="sd-badge">
+                <Globe size={13} style={{ color: '#0082f6' }} />
+                <span className="sd-badge-val">{supplier.country || 'United Arab Emirates'}</span>
+              </div>
+
+              {/* Price List Badge */}
+              <div className="sd-badge">
+                <Tag size={13} style={{ color: '#0082f6' }} />
+                <span className="sd-badge-label">Price List:</span>
+                <span className="sd-badge-val">{supplier.default_price_list || 'Standard Price List'}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Header Action Buttons */}
+        <div className="sd-header-actions">
+          <button
+            type="button"
+            onClick={() => { setLoading(true); fetchData(); }}
+            className="sd-icon-btn"
+            title="Refresh Data"
+          >
+            <RefreshCw size={16} style={{ color: '#0082f6' }} className={loading ? 'animate-spin' : ''} />
+          </button>
+
+          <button
+            type="button"
+            onClick={() => navigate(`/generalledgerreport?party_type=Supplier&party=${name}`)}
+            className="sd-btn-ledger"
+          >
+            <FileText size={14} style={{ color: '#0082f6' }} />
+            <span>General Ledger</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setIsEditing(true)}
+            className="sd-btn-edit"
+          >
+            <Edit2 size={14} />
+            <span>Edit Profile</span>
+          </button>
+        </div>
+      </div>
+
+      {/* 2. ATTACHMENT SECTION BAR */}
+      <div style={{ marginBottom: '16px' }}>
+        <AttachmentSection doctype="Supplier" docname={name} />
+      </div>
+
+      {/* 3. SLEEK NAVIGATION TABS BAR */}
+      <div className="sd-tabs-container">
+        {[
+          { id: 'Dashboard', label: 'Dashboard' },
+          { id: 'General', label: 'General' },
+          { id: 'Addresses', label: 'Addresses' },
+          { id: 'Contacts', label: 'Contacts' },
+          { id: 'Branches', label: 'Branches' },
+          { id: 'Settings', label: 'Settings' }
+        ].map(tab => (
+          <button
+            key={tab.id}
+            type="button"
+            onClick={() => setActiveTab(tab.id)}
+            className={`sd-tab-btn ${activeTab === tab.id ? 'active' : ''}`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* 4. TAB CONTENT AREA */}
+      <div className="supplier-content-layout" style={{ padding: 0 }}>
+        {/* DASHBOARD TAB */}
+        {activeTab === 'Dashboard' && (
+          <div className="animate-in fade-in duration-300">
+            <h2 className="sd-dashboard-title">Dashboard</h2>
+
+            {/* Top 2 Metric Cards */}
+            <div className="sd-stats-grid">
+              {/* Annual Billing Card */}
+              <div
+                onClick={() => navigate(`/purchaseinvoicelist?supplier=${encodeURIComponent(name)}`)}
+                className="sd-stat-card"
               >
-                <Palette size={14} />
-                <span style={{ fontSize: '0.75rem' }}>{isGreen ? 'BLUE' : 'GREEN'}</span>
-              </button>
-              <button
-                onClick={() => {
-                  setLoading(true);
-                  fetchData();
-                }}
-                className="btn-modern-secondary"
-                title="Sync Dashboard Data"
+                <div className="sd-stat-left">
+                  <div className="sd-stat-icon-box">
+                    <span style={{ fontSize: '20px', fontWeight: 900 }}>$</span>
+                  </div>
+                  <div>
+                    <p className="sd-stat-label">Annual Billing</p>
+                    <h3 className="sd-stat-value">
+                      {dashboardData?.stats?.currency || 'AED'} {parseFloat(dashboardData?.stats?.annual_billing || 0).toLocaleString()}
+                    </h3>
+                  </div>
+                </div>
+                <div className="sd-stat-arrow">
+                  <ChevronRight size={18} />
+                </div>
+              </div>
+
+              {/* Liability Exposure Card */}
+              <div
+                onClick={() => navigate(`/purchaseinvoicelist?supplier=${encodeURIComponent(name)}`)}
+                className="sd-stat-card"
               >
-                <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-                <span style={{ fontSize: '0.75rem' }}>REFRESH</span>
-              </button>
-              <button
+                <div className="sd-stat-left">
+                  <div className="sd-stat-icon-box">
+                    <ShieldCheck size={24} />
+                  </div>
+                  <div>
+                    <p className="sd-stat-label">Liability Exposure</p>
+                    <h3 className="sd-stat-value">
+                      {dashboardData?.stats?.currency || 'AED'} {parseFloat(dashboardData?.stats?.total_unpaid || 0).toLocaleString()}
+                    </h3>
+                  </div>
+                </div>
+                <div className="sd-stat-icon-box">
+                  <Database size={20} />
+                </div>
+              </div>
+            </div>
+
+            {/* 6 Quick Access Cards Grid */}
+            <div className="sd-access-grid">
+              {/* 1. Procurement */}
+              <div
+                onClick={() => navigate(`/purchaseorderlist?supplier=${encodeURIComponent(name)}`)}
+                className="sd-access-card"
+              >
+                <div className="sd-access-left">
+                  <div className="sd-access-icon-box">
+                    <ShoppingCart size={20} />
+                  </div>
+                  <div>
+                    <h4 className="sd-access-title">Procurement</h4>
+                    <p className="sd-access-subtitle">
+                      Linked records: {dashboardData?.connections?.Procurement?.reduce((sum, item) => sum + (item.count || 0), 0) || 0}
+                    </p>
+                  </div>
+                </div>
+                <ChevronRight size={18} className="text-slate-400" />
+              </div>
+
+              {/* 2. Financing */}
+              <div
                 onClick={() => navigate(`/generalledgerreport?party_type=Supplier&party=${name}`)}
-                className="btn-modern-secondary"
-                title="View General Ledger"
+                className="sd-access-card"
               >
-                <FileText size={14} />
-                <span style={{ fontSize: '0.75rem' }}>GENERAL LEDGER</span>
-              </button>
-              <button
-                className="btn-modern-primary"
-                onClick={() => setIsEditing(true)}
-                style={{ backgroundColor: themeColor, borderColor: themeColor }}
-              >
-                <Edit2 size={14} />
-                <span style={{ fontSize: '0.75rem' }}>EDIT</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Supplier Name and Avatar Block */}
-          <div className="profile-header-content">
-            <div className="supplier-avatar-container" style={{ borderLeft: `5px solid ${themeColor}` }}>
-              {supplier.supplier_name ? supplier.supplier_name.charAt(0).toUpperCase() : 'S'}
-            </div>
-
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-              <h1 style={{ margin: 0, fontSize: '1.75rem', fontWeight: 900, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                {supplier.supplier_name}
-              </h1>
-
-              {/* Dynamic Metadata Row */}
-              <div className="meta-badges-flex">
-                <div className="badge-pill-modern" style={{ borderColor: isActive ? '#bbf7d0' : '#fecaca', backgroundColor: isActive ? '#f0fdf4' : '#fdf2f2' }}>
-                  <span className={`w-1.5 h-1.5 rounded-full ${isActive ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} style={{ width: '6px', height: '6px', borderRadius: '50%' }} />
-                  <span style={{ color: isActive ? '#15803d' : '#b91c1c', fontWeight: 700, fontSize: '0.75rem' }}>
-                    {isActive ? 'Operational' : 'Restricted'}
-                  </span>
+                <div className="sd-access-left">
+                  <div className="sd-access-icon-box">
+                    <Landmark size={20} />
+                  </div>
+                  <div>
+                    <h4 className="sd-access-title">Financing</h4>
+                    <p className="sd-access-subtitle">
+                      Linked records: {(dashboardData?.connections?.Payment || dashboardData?.connections?.Financing || dashboardData?.connections?.Sales)?.reduce((sum, item) => sum + (item.count || 0), 0) || 0}
+                    </p>
+                  </div>
                 </div>
-
-                <div className="badge-pill-modern">
-                  <Tag size={12} style={{ color: themeColor }} />
-                  <span className="badge-label-muted">Group:</span>
-                  <span className="badge-value-dark">{supplier.supplier_group}</span>
-                </div>
-
-                <div className="badge-pill-modern">
-                  <Globe size={12} style={{ color: themeColor }} />
-                  <span className="badge-label-muted">Country:</span>
-                  <span className="badge-value-dark">{supplier.country || 'Global Site'}</span>
-                </div>
-
-                <div className="badge-pill-modern">
-                  <CreditCard size={12} style={{ color: themeColor }} />
-                  <span className="badge-label-muted">Price List:</span>
-                  <span className="badge-value-dark">{supplier.default_price_list || 'Standard Buying'}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Attachment Section moved to the top */}
-        <div className="mt-4">
-           <AttachmentSection doctype="Supplier" docname={name} />
-        </div>
-
-        {/* Intelligence Navigation Tabs Container */}
-        <div className="tabs-navigation-panel">
-          <div className="tabs-navigation-container">
-            {[
-              { id: 'Dashboard', icon: Activity },
-              { id: 'General', icon: FileText },
-              { id: 'Addresses', icon: MapPin },
-              { id: 'Contacts', icon: Users },
-              { id: 'Branches', icon: Building2 },
-              { id: 'Settings', icon: ShieldCheck }
-            ].map(tab => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`nav-tab-btn-modern ${activeTab === tab.id ? 'tab-active' : ''}`}
-                style={activeTab === tab.id ? { color: themeColor } : undefined}
-              >
-                <tab.icon size={15} style={activeTab === tab.id ? { color: themeColor } : undefined} strokeWidth={2.5} />
-                {tab.id}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Content Area */}
-        <div className="supplier-content-layout">
-          {activeTab === 'Dashboard' && dashboardData && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-              {/* Highlights Grid - WITH GRAPH CONNECTIVITY REMOVED */}
-              <div className="dashboard-highlights-grid">
-                <StatCard
-                  label="Annual Billing"
-                  value={parseFloat(dashboardData.stats?.annual_billing || 0).toLocaleString()}
-                  currency={dashboardData.stats?.currency || 'AED'}
-                  icon={TrendingUp}
-                  themeColor={themeColor}
-                  isGreen={isGreen}
-                />
-                <StatCard
-                  label="Liability Exposure"
-                  value={parseFloat(dashboardData.stats?.total_unpaid || 0).toLocaleString()}
-                  currency={dashboardData.stats?.currency || 'AED'}
-                  icon={Activity}
-                  themeColor={themeColor}
-                  isGreen={isGreen}
-                />
+                <ChevronRight size={18} className="text-slate-400" />
               </div>
 
-              {/* Connection Matrices */}
-              <div className="connection-modules-grid">
-                {dashboardData.connections && Object.entries(dashboardData.connections).map(([category, links]) => {
-                  if (!links || links.length === 0) return null;
-                  return (
-                    <ConnectionCard
-                      key={category}
-                      title={category}
-                      links={links}
-                      navigate={navigate}
-                      supplierName={name}
-                      icon={linkTypeToIcon(category)}
-                      themeColor={themeColor}
-                    />
-                  );
-                })}
+              {/* 3. Addresses */}
+              <div
+                onClick={() => setActiveTab('Addresses')}
+                className="sd-access-card"
+              >
+                <div className="sd-access-left">
+                  <div className="sd-access-icon-box">
+                    <MapPin size={20} />
+                  </div>
+                  <div>
+                    <h4 className="sd-access-title">Addresses</h4>
+                    <p className="sd-access-subtitle">
+                      Linked records: {linkedAddresses.length || (supplier.address_details?.name ? 1 : 0)}
+                    </p>
+                  </div>
+                </div>
+                <ChevronRight size={18} className="text-slate-400" />
+              </div>
+
+              {/* 4. Contacts */}
+              <div
+                onClick={() => setActiveTab('Contacts')}
+                className="sd-access-card"
+              >
+                <div className="sd-access-left">
+                  <div className="sd-access-icon-box">
+                    <Users size={20} />
+                  </div>
+                  <div>
+                    <h4 className="sd-access-title">Contacts</h4>
+                    <p className="sd-access-subtitle">
+                      Linked records: {linkedContacts.length || (supplier.contact_details?.name ? 1 : 0)}
+                    </p>
+                  </div>
+                </div>
+                <ChevronRight size={18} className="text-slate-400" />
+              </div>
+
+              {/* 5. Branches */}
+              <div
+                onClick={() => setActiveTab('Branches')}
+                className="sd-access-card"
+              >
+                <div className="sd-access-left">
+                  <div className="sd-access-icon-box">
+                    <Share2 size={20} />
+                  </div>
+                  <div>
+                    <h4 className="sd-access-title">Branches</h4>
+                    <p className="sd-access-subtitle">
+                      Linked records: {supplier.branch_availability?.length || 0}
+                    </p>
+                  </div>
+                </div>
+                <ChevronRight size={18} className="text-slate-400" />
+              </div>
+
+              {/* 6. Settings */}
+              <div
+                onClick={() => setActiveTab('Settings')}
+                className="sd-access-card"
+              >
+                <div className="sd-access-left">
+                  <div className="sd-access-icon-box">
+                    <Settings size={20} />
+                  </div>
+                  <div>
+                    <h4 className="sd-access-title">Settings</h4>
+                    <p className="sd-access-subtitle">
+                      Linked records: {dashboardData?.connections?.Settings?.reduce((sum, item) => sum + (item.count || 0), 0) || 0}
+                    </p>
+                  </div>
+                </div>
+                <ChevronRight size={18} className="text-slate-400" />
               </div>
             </div>
-          )}
 
-          {activeTab === 'General' && (
-            <div className="flex flex-col gap-6">
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
-                {/* Left Column - General Information */}
-                <div className="lg:col-span-5 w-full h-full">
-                  <ScrollReveal delay={0} style={{ height: '100%' }}>
+            {/* Dynamic Connection Cards */}
+            {(() => {
+              const activeConnections = dashboardData?.connections
+                ? Object.entries(dashboardData.connections).filter(([_, links]) => Array.isArray(links) && links.length > 0)
+                : [];
+              const hasActive = activeConnections.length > 0;
+
+              return (
+                <div className="sd-registries-section">
+                  <div className="sd-registries-card">
+                    <div className="sd-registries-header">
+                      <div className="sd-registries-header-left">
+                        <Database size={18} style={{ color: themeColor }} />
+                        <h3 className="sd-registries-title">Connected Registries</h3>
+                      </div>
+                    </div>
+
+                    {hasActive ? (
+                      <div className="connection-modules-grid">
+                        {activeConnections.map(([category, links]) => (
+                          <ConnectionCard
+                            key={category}
+                            title={category}
+                            links={links}
+                            navigate={navigate}
+                            supplierName={name}
+                            icon={linkTypeToIcon(category)}
+                            themeColor={themeColor}
+                          />
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="sd-registries-empty">
+                        <div className="sd-registries-empty-icon">
+                          <Layers size={24} style={{ color: '#64748b' }} />
+                        </div>
+                        <h4 className="sd-registries-empty-title">No Connected Registries</h4>
+                        <p className="sd-registries-empty-desc">
+                          There are no linked master records or dynamic transaction histories connected to this supplier yet.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+        )}
+
+        {/* GENERAL TAB */}
+        {activeTab === 'General' && (
+          <div className="flex flex-col gap-6 animate-in fade-in duration-300">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+              {/* Left Column - General Information */}
+              <div className="lg:col-span-5 w-full h-full">
+                <ScrollReveal delay={0} style={{ height: '100%' }}>
                   <InfoSection title="General Information" icon={Hash} themeColor={themeColor} style={{ height: '100%', margin: 0 }}>
                     <div className="info-fields-grid">
                       <div className="info-field-box">
@@ -636,12 +784,12 @@ const SupplierDetails = () => {
                       </div>
                     </div>
                   </InfoSection>
-                  </ScrollReveal>
-                </div>
+                </ScrollReveal>
+              </div>
 
-                {/* Right Column - Deal Information & Supplier Registry */}
-                <div className="lg:col-span-7 w-full flex flex-col">
-                  <ScrollReveal delay={150}>
+              {/* Right Column - Deal Information & Supplier Registry */}
+              <div className="lg:col-span-7 w-full flex flex-col">
+                <ScrollReveal delay={150}>
                   <InfoSection title="Deal Information" icon={Tag} themeColor={themeColor} style={{ margin: 0, marginBottom: '1.5rem' }}>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8">
                       {/* Left side of Deal Info */}
@@ -684,7 +832,7 @@ const SupplierDetails = () => {
                   </InfoSection>
                 </ScrollReveal>
 
-                  <ScrollReveal delay={300}>
+                <ScrollReveal delay={300}>
                   <InfoSection title="Supplier Registry" icon={Calendar} themeColor={themeColor} style={{ margin: 0 }}>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8">
                       <div className="info-field-box">
@@ -714,244 +862,241 @@ const SupplierDetails = () => {
                       </div>
                     </div>
                   </InfoSection>
-                  </ScrollReveal>
-                </div>
+                </ScrollReveal>
               </div>
+            </div>
 
-              <div className="mt-2">
-                <h3 className="text-[13px] font-black text-slate-700 uppercase tracking-widest flex items-center gap-2 mb-4">
-                  <FileText size={16} style={{ color: themeColor }} strokeWidth={3} /> SUPPLIER INTELLIGENCE BIO
-                </h3>
-                <div className="bg-white rounded-2xl border border-slate-200 p-5 flex items-center justify-between cursor-pointer hover:shadow-md transition-all">
-                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-emerald-50" style={{ color: themeColor, backgroundColor: `${themeColor}15` }}>
-                      <FileText size={20} strokeWidth={2.5} />
-                    </div>
-                    <p className="text-sm font-bold text-slate-600 m-0 italic">
-                      {supplier.supplier_details || 'No detailed intelligence registered for this partner.'}
-                    </p>
+            <div className="mt-2">
+              <h3 className="text-[11px] font-bold text-slate-600 uppercase tracking-wider flex items-center gap-2 mb-3">
+                <FileText size={14} style={{ color: themeColor }} strokeWidth={2.5} /> SUPPLIER INTELLIGENCE BIO
+              </h3>
+              <div className="bg-white rounded-2xl border border-slate-200 p-4 flex items-center justify-between cursor-pointer hover:shadow-md transition-all">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-emerald-50" style={{ color: themeColor, backgroundColor: `${themeColor}15` }}>
+                    <FileText size={16} strokeWidth={2.5} />
                   </div>
-                  <ChevronRight size={20} className="text-slate-400" />
+                  <p className="text-xs font-medium text-slate-600 m-0 italic">
+                    {supplier.supplier_details || 'No detailed intelligence registered for this partner.'}
+                  </p>
                 </div>
+                <ChevronRight size={16} className="text-slate-400" />
               </div>
             </div>
-          )}
+          </div>
+        )}
 
-          {activeTab === 'Addresses' && (
-            <div className="modern-table-card animate-in fade-in duration-500">
-              <div className="modern-table-header">
-                <h3 className="table-header-title">Geospatial Registry</h3>
-                <div className="search-input-wrapper">
-                  <Search size={16} />
-                  <input
-                    type="text"
-                    className="search-input-field"
-                    placeholder="Search addresses..."
-                    value={linkedSearch}
-                    onChange={e => setLinkedSearch(e.target.value)}
-                  />
-                </div>
+        {/* ADDRESSES TAB */}
+        {activeTab === 'Addresses' && (
+          <div className="modern-table-card animate-in fade-in duration-300">
+            <div className="modern-table-header">
+              <h3 className="table-header-title">Geospatial Registry</h3>
+              <div className="search-input-wrapper">
+                <Search size={16} />
+                <input
+                  type="text"
+                  className="search-input-field"
+                  placeholder="Search addresses..."
+                  value={linkedSearch}
+                  onChange={e => setLinkedSearch(e.target.value)}
+                />
               </div>
-              <div style={{ overflowX: 'auto' }}>
-                <table className="modern-styled-table">
-                  <thead>
-                    <tr>
-                      <th>Registry Vector</th>
-                      <th>Metrics</th>
-                      <th style={{ textAlign: 'right' }}>Controls</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {linkedAddresses.filter(a => !linkedSearch || a.address_title?.toLowerCase().includes(linkedSearch.toLowerCase()) || a.name?.toLowerCase().includes(linkedSearch.toLowerCase())).map(addr => (
-                      <tr key={addr.name} onClick={() => navigate(`/addresslist?name=${encodeURIComponent(addr.name)}`)} style={{ cursor: 'pointer' }}>
-                        <td>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                            <div className="row-avatar-box">
-                              <MapPin size={18} style={{ color: themeColor }} />
-                            </div>
-                            <div>
-                              <div className="row-title-bold">{addr.address_title}</div>
-                              <div className="row-subtitle-muted">{addr.name}</div>
-                            </div>
+            </div>
+            <div style={{ overflowX: 'auto' }}>
+              <table className="modern-styled-table">
+                <thead>
+                  <tr>
+                    <th>Registry Vector</th>
+                    <th>Metrics</th>
+                    <th style={{ textAlign: 'right' }}>Controls</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {linkedAddresses.filter(a => !linkedSearch || a.address_title?.toLowerCase().includes(linkedSearch.toLowerCase()) || a.name?.toLowerCase().includes(linkedSearch.toLowerCase())).map(addr => (
+                    <tr key={addr.name} onClick={() => navigate(`/addresslist?name=${encodeURIComponent(addr.name)}`)} style={{ cursor: 'pointer' }}>
+                      <td>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                          <div className="row-avatar-box">
+                            <MapPin size={18} style={{ color: themeColor }} />
                           </div>
-                        </td>
-                        <td>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                            <span style={{ fontSize: '0.75rem', fontWeight: 700, padding: '0.2rem 0.5rem', background: '#f1f5f9', color: '#475569', borderRadius: '8px' }}>
-                              {addr.address_type}
+                          <div>
+                            <div className="row-title-bold">{addr.address_title}</div>
+                            <div className="row-subtitle-muted">{addr.name}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                          <span style={{ fontSize: '0.75rem', fontWeight: 700, padding: '0.2rem 0.5rem', background: '#f1f5f9', color: '#475569', borderRadius: '8px' }}>
+                            {addr.address_type}
+                          </span>
+                          <span style={{ fontWeight: 600, fontSize: '0.85rem' }}>{addr.city}, {addr.country}</span>
+                        </div>
+                      </td>
+                      <td style={{ textAlign: 'right' }}>
+                        <button className="btn-modern-secondary" style={{ padding: '0.4rem 0.85rem', fontSize: '0.75rem' }}>Access Stream</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* CONTACTS TAB */}
+        {activeTab === 'Contacts' && (
+          <div className="modern-table-card animate-in fade-in duration-300">
+            <div className="modern-table-header">
+              <h3 className="table-header-title">Personnel Registry</h3>
+              <div className="search-input-wrapper">
+                <Search size={16} />
+                <input
+                  type="text"
+                  className="search-input-field"
+                  placeholder="Search contacts..."
+                  value={linkedSearch}
+                  onChange={e => setLinkedSearch(e.target.value)}
+                />
+              </div>
+            </div>
+            <div style={{ overflowX: 'auto' }}>
+              <table className="modern-styled-table">
+                <thead>
+                  <tr>
+                    <th>Personnel Identity</th>
+                    <th>Connectivity Meta</th>
+                    <th style={{ textAlign: 'right' }}>Controls</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {linkedContacts.filter(c => !linkedSearch || `${c.first_name} ${c.last_name}`.toLowerCase().includes(linkedSearch.toLowerCase()) || c.name?.toLowerCase().includes(linkedSearch.toLowerCase())).map(con => (
+                    <tr key={con.name} onClick={() => navigate(`/contactlist?name=${encodeURIComponent(con.name)}`)} style={{ cursor: 'pointer' }}>
+                      <td>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                          <div className="row-avatar-box" style={{ backgroundColor: `${themeColor}10` }}>
+                            <User size={18} style={{ color: themeColor }} />
+                          </div>
+                          <div>
+                            <div className="row-title-bold">{con.first_name} {con.last_name}</div>
+                            <div className="row-subtitle-muted">{con.name}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                          <div style={{ fontWeight: 700, fontSize: '0.85rem', color: '#0f172a' }}>{con.designation || 'Personnel'}</div>
+                          <div className="contact-meta-row">
+                            <span className="contact-meta-item">
+                              <Mail size={12} /> {con.email_id}
                             </span>
-                            <span style={{ fontWeight: 600, fontSize: '0.85rem' }}>{addr.city}, {addr.country}</span>
+                            <span className="contact-meta-item">
+                              <Phone size={12} /> {con.mobile_no}
+                            </span>
                           </div>
-                        </td>
-                        <td style={{ textAlign: 'right' }}>
-                          <button className="btn-modern-secondary" style={{ padding: '0.4rem 0.85rem', fontSize: '0.75rem' }}>Access Stream</button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                        </div>
+                      </td>
+                      <td style={{ textAlign: 'right' }}>
+                        <button className="btn-modern-secondary" style={{ padding: '0.4rem 0.85rem', fontSize: '0.75rem' }}>Access Stream</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-          )}
+          </div>
+        )}
 
-          {activeTab === 'Contacts' && (
-            <div className="modern-table-card animate-in fade-in duration-500">
-              <div className="modern-table-header">
-                <h3 className="table-header-title">Personnel Registry</h3>
-                <div className="search-input-wrapper">
-                  <Search size={16} />
-                  <input
-                    type="text"
-                    className="search-input-field"
-                    placeholder="Search contacts..."
-                    value={linkedSearch}
-                    onChange={e => setLinkedSearch(e.target.value)}
-                  />
+        {/* BRANCHES TAB */}
+        {activeTab === 'Branches' && (
+          <div className="modern-table-card animate-in fade-in duration-300" style={{ padding: '2rem' }}>
+            <h3 className="table-header-title" style={{ marginBottom: '1.5rem' }}>Branch Availability</h3>
+            <div className="branches-cards-grid">
+              {(supplier?.branch_availability || []).length > 0 ? (
+                supplier.branch_availability.map((branch, idx) => (
+                  <div key={idx} className="branch-card-modern">
+                    <div className="branch-icon-box">
+                      <Building2 size={18} style={{ color: themeColor }} />
+                    </div>
+                    <div>
+                      <div style={{ fontWeight: 800, fontSize: '0.85rem', color: '#0f172a' }}>{branch.warehouse}</div>
+                      <div style={{ fontSize: '0.7rem', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Authorized Branch</div>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div style={{ gridColumn: '1 / -1', padding: '3rem 0', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', opacity: 0.5 }}>
+                  <Building2 size={48} style={{ color: '#94a3b8', marginBottom: '1rem' }} />
+                  <div style={{ fontWeight: 700, color: '#475569', fontSize: '0.95rem' }}>No Branch Restrictions</div>
+                  <div style={{ fontSize: '0.8rem', color: '#94a3b8', marginTop: '0.25rem' }}>This supplier is available across all operational zones.</div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* SETTINGS TAB */}
+        {activeTab === 'Settings' && (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.5rem' }}>
+            <InfoSection title="Policy Controls" icon={ShieldCheck} themeColor={themeColor}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem', background: '#f8fafc', borderRadius: '16px', border: '1px solid #e2e8f0' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                  <h5 style={{ margin: 0, fontSize: '0.9rem', fontWeight: 800, color: '#0f172a' }}>Lifecycle Permissions</h5>
+                  <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#64748b' }}>Current operational authorization</span>
+                </div>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    padding: '0.4rem 0.85rem',
+                    borderRadius: '8px',
+                    backgroundColor: isActive ? `${themeColor}15` : '#fff1f2',
+                    color: isActive ? themeColor : '#e11d48',
+                    fontWeight: 800,
+                    fontSize: '0.75rem'
+                  }}
+                >
+                  <Activity size={14} className={isActive ? 'animate-pulse' : ''} />
+                  <span>{isActive ? 'AUTHORIZED' : 'RESTRICTED'}</span>
                 </div>
               </div>
-              <div style={{ overflowX: 'auto' }}>
-                <table className="modern-styled-table">
-                  <thead>
-                    <tr>
-                      <th>Personnel Identity</th>
-                      <th>Connectivity Meta</th>
-                      <th style={{ textAlign: 'right' }}>Controls</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {linkedContacts.filter(c => !linkedSearch || `${c.first_name} ${c.last_name}`.toLowerCase().includes(linkedSearch.toLowerCase()) || c.name?.toLowerCase().includes(linkedSearch.toLowerCase())).map(con => (
-                      <tr key={con.name} onClick={() => navigate(`/contactlist?name=${encodeURIComponent(con.name)}`)} style={{ cursor: 'pointer' }}>
-                        <td>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                            <div className="row-avatar-box" style={{ backgroundColor: `${themeColor}10` }}>
-                              <User size={18} style={{ color: themeColor }} />
-                            </div>
-                            <div>
-                              <div className="row-title-bold">{con.first_name} {con.last_name}</div>
-                              <div className="row-subtitle-muted">{con.name}</div>
-                            </div>
-                          </div>
-                        </td>
-                        <td>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                            <div style={{ fontWeight: 700, fontSize: '0.85rem', color: '#0f172a' }}>{con.designation || 'Personnel'}</div>
-                            <div className="contact-meta-row">
-                              <span className="contact-meta-item">
-                                <Mail size={12} /> {con.email_id}
-                              </span>
-                              <span className="contact-meta-item">
-                                <Phone size={12} /> {con.mobile_no}
-                              </span>
-                            </div>
-                          </div>
-                        </td>
-                        <td style={{ textAlign: 'right' }}>
-                          <button className="btn-modern-secondary" style={{ padding: '0.4rem 0.85rem', fontSize: '0.75rem' }}>Access Stream</button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
+            </InfoSection>
 
-          {activeTab === 'Branches' && (
-            <div className="modern-table-card animate-in fade-in duration-500" style={{ padding: '2rem' }}>
-              <h3 className="table-header-title" style={{ marginBottom: '1.5rem' }}>Branch Availability</h3>
-              <div className="branches-cards-grid">
-                {(supplier?.branch_availability || []).length > 0 ? (
-                  supplier.branch_availability.map((branch, idx) => (
-                    <div key={idx} className="branch-card-modern">
-                      <div className="branch-icon-box">
-                        <Building2 size={18} style={{ color: themeColor }} />
-                      </div>
-                      <div>
-                        <div style={{ fontWeight: 800, fontSize: '0.85rem', color: '#0f172a' }}>{branch.warehouse}</div>
-                        <div style={{ fontSize: '0.7rem', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Authorized Branch</div>
+            <InfoSection title="Settings & Status" icon={ShieldCheck} themeColor={themeColor}>
+              <div className="settings-grid-panel">
+                {[
+                  { label: 'Transporter', value: supplier.is_transporter },
+                  { label: 'Internal Supplier', value: supplier.is_internal_supplier },
+                  { label: 'Frozen', value: supplier.is_frozen, critical: true },
+                  { label: 'On Hold', value: supplier.on_hold, critical: true },
+                  { label: 'Disabled', value: supplier.disabled, critical: true, inverted: true },
+                  { label: 'Bill without PO', value: supplier.allow_purchase_invoice_creation_without_purchase_order },
+                  { label: 'Bill without Receipt', value: supplier.allow_purchase_invoice_creation_without_purchase_receipt }
+                ].map((setting, idx) => {
+                  const isChecked = setting.inverted ? !setting.value : setting.value;
+                  return (
+                    <div key={idx} className="settings-card-toggle">
+                      <span className="toggle-label-bold">{setting.label}</span>
+                      <div className={`checkbox-visual-box ${isChecked ? 'checked-active' : ''}`} style={isChecked ? { backgroundColor: themeColor, borderColor: themeColor } : undefined}>
+                        {isChecked && <ShieldCheck size={12} />}
                       </div>
                     </div>
-                  ))
-                ) : (
-                  <div style={{ gridColumn: '1 / -1', padding: '3rem 0', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', opacity: 0.5 }}>
-                    <Building2 size={48} style={{ color: '#94a3b8', marginBottom: '1rem' }} />
-                    <div style={{ fontWeight: 700, color: '#475569', fontSize: '0.95rem' }}>No Branch Restrictions</div>
-                    <div style={{ fontSize: '0.8rem', color: '#94a3b8', marginTop: '0.25rem' }}>This supplier is available across all operational zones.</div>
+                  );
+                })}
+
+                {supplier.on_hold && (
+                  <div style={{ gridColumn: '1 / -1', padding: '1rem', background: '#fff1f2', border: '1px solid #fecaca', borderRadius: '12px', marginTop: '0.5rem' }}>
+                    <p style={{ margin: 0, fontSize: '0.7rem', fontWeight: 800, color: '#b91c1c', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Hold Logic</p>
+                    <p style={{ margin: '0.25rem 0 0', fontSize: '0.8rem', fontWeight: 600, color: '#be123c', fontStyle: 'italic' }}>"{supplier.hold_type || 'Manual Hold'}"</p>
                   </div>
                 )}
               </div>
-            </div>
-          )}
-
-          {activeTab === 'Settings' && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.5rem' }}>
-              <InfoSection title="Policy Controls" icon={ShieldCheck} themeColor={themeColor}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem', background: '#f8fafc', borderRadius: '16px', border: '1px solid #e2e8f0' }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                    <h5 style={{ margin: 0, fontSize: '0.9rem', fontWeight: 800, color: '#0f172a' }}>Lifecycle Permissions</h5>
-                    <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#64748b' }}>Current operational authorization</span>
-                  </div>
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.5rem',
-                      padding: '0.4rem 0.85rem',
-                      borderRadius: '8px',
-                      backgroundColor: isActive ? `${themeColor}15` : '#fff1f2',
-                      color: isActive ? themeColor : '#e11d48',
-                      fontWeight: 800,
-                      fontSize: '0.75rem'
-                    }}
-                  >
-                    <Activity size={14} className={isActive ? 'animate-pulse' : ''} />
-                    <span>{isActive ? 'AUTHORIZED' : 'RESTRICTED'}</span>
-                  </div>
-                </div>
-              </InfoSection>
-
-              <InfoSection title="Settings & Status" icon={ShieldCheck} themeColor={themeColor}>
-                <div className="settings-grid-panel">
-                  {[
-                    { label: 'Transporter', value: supplier.is_transporter },
-                    { label: 'Internal Supplier', value: supplier.is_internal_supplier },
-                    { label: 'Frozen', value: supplier.is_frozen, critical: true },
-                    { label: 'On Hold', value: supplier.on_hold, critical: true },
-                    { label: 'Disabled', value: supplier.disabled, critical: true, inverted: true },
-                    { label: 'Bill without PO', value: supplier.allow_purchase_invoice_creation_without_purchase_order },
-                    { label: 'Bill without Receipt', value: supplier.allow_purchase_invoice_creation_without_purchase_receipt }
-                  ].map((setting, idx) => {
-                    const isChecked = setting.inverted ? !setting.value : setting.value;
-                    return (
-                      <div key={idx} className="settings-card-toggle">
-                        <span className="toggle-label-bold">{setting.label}</span>
-                        <div className={`checkbox-visual-box ${isChecked ? 'checked-active' : ''}`} style={isChecked ? { backgroundColor: themeColor, borderColor: themeColor } : undefined}>
-                          {isChecked && <ShieldCheck size={12} />}
-                        </div>
-                      </div>
-                    );
-                  })}
-
-                  {supplier.on_hold && (
-                    <div style={{ gridColumn: '1 / -1', padding: '1rem', background: '#fff1f2', border: '1px solid #fecaca', borderRadius: '12px', marginTop: '0.5rem' }}>
-                      <p style={{ margin: 0, fontSize: '0.7rem', fontWeight: 800, color: '#b91c1c', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Hold Logic</p>
-                      <p style={{ margin: '0.25rem 0 0', fontSize: '0.8rem', fontWeight: 600, color: '#be123c', fontStyle: 'italic' }}>"{supplier.hold_type || 'Manual Hold'}"</p>
-                    </div>
-                  )}
-                </div>
-              </InfoSection>
-            </div>
-          )}
-        </div>
-
+            </InfoSection>
+          </div>
+        )}
       </div>
-
-
-    </>
+    </div>
   );
 };
-
-
-
 
 export default SupplierDetails;

@@ -371,7 +371,7 @@ const CustomSearchDropdown = ({
             onKeyDown={handleKeyDown}
             placeholder={placeholder}
             className="w-full px-3 bg-slate-50/30 border border-slate-200 rounded-lg text-slate-800 text-sm font-semibold outline-none focus:border-[var(--po-primary)] focus:bg-white transition-all shadow-sm"
-            style={{ height: '42px' }}
+            style={{ height: '38px' }}
             disabled={disabled}
           />
           {loading && (

@@ -4,7 +4,7 @@ import {
    Plus, Search, X, Tag, Filter, Edit2, Trash2,
    Loader2, ChevronLeft, ChevronRight, Scale,
    Box, Calculator, Palette, ChevronDown, Building2,
-   TrendingUp, TrendingDown, RefreshCw, CheckCircle2, AlertCircle
+   TrendingUp, TrendingDown, RefreshCw, CheckCircle2, AlertCircle, Package
 } from 'lucide-react';
 import axios from 'axios';
 import Swal from 'sweetalert2';
@@ -60,7 +60,7 @@ function ItemPriceList() {
    /* Theme */
    const [pollTheme, setPollTheme] = useState(localStorage.getItem('legacySubTheme') || 'blue');
    const isGreen = pollTheme === 'green';
-   const themeColor = isGreen ? '#10b981' : '#0ea5e9';
+   const themeColor = isGreen ? '#10b981' : '#0082f6';
    const themeLight = isGreen ? '#f0fdf4' : '#f0f9ff';
 
    useEffect(() => {
@@ -318,45 +318,47 @@ function ItemPriceList() {
          {/* ── Header ──────────────────────────────────────── */}
          <div className="so-page-header" style={{ background: 'white', borderBottom: '1px solid #e2e8f0', padding: '1.25rem 2rem' }}>
             <div>
-               <h1 className="so-page-title" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                  <div style={{ width: 38, height: 38, borderRadius: '0.6rem', background: themeLight, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                     <Scale size={20} style={{ color: themeColor }} />
-                  </div>
-                  <span>Branch Price Lists</span>
-                  <span style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 700, background: '#f1f5f9', padding: '0.2rem 0.6rem', borderRadius: '4px', border: '1px solid #e2e8f0' }}>
-                     {totalCount} records
+               <h1 className="so-page-title" style={{ display: 'flex', alignItems: 'center', gap: '10px', margin: 0 }}>
+                  <Package size={22} style={{ color: themeColor || '#0082f6' }} strokeWidth={2.5} />
+                  <span style={{ fontFamily: "'Outfit', 'Gilroy', sans-serif", fontSize: '22px', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.01em', textTransform: 'uppercase' }}>
+                     BRANCH PRICE LISTS
+                  </span>
+                  <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 700, background: '#f1f5f9', padding: '2px 8px', borderRadius: '4px', border: '1px solid #e2e8f0', marginLeft: '4px' }}>
+                     {totalCount} RECORDS
                   </span>
                </h1>
-               <p className="so-page-subtitle">Branch-specific buying &amp; selling prices per item</p>
+               <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#64748b', fontWeight: 500 }}>
+                  Branch-specific buying &amp; selling prices per item
+               </p>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                <button
                   onClick={() => setPollTheme(isGreen ? 'blue' : 'green')}
                   style={{
-                     display: 'flex', alignItems: 'center', gap: '0.4rem',
-                     padding: '0.45rem 0.9rem', background: '#f8fafc',
-                     border: `1.5px solid ${isGreen ? '#0ea5e9' : '#10b981'}`,
-                     borderRadius: '0.375rem', fontSize: '0.75rem', fontWeight: 800,
-                     color: isGreen ? '#0ea5e9' : '#10b981',
+                     display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                     padding: '0 16px', height: '38px', background: '#f8fafc',
+                     border: `1.5px solid ${isGreen ? '#0082f6' : '#10b981'}`,
+                     borderRadius: '8px', fontSize: '12px', fontWeight: 800,
+                     color: isGreen ? '#0082f6' : '#10b981',
                      cursor: 'pointer', transition: 'all 0.2s', textTransform: 'uppercase'
                   }}
                >
-                  <Palette size={13} /> {isGreen ? 'BLUE' : 'GREEN'}
+                  <Palette size={14} /> {isGreen ? 'BLUE' : 'GREEN'}
                </button>
                <ListCustomizer
                   doctype="Item Price"
                   onSave={cols => setCustomColumns(cols)}
-                  themeColor={themeColor}
+                  themeColor={themeColor || '#0082f6'}
                />
                <button
                   onClick={fetchPriceRecords}
-                  style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.45rem 0.9rem', background: '#f8fafc', border: '1.5px solid #e2e8f0', borderRadius: '0.375rem', fontSize: '0.75rem', fontWeight: 700, color: '#475569', cursor: 'pointer' }}
+                  style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '0 16px', height: '38px', background: '#f8fafc', border: '1.5px solid #e2e8f0', borderRadius: '8px', fontSize: '12px', fontWeight: 800, color: '#475569', cursor: 'pointer', textTransform: 'uppercase' }}
                >
-                  <RefreshCw size={13} /> Refresh
+                  <RefreshCw size={14} /> REFRESH
                </button>
-               <button className="so-btn-primary" style={{ background: themeColor }}
+               <button className="so-btn-primary" style={{ background: themeColor || '#0082f6', height: '38px', borderRadius: '8px', padding: '0 16px', fontSize: '12px', fontWeight: 800, textTransform: 'uppercase', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
                   onClick={() => { setForm({ item_code: '', item_name: '', uom: 'Nos', price_list: 'Standard Selling', buying: 0, selling: 1, price_list_rate: 0, currency: 'AED' }); setIsEditMode(false); setShowForm(true); }}>
-                  <Plus size={16} /> New Rate
+                  <Plus size={16} /> NEW RATE
                </button>
             </div>
          </div>

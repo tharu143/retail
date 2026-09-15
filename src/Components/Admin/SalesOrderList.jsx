@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Plus, Search, X, ShoppingCart, Receipt, Calendar, User, Layers,
   CheckCircle2, Clock, CreditCard, Palette, Loader2, ChevronLeft, ChevronRight,
-  ArrowRight, FileText, Filter, Save, ScanLine, Camera
+  ArrowRight, FileText, Filter, Save, ScanLine, Camera, Package
 } from 'lucide-react';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import axios from 'axios';
@@ -363,12 +363,40 @@ export default function SalesOrderList() {
     }
   };
 
+  const [filterStatus, setFilterStatus] = useState('');
+  const [filterDateRange, setFilterDateRange] = useState('');
+
   const filteredOrders = useMemo(() => {
-    return orders.filter(o =>
-      o.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      o.customer_name?.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-  }, [orders, searchTerm]);
+    return orders.filter(o => {
+      const matchesSearch = !searchTerm || (
+        o.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        o.customer_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        o.customer?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+
+      const matchesStatus = !filterStatus ? true :
+        filterStatus === 'Draft' ? o.docstatus === 0 :
+          filterStatus === 'Submitted' ? o.docstatus === 1 :
+            filterStatus === 'Cancelled' ? o.docstatus === 2 : true;
+
+      let matchesDate = true;
+      if (filterDateRange && o.transaction_date) {
+        const orderDate = new Date(o.transaction_date);
+        const today = new Date();
+        if (filterDateRange === 'Today') {
+          matchesDate = orderDate.toDateString() === today.toDateString();
+        } else if (filterDateRange === 'This Week') {
+          const sevenDaysAgo = new Date(today);
+          sevenDaysAgo.setDate(today.getDate() - 7);
+          matchesDate = orderDate >= sevenDaysAgo;
+        } else if (filterDateRange === 'This Month') {
+          matchesDate = orderDate.getMonth() === today.getMonth() && orderDate.getFullYear() === today.getFullYear();
+        }
+      }
+
+      return matchesSearch && matchesStatus && matchesDate;
+    });
+  }, [orders, searchTerm, filterStatus, filterDateRange]);
 
   const stats = useMemo(() => {
     const total = orders.length;
@@ -1439,7 +1467,7 @@ export default function SalesOrderList() {
         doc_data: payload,
         action: 'save'
       }, { withCredentials: true });
-      
+
       const savedDocName = res.data?.data?.name || res.data?.message?.data?.name;
       Swal.fire({ icon: 'success', title: 'Order Created', text: `ID: ${savedDocName}`, timer: 3000 });
       setIsModalOpen(false);
@@ -1456,128 +1484,235 @@ export default function SalesOrderList() {
       <div className="so-page">
         {/* 1. Header Section */}
         {!isModalOpen && (
-          <div className="so-page-header-container">
+          <div className="so-page-header-container" style={{ background: '#ffffff', borderBottom: '1px solid #e2e8f0' }}>
             <div className="so-page-tabs">
-              <span className="so-page-tab active">Sales Order</span>
-              <span className="so-page-tab" onClick={() => navigate('/salesreport')} style={{ cursor: 'pointer' }}>Reports</span>
+              <span className="so-page-tab active" style={{ cursor: 'pointer' }}>
+                Sales Order
+              </span>
+              <span className="so-page-tab" onClick={() => navigate('/salesreport')} style={{ cursor: 'pointer' }}>
+                Reports
+              </span>
             </div>
             <div className="so-page-header">
               <div>
-                <h1 className="so-page-title">Sales Order Management</h1>
-                <p className="so-page-subtitle">Manage and track all sales</p>
+                <h1 className="so-page-title" style={{ display: 'flex', alignItems: 'center', gap: '10px', margin: 0 }}>
+                  <Package size={22} style={{ color: themeColor || '#0082f6' }} strokeWidth={2.5} />
+                  <span style={{ fontFamily: "'Outfit', 'Gilroy', sans-serif", fontSize: '22px', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.01em', textTransform: 'uppercase' }}>
+                    SALES ORDER MANAGEMENT
+                  </span>
+                </h1>
+                <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#64748b', fontWeight: 500 }}>
+                  Manage and track all sales orders
+                </p>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <button
                   type="button"
                   onClick={() => dispatch(toggleMainTheme())}
                   style={{
-                    display: 'flex', alignItems: 'center', gap: '0.4rem',
-                    padding: '0.45rem 0.9rem',
-                    background: theme === 'legacy' ? '#ecfdf5' : (theme === 'modern_no_image' ? '#e0e7ff' : '#f0f9ff'),
-                    color: theme === 'legacy' ? '#059669' : (theme === 'modern_no_image' ? '#4f46e5' : '#0284c7'),
-                    border: `1.5px solid ${theme === 'legacy' ? '#a7f3d0' : (theme === 'modern_no_image' ? '#c7d2fe' : '#bae6fd')}`,
-                    borderRadius: '0.375rem',
-                    fontSize: '0.75rem', fontWeight: 900,
-                    cursor: 'pointer', transition: 'all 0.2s',
-                    textTransform: 'uppercase', letterSpacing: '0.04em'
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    height: '38px',
+                    padding: '0 16px',
+                    background: '#ffffff',
+                    color: themeColor || '#0082f6',
+                    border: `1.5px solid ${themeColor || '#0082f6'}`,
+                    borderRadius: '8px',
+                    fontSize: '12px',
+                    fontWeight: 800,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.04em',
+                    cursor: 'pointer',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+                    transition: 'all 0.15s ease-in-out',
+                    boxSizing: 'border-box'
                   }}
                   title="Switch UI Theme (Modern / No Image / Classic)"
                 >
-                  <Palette size={13} />
-                  <span>THEME: {(theme || 'modern').toUpperCase()}</span>
+                  <Palette size={14} />
+                  <span>THEME: {(theme || 'legacy').toUpperCase()}</span>
                 </button>
 
                 <button
+                  type="button"
                   onClick={toggleTheme}
                   style={{
-                    display: 'flex', alignItems: 'center', gap: '0.4rem',
-                    padding: '0.45rem 0.9rem',
-                    background: '#f8fafc',
-                    border: `1.5px solid ${themeColor}`,
-                    borderRadius: '0.375rem',
-                    fontSize: '0.75rem',
-                    fontWeight: 700,
-                    color: themeColor,
-                    cursor: 'pointer',
-                    transition: 'all 0.2s',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    height: '38px',
+                    padding: '0 16px',
+                    background: '#ffffff',
+                    color: themeColor || '#0082f6',
+                    border: `1.5px solid ${themeColor || '#0082f6'}`,
+                    borderRadius: '8px',
+                    fontSize: '12px',
+                    fontWeight: 800,
                     textTransform: 'uppercase',
-                    letterSpacing: '0.04em'
+                    letterSpacing: '0.04em',
+                    cursor: 'pointer',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+                    transition: 'all 0.15s ease-in-out',
+                    boxSizing: 'border-box'
                   }}
                 >
-                  <Palette size={13} />
-                  {legacySubTheme.toUpperCase()}
+                  <Palette size={14} />
+                  <span>{isGreen ? 'BLUE' : 'GREEN'}</span>
                 </button>
                 <ListCustomizer
                   doctype="Sales Order"
                   onSave={cols => setCustomColumns(cols)}
-                  themeColor={themeColor}
+                  themeColor={themeColor || '#0082f6'}
+                  btnStyle={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    height: '38px',
+                    padding: '0 16px',
+                    background: '#ffffff',
+                    color: themeColor || '#0082f6',
+                    border: `1.5px solid ${themeColor || '#0082f6'}`,
+                    borderRadius: '8px',
+                    fontSize: '12px',
+                    fontWeight: 800,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.04em',
+                    cursor: 'pointer',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+                    transition: 'all 0.15s ease-in-out',
+                    boxSizing: 'border-box'
+                  }}
                 />
-                <button className="so-btn-primary" onClick={() => navigate('/salesorder/create')}>
-                  <Plus size={16} /> Create Sales Order
+                <button
+                  type="button"
+                  onClick={() => navigate('/salesorder/create')}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    height: '38px',
+                    padding: '0 16px',
+                    background: themeColor || '#0082f6',
+                    color: '#ffffff',
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontSize: '12px',
+                    fontWeight: 800,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.04em',
+                    cursor: 'pointer',
+                    boxShadow: '0 2px 4px rgba(0, 130, 246, 0.25)',
+                    transition: 'all 0.15s ease-in-out',
+                    boxSizing: 'border-box'
+                  }}
+                >
+                  <Plus size={16} />
+                  <span>CREATE SALES ORDER</span>
                 </button>
               </div>
             </div>
           </div>
         )}
 
-        <div className="so-layout">
+        <div className="so-layout" style={{ background: '#f8fafc', padding: '1.5rem 2rem' }}>
           {/* 2. Actions / Filter Bar */}
-          <div className="so-filter-bar">
-            <div style={{ flex: '1 1 300px' }}>
-              <label className="so-filter-label">Search Order Matrix</label>
+          <div className="so-filter-bar" style={{
+            background: '#f8fafc',
+            padding: '0 0 1.25rem 0',
+            border: 'none',
+            display: 'flex',
+            alignItems: 'flex-end',
+            gap: '1.25rem',
+            marginBottom: '0.5rem',
+            boxShadow: 'none'
+          }}>
+            <div style={{ flex: 1 }}>
+              <label style={{ fontSize: '12px', fontWeight: 800, color: '#334155', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: '6px' }}>Search Order Matrix</label>
               <div style={{ position: 'relative' }}>
-                <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+                <Search size={14} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', zIndex: 2 }} />
                 <input
-                  className="so-filter-input"
-                  style={{ paddingLeft: '2.5rem' }}
-                  placeholder="Search by Order ID or Customer..."
+                  className="so-filter-input so-filter-input-icon"
+                  type="text"
                   value={searchTerm}
                   onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+                  placeholder="Search by Order ID or Customer..."
+                  style={{ width: '100%', height: '38px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none', background: '#fff', paddingLeft: '2.5rem' }}
                 />
               </div>
             </div>
-            <button
-              className="so-clear-btn"
-              style={{ width: 'auto', padding: '0 1.5rem', height: '38px', margin: 0, fontWeight: 600 }}
-              onClick={() => setSearchTerm('')}
-            >
-              Clear Search
-            </button>
+            <div>
+              <button
+                type="button"
+                className="so-clear-btn"
+                onClick={() => { setSearchTerm(''); setFilterStatus(''); setFilterDateRange(''); }}
+                style={{
+                  height: '38px',
+                  padding: '0 1.25rem',
+                  borderRadius: '8px',
+                  background: '#ffffff',
+                  color: (searchTerm || filterStatus || filterDateRange) ? '#ef4444' : '#64748b',
+                  border: `1px solid ${(searchTerm || filterStatus || filterDateRange) ? '#fecaca' : '#cbd5e1'}`,
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                {(searchTerm || filterStatus || filterDateRange) ? <X size={14} /> : null}
+                <span>Clear Search</span>
+              </button>
+            </div>
           </div>
 
-          {/* 3. Executive Dashboard (Summary Bar) */}
-          <div style={{ padding: '1.25rem 1.5rem 0' }}>
-            <div className="so-summary-bar">
-              <div className="so-summary-item">
-                <span className="so-summary-label">Total Orders</span>
-                <span className="so-summary-value grand">{stats.total}</span>
-              </div>
-              <div className="so-summary-divider" />
-              <div className="so-summary-item">
-                <span className="so-summary-label">Submitted</span>
-                <span className="so-summary-value" style={{ color: '#10b981' }}>{stats.submitted}</span>
-              </div>
-              <div className="so-summary-divider" />
-              <div className="so-summary-item">
-                <span className="so-summary-label">Drafts</span>
-                <span className="so-summary-value" style={{ color: '#f59e0b' }}>{stats.drafts}</span>
-              </div>
-              <div className="so-summary-divider" />
-              <div className="so-summary-item">
-                <span className="so-summary-label">Total Amount</span>
-                <span className="so-summary-value flex items-center gap-1">
-                  <DirhamIcon size={14} />
-                  <span>{stats.totalValue.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                </span>
+          {/* 3. Executive Dashboard (Summary Bar - Single Unified White Card like Image 1) */}
+          <div style={{
+            background: '#ffffff',
+            border: '1px solid #e2e8f0',
+            borderRadius: '12px',
+            padding: '1.25rem 2rem',
+            display: 'grid',
+            gridTemplateColumns: 'repeat(4, 1fr)',
+            marginBottom: '1.5rem',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.04)'
+          }}>
+            <div style={{ borderRight: '1px solid #f1f5f9', paddingRight: '1.5rem' }}>
+              <div style={{ fontSize: '11px', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>TOTAL ORDERS</div>
+              <div style={{ fontSize: '24px', fontWeight: 900, color: themeColor || '#0082f6', marginTop: '4px' }}>{stats.total}</div>
+            </div>
+
+            <div style={{ borderRight: '1px solid #f1f5f9', paddingLeft: '1.5rem', paddingRight: '1.5rem' }}>
+              <div style={{ fontSize: '11px', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>SUBMITTED</div>
+              <div style={{ fontSize: '24px', fontWeight: 900, color: '#10b981', marginTop: '4px' }}>{stats.submitted}</div>
+            </div>
+
+            <div style={{ borderRight: '1px solid #f1f5f9', paddingLeft: '1.5rem', paddingRight: '1.5rem' }}>
+              <div style={{ fontSize: '11px', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>DRAFTS</div>
+              <div style={{ fontSize: '24px', fontWeight: 900, color: '#f59e0b', marginTop: '4px' }}>{stats.drafts}</div>
+            </div>
+
+            <div style={{ paddingLeft: '1.5rem' }}>
+              <div style={{ fontSize: '11px', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>TOTAL AMOUNT</div>
+              <div style={{ fontSize: '24px', fontWeight: 900, color: '#0f172a', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <DirhamIcon size={16} />
+                <span>{stats.totalValue.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
               </div>
             </div>
           </div>
 
           {/* 4. Main Directory Table */}
-          <div className="so-content">
-            <div className="so-list-meta">{filteredOrders.length} record(s) found</div>
+          <div className="so-content" style={{ padding: 0 }}>
+            <div className="so-list-meta" style={{ marginBottom: '0.75rem', fontWeight: 600, color: '#64748b', fontSize: '13px' }}>{filteredOrders.length} record(s) found</div>
 
-            <div className="so-table-card">
+            <div className="so-table-card" style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)' }}>
               <div className="so-table-wrapper">
                 <table className="so-table">
                   <thead>
@@ -1585,7 +1720,7 @@ export default function SalesOrderList() {
                       <th>Order ID</th>
                       <th>Customer</th>
                       <th>Date</th>
-                      <th>Grand Total</th>
+                      <th style={{ textAlign: 'right' }}>Grand Total</th>
                       <th>Status</th>
                       {customColumns.map(col => (
                         <th key={col}>{col.replace(/_/g, ' ').toUpperCase()}</th>
@@ -1596,15 +1731,19 @@ export default function SalesOrderList() {
                   <tbody>
                     {loading ? (
                       <tr>
-                        <td colSpan={6 + customColumns.length} className="so-empty">
-                          <Loader2 size={32} className="so-spinner" style={{ margin: '0 auto' }} />
-                          <p style={{ marginTop: '0.5rem', fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase' }}>Loading Orders...</p>
+                        <td colSpan={6 + customColumns.length} className="so-empty" style={{ padding: '3rem 1rem', textAlign: 'center' }}>
+                          <Loader2 size={32} className="so-spinner" style={{ margin: '0 auto', color: themeColor || '#0082f6' }} />
+                          <p style={{ marginTop: '0.75rem', fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', color: '#64748b' }}>Loading Orders...</p>
                         </td>
                       </tr>
                     ) : paginatedOrders.length === 0 ? (
                       <tr>
-                        <td colSpan={6 + customColumns.length} className="so-empty">
-                          No orders found
+                        <td colSpan={6 + customColumns.length} className="so-empty" style={{ padding: '3.5rem 1rem', textAlign: 'center' }}>
+                          <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: '#ebf4fe', color: themeColor || '#0082f6', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem' }}>
+                            <Package size={28} />
+                          </div>
+                          <div style={{ fontSize: '16px', fontWeight: 800, color: '#0f172a', marginBottom: '4px' }}>No orders found</div>
+                          <div style={{ fontSize: '13px', color: '#64748b' }}>Try adjusting your filters or create a new sales order.</div>
                         </td>
                       </tr>
                     ) : (
@@ -1612,41 +1751,42 @@ export default function SalesOrderList() {
                         <tr
                           key={order.name}
                           onClick={() => handleRowClick(order.name)}
+                          style={{ cursor: 'pointer' }}
                         >
                           <td>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                               <div style={{
-                                width: '38px', height: '38px', borderRadius: '10px',
-                                background: themeLight, color: themeColor,
+                                width: '36px', height: '36px', borderRadius: '8px',
+                                background: `${themeColor || '#0082f6'}12`, color: themeColor || '#0082f6',
                                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                                 flexShrink: 0
                               }}>
-                                <ShoppingCart size={18} />
+                                <ShoppingCart size={16} />
                               </div>
                               <div>
-                                <div style={{ fontWeight: 800, color: 'var(--so-text-heading)', fontSize: '0.85rem' }}>{order.name}</div>
-                                <div style={{ fontSize: '0.68rem', color: 'var(--so-text-muted)', fontFamily: 'monospace', fontWeight: 600 }}>{order.naming_series || 'SAL-ORD'}</div>
+                                <div style={{ fontWeight: 800, color: themeColor || '#0082f6', fontSize: '0.85rem' }}>{order.name}</div>
+                                <div style={{ fontSize: '0.68rem', color: '#64748b', fontFamily: 'monospace', fontWeight: 600 }}>{order.naming_series || 'SAL-ORD'}</div>
                               </div>
                             </div>
                           </td>
                           <td>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                               <User size={14} className="text-slate-400" />
-                              <span style={{ fontWeight: 600 }}>{order.customer_name || order.customer}</span>
+                              <span style={{ fontWeight: 600, color: '#1e293b' }}>{order.customer_name || order.customer}</span>
                             </div>
                           </td>
                           <td>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                               <Calendar size={14} className="text-slate-400" />
-                              <span style={{ fontWeight: 600 }}>{order.transaction_date}</span>
+                              <span style={{ fontWeight: 600, color: '#475569' }}>{order.transaction_date}</span>
                             </div>
                           </td>
-                          <td>
-                            <div style={{ fontWeight: 800, display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                          <td style={{ textAlign: 'right' }}>
+                            <div style={{ fontWeight: 800, display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#0f172a' }}>
                               <DirhamIcon size={12} />
                               <span>{parseFloat(order.grand_total || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                             </div>
-                            <div style={{ fontSize: '0.65rem', color: 'var(--so-text-muted)', fontWeight: 600 }}>
+                            <div style={{ fontSize: '0.68rem', color: '#64748b', fontWeight: 600 }}>
                               Items: {order.total_qty || 0}
                             </div>
                           </td>
@@ -1660,7 +1800,7 @@ export default function SalesOrderList() {
                           ))}
                           <td>
                             <div style={{ display: 'flex', justifyContent: 'center' }}>
-                              <div style={{ color: themeColor }}>
+                              <div style={{ color: themeColor || '#0082f6' }}>
                                 <ArrowRight size={18} />
                               </div>
                             </div>
@@ -1673,27 +1813,27 @@ export default function SalesOrderList() {
               </div>
 
               {/* Pagination Grid */}
-              {!loading && filteredOrders.length > 0 && (
-                <div className="so-pagination" style={{ padding: '0.75rem 1rem', borderTop: '1px solid var(--so-border)', margin: 0 }}>
-                  <span style={{ fontWeight: 600 }}>Showing {Math.min((currentPage - 1) * pageSize + 1, filteredOrders.length)}–{Math.min(currentPage * pageSize, filteredOrders.length)} of {filteredOrders.length} records</span>
+              {!loading && (
+                <div className="so-pagination" style={{ padding: '0.85rem 1.25rem', borderTop: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#ffffff' }}>
+                  <span style={{ fontWeight: 600, fontSize: '13px', color: '#64748b' }}>Showing {filteredOrders.length === 0 ? 0 : Math.min((currentPage - 1) * pageSize + 1, filteredOrders.length)} of {filteredOrders.length} records</span>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <span style={{ fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', opacity: 0.6 }}>Page Capacity:</span>
+                      <span style={{ fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', color: '#64748b', letterSpacing: '0.04em' }}>PAGE CAPACITY:</span>
                       <select
                         value={pageSize}
                         onChange={e => { setPageSize(Number(e.target.value)); setCurrentPage(1); }}
                         className="so-page-btn"
-                        style={{ padding: '0.2rem 0.5rem' }}
+                        style={{ padding: '0.25rem 0.5rem', height: '32px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '12px', fontWeight: 700, outline: 'none' }}
                       >
                         {[10, 20, 50, 100].map(sz => <option key={sz} value={sz}>{sz}</option>)}
                       </select>
                     </div>
-                    <div className="so-pagination-btns" style={{ borderLeft: '1px solid var(--so-border)', paddingLeft: '1rem' }}>
-                      <button className="so-page-btn" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}>
+                    <div className="so-pagination-btns" style={{ display: 'flex', alignItems: 'center', gap: '4px', borderLeft: '1px solid #e2e8f0', paddingLeft: '1rem' }}>
+                      <button className="so-page-btn" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1 || filteredOrders.length === 0} style={{ width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '6px', border: '1px solid #cbd5e1', background: '#fff', cursor: 'pointer' }}>
                         <ChevronLeft size={16} />
                       </button>
-                      <span style={{ fontWeight: 800, color: themeColor, padding: '0 0.5rem' }}>{currentPage} / {totalPages}</span>
-                      <button className="so-page-btn" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}>
+                      <span style={{ fontWeight: 800, color: themeColor || '#0082f6', padding: '0 0.5rem', fontSize: '13px' }}>{totalPages === 0 ? '1/1' : `${currentPage}/${totalPages}`}</span>
+                      <button className="so-page-btn" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages || totalPages === 0} style={{ width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '6px', border: '1px solid #cbd5e1', background: '#fff', cursor: 'pointer' }}>
                         <ChevronRight size={16} />
                       </button>
                     </div>

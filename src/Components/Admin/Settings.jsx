@@ -368,31 +368,39 @@ const Settings = () => {
             <div className="so-page-header">
                 <div>
                     <h1 className="so-page-title">
-                        <SettingsIcon size={22} color={themeColor} />
-                        Terminal Configuration
+                        <SettingsIcon size={20} color={themeColor} />
+                        TERMINAL CONFIGURATION
                     </h1>
                     <p className="so-page-subtitle">Manage regional station settings, stock sources, and data integrity.</p>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                     <button
                         onClick={toggleTheme}
-
                         style={{
-                            display: 'flex', alignItems: 'center', gap: '0.4rem',
-                            padding: '0.45rem 1rem', background: '#f8fafc',
-                            border: `1.5px solid ${themeColor}`, borderRadius: '0.5rem',
+                            height: '38px', display: 'inline-flex', alignItems: 'center', gap: '6px',
+                            padding: '0 1rem', background: '#ffffff',
+                            border: `1.5px solid ${themeColor}`, borderRadius: '10px',
                             fontSize: '0.75rem', fontWeight: 800, color: themeColor,
                             cursor: 'pointer', transition: 'all 0.2s',
-                            textTransform: 'uppercase', letterSpacing: '0.04em'
+                            textTransform: 'uppercase', letterSpacing: '0.04em',
+                            boxSizing: 'border-box'
                         }}
                     >
                         <Palette size={14} /> {isGreen ? 'BLUE' : 'GREEN'}
-
-
                     </button>
                     <div style={{ width: '1px', height: '24px', background: '#e2e8f0', margin: '0 0.25rem' }}></div>
-                    <button className="so-btn-primary" onClick={handleSave}>
-                        <Save size={18} /> Apply Changes
+                    <button
+                        className="so-btn-primary"
+                        onClick={handleSave}
+                        style={{
+                            height: '38px', display: 'inline-flex', alignItems: 'center', gap: '6px',
+                            padding: '0 1.25rem', background: themeColor, borderColor: themeColor,
+                            borderRadius: '10px', fontSize: '0.75rem', fontWeight: 900,
+                            textTransform: 'uppercase', letterSpacing: '0.04em',
+                            boxSizing: 'border-box', cursor: 'pointer'
+                        }}
+                    >
+                        <Save size={15} /> Apply Changes
                     </button>
                 </div>
             </div>

@@ -285,7 +285,7 @@ function DailySalesReport() {
                     </div>
                     <div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <h1 className="dsr-title">Daily Sales & Shift Summary</h1>
+                            <h1 className="dsr-title">DAILY SALES & SHIFT SUMMARY</h1>
                             <span className="dsr-live-tag">Live Audit</span>
                         </div>
                         <p className="dsr-subtitle">Daily sales, cash flows, discounts, inter-branch transfers & shift reconciliations</p>
@@ -342,7 +342,7 @@ function DailySalesReport() {
                         {/* Date Input */}
                         <div className="dsr-field-block">
                             <label className="dsr-label">
-                                <Calendar size={12} color="#059669" />
+                                <Calendar size={12} color="#2563eb" />
                                 Select Date
                             </label>
                             <input 
@@ -381,11 +381,11 @@ function DailySalesReport() {
                         ) : (
                             <div className="dsr-field-block" style={{ flex: '1.2 1 240px' }}>
                                 <label className="dsr-label">
-                                    <Shield size={12} color="#059669" />
+                                    <Shield size={12} color="#2563eb" />
                                     Active Branch
                                 </label>
                                 <div className="dsr-active-branch-box">
-                                    <Shield size={14} color="#059669" />
+                                    <Shield size={14} color="#2563eb" />
                                     <span>{warehouse || 'Branch User'}</span>
                                 </div>
                             </div>

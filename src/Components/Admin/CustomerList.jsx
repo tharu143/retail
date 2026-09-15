@@ -1,17 +1,18 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Plus, Search, Save, X, Phone, Mail, Users, ChevronLeft, Palette, Loader2, ShoppingCart, Receipt, Calendar, AlertCircle, Activity, Settings,
-  Edit, ArrowLeft, Eye, Trash2, Edit2, Package, ChevronDown, ChevronRight as ChevronRightIcon, MapPin, User, Layers, Shield, CheckCircle2, Hash, TrendingUp, CreditCard, Clock, Globe, ShieldCheck, UserPlus, FileText, CheckCircle, AlertTriangle, Building2, UserCircle2, Briefcase, Award, Percent, DollarSign, Image as ImageIcon, HeartPulse, HardDrive, Smartphone, Zap, Contact
+  Edit, ArrowLeft, Eye, Trash2, Edit2, Package, ChevronDown, ChevronRight as ChevronRightIcon, MapPin, User, Layers, Shield, CheckCircle2, Hash, TrendingUp, CreditCard, Clock, Globe, ShieldCheck, UserPlus, FileText, CheckCircle, AlertTriangle, Building2, UserCircle2, Briefcase, Award, Percent, DollarSign, Image as ImageIcon, HeartPulse, HardDrive, Smartphone, Zap, Contact, MoreHorizontal
 } from 'lucide-react';
 import axios from 'axios';
 import Swal from 'sweetalert2';
 import { useSelector } from 'react-redux';
 import DirhamIcon from '../../assets/Currency/DirhamIcon';
 import { useLegacyTheme } from '../../hooks/useLegacyTheme';
-import './SalesOrder.css';
+import './CustomerList.css';
 import LoyaltyCardModal from './LoyaltyCardModal';
 import ListCustomizer from './ListCustomizer';
+import CustomerFormModal from './CustomerFormModal';
 
 const API_BASE = '/api/method/kyle_retail.retail_api.api';
 
@@ -317,6 +318,30 @@ function CustomerList() {
   const [sortField, setSortField] = useState('modified');
   const [sortOrder, setSortOrder] = useState('desc');
 
+  const toggleSort = (field) => {
+    if (sortField === field) {
+      setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortOrder('asc');
+    }
+  };
+
+  // Dropdown action menu
+  const [activeDropdown, setActiveDropdown] = useState(null);
+  const dropdownRef = useRef(null);
+
+  // Handle click outside dropdown
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setActiveDropdown(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [showLoyaltyModal, setShowLoyaltyModal] = useState(false);
   const [activeDetailTab, setActiveDetailTab] = useState('Information');
@@ -427,29 +452,41 @@ function CustomerList() {
     fetchMeta();
   }, []);
 
+  const formatDate = (dateStr) => {
+    if (!dateStr) return '-';
+    try {
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return dateStr;
+      const day = String(d.getDate()).padStart(2, '0');
+      const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+      const month = monthNames[d.getMonth()];
+      const year = d.getFullYear();
+      let hours = d.getHours();
+      const minutes = String(d.getMinutes()).padStart(2, '0');
+      const ampm = hours >= 12 ? 'PM' : 'AM';
+      hours = hours % 12;
+      hours = hours ? hours : 12;
+      return `${day} ${month} ${year}, ${hours}:${minutes} ${ampm}`;
+    } catch (e) {
+      return dateStr;
+    }
+  };
+
   const fetchCustomers = async () => {
     try {
       setLoading(true);
+      const requestedFields = Array.from(new Set([...customColumns, 'modified', 'creation', 'owner', 'modified_by']));
       const res = await axios.get(`${API_BASE}.get_customers_list`, { 
         params: { 
           order_by: `${sortField} ${sortOrder}`,
           search: filterSearch,
           warehouse: filterBranch !== 'all' ? filterBranch : undefined,
-          extra_fields: JSON.stringify(customColumns)
+          extra_fields: JSON.stringify(requestedFields)
         } 
       });
       setCustomers(Array.isArray(res.data.message?.data) ? res.data.message.data : []);
     } catch (err) { console.error('List failed', err); }
     finally { setLoading(false); }
-  };
-
-  const toggleSort = (field) => {
-    if (sortField === field) {
-      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortField(field);
-      setSortOrder('desc');
-    }
   };
 
   const fetchMeta = async () => {
@@ -770,292 +807,386 @@ function CustomerList() {
 
   /* ────────────────────── STYLES ────────────────────── */
   return (
-    <div style={{ minHeight: '100vh', background: '#f8fafc', position: 'relative', fontFamily: "'DM Sans', sans-serif" }}>
-      <style>{`
-        @keyframes scaleUp { from { opacity: 0; transform: scale(0.975); } to { opacity: 1; transform: scale(1); } }
-        .p-modal { position: fixed; inset: 0; z-index: 2000; background: #fff; display: flex; flex-direction: column; animation: scaleUp 0.35s cubic-bezier(0.16, 1, 0.3, 1); }
-        .m-header { height: 90px; padding: 0 50px; border-bottom: 2px solid #f1f5f9; display: flex; align-items: center; justify-content: space-between; }
-        .m-body { flex: 1; overflow-y: auto; padding: 60px 80px; background: #fff; }
-        .m-footer { height: 100px; padding: 0 50px; background: #fdfdfd; border-top: 2px solid #f1f5f9; display: flex; align-items: center; justify-content: space-between; }
-        .f-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 40px 60px; }
-        .f-label { font-size: 11px; font-weight: 900; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.12em; margin-bottom: 14px; display: block; }
-        .f-input, .f-select { width: 100%; height: 56px; padding: 0 20px; border: 2.5px solid #e2e8f0; border-radius: 16px; font-size: 16px; font-weight: 800; color: #0f172a; background: #fff; transition: all 0.25s; }
-        .f-input:focus { outline: none; border-color: ${themeColor}; background: #fff; box-shadow: 0 0 0 6px ${themeColor}12; }
-        .f-input:disabled { background: #f8fafc; color: #cbd5e1; font-family: 'DM Mono', monospace; font-size: 13px; }
-        .section-label { display: flex; align-items: center; gap: 20px; margin: 60px 0 40px; }
-        .section-label-text { font-size: 14px; font-weight: 900; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.2em; white-space: nowrap; }
-        .tab-btn { padding: 1.5rem 0; font-size: 13px; font-weight: 900; text-transform: uppercase; color: #94a3b8; border-bottom: 3px solid transparent; transition: 0.2s; cursor: pointer; background: none; }
-        .tab-btn.active { color: #0f172a; border-bottom-color: ${themeColor}; }
-        @media (max-width: 1200px) { .f-grid { grid-template-columns: 1fr 1fr; } }
-        @media (max-width: 768px) { .f-grid { grid-template-columns: 1fr; } }
-      `}</style>
-
+    <div className="customer-list-page">
       {/* ────────────────────── LIST VIEW ────────────────────── */}
       {view === 'list' && (
-        <div className="animate-in fade-in duration-500">
-          <div className="so-page-header-container">
-            <div className="so-page-tabs">
-              <span className="so-page-tab active">Customer</span>
-              <span className="so-page-tab" onClick={() => navigate('/salesreport')} style={{ cursor: 'pointer' }}>Reports</span>
+        <div className="animate-in fade-in duration-300">
+          {/* 1. Top Sub-Tabs Bar */}
+          <div className="customer-top-tabs-bar">
+            <button className="customer-tab-btn active">Customer</button>
+            <button className="customer-tab-btn" onClick={() => navigate('/salesreport')}>Reports</button>
+          </div>
+
+          {/* 2. Main Header */}
+          <div className="customer-header-container">
+            <div className="customer-title-group">
+              <h1>CUSTOMER MANAGEMENT</h1>
+              <p>Manage customer and account records</p>
             </div>
-            <div className="so-page-header">
-              <h1 className="so-page-title">Customer Management</h1>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <button className="so-btn-secondary" onClick={handleGlobalSearch} style={{ height: '38px', padding: '0 12px', fontSize: '13px' }}>
-                  <Globe size={16} /> Global Search
-                </button>
-                <button className="so-btn-secondary" onClick={toggleTheme} style={{ height: '38px', padding: '0 12px', fontSize: '13px' }}>
-                  <Palette size={16} /> {legacySubTheme.toUpperCase()}
-                </button>
-                <ListCustomizer
-                  doctype="Customer"
-                  onSave={cols => setCustomColumns(cols)}
-                  themeColor={themeColor}
-                />
-                <button className="so-btn-primary" onClick={() => navigate('/customer-edit/new')}>
-                  <Plus size={16} /> Create Customer
-                </button>
-              </div>
+            <div className="customer-header-actions" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <button
+                type="button"
+                onClick={toggleTheme}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  height: '38px',
+                  padding: '0 16px',
+                  background: '#ffffff',
+                  color: themeColor || '#0082f6',
+                  border: `1.5px solid ${themeColor || '#0082f6'}`,
+                  borderRadius: '8px',
+                  fontSize: '12px',
+                  fontWeight: 800,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.04em',
+                  cursor: 'pointer',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+                  transition: 'all 0.15s ease-in-out',
+                  boxSizing: 'border-box'
+                }}
+              >
+                <Palette size={14} />
+                <span>{isGreen ? 'BLUE' : 'GREEN'}</span>
+              </button>
+              <ListCustomizer
+                doctype="Customer"
+                onSave={cols => setCustomColumns(cols)}
+                themeColor={themeColor || '#0082f6'}
+                btnStyle={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  height: '38px',
+                  padding: '0 16px',
+                  background: '#ffffff',
+                  color: themeColor || '#0082f6',
+                  border: `1.5px solid ${themeColor || '#0082f6'}`,
+                  borderRadius: '8px',
+                  fontSize: '12px',
+                  fontWeight: 800,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.04em',
+                  cursor: 'pointer',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+                  transition: 'all 0.15s ease-in-out',
+                  boxSizing: 'border-box'
+                }}
+              />
+              <button className="customer-btn-create" onClick={() => navigate('/customer-edit/new')}>
+                <Plus size={16} />
+                <span>CREATE CUSTOMER</span>
+              </button>
             </div>
           </div>
 
-          {/* Filters Bar */}
-          <div className="so-filter-bar">
-            <div style={{ flex: '1 1 320px', display: 'flex', flexDirection: 'column' }}>
-              <label className="so-filter-label">Search Customer</label>
-              <div style={{ display: 'flex', gap: '0.5rem', width: '100%' }}>
-                <input
-                  className="so-filter-input"
-                  type="text"
-                  placeholder="Name, ID or Contact..."
-                  value={filterSearch}
-                  onChange={e => setFilterSearch(e.target.value)}
-                  style={{ flex: 1 }}
-                />
-                <button
-                  onClick={openGlobalSyncModal}
-                  disabled={searchingGlobal}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: '0.4rem',
-                    padding: '0 0.85rem', background: '#e0f2fe',
-                    border: '1px solid #bae6fd', borderRadius: '0.375rem',
-                    fontSize: '0.7rem', fontWeight: 800, color: '#0369a1',
-                    cursor: 'pointer', transition: 'all 0.2s',
-                    textTransform: 'uppercase', letterSpacing: '0.04em',
-                    height: '38px', flexShrink: 0
-                  }}
-                  title="Search and enable customers from other branches"
-                >
-                  {searchingGlobal ? <Loader2 size={13} className="animate-spin" /> : <Globe size={13} />}
-                  Global Search
+          {/* 3. Filter Bar */}
+          <div className="customer-filter-bar">
+            <div className="customer-filter-group" style={{ flex: '1 1 320px' }}>
+              <label className="customer-filter-label">Search Customer</label>
+              <div className="customer-search-wrapper">
+                <div className="customer-search-input-box">
+                  <Search className="customer-search-icon" />
+                  <input
+                    type="text"
+                    className="customer-search-input"
+                    placeholder="Name, ID or Contact..."
+                    value={filterSearch}
+                    onChange={e => { setFilterSearch(e.target.value); setCurrentPage(1); }}
+                  />
+                </div>
+                <button className="customer-btn-global-sync" onClick={openGlobalSyncModal} disabled={searchingGlobal}>
+                  {searchingGlobal ? <Loader2 size={13} className="animate-spin" /> : <Globe size={14} />}
+                  <span>GLOBAL SYNC</span>
                 </button>
               </div>
             </div>
-            <div style={{ flex: '1 1 150px' }}>
-              <label className="so-filter-label">Group</label>
-              <select className="so-filter-input" value={filterGroup} onChange={e => { setFilterGroup(e.target.value); setCurrentPage(1); }}>
+
+            <div className="customer-filter-group" style={{ flex: '1 1 160px' }}>
+              <label className="customer-filter-label">Group</label>
+              <select className="customer-select-input" value={filterGroup} onChange={e => { setFilterGroup(e.target.value); setCurrentPage(1); }}>
                 <option value="">All Groups</option>
                 {meta.customer_group?.map(g => <option key={g} value={g}>{g}</option>)}
               </select>
             </div>
-            <div style={{ flex: '1 1 150px' }}>
-              <label className="so-filter-label">Entity Type</label>
-              <select className="so-filter-input" value={filterType} onChange={e => { setFilterType(e.target.value); setCurrentPage(1); }}>
+
+            <div className="customer-filter-group" style={{ flex: '1 1 160px' }}>
+              <label className="customer-filter-label">Entity Type</label>
+              <select className="customer-select-input" value={filterType} onChange={e => { setFilterType(e.target.value); setCurrentPage(1); }}>
                 <option value="">All Types</option>
                 <option value="Company">Company</option>
                 <option value="Individual">Individual</option>
               </select>
             </div>
-            <div style={{ flex: '1 1 150px' }}>
-              <label className="so-filter-label">Branch</label>
-              <select className="so-filter-input" value={filterBranch} onChange={e => { setFilterBranch(e.target.value); setCurrentPage(1); }}>
+
+            <div className="customer-filter-group" style={{ flex: '1 1 160px' }}>
+              <label className="customer-filter-label">Branch</label>
+              <select className="customer-select-input" value={filterBranch} onChange={e => { setFilterBranch(e.target.value); setCurrentPage(1); }}>
                 <option value="all">All Branches (Global)</option>
                 {meta.warehouses?.map(w => <option key={w} value={w}>{w}</option>)}
               </select>
             </div>
-            <div style={{ flex: '1 1 150px' }}>
-              <label className="so-filter-label">Status</label>
-              <select className="so-filter-input" value={filterStatus} onChange={e => { setFilterStatus(e.target.value); setCurrentPage(1); }}>
+
+            <div className="customer-filter-group" style={{ flex: '1 1 160px' }}>
+              <label className="customer-filter-label">Status</label>
+              <select className="customer-select-input" value={filterStatus} onChange={e => { setFilterStatus(e.target.value); setCurrentPage(1); }}>
                 <option value="">All Statuses</option>
                 <option value="active">Operational Only</option>
                 <option value="inactive">Restricted Only</option>
               </select>
             </div>
-            <button className="so-clear-btn" style={{ width: 'auto', padding: '0 1.5rem', height: '38px', margin: 0 }} onClick={() => {
-              setFilterSearch(''); setFilterGroup(''); setFilterType(''); setFilterStatus('');
-            }}>Reset</button>
+
+            <button className="customer-btn-reset" onClick={() => {
+              setFilterSearch(''); setFilterGroup(''); setFilterType(''); setFilterStatus(''); setFilterBranch('all'); setCurrentPage(1);
+            }}>
+              Reset
+            </button>
           </div>
 
-          {/* Executive Dashboard */}
-          <div style={{ padding: '1.25rem 2.5rem 0' }}>
-            <div className="so-summary-bar">
-              <div className="so-summary-item">
-                <span className="so-summary-label">Total Customers</span>
-                <span className="so-summary-value grand">{stats.total}</span>
-              </div>
-              <div className="so-summary-divider" />
-              <div className="so-summary-item">
-                <span className="so-summary-label">Active</span>
-                <span className="so-summary-value" style={{ color: '#059669' }}>{stats.active}</span>
-              </div>
-              <div className="so-summary-divider" />
-              <div className="so-summary-item">
-                <span className="so-summary-label">Restricted</span>
-                <span className="so-summary-value" style={{ color: '#ef4444' }}>{stats.inactive}</span>
-              </div>
-              <div className="so-summary-divider" />
-              <div className="so-summary-item">
-                <span className="so-summary-label">Groups</span>
-                <span className="so-summary-value">{stats.groups} Categories</span>
-              </div>
+          {/* 4. Stats Summary Cards */}
+          <div className="customer-stats-card">
+            <div className="customer-stat-item">
+              <span className="customer-stat-label">TOTAL CUSTOMERS</span>
+              <span className="customer-stat-value total">{stats.total}</span>
+            </div>
+            <div className="customer-stat-item">
+              <span className="customer-stat-label">ACTIVE</span>
+              <span className="customer-stat-value active">{stats.active}</span>
+            </div>
+            <div className="customer-stat-item">
+              <span className="customer-stat-label">RESTRICTED</span>
+              <span className="customer-stat-value frozen">{stats.inactive}</span>
+            </div>
+            <div className="customer-stat-item">
+              <span className="customer-stat-label">CATEGORIES</span>
+              <span className="customer-stat-value types">{stats.groups} Types</span>
             </div>
           </div>
 
-          {/* Main Directory Table */}
-          <div style={{ padding: '1.5rem 2.5rem' }}>
-            <div className="so-table-card">
-              <div className="so-table-wrapper" style={{ maxHeight: 'none', overflowY: 'visible' }}>
-                <table className="so-table">
-                  <thead>
+          {/* 5. Main Directory Table */}
+          <div className="customer-table-card">
+            <div className="customer-table-wrapper">
+              <table className="customer-directory-table">
+                <thead>
+                  <tr>
+                    <th>Customer Profile</th>
+                    <th>Contact Vectors</th>
+                    <th>Classification</th>
+                    <th>Last Update & Created</th>
+                    {customColumns.map(col => (
+                      <th key={col}>{col.replace(/_/g, ' ').toUpperCase()}</th>
+                    ))}
+                    <th>Status</th>
+                    <th style={{ width: '60px', textAlign: 'right' }}></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {loading ? (
                     <tr>
-                      <th onClick={() => toggleSort('customer_name')} style={{ cursor: 'pointer' }}>
-                        Customer Profile {sortField === 'customer_name' && (sortOrder === 'asc' ? '↑' : '↓')}
-                      </th>
-                      <th onClick={() => toggleSort('modified')} style={{ cursor: 'pointer' }}>
-                        Last Updated {sortField === 'modified' && (sortOrder === 'asc' ? '↑' : '↓')}
-                      </th>
-                      <th>Contact Vectors</th>
-                      <th>Classification</th>
-                      <th onClick={() => toggleSort('creation')} style={{ cursor: 'pointer' }}>
-                        Created By {sortField === 'creation' && (sortOrder === 'asc' ? '↑' : '↓')}
-                      </th>
-                      {customColumns.map(col => (
-                        <th key={col}>{col.replace(/_/g, ' ').toUpperCase()}</th>
-                      ))}
-                      <th>Status</th>
-                      <th style={{ width: '120px', textAlign: 'center' }}>Controls</th>
+                      <td colSpan={6 + customColumns.length} style={{ textAlign: 'center', padding: '40px' }}>
+                        <Loader2 size={28} className="animate-spin" style={{ margin: '0 auto', color: '#0284c7' }} />
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {loading ? (
-                      <tr>
-                        <td colSpan={7 + customColumns.length} className="so-empty" style={{ textAlign: 'center', padding: '100px' }}>
-                          <Loader2 size={28} className="animate-spin" style={{ color: themeColor, margin: '0 auto' }} />
-                        </td>
-                      </tr>
-                    ) : paginated.length === 0 ? (
-                      <tr>
-                        <td colSpan={7 + customColumns.length} className="so-empty" style={{ textAlign: 'center', padding: '150px' }}>
-                          <Users size={36} style={{ margin: '0 auto 0.75rem', color: '#cbd5e1' }} />
-                          No customers match the current filter criteria.
-                        </td>
-                      </tr>
-                    ) : (
-                      paginated.map(c => (
-                        <tr key={c.name || c.value} onClick={() => handleCustomerClick(c)} style={{ transition: 'background-color 0.15s ease' }}>
-                          <td>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                            <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: themeLight, color: themeColor, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                  ) : paginated.length === 0 ? (
+                    <tr>
+                      <td colSpan={6 + customColumns.length} style={{ textAlign: 'center', padding: '40px', color: '#64748b' }}>
+                        <Users size={36} style={{ margin: '0 auto 12px', color: '#cbd5e1' }} />
+                        <p style={{ margin: 0, fontWeight: 600 }}>No customers match the current filter criteria.</p>
+                      </td>
+                    </tr>
+                  ) : (
+                    paginated.map((c) => (
+                      <tr
+                        key={c.name || c.value}
+                        className="customer-table-row"
+                        onClick={() => handleCustomerClick(c)}
+                      >
+                        {/* Customer Profile */}
+                        <td>
+                          <div className="customer-profile-cell">
+                            <div className="customer-profile-icon-box">
                               {c.image ? (
-                                <img src={c.image} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                <img src={c.image} alt="" style={{ width: '100%', height: '100%', borderRadius: '10px', objectFit: 'cover' }} />
                               ) : (
-                                <UserCircle2 size={18} />
+                                <Users size={18} />
                               )}
                             </div>
-                              <div>
-                                <span style={{ fontWeight: 700, color: '#1f2937' }}>{c.customer_name || c.label}</span>
-                                <span style={{ display: 'block', fontSize: '10px', color: '#6b7280', fontWeight: 500, marginTop: '2px' }}>{c.name || c.value}</span>
-                              </div>
+                            <div>
+                              <div className="customer-profile-name">{c.customer_name || c.label}</div>
+                              <div className="customer-profile-subtext">{c.name || c.value}</div>
                             </div>
-                          </td>
-                          <td>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                              <span style={{ fontSize: '11px', fontWeight: 700, color: '#475569' }}>{c.modified_by?.split('@')[0]}</span>
-                              <span style={{ fontSize: '10px', color: '#94a3b8' }}>{new Date(c.modified).toLocaleDateString()}</span>
-                            </div>
-                          </td>
-                          <td>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                              <span style={{ fontSize: '12px', fontWeight: 600, color: '#374151' }}>{c.mobile || c.mobile_no || '⎯⎯⎯'}</span>
-                              <span style={{ fontSize: '11px', color: '#6b7280' }}>{c.email || c.email_id || '⎯⎯⎯'}</span>
-                            </div>
-                          </td>
-                          <td>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                              <span style={{ fontSize: '12px', fontWeight: 600, color: '#374151' }}>{c.customer_type || 'Individual'}</span>
-                              <span style={{ fontSize: '11px', color: '#6b7280' }}>{c.customer_group}</span>
-                            </div>
-                          </td>
-                          <td>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                              <span style={{ fontSize: '11px', fontWeight: 700, color: '#475569' }}>{c.owner?.split('@')[0]}</span>
-                              <span style={{ fontSize: '10px', color: '#94a3b8' }}>{c.custom_branch || 'Global'}</span>
-                            </div>
-                          </td>
-                          {customColumns.map(col => (
-                            <td key={col} style={{ fontSize: '0.8rem', fontWeight: 600 }}>
-                              {c[col] !== undefined && c[col] !== null ? String(c[col]) : '-'}
-                            </td>
-                          ))}
-                          <td>
-                            {c.is_global ? (
-                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-600 border border-amber-100">OTHER BRANCH</span>
-                            ) : (
-                              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${c.disabled !== 1 ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-rose-50 text-rose-600 border border-rose-100'}`}>
-                                {c.disabled !== 1 ? 'Operational' : 'Restricted'}
-                              </span>
-                            )}
-                          </td>
-                          <td style={{ textAlign: 'center' }} onClick={e => e.stopPropagation()}>
-                            <div style={{ display: 'flex', gap: '0.25rem', justifyContent: 'center' }}>
-                              {c.is_global ? (
-                                <button
-                                  className="so-btn-ghost text-emerald-600 hover:bg-emerald-50"
-                                  style={{ padding: '0.25rem' }}
-                                  onClick={(e) => handleEnableForBranch(e, c)}
-                                  title="Enable for My Branch"
-                                >
-                                  <CheckCircle2 size={15} />
-                                </button>
-                              ) : (
-                                <>
-                                  <button
-                                    className="so-btn-ghost"
-                                    style={{ padding: '0.25rem' }}
-                                    onClick={() => handleCustomerClick(c)}
-                                    title="View Customer Details"
-                                  >
-                                    <Eye size={15} />
-                                  </button>
-                                  <button
-                                    className="so-btn-ghost"
-                                    style={{ padding: '0.25rem' }}
-                                    onClick={(e) => { e.stopPropagation(); navigate(`/customer-edit/${c.name || c.value}`); }}
-                                    title="Edit Customer Details"
-                                  >
-                                    <Edit2 size={15} />
-                                  </button>
-                                </>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
+                          </div>
+                        </td>
 
-                {!loading && filtered.length > 0 && (
-                  <div className="so-pagination" style={{ padding: '1rem 1.5rem', background: '#f8fafc', borderTop: '1px solid #e2e8f0' }}>
-                    <span>Showing {((currentPage - 1) * pageSize) + 1} to {Math.min(currentPage * pageSize, filtered.length)} of {filtered.length} customers</span>
-                    <div className="so-pagination-btns">
-                      <button disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)} className="so-page-btn">PREV</button>
-                      <span style={{ alignSelf: 'center', margin: '0 0.5rem', fontWeight: 600 }}>Page {currentPage} of {totalPages}</span>
-                      <button disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => p + 1)} className="so-page-btn">NEXT</button>
+                        {/* Contact Vectors */}
+                        <td>
+                          <div className="customer-contact-cell">
+                            <div className="customer-contact-item">
+                              <Phone className="customer-contact-icon" />
+                              <span>{c.mobile || c.mobile_no || 'No Contact'}</span>
+                            </div>
+                            <div className="customer-contact-item">
+                              <Mail className="customer-contact-icon" />
+                              <span>{c.email || c.email_id || 'No Email'}</span>
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* Classification */}
+                        <td>
+                          <div className="customer-classification-cell">
+                            <span className="customer-classification-type">{c.customer_type || 'Individual'}</span>
+                            <span className="customer-classification-group">{c.customer_group || 'Retail Customer'}</span>
+                          </div>
+                        </td>
+
+                        {/* Audit & Last Update */}
+                        <td>
+                          <div style={{ fontSize: '12px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600, color: '#334155' }} title="Last Update">
+                              <Clock size={13} style={{ color: '#0284c7', flexShrink: 0 }} />
+                              <span>{c.modified ? formatDate(c.modified) : '-'}</span>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: '#64748b' }} title="Created By">
+                              <User size={13} style={{ color: '#64748b', flexShrink: 0 }} />
+                              <span>By: {c.owner ? c.owner.split('@')[0] : 'System'}</span>
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* Custom Columns */}
+                        {customColumns.map(col => {
+                          let val = c[col];
+                          if (['modified', 'creation'].includes(col) && val) {
+                            val = formatDate(val);
+                          } else if (['owner', 'modified_by'].includes(col) && val) {
+                            val = String(val).split('@')[0];
+                          } else {
+                            val = val !== undefined && val !== null ? String(val) : '-';
+                          }
+                          return (
+                            <td key={col} style={{ fontSize: '13px', fontWeight: 600, color: '#334155' }}>
+                              {val}
+                            </td>
+                          );
+                        })}
+
+                        {/* Status */}
+                        <td>
+                          {c.is_global ? (
+                            <span className="customer-status-badge restricted">OTHER BRANCH</span>
+                          ) : c.disabled === 1 ? (
+                            <span className="customer-status-badge frozen">RESTRICTED</span>
+                          ) : (
+                            <span className="customer-status-badge operational">OPERATIONAL</span>
+                          )}
+                        </td>
+
+                        {/* Action Dropdown Menu */}
+                        <td style={{ textAlign: 'right' }} onClick={e => e.stopPropagation()}>
+                          <div className="customer-action-menu-container">
+                            <button
+                              className="customer-action-btn"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActiveDropdown(activeDropdown === c.name ? null : c.name);
+                              }}
+                            >
+                              <MoreHorizontal size={18} />
+                            </button>
+
+                            {activeDropdown === c.name && (
+                              <div className="customer-action-dropdown" ref={dropdownRef}>
+                                <button
+                                  className="customer-dropdown-item"
+                                  onClick={() => {
+                                    setActiveDropdown(null);
+                                    handleCustomerClick(c);
+                                  }}
+                                >
+                                  <Eye size={14} />
+                                  <span>View Details</span>
+                                </button>
+                                <button
+                                  className="customer-dropdown-item"
+                                  onClick={() => {
+                                    setActiveDropdown(null);
+                                    navigate(`/customer-edit/${c.name || c.value}`);
+                                  }}
+                                >
+                                  <Edit2 size={14} />
+                                  <span>Edit Customer</span>
+                                </button>
+                                {c.is_global && (
+                                  <button
+                                    className="customer-dropdown-item"
+                                    onClick={(e) => {
+                                      setActiveDropdown(null);
+                                      handleEnableForBranch(e, c);
+                                    }}
+                                  >
+                                    <CheckCircle2 size={14} />
+                                    <span>Enable Branch</span>
+                                  </button>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+
+              {/* Pagination Bar */}
+              {!loading && filtered.length > 0 && (
+                <div className="customer-pagination-bar">
+                  <div>
+                    Showing {((currentPage - 1) * pageSize) + 1} to {Math.min(currentPage * pageSize, filtered.length)} of {filtered.length} customers
+                  </div>
+                  <div className="customer-pagination-right">
+                    <div className="customer-capacity-group">
+                      <span className="customer-capacity-label">Per Page</span>
+                      <select
+                        className="customer-capacity-select"
+                        value={pageSize}
+                        onChange={e => {
+                          setPageSize(Number(e.target.value));
+                          setCurrentPage(1);
+                        }}
+                      >
+                        <option value={10}>10</option>
+                        <option value={20}>20</option>
+                        <option value={50}>50</option>
+                        <option value={100}>100</option>
+                      </select>
+                    </div>
+                    <div className="customer-page-nav">
+                      <button
+                        className="customer-nav-btn"
+                        disabled={currentPage === 1}
+                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                      >
+                        <ChevronLeft size={14} />
+                      </button>
+                      <span className="customer-page-counter">
+                        {currentPage} / {totalPages}
+                      </span>
+                      <button
+                        className="customer-nav-btn"
+                        disabled={currentPage >= totalPages}
+                        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                      >
+                        <ChevronRightIcon size={14} />
+                      </button>
                     </div>
                   </div>
-                )}
-              </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -1113,7 +1244,7 @@ function CustomerList() {
           <div style={{ maxWidth: '1600px', margin: '4rem auto', padding: '0 5rem 6rem' }}>
             {activeDetailTab === 'Information' && (
               <div className="animate-in fade-in duration-700">
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '4rem' }}>
                   <DetailCard title="Registry Specifications">
                     <DataInfo label="Customer Type" value={selectedCustomer.customer_type} icon={Building2} />
                     <DataInfo label="Salutation" value={selectedCustomer.salutation} icon={User} />
@@ -1137,6 +1268,12 @@ function CustomerList() {
                     <DataInfo label="Profile Image" value={selectedCustomer.image ? 'LINKED' : 'NOT DETECTED'} icon={ImageIcon} />
                     <DataInfo label="Account Status" value={selectedCustomer.disabled ? 'RESTRICTED' : 'OPERATIONAL'} icon={Activity} color={selectedCustomer.disabled ? '#ef4444' : '#10b981'} />
                     <DataInfo label="Global Sync" value={selectedCustomer.is_frozen ? 'FROZEN' : 'ACTIVE'} icon={Shield} color={selectedCustomer.is_frozen ? '#ef4444' : '#10b981'} />
+                  </DetailCard>
+                  <DetailCard title="Audit & System Metadata">
+                    <DataInfo label="Created By" value={selectedCustomer.owner ? selectedCustomer.owner.split('@')[0] : 'System'} icon={User} />
+                    <DataInfo label="Creation Timestamp" value={selectedCustomer.creation ? formatDate(selectedCustomer.creation) : '-'} icon={Calendar} />
+                    <DataInfo label="Last Updated By" value={selectedCustomer.modified_by ? selectedCustomer.modified_by.split('@')[0] : 'System'} icon={UserCircle2} />
+                    <DataInfo label="Last Update Timestamp" value={selectedCustomer.modified ? formatDate(selectedCustomer.modified) : '-'} icon={Clock} color="#0284c7" />
                   </DetailCard>
                 </div>
                 <div style={{ marginTop: '5rem', background: '#f8fafc', padding: '3.5rem', borderRadius: '3rem', border: '3px solid #f1f5f9' }}>
@@ -1202,616 +1339,18 @@ function CustomerList() {
       )}
 
       {/* ────────────────────── CUSTOMER MANAGEMENT PORTAL ────────────────────── */}
-      {showModal && (
-        <div className="fixed inset-0 z-[11000] bg-[#f5f6fa] flex flex-col font-sans overflow-hidden animate-fadeIn">
-          {/* UI Header */}
-          <div className="sticky top-0 bg-white border-b border-slate-200/80 px-8 py-4 flex items-center justify-between z-10 shadow-xs">
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => setShowModal(false)}
-                className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 transition-colors"
-              >
-                <ChevronLeft size={20} />
-              </button>
-              <div className="flex items-center gap-2.5">
-                <div className="p-2 rounded-xl" style={{ backgroundColor: `${themeColor}12`, color: themeColor }}>
-                  <User size={18} strokeWidth={2.5} />
-                </div>
-                <div>
-                  <h2 className="text-sm font-black text-slate-800 tracking-tight uppercase leading-none">
-                    {modalMode === 'edit' ? 'Edit Customer Registry' : 'New Customer Registry'}
-                  </h2>
-                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1.5">Customer Directory Profile</p>
-                </div>
-              </div>
-            </div>
+      <CustomerFormModal
+        isOpen={showModal}
+        onClose={() => setShowModal(false)}
+        onSave={() => {
+          if (view === 'detail' && selectedCustomer) fetchFullDetails(selectedCustomer.name);
+          fetchCustomers();
+        }}
+        editingCustomer={modalMode === 'edit' ? selectedCustomer : null}
+        userWarehouse={warehouse}
+        themeColor={themeColor}
+      />
 
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => setShowModal(false)}
-                className="px-4 py-2 text-xs font-bold uppercase tracking-wider text-slate-400 hover:text-rose-500 transition-all rounded-lg"
-              >
-                Discard
-              </button>
-              <button
-                onClick={handleSave}
-                disabled={saving || !form.customer_name}
-                className="px-5 py-2 text-white rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-2 shadow-md transition-all hover:scale-[1.02] active:scale-95"
-                style={{ backgroundColor: themeColor }}
-              >
-                {saving ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
-                {saving ? 'Saving...' : (modalMode === 'edit' ? 'Save Customer' : 'Create Customer')}
-              </button>
-            </div>
-          </div>
-
-          {/* Form Body - Direct 2-Column Grid to align Heights perfectly across Row 1 and Row 2 */}
-          <div className="flex-1 overflow-y-auto bg-[#f5f6fa] p-6">
-            <div className="w-full grid grid-cols-1 lg:grid-cols-2 gap-6 pb-12 items-stretch">
-
-              {/* Row 1 - Col 1: Section 1 (Core Customer Specifications) */}
-              <div className="bg-white rounded-xl border border-slate-200/60 shadow-xs overflow-hidden group hover:shadow-md transition-all duration-200 flex flex-col h-full">
-                <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-white">
-                  <div className="flex items-center gap-3">
-                    <div
-                      className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black text-white"
-                      style={{ backgroundColor: themeColor }}
-                    >
-                      1
-                    </div>
-                    <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Opportunity Details</h3>
-                  </div>
-                </div>
-                <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-5">
-                  <div className="space-y-1.5 col-span-1 md:col-span-2">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
-                      Customer Name <span className="text-rose-500">*</span>
-                    </label>
-                    <input
-                      className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                      style={{ borderColor: '#cbd5e1', outline: 'none' }}
-                      value={form.customer_name}
-                      onChange={e => setForm({ ...form, customer_name: e.target.value })}
-                      placeholder="e.g. Acme Corp - Primary Corporate Customer"
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
-                      Customer Group <span className="text-rose-500">*</span>
-                    </label>
-                    <select
-                      className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                      style={{ borderColor: '#cbd5e1', outline: 'none' }}
-                      value={form.customer_group}
-                      onChange={e => setForm({ ...form, customer_group: e.target.value })}
-                    >
-                      {meta.customer_group?.map(g => <option key={g} value={g}>{g}</option>)}
-                    </select>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
-                      Customer Type
-                    </label>
-                    <select
-                      className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                      style={{ borderColor: '#cbd5e1', outline: 'none' }}
-                      value={form.customer_type}
-                      onChange={e => setForm({ ...form, customer_type: e.target.value })}
-                    >
-                      {meta.customer_type?.map(t => <option key={t} value={t}>{t}</option>)}
-                    </select>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
-                      Territory
-                    </label>
-                    <select
-                      className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                      style={{ borderColor: '#cbd5e1', outline: 'none' }}
-                      value={form.territory}
-                      onChange={e => setForm({ ...form, territory: e.target.value })}
-                    >
-                      {meta.territory?.map(t => <option key={t} value={t}>{t}</option>)}
-                    </select>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
-                      Salutation
-                    </label>
-                    <select
-                      className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                      style={{ borderColor: '#cbd5e1', outline: 'none' }}
-                      value={form.salutation}
-                      onChange={e => setForm({ ...form, salutation: e.target.value })}
-                    >
-                      <option value="">NA</option>
-                      {meta.salutations?.map(s => <option key={s} value={s}>{s}</option>)}
-                    </select>
-                  </div>
-
-                  <div className="space-y-1.5 col-span-1 md:col-span-2">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
-                      Gender Profile
-                    </label>
-                    <select
-                      className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                      style={{ borderColor: '#cbd5e1', outline: 'none' }}
-                      value={form.gender}
-                      onChange={e => setForm({ ...form, gender: e.target.value })}
-                    >
-                      <option value="">NA</option>
-                      <option value="Male">Male</option>
-                      <option value="Female">Female</option>
-                      <option value="Other">Other</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-
-              {/* Row 2 - Col 1: Section 2 (Contact Info & Address) */}
-              <div className="bg-white rounded-xl border border-slate-200/60 shadow-xs overflow-hidden group hover:shadow-md transition-all duration-200 flex flex-col h-full">
-                <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-white">
-                  <div className="flex items-center gap-3">
-                    <div
-                      className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black text-white"
-                      style={{ backgroundColor: themeColor }}
-                    >
-                      2
-                    </div>
-                    <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Deal Information</h3>
-                  </div>
-                </div>
-                <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-5">
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
-                      Email Id
-                    </label>
-                    <input
-                      type="email"
-                      className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                      style={{ borderColor: '#cbd5e1', outline: 'none' }}
-                      value={form.email_id}
-                      onChange={e => setForm({ ...form, email_id: e.target.value })}
-                      placeholder="email@example.com"
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
-                      Mobile No
-                    </label>
-                    <input
-                      className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                      style={{ borderColor: '#cbd5e1', outline: 'none' }}
-                      value={form.mobile_no}
-                      onChange={e => setForm({ ...form, mobile_no: e.target.value })}
-                      placeholder="+971 -- --- ----"
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
-                      Address Type
-                    </label>
-                    <select
-                      className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                      style={{ borderColor: '#cbd5e1', outline: 'none' }}
-                      value={form.address_type}
-                      onChange={e => setForm({ ...form, address_type: e.target.value })}
-                    >
-                      {meta.address_type?.map(a => <option key={a} value={a}>{a}</option>)}
-                    </select>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
-                      City Station
-                    </label>
-                    <input
-                      className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                      style={{ borderColor: '#cbd5e1', outline: 'none' }}
-                      value={form.city}
-                      onChange={e => setForm({ ...form, city: e.target.value })}
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
-                      Emirate Hub
-                    </label>
-                    <select
-                      className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                      style={{ borderColor: '#cbd5e1', outline: 'none' }}
-                      value={form.emirate}
-                      onChange={e => setForm({ ...form, emirate: e.target.value })}
-                    >
-                      <option value="">Select Emirate</option>
-                      {meta.emirates?.map(e => <option key={e} value={e}>{e}</option>)}
-                    </select>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
-                      Country
-                    </label>
-                    <select
-                      className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                      style={{ borderColor: '#cbd5e1', outline: 'none' }}
-                      value={form.country}
-                      onChange={e => {
-                        const selectedCountry = e.target.value;
-                        const norm = (selectedCountry || '').toLowerCase().trim();
-                        const code = countryPhoneCodes[norm] || '';
-                        setForm(prev => ({
-                          ...prev,
-                          country: selectedCountry,
-                          custom_phone_code: code,
-                          mobile_no: getUpdatedPhone(prev.mobile_no, code)
-                        }));
-                      }}
-                    >
-                      {meta.countries?.map(c => <option key={c} value={c}>{c}</option>)}
-                    </select>
-                  </div>
-
-                  <div className="space-y-1.5 col-span-1 md:col-span-2">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
-                      Building / Street Line 1
-                    </label>
-                    <input
-                      className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                      style={{ borderColor: '#cbd5e1', outline: 'none' }}
-                      value={form.address_line1}
-                      onChange={e => setForm({ ...form, address_line1: e.target.value })}
-                    />
-                  </div>
-
-                  <div className="space-y-1.5 col-span-1 md:col-span-2">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
-                      Address Line 2
-                    </label>
-                    <input
-                      className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                      style={{ borderColor: '#cbd5e1', outline: 'none' }}
-                      value={form.address_line2}
-                      onChange={e => setForm({ ...form, address_line2: e.target.value })}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Row 1 - Col 2: Section 3 (Currency and Price List) */}
-              <div className="bg-white rounded-xl border border-slate-200/60 shadow-xs overflow-hidden group hover:shadow-md transition-all duration-200 flex flex-col h-full">
-                <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-white shrink-0">
-                  <div className="flex items-center gap-3">
-                    <div
-                      className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black text-white"
-                      style={{ backgroundColor: themeColor }}
-                    >
-                      3
-                    </div>
-                    <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Source & Assignment</h3>
-                  </div>
-                </div>
-                <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-5 flex-1">
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
-                      Tax Id
-                    </label>
-                    <input
-                      className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                      style={{ borderColor: '#cbd5e1', outline: 'none' }}
-                      value={form.tax_id}
-                      onChange={e => setForm({ ...form, tax_id: e.target.value })}
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
-                      Tax Category
-                    </label>
-                    <select
-                      className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                      style={{ borderColor: '#cbd5e1', outline: 'none' }}
-                      value={form.tax_category}
-                      onChange={e => setForm({ ...form, tax_category: e.target.value })}
-                    >
-                      <option value="">Default</option>
-                      {meta.tax_categories?.map(t => <option key={t} value={t}>{t}</option>)}
-                    </select>
-                  </div>
-
-                  <div className="space-y-1.5 col-span-1 md:col-span-2">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
-                      Profile Image URL
-                    </label>
-                    <div className="flex items-center gap-4">
-                      <div className="w-14 h-14 rounded-xl border border-slate-200 overflow-hidden flex items-center justify-center bg-slate-50 shrink-0">
-                        {form.image ? (
-                          <img src={form.image} alt="Profile" className="w-full h-full object-cover" />
-                        ) : (
-                          <User size={24} className="text-slate-300" />
-                        )}
-                      </div>
-                      <input
-                        className="flex-1 h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                        style={{ borderColor: '#cbd5e1', outline: 'none' }}
-                        value={form.image}
-                        onChange={e => setForm({ ...form, image: e.target.value })}
-                        placeholder="e.g. https://example.com/avatar.jpg"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
-                      Pricing Matrix
-                    </label>
-                    <select
-                      className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                      style={{ borderColor: '#cbd5e1', outline: 'none' }}
-                      value={form.default_price_list}
-                      onChange={e => setForm({ ...form, default_price_list: e.target.value })}
-                    >
-                      <option value="">System Standard</option>
-                      {meta.price_lists?.map(p => <option key={p} value={p}>{p}</option>)}
-                    </select>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
-                      Payment Terms Protocol
-                    </label>
-                    <select
-                      className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                      style={{ borderColor: '#cbd5e1', outline: 'none' }}
-                      value={form.payment_terms}
-                      onChange={e => setForm({ ...form, payment_terms: e.target.value })}
-                    >
-                      <option value="">Direct</option>
-                      {meta.payment_terms?.map(p => <option key={p} value={p}>{p}</option>)}
-                    </select>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
-                      Loyalty Hub Link
-                    </label>
-                    <select
-                      className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                      style={{ borderColor: '#cbd5e1', outline: 'none' }}
-                      value={form.loyalty_program}
-                      onChange={e => setForm({ ...form, loyalty_program: e.target.value })}
-                    >
-                      <option value="">None</option>
-                      {meta.loyalty_programs?.map(p => <option key={p} value={p}>{p}</option>)}
-                    </select>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
-                      Account Supervisor
-                    </label>
-                    <select
-                      className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                      style={{ borderColor: '#cbd5e1', outline: 'none' }}
-                      value={form.account_manager}
-                      onChange={e => setForm({ ...form, account_manager: e.target.value })}
-                    >
-                      <option value="">Select Supervisor</option>
-                      {meta.account_managers?.map(m => <option key={m} value={m}>{m}</option>)}
-                    </select>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
-                      Customer POS Ident
-                    </label>
-                    <input
-                      className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                      style={{ borderColor: '#cbd5e1', outline: 'none' }}
-                      value={form.customer_pos_id}
-                      onChange={e => setForm({ ...form, customer_pos_id: e.target.value })}
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
-                      Prospect Alias
-                    </label>
-                    <select
-                      className="w-full h-11 px-4 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                      style={{ borderColor: '#cbd5e1', outline: 'none' }}
-                      value={form.prospect_name}
-                      onChange={e => setForm({ ...form, prospect_name: e.target.value })}
-                    >
-                      <option value="">Select Prospect</option>
-                      {meta.prospects?.map(p => <option key={p} value={p}>{p}</option>)}
-                    </select>
-                  </div>
-                </div>
-              </div>
-
-              {/* Row 2 - Col 2: Section 4 (Settings & Controls) */}
-              <div className="bg-white rounded-xl border border-slate-200/60 shadow-xs overflow-hidden group hover:shadow-md transition-all duration-200 flex flex-col h-full">
-                <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-white shrink-0">
-                  <div className="flex items-center gap-3">
-                    <div
-                      className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black text-white"
-                      style={{ backgroundColor: themeColor }}
-                    >
-                      4
-                    </div>
-                    <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Additional Information</h3>
-                  </div>
-                </div>
-                <div className="p-6 flex flex-col justify-between flex-1 space-y-6">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
-                    {[
-                      { id: 'disabled', label: 'Disabled' },
-                      { id: 'is_frozen', label: 'Is Frozen' },
-                      { id: 'is_internal_customer', label: 'Internal Customer' }
-                    ].map(check => (
-                      <label key={check.id} className="flex items-center px-3 py-2.5 bg-slate-50/50 hover:bg-slate-100/50 border border-slate-100 rounded-lg cursor-pointer transition-all select-none group">
-                        <input
-                          type="checkbox"
-                          className="rounded border-slate-300 text-slate-800 transition-all cursor-pointer focus:ring-0"
-                          style={{
-                            accentColor: themeColor,
-                            width: '16px',
-                            height: '16px',
-                            minWidth: '16px',
-                            minHeight: '16px',
-                            position: 'static',
-                            display: 'inline-block',
-                            margin: '0 10px 0 0',
-                            flexShrink: 0,
-                            cursor: 'pointer'
-                          }}
-                          checked={form[check.id] === 1 || form[check.id] === true}
-                          onChange={e => setForm({ ...form, [check.id]: e.target.checked ? 1 : 0 })}
-                        />
-                        <span className="text-[9px] font-bold text-slate-500 group-hover:text-slate-800 transition-colors uppercase tracking-wider whitespace-nowrap">{check.label}</span>
-                      </label>
-                    ))}
-                  </div>
-
-                  {/* Section: Personnel Profile (Primary Contact) */}
-                  <div className="space-y-3">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">Primary Contact Person Profile</label>
-                    <div className="grid grid-cols-2 gap-3">
-                      <input
-                        placeholder="First Name"
-                        className="w-full h-9 px-3 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                        style={{ borderColor: '#cbd5e1', outline: 'none' }}
-                        value={form.first_name}
-                        onChange={e => setForm({ ...form, first_name: e.target.value })}
-                      />
-                      <input
-                        placeholder="Last Name"
-                        className="w-full h-9 px-3 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                        style={{ borderColor: '#cbd5e1', outline: 'none' }}
-                        value={form.last_name}
-                        onChange={e => setForm({ ...form, last_name: e.target.value })}
-                      />
-                      <input
-                        placeholder="Designation"
-                        className="w-full h-9 px-3 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                        style={{ borderColor: '#cbd5e1', outline: 'none' }}
-                        value={form.designation}
-                        onChange={e => setForm({ ...form, designation: e.target.value })}
-                      />
-                      <select
-                        className="w-full h-9 px-3 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                        style={{ borderColor: '#cbd5e1', outline: 'none' }}
-                        value={form.status}
-                        onChange={e => setForm({ ...form, status: e.target.value })}
-                      >
-                        <option value="Active">Active</option>
-                        <option value="Passive">Passive</option>
-                        <option value="Isolated">Isolated</option>
-                      </select>
-                      <input
-                        placeholder="Contact Mobile"
-                        className="w-full h-9 px-3 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                        style={{ borderColor: '#cbd5e1', outline: 'none' }}
-                        value={form.contact_mobile}
-                        onChange={e => setForm({ ...form, contact_mobile: e.target.value })}
-                      />
-                      <input
-                        placeholder="Contact Email"
-                        className="w-full h-9 px-3 border rounded-lg text-xs font-medium text-slate-700 bg-white"
-                        style={{ borderColor: '#cbd5e1', outline: 'none' }}
-                        value={form.contact_email}
-                        onChange={e => setForm({ ...form, contact_email: e.target.value })}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-1.5 flex flex-col flex-1">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block px-0.5">
-                      Customer Details
-                    </label>
-                    <textarea
-                      className="w-full px-4 py-3 border rounded-lg text-xs font-medium text-slate-700 bg-white min-h-[85px] resize-none flex-1"
-                      style={{ borderColor: '#cbd5e1', outline: 'none' }}
-                      value={form.customer_details}
-                      onChange={e => setForm({ ...form, customer_details: e.target.value })}
-                      placeholder="Enter customer details or description notes..."
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Row 3 - Col 1: Section 5 (Branch Availability) */}
-              <div className="bg-white rounded-xl border border-slate-200/60 shadow-xs overflow-hidden group hover:shadow-md transition-all duration-200 flex flex-col h-full">
-                <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-white shrink-0">
-                  <div className="flex items-center gap-3">
-                    <div
-                      className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black text-white"
-                      style={{ backgroundColor: themeColor }}
-                    >
-                      5
-                    </div>
-                    <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Branch Availability</h3>
-                  </div>
-                </div>
-                <div className="p-6 space-y-4 flex-1">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Select branches where this customer can be used:</p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[300px] overflow-y-auto p-1">
-                    {meta.warehouses?.map(wh => (
-                      <label key={wh} className="flex items-center gap-3 p-3 bg-slate-50 border border-slate-100 rounded-lg cursor-pointer transition-all hover:bg-slate-100/80">
-                        <input
-                          type="checkbox"
-                          className="rounded border-slate-300"
-                          style={{ accentColor: themeColor }}
-                          checked={form.branch_availability?.some(b => b.warehouse === wh)}
-                          onChange={e => {
-                            const updated = e.target.checked 
-                              ? [...form.branch_availability, { warehouse: wh }]
-                              : form.branch_availability.filter(b => b.warehouse !== wh);
-                            setForm({ ...form, branch_availability: updated });
-                          }}
-                        />
-                        <span className="text-[11px] font-bold text-slate-600">{wh}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-            </div>
-          </div>
-
-          {/* Sticky Footer exact structure matching mockup */}
-          <div className="sticky bottom-0 bg-white border-t border-slate-200 px-8 py-4 flex items-center justify-between z-10 shadow-[0_-4px_12px_rgba(0,0,0,0.03)]">
-            <div className="text-xs font-semibold text-slate-400">
-              Fields marked <span className="text-rose-500">*</span> are required
-            </div>
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => setShowModal(false)}
-                className="px-6 py-2.5 text-slate-500 hover:text-slate-800 border border-slate-200 hover:bg-slate-50 rounded-xl text-xs font-bold uppercase tracking-wider transition-all"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSave}
-                disabled={saving || !form.customer_name}
-                className="px-6 py-2.5 text-white rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-2 shadow-lg transition-all hover:scale-[1.02] active:scale-95"
-                style={{ backgroundColor: themeColor }}
-              >
-                {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-                {saving ? 'Saving...' : (modalMode === 'edit' ? 'Save Customer' : 'Create Customer')}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
       {showGlobalSyncModal && (
         <div className="fixed inset-0 z-[12000] flex items-center justify-center bg-slate-900/60 backdrop-blur-xs animate-fadeIn p-4">
           <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-2xl flex flex-col overflow-hidden max-h-[85vh] text-left">

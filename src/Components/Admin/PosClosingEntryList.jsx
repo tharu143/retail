@@ -87,117 +87,136 @@ function PosClosingEntryList() {
     <div className="so-page">
 
       {/* 1. PREMIUM HEADER */}
-      <div className="so-page-header">
+      <div className="so-page-header" style={{ padding: '1.25rem 2rem', background: '#ffffff', borderBottom: '1px solid #e2e8f0' }}>
         <div>
-          <h1 className="so-page-title">
-            <Receipt size={22} />
-            POS Closing Entries
+          <h1 className="so-page-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
+            <Receipt size={22} style={{ color: themeColor }} />
+            <span style={{ fontSize: '1.25rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '-0.01em' }}>POS CLOSING ENTRIES</span>
           </h1>
-          <p className="so-page-subtitle">Historical record of shift settlements and reconciliations</p>
+          <p className="so-page-subtitle" style={{ margin: '4px 0 0 0', fontSize: '0.75rem', color: '#64748b' }}>Historical record of shift settlements and reconciliations</p>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
           <button
             onClick={() => setPolTheme(isGreen ? 'blue' : 'green')}
             style={{
-              display: 'flex', alignItems: 'center', gap: '0.4rem',
-              padding: '0.5rem 1rem', background: themeHeaderBg,
-              border: `1.5px solid ${themeColor}`, borderRadius: '0.5rem',
-              fontSize: '0.7rem', fontWeight: 700, color: themeHeaderText,
-              cursor: 'pointer', transition: 'all 0.2s',
-              textTransform: 'uppercase', letterSpacing: '0.04em'
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem',
+              height: '38px', padding: '0 1rem', background: '#ffffff',
+              border: `1.5px solid ${themeColor}`, borderRadius: '8px',
+              fontSize: '12px', fontWeight: 800, color: themeColor,
+              cursor: 'pointer', transition: 'all 0.15s ease-in-out',
+              textTransform: 'uppercase', letterSpacing: '0.04em', boxSizing: 'border-box'
             }}
           >
-            <Palette size={14} />
-            {polTheme}
+            <Palette size={14} /> {polTheme.toUpperCase()}
           </button>
 
-          <div style={{ width: '1px', height: '24px', background: '#e2e8f0' }}></div>
-
-          <button className="so-btn-primary" onClick={() => navigate('/closingentry')}>
-            <Plus size={16} /> New Closing Entry
-          </button>
-        </div>
-      </div>
-
-      {/* 2. HORIZONTAL FILTER BAR */}
-      <div className="so-filter-bar">
-        <div style={{ flex: '1 1 150px' }}>
-          <label className="so-filter-label">From Date</label>
-          <input
-            type="date"
-            className="so-filter-input"
-            value={filters.from_date}
-            onChange={e => { setFilters({ ...filters, from_date: e.target.value }); setCurrentPage(1); }}
-          />
-        </div>
-        <div style={{ flex: '1 1 150px' }}>
-          <label className="so-filter-label">To Date</label>
-          <input
-            type="date"
-            className="so-filter-input"
-            value={filters.to_date}
-            onChange={e => { setFilters({ ...filters, to_date: e.target.value }); setCurrentPage(1); }}
-          />
-        </div>
-        <div style={{ flex: '1 1 150px' }}>
-          <label className="so-filter-label">POS Profile</label>
-          <input
-            type="text"
-            className="so-filter-input"
-            placeholder="Filter profile..."
-            value={filters.pos_profile}
-            onChange={e => { setFilters({ ...filters, pos_profile: e.target.value }); setCurrentPage(1); }}
-          />
-        </div>
-        <div style={{ flex: '1 1 150px' }}>
-          <label className="so-filter-label">User</label>
-          <input
-            type="text"
-            className="so-filter-input"
-            placeholder="Filter user ID..."
-            value={filters.user}
-            onChange={e => { setFilters({ ...filters, user: e.target.value }); setCurrentPage(1); }}
-          />
-        </div>
-        <div style={{ flex: '1 1 150px' }}>
-          <label className="so-filter-label">Status</label>
-          <select
-            className="so-filter-select"
-            value={filters.status}
-            onChange={e => { setFilters({ ...filters, status: e.target.value }); setCurrentPage(1); }}
+          <button 
+            className="so-btn-primary" 
+            onClick={() => navigate('/closingentry')}
+            style={{
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem',
+              height: '38px', padding: '0 1rem', background: themeColor,
+              color: '#ffffff', border: 'none', borderRadius: '8px',
+              fontSize: '12px', fontWeight: 800, textTransform: 'uppercase',
+              letterSpacing: '0.04em', cursor: 'pointer', transition: 'all 0.15s ease-in-out',
+              boxSizing: 'border-box'
+            }}
           >
-            <option value="">All Status</option>
-            <option value="Draft">Draft</option>
-            <option value="Submitted">Submitted</option>
-          </select>
+            <Plus size={16} /> NEW CLOSING ENTRY
+          </button>
         </div>
-        <button 
-          className="so-clear-btn" 
-          onClick={() => setFilters({ from_date: '', to_date: '', pos_profile: '', user: '', status: '' })}
-          style={{ width: 'auto', margin: 0, padding: '0 1rem', height: '38px' }}
-        >
-          Clear
-        </button>
       </div>
 
-      {/* 3. MAIN CONTENT */}
-      <main className="so-content" style={{ padding: '1.5rem 2rem' }}>
-        <p className="so-list-meta">
-          Showing <b>{(currentPage - 1) * pageSize + 1} - {Math.min(currentPage * pageSize, total)}</b> of <b>{total}</b> settlements
-        </p>
+      {/* Layout Wrap */}
+      <div className="so-layout" style={{ flexDirection: 'column', background: '#f8fafc', padding: '1.5rem 2rem' }}>
 
-        <div className="so-table-card">
+        {/* 2. HORIZONTAL FILTER BAR */}
+        <div className="so-filter-bar" style={{ padding: '0 0 1.25rem 0', background: 'transparent', border: 'none', boxShadow: 'none', display: 'flex', flexWrap: 'wrap', gap: '1.25rem', alignItems: 'flex-end', marginBottom: '0.5rem' }}>
+          <div style={{ flex: '1 1 150px' }}>
+            <label className="so-filter-label" style={{ fontSize: '11px', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: '6px' }}>FROM DATE</label>
+            <input
+              type="date"
+              className="so-filter-input"
+              style={{ width: '100%', height: '38px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none', background: '#fff', padding: '0 0.75rem' }}
+              value={filters.from_date}
+              onChange={e => { setFilters({ ...filters, from_date: e.target.value }); setCurrentPage(1); }}
+            />
+          </div>
+          <div style={{ flex: '1 1 150px' }}>
+            <label className="so-filter-label" style={{ fontSize: '11px', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: '6px' }}>TO DATE</label>
+            <input
+              type="date"
+              className="so-filter-input"
+              style={{ width: '100%', height: '38px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none', background: '#fff', padding: '0 0.75rem' }}
+              value={filters.to_date}
+              onChange={e => { setFilters({ ...filters, to_date: e.target.value }); setCurrentPage(1); }}
+            />
+          </div>
+          <div style={{ flex: '1 1 150px' }}>
+            <label className="so-filter-label" style={{ fontSize: '11px', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: '6px' }}>POS PROFILE</label>
+            <div style={{ position: 'relative' }}>
+              <Search size={14} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', zIndex: 2 }} />
+              <input
+                type="text"
+                className="so-filter-input"
+                placeholder="Filter profile..."
+                style={{ width: '100%', height: '38px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none', background: '#fff', paddingLeft: '2.25rem' }}
+                value={filters.pos_profile}
+                onChange={e => { setFilters({ ...filters, pos_profile: e.target.value }); setCurrentPage(1); }}
+              />
+            </div>
+          </div>
+          <div style={{ flex: '1 1 150px' }}>
+            <label className="so-filter-label" style={{ fontSize: '11px', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: '6px' }}>USER</label>
+            <input
+              type="text"
+              className="so-filter-input"
+              placeholder="Filter user ID..."
+              style={{ width: '100%', height: '38px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none', background: '#fff', padding: '0 0.75rem' }}
+              value={filters.user}
+              onChange={e => { setFilters({ ...filters, user: e.target.value }); setCurrentPage(1); }}
+            />
+          </div>
+          <div style={{ flex: '1 1 150px' }}>
+            <label className="so-filter-label" style={{ fontSize: '11px', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: '6px' }}>STATUS</label>
+            <select
+              className="so-filter-select"
+              style={{ width: '100%', height: '38px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none', background: '#fff', padding: '0 0.75rem' }}
+              value={filters.status}
+              onChange={e => { setFilters({ ...filters, status: e.target.value }); setCurrentPage(1); }}
+            >
+              <option value="">ALL STATUS</option>
+              <option value="Draft">DRAFT</option>
+              <option value="Submitted">SUBMITTED</option>
+            </select>
+          </div>
+          <button 
+            className="so-clear-btn" 
+            onClick={() => setFilters({ from_date: '', to_date: '', pos_profile: '', user: '', status: '' })}
+            style={{ width: 'auto', margin: 0, padding: '0 1.5rem', height: '38px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', fontWeight: 600, color: '#64748b', background: '#ffffff', cursor: 'pointer', textTransform: 'uppercase' }}
+          >
+            CLEAR
+          </button>
+        </div>
+
+        {/* 3. MAIN CONTENT */}
+        <main className="so-content" style={{ padding: 0, flex: 1, background: 'transparent' }}>
+          <p className="so-list-meta" style={{ marginBottom: '0.75rem', fontWeight: 600, color: '#64748b', fontSize: '13px' }}>
+            Showing <b>{(currentPage - 1) * pageSize + 1} - {Math.min(currentPage * pageSize, total)}</b> of <b>{total}</b> settlements
+          </p>
+
+          <div className="so-table-card" style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)' }}>
           <div className="so-table-wrapper">
             <table className="so-table">
               <thead>
                 <tr>
-                  <th>Date</th>
-                  <th>Shift Information</th>
-                  <th>Closing Agent</th>
-                  <th style={{ textAlign: 'right' }}>Items</th>
-                  <th style={{ textAlign: 'right' }}>Net Summary</th>
-                  <th style={{ textAlign: 'right' }}>Grand Total</th>
-                  <th>Status</th>
+                  <th>DATE</th>
+                  <th>SHIFT INFORMATION</th>
+                  <th>CLOSING AGENT</th>
+                  <th style={{ textAlign: 'right' }}>ITEMS</th>
+                  <th style={{ textAlign: 'right' }}>NET SUMMARY</th>
+                  <th style={{ textAlign: 'right' }}>GRAND TOTAL</th>
+                  <th>STATUS</th>
                 </tr>
               </thead>
               <tbody>
@@ -216,7 +235,7 @@ function PosClosingEntryList() {
                   closings.map(c => (
                     <tr key={c.name} onClick={() => navigate(`/pos-closing/${c.name}`)}>
                       <td>
-                        <div style={{ fontWeight: 600, color: '#0f172a' }}>{c.posting_date}</div>
+                        <div style={{ fontWeight: 600, color: '#0f172a', whiteSpace: 'nowrap' }}>{c.posting_date}</div>
                       </td>
                       <td>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -309,6 +328,7 @@ function PosClosingEntryList() {
         </div>
       </main>
     </div>
+  </div>
   );
 }
 

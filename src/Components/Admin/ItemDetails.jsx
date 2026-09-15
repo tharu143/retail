@@ -18,9 +18,9 @@ import CreateMultipleVariantsModal from './CreateMultipleVariantsModal';
 const T = {
   bg: '#F7F8FA', surface: '#FFFFFF', border: '#E8ECF0', borderLight: '#F1F4F8',
   text: '#0D1117', textSub: '#5A6478', textMuted: '#9CA8BB',
-  blue: '#2563EB', blueLight: '#EEF3FF', blueMid: '#DBEAFE',
+  blue: '#0082f6', blueLight: '#f0f2fe', blueMid: '#c3cde4',
   green: '#16A34A', greenLight: '#F0FDF4', amber: '#D97706', amberLight: '#FFFBEB',
-  red: '#DC2626', redLight: '#FEF2F2', purple: '#7C3AED', purpleLight: '#F5F3FF',
+  red: '#DC2626', redLight: '#FEF2F2', purple: '#0082f6', purpleLight: '#f0f2fe',
   shadow: '0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)',
   shadowMd: '0 4px 12px rgba(0,0,0,0.06)', radius: '10px', radiusMd: '14px',
 };
@@ -387,7 +387,7 @@ const ItemDetails = () => {
                       onMouseEnter={(e) => e.currentTarget.style.background = '#f1f5f9'}
                       onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                     >
-                      <Layers size={14} color="#8b5cf6" />
+                      <Layers size={14} color="#0082f6" />
                       <span>Multiple Variants</span>
                     </button>
                   </div>
@@ -704,14 +704,14 @@ const ItemDetails = () => {
                       <div style={{ display: 'flex', gap: 8 }}>
                         <button
                           onClick={() => setShowVariantModal(true)}
-                          className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-lg text-xs font-bold transition-all cursor-pointer border border-purple-200"
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg text-xs font-bold transition-all cursor-pointer border border-blue-200"
                         >
                           <Plus size={13} />
                           <span>Add Single Variant</span>
                         </button>
                         <button
                           onClick={() => setShowMultipleVariantModal(true)}
-                          className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg text-xs font-bold transition-all cursor-pointer border border-indigo-200"
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg text-xs font-bold transition-all cursor-pointer border border-blue-200"
                         >
                           <Layers size={13} />
                           <span>Add Multiple Variants</span>
@@ -746,7 +746,7 @@ const ItemDetails = () => {
                                   <td style={{ padding: '12px 18px' }}>
                                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                                       {(v.attributes || []).map((at, ai) => (
-                                        <span key={ai} style={{ fontSize: 10, fontWeight: 700, padding: '2px 6px', background: '#f5f3ff', color: '#7c3aed', borderRadius: 4, border: '1px solid #ddd6fe' }}>
+                                        <span key={ai} style={{ fontSize: 10, fontWeight: 700, padding: '2px 6px', background: '#f0f2fe', color: '#0082f6', borderRadius: 4, border: '1px solid #c3cde4' }}>
                                           {at.attribute_value}
                                         </span>
                                       ))}

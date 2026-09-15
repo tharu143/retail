@@ -175,7 +175,7 @@ const PurchaseOrderList = ({ onNew }) => {
                 <th>Posting Matrix</th>
                 <th>RCVD %</th>
                 <th>BILL %</th>
-                <th>Commitment Value</th>
+                <th style={{ textAlign: 'right' }}>Commitment Value</th>
                 <th>Status</th>
                 <th style={{ textAlign: 'center' }}>Controls</th>
               </tr>

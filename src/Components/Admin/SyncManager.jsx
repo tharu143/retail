@@ -253,37 +253,50 @@ const SyncManager = () => {
         <div className="so-page">
             <div className="so-page-header">
                 <div>
-                    <h1 className="so-page-title"><Activity size={20} /> Data Sync Manager</h1>
+                    <h1 className="so-page-title">
+                        <Activity size={20} color={themeColor} /> DATA SYNC MANAGER
+                    </h1>
                     <p className="so-page-subtitle">Real-time status of local data synchronization and shift states.</p>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                     <div style={{
-                        display: 'flex', alignItems: 'center', gap: '8px', padding: '0.45rem 1rem',
-                        borderRadius: '99px', background: isOnline ? '#ecfdf5' : '#fef2f2',
-                        color: isOnline ? '#059669' : '#dc2626', fontSize: '0.75rem', fontWeight: 700,
-                        border: `1.5px solid ${isOnline ? '#10b981' : '#ef4444'}`
+                        height: '38px', display: 'inline-flex', alignItems: 'center', gap: '6px',
+                        padding: '0 1rem', borderRadius: '10px',
+                        background: isOnline ? (isGreen ? '#ecfdf5' : '#eff6ff') : '#fef2f2',
+                        color: isOnline ? themeColor : '#dc2626', fontSize: '0.75rem', fontWeight: 800,
+                        border: `1.5px solid ${isOnline ? themeColor : '#ef4444'}`,
+                        boxSizing: 'border-box'
                     }}>
                         {isOnline ? <Wifi size={14} /> : <WifiOff size={14} />}
                         {isOnline ? 'SYSTEM CONNECTED' : 'OFFLINE MODE'}
                     </div>
                     <button
                         onClick={toggleTheme}
-
                         style={{
-                            display: 'flex', alignItems: 'center', gap: '0.4rem',
-                            padding: '0.45rem 1rem', background: '#f8fafc',
-                            border: `1.5px solid ${themeColor}`, borderRadius: '0.5rem',
+                            height: '38px', display: 'inline-flex', alignItems: 'center', gap: '6px',
+                            padding: '0 1rem', background: '#ffffff',
+                            border: `1.5px solid ${themeColor}`, borderRadius: '10px',
                             fontSize: '0.75rem', fontWeight: 800, color: themeColor,
                             cursor: 'pointer', transition: 'all 0.2s',
-                            textTransform: 'uppercase', letterSpacing: '0.04em'
+                            textTransform: 'uppercase', letterSpacing: '0.04em',
+                            boxSizing: 'border-box'
                         }}
                     >
                         <Palette size={14} /> {isGreen ? 'BLUE' : 'GREEN'}
-
-
                     </button>
-                    <button className="so-btn-primary" onClick={fetchData} disabled={loading}>
-                        <RefreshCw size={16} className={loading ? "animate-spin" : ""} /> Refresh Data
+                    <button
+                        className="so-btn-primary"
+                        onClick={fetchData}
+                        disabled={loading}
+                        style={{
+                            height: '38px', display: 'inline-flex', alignItems: 'center', gap: '6px',
+                            padding: '0 1.25rem', background: themeColor, borderColor: themeColor,
+                            borderRadius: '10px', fontSize: '0.75rem', fontWeight: 900,
+                            textTransform: 'uppercase', letterSpacing: '0.04em',
+                            boxSizing: 'border-box', cursor: 'pointer'
+                        }}
+                    >
+                        <RefreshCw size={16} className={loading ? "animate-spin" : ""} /> REFRESH DATA
                     </button>
                 </div>
             </div>

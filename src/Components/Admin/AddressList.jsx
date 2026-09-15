@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Plus, Search, X, Save, MapPin, ChevronLeft, 
   Trash2, Edit2, Palette, Loader2, ChevronRight, Eye, 
-  Globe, Building2, User, Filter, MoreHorizontal
+  Globe, Building2, User, Filter, MoreHorizontal, MoreVertical
 } from 'lucide-react';
 import axios from 'axios';
 import Swal from 'sweetalert2';
@@ -16,6 +16,7 @@ const AddressList = () => {
   const [pageSize, setPageSize] = useState(20);
   const [currentPage, setCurrentPage] = useState(1);
   const [total, setTotal] = useState(0);
+  const [openActionId, setOpenActionId] = useState(null);
 
   // Theme (Emerald & Slate)
   const themeColor = '#10b981';
@@ -52,6 +53,9 @@ const AddressList = () => {
   useEffect(() => {
     fetchAddresses();
     fetchMeta();
+    const handleClickOutside = () => setOpenActionId(null);
+    window.addEventListener('click', handleClickOutside);
+    return () => window.removeEventListener('click', handleClickOutside);
   }, []);
 
   const fetchMeta = async () => {
@@ -178,93 +182,170 @@ const AddressList = () => {
       <div className="so-page-header">
         <div className="so-page-left">
           <h1 className="so-page-title">
-            <MapPin size={20} /> Globally Managed Addresses
+            <MapPin size={20} /> GLOBALLY MANAGED ADDRESSES
           </h1>
-          <p className="so-page-subtitle">Centralized Logistics & Location Registry</p>
+          <p className="so-page-subtitle">CENTRALIZED LOGISTICS & LOCATION REGISTRY</p>
         </div>
         <div style={{ display: 'flex', gap: '0.75rem' }}>
           <button className="so-btn-primary" onClick={() => { setIsEditMode(false); setIsViewMode(false); setShowModal(true); }}>
-            <Plus size={16} /> New Location
+            <Plus size={16} /> NEW LOCATION
           </button>
         </div>
       </div>
 
-      <div className="so-filter-bar">
-        <div style={{ flex: 1 }}>
-          <label className="so-filter-label">Search Entry</label>
-          <input 
-            className="so-filter-input" 
-            placeholder="Title, Name, Street..." 
-            value={filterSearch} 
-            onChange={e => setFilterSearch(e.target.value)} 
-          />
+      <div className="so-layout" style={{ flexDirection: 'column', background: '#f8fafc', padding: '1.5rem 2rem' }}>
+        <div className="so-filter-bar" style={{ padding: '0 0 1.25rem 0', background: 'transparent', border: 'none', boxShadow: 'none', display: 'flex', gap: '1.25rem', alignItems: 'flex-end', marginBottom: '0.5rem' }}>
+          <div style={{ flex: 1 }}>
+            <label className="so-filter-label">SEARCH ENTRY</label>
+            <input 
+              className="so-filter-input" 
+              placeholder="Title, Name, Street..." 
+              value={filterSearch} 
+              onChange={e => setFilterSearch(e.target.value)} 
+            />
+          </div>
+          <div style={{ width: '180px' }}>
+            <label className="so-filter-label">ADDRESS TYPE</label>
+            <select className="so-filter-input" value={filterType} onChange={e => setFilterType(e.target.value)}>
+              <option value="">ALL TYPES</option>
+              {metaOptions.address_type?.map(t => <option key={t} value={t}>{t}</option>)}
+            </select>
+          </div>
+          <div style={{ width: '180px' }}>
+            <label className="so-filter-label">CITY FILTERS</label>
+            <input 
+              className="so-filter-input" 
+              placeholder="Dubai, Sharjah..." 
+              value={filterCity} 
+              onChange={e => setFilterCity(e.target.value)} 
+            />
+          </div>
         </div>
-        <div style={{ width: '180px' }}>
-          <label className="so-filter-label">Address Type</label>
-          <select className="so-filter-input" value={filterType} onChange={e => setFilterType(e.target.value)}>
-            <option value="">All Types</option>
-            {metaOptions.address_type?.map(t => <option key={t} value={t}>{t}</option>)}
-          </select>
-        </div>
-        <div style={{ width: '180px' }}>
-          <label className="so-filter-label">City Filters</label>
-          <input 
-            className="so-filter-input" 
-            placeholder="Dubai, Sharjah..." 
-            value={filterCity} 
-            onChange={e => setFilterCity(e.target.value)} 
-          />
-        </div>
-      </div>
 
-      <div className="so-content" style={{ padding: '1.5rem 2rem' }}>
-        <div className="so-table-card">
-          <div className="so-table-wrapper">
-            <table className="so-table">
-              <thead>
-                <tr>
-                  <th>Address Title & Reference</th>
-                  <th>Logistics Vector</th>
-                  <th>Classification</th>
-                  <th style={{ textAlign: 'center' }}>Identity</th>
-                  <th style={{ width: '120px', textAlign: 'center' }}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? (
-                  <tr><td colSpan="5" className="so-empty"><Loader2 className="so-spinner" /></td></tr>
-                ) : paginatedData.length === 0 ? (
-                  <tr><td colSpan="5" className="so-empty">No address definitions found.</td></tr>
-                ) : (
-                  paginatedData.map(addr => (
-                    <tr key={addr.name} onClick={() => handleView(addr)}>
-                      <td>
-                        <div style={{ fontWeight: 800, color: 'var(--so-text-heading)' }}>{addr.address_title}</div>
-                        <div style={{ fontSize: '0.68rem', opacity: 0.6, fontFamily: 'monospace' }}>{addr.name}</div>
-                      </td>
-                      <td>
-                        <div style={{ fontSize: '0.8rem', color: 'var(--so-text-muted)' }}>{addr.address_line1}</div>
-                        <div style={{ fontSize: '0.75rem', fontWeight: 700, color: themeColor }}>{addr.city}, {addr.country}</div>
-                      </td>
-                      <td>
-                        <span className="so-badge" style={{ background: '#f1f5f9', color: '#475569' }}>{addr.address_type}</span>
-                      </td>
-                      <td style={{ textAlign: 'center' }}>
-                         {addr.is_primary_address === 1 && (
-                            <span className="so-badge" style={{ background: themeLight, color: themeColor }}>Primary</span>
-                         )}
-                      </td>
-                      <td>
-                        <div style={{ display: 'flex', justifyContent: 'center', gap: '0.5rem' }}>
-                          <button className="so-btn-ghost" onClick={(e) => { e.stopPropagation(); handleView(addr); }}><Eye size={14} /></button>
-                          <button className="so-btn-ghost" onClick={(e) => { e.stopPropagation(); handleEdit(addr); }} style={{ color: '#d97706' }}><Edit2 size={14} /></button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+        <div className="so-content" style={{ padding: 0, flex: 1, background: 'transparent' }}>
+          <div className="so-table-card">
+            <div className="so-table-wrapper">
+              <table className="so-table">
+                <thead>
+                  <tr>
+                    <th>ADDRESS TITLE & REFERENCE</th>
+                    <th>LOGISTICS VECTOR</th>
+                    <th>CLASSIFICATION</th>
+                    <th style={{ textAlign: 'center' }}>IDENTITY</th>
+                    <th style={{ width: '120px', textAlign: 'center' }}>ACTIONS</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {loading ? (
+                    <tr><td colSpan="5" className="so-empty"><Loader2 className="so-spinner" /></td></tr>
+                  ) : paginatedData.length === 0 ? (
+                    <tr><td colSpan="5" className="so-empty">NO ADDRESS DEFINITIONS FOUND.</td></tr>
+                  ) : (
+                    paginatedData.map(addr => (
+                      <tr key={addr.name} onClick={() => handleView(addr)}>
+                        <td>
+                          <div style={{ fontWeight: 800, color: 'var(--so-text-heading)' }}>{addr.address_title}</div>
+                          <div style={{ fontSize: '0.68rem', opacity: 0.6, fontFamily: 'monospace' }}>{addr.name}</div>
+                        </td>
+                        <td>
+                          <div style={{ fontSize: '0.8rem', color: 'var(--so-text-muted)' }}>{addr.address_line1}</div>
+                          <div style={{ fontSize: '0.75rem', fontWeight: 700, color: themeColor }}>{addr.city}, {addr.country}</div>
+                        </td>
+                        <td>
+                          <span className="so-badge" style={{ background: '#f1f5f9', color: '#475569' }}>{addr.address_type}</span>
+                        </td>
+                        <td style={{ textAlign: 'center' }}>
+                          {addr.is_primary_address === 1 && <span className="so-badge" style={{ background: '#ecfdf5', color: '#059669', marginRight: '4px' }}>PRIMARY</span>}
+                          {addr.is_shipping_address === 1 && <span className="so-badge" style={{ background: '#eff6ff', color: '#2563eb' }}>SHIPPING</span>}
+                        </td>
+                        <td style={{ textAlign: 'center', position: 'relative' }} onClick={e => e.stopPropagation()}>
+                          <button
+                            className="so-btn-ghost"
+                            style={{ padding: '0.35rem', borderRadius: '0.375rem', color: '#64748b', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setOpenActionId(openActionId === addr.name ? null : addr.name);
+                            }}
+                          >
+                            <MoreVertical size={16} />
+                          </button>
+                          {openActionId === addr.name && (
+                            <div
+                              style={{
+                                position: 'absolute',
+                                right: '1rem',
+                                top: '80%',
+                                zIndex: 100,
+                                background: '#ffffff',
+                                border: '1px solid #e2e8f0',
+                                borderRadius: '0.5rem',
+                                boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+                                minWidth: '140px',
+                                overflow: 'hidden',
+                                padding: '0.35rem'
+                              }}
+                            >
+                              <button
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '0.5rem',
+                                  width: '100%',
+                                  padding: '0.5rem 0.75rem',
+                                  fontSize: '0.75rem',
+                                  fontWeight: 700,
+                                  color: '#334155',
+                                  background: 'none',
+                                  border: 'none',
+                                  borderRadius: '0.25rem',
+                                  cursor: 'pointer',
+                                  textAlign: 'left'
+                                }}
+                                onMouseEnter={e => e.currentTarget.style.background = '#f1f5f9'}
+                                onMouseLeave={e => e.currentTarget.style.background = 'none'}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setOpenActionId(null);
+                                  handleView(addr);
+                                }}
+                              >
+                                <Eye size={14} style={{ color: '#0082f6' }} /> VIEW DETAILS
+                              </button>
+                              <button
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '0.5rem',
+                                  width: '100%',
+                                  padding: '0.5rem 0.75rem',
+                                  fontSize: '0.75rem',
+                                  fontWeight: 700,
+                                  color: '#334155',
+                                  background: 'none',
+                                  border: 'none',
+                                  borderRadius: '0.25rem',
+                                  cursor: 'pointer',
+                                  textAlign: 'left'
+                                }}
+                                onMouseEnter={e => e.currentTarget.style.background = '#f1f5f9'}
+                                onMouseLeave={e => e.currentTarget.style.background = 'none'}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setOpenActionId(null);
+                                  handleEdit(addr);
+                                }}
+                              >
+                                <Edit2 size={14} style={{ color: '#d97706' }} /> EDIT RECORD
+                              </button>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </div>
@@ -274,17 +355,17 @@ const AddressList = () => {
           <div className="so-modal" style={{ maxWidth: '800px' }}>
             <div className="so-modal-header">
               <h2 className="so-modal-title">
-                {isViewMode ? 'View Global Address' : isEditMode ? 'Modify Registry Entry' : 'Define New Address'}
+                {isViewMode ? 'VIEW GLOBAL ADDRESS' : isEditMode ? 'MODIFY REGISTRY ENTRY' : 'DEFINE NEW ADDRESS'}
               </h2>
               <button className="so-modal-close" onClick={closeModal}><X size={20} /></button>
             </div>
             <div className="so-modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
               <div className="so-card" style={{ marginBottom: 0 }}>
-                <div className="so-card-header"><p className="so-card-title">Identity & Classification</p></div>
+                <div className="so-card-header"><p className="so-card-title">IDENTITY & CLASSIFICATION</p></div>
                 <div className="so-card-body">
                   <div className="so-form-grid">
                     <div className="so-field">
-                      <label className="so-label">Title (Identification) *</label>
+                      <label className="so-label">TITLE (IDENTIFICATION) *</label>
                       <input 
                         className="so-input" 
                         value={formData.address_title} 
@@ -293,7 +374,7 @@ const AddressList = () => {
                       />
                     </div>
                     <div className="so-field">
-                      <label className="so-label">Address Classification</label>
+                      <label className="so-label">ADDRESS CLASSIFICATION</label>
                       <select 
                         className="so-select" 
                         value={formData.address_type} 
@@ -308,10 +389,10 @@ const AddressList = () => {
               </div>
 
               <div className="so-card" style={{ marginBottom: 0 }}>
-                <div className="so-card-header"><p className="so-card-title">Physical Logistics</p></div>
+                <div className="so-card-header"><p className="so-card-title">PHYSICAL LOGISTICS</p></div>
                 <div className="so-card-body">
                   <div className="so-field" style={{ marginBottom: '1.25rem' }}>
-                    <label className="so-label">Address Line 1 (Street/Building) *</label>
+                    <label className="so-label">ADDRESS LINE 1 (STREET/BUILDING) *</label>
                     <input 
                       className="so-input" 
                       value={formData.address_line1} 
@@ -320,7 +401,7 @@ const AddressList = () => {
                     />
                   </div>
                   <div className="so-field" style={{ marginBottom: '1.25rem' }}>
-                    <label className="so-label">Address Line 2 (Unit/Landmark)</label>
+                    <label className="so-label">ADDRESS LINE 2 (UNIT/LANDMARK)</label>
                     <input 
                       className="so-input" 
                       value={formData.address_line2} 
@@ -330,7 +411,7 @@ const AddressList = () => {
                   </div>
                   <div className="so-form-grid">
                     <div className="so-field">
-                      <label className="so-label">City *</label>
+                      <label className="so-label">CITY *</label>
                       <input 
                         className="so-input" 
                         value={formData.city} 
@@ -339,7 +420,7 @@ const AddressList = () => {
                       />
                     </div>
                     <div className="so-field">
-                      <label className="so-label">Country</label>
+                      <label className="so-label">COUNTRY</label>
                       <select 
                         className="so-select" 
                         value={formData.country} 
@@ -355,10 +436,10 @@ const AddressList = () => {
             </div>
             {!isViewMode && (
               <div className="so-modal-footer">
-                <button className="so-btn-secondary" onClick={closeModal} disabled={saving}>Cancel Revision</button>
+                <button className="so-btn-secondary" onClick={closeModal} disabled={saving}>CANCEL REVISION</button>
                 <button className="so-btn-primary" onClick={handleSave} disabled={saving}>
                   {saving ? <Loader2 size={16} className="so-spinner" /> : <Save size={16} />}
-                  Save Location Matrix
+                  SAVE LOCATION MATRIX
                 </button>
               </div>
             )}

@@ -81,22 +81,39 @@ function InterBranchTransferList() {
   return (
     <div className="so-page">
       {/* Page Header */}
-      <div className="so-page-header">
+      <div className="so-page-header" style={{ padding: '1.25rem 2rem', background: '#ffffff', borderBottom: '1px solid #e2e8f0' }}>
         <div>
-          <h1 className="so-page-title">
-            <ArrowRightLeft size={20} style={{ color: themeColor }} />
-            Stock Transfer Requests
+          <h1 className="so-page-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
+            <ArrowRightLeft size={22} style={{ color: themeColor }} />
+            <span style={{ fontSize: '1.25rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '-0.01em' }}>STOCK TRANSFER REQUESTS</span>
           </h1>
-          <p className="so-page-subtitle">{requests.length} TRANSFER REQUESTS INDEXED</p>
+          <p className="so-page-subtitle" style={{ margin: '4px 0 0 0', fontSize: '0.75rem', color: '#64748b' }}>{requests.length} TRANSFER REQUESTS INDEXED</p>
         </div>
-        <div style={{ display: 'flex', gap: '0.75rem' }}>
-          <button onClick={toggleTheme} className="so-btn-secondary" style={{ color: themeColor }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <button 
+            onClick={toggleTheme} 
+            style={{
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem',
+              height: '38px', padding: '0 1rem', background: '#ffffff',
+              border: `1.5px solid ${themeColor}`, borderRadius: '8px',
+              fontSize: '12px', fontWeight: 800, color: themeColor,
+              cursor: 'pointer', transition: 'all 0.15s ease-in-out',
+              textTransform: 'uppercase', letterSpacing: '0.04em', boxSizing: 'border-box'
+            }}
+          >
             <Palette size={14} /> {legacySubTheme.toUpperCase()}
           </button>
           <button 
             onClick={() => navigate('/newinterbranchrequest')}
             className="so-btn-primary"
-            style={{ textDecoration: 'none', border: 'none', cursor: 'pointer' }}
+            style={{
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem',
+              height: '38px', padding: '0 1rem', background: themeColor,
+              color: '#ffffff', border: 'none', borderRadius: '8px',
+              fontSize: '12px', fontWeight: 800, textTransform: 'uppercase',
+              letterSpacing: '0.04em', cursor: 'pointer', transition: 'all 0.15s ease-in-out',
+              boxSizing: 'border-box'
+            }}
           >
             <Plus size={16} /> New Request
           </button>
@@ -107,7 +124,7 @@ function InterBranchTransferList() {
       <div style={{ 
         display: 'flex', 
         gap: '0', 
-        padding: '0 1.5rem', 
+        padding: '0 2rem', 
         background: '#fff', 
         borderBottom: '1px solid var(--so-border)' 
       }}>
@@ -149,22 +166,24 @@ function InterBranchTransferList() {
         </button>
       </div>
 
-      {/* Content Area */}
-      <div className="so-content">
-        {/* Search Bar */}
-        <div className="relative mb-6" style={{ position: 'relative', marginBottom: '1.25rem' }}>
-          <Search size={16} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
-          <input
-            className="so-input"
-            style={{ paddingLeft: '2.75rem' }}
-            placeholder="Search Request ID, Branch, Status..."
-            value={searchTerm}
-            onChange={e => setSearchTerm(e.target.value)}
-          />
-        </div>
+      {/* Outer Layout Area */}
+      <div className="so-layout" style={{ flexDirection: 'column', background: '#f8fafc', padding: '1.5rem 2rem' }}>
+        {/* Content Area */}
+        <div className="so-content" style={{ padding: 0, flex: 1, background: 'transparent' }}>
+          {/* Search Bar */}
+          <div style={{ position: 'relative', marginBottom: '1.25rem' }}>
+            <Search size={14} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', zIndex: 2 }} />
+            <input
+              className="so-filter-input"
+              style={{ width: '100%', height: '38px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none', background: '#fff', paddingLeft: '2.25rem' }}
+              placeholder="Search Request ID, Branch, Status..."
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+            />
+          </div>
 
-        {/* Table Card */}
-        <div className="so-table-card">
+          {/* Table Card */}
+          <div className="so-table-card" style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)' }}>
           <div className="so-table-wrapper">
             <table className="so-table">
               <thead>
@@ -286,6 +305,7 @@ function InterBranchTransferList() {
         </div>
       </div>
     </div>
+  </div>
   );
 }
 

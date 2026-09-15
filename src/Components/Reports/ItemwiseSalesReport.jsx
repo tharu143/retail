@@ -106,11 +106,33 @@ function ItemWiseSalesReport() {
         const savedConfigStr = localStorage.getItem('itemwise_sales_report_columns');
         const savedConfig = savedConfigStr ? JSON.parse(savedConfigStr) : null;
         
+  const getDefaultColWidth = (fieldname, colWidth) => {
+    if (colWidth && parseInt(colWidth) >= 150) {
+      return typeof colWidth === 'number' ? colWidth + 'px' : colWidth;
+    }
+    switch (fieldname) {
+      case 'posting_date': case 'date': return '130px';
+      case 'name': case 'voucher_no': case 'sales_invoice': case 'pos_invoice': case 'parent': return '190px';
+      case 'customer': return '160px';
+      case 'customer_name': return '200px';
+      case 'item_code': return '145px';
+      case 'item_name': return '220px';
+      case 'item_group': return '150px';
+      case 'qty': return '90px';
+      case 'rate': case 'avg_rate': return '110px';
+      case 'amount': case 'net_amount': return '125px';
+      case 'tax_amount': return '120px';
+      case 'total': case 'grand_total': case 'paid_amount': return '135px';
+      case 'warehouse': return '160px';
+      default: return (colWidth ? (typeof colWidth === 'number' ? colWidth + 'px' : colWidth) : '150px');
+    }
+  };
+
         let mergedCols = fetchedCols.map(c => ({
           id: c.fieldname,
           label: c.label,
           visible: true,
-          width: (c.width ? c.width + 'px' : '150px'),
+          width: getDefaultColWidth(c.fieldname, c.width),
           align: c.align || (c.fieldtype === 'Currency' || c.fieldtype === 'Float' ? 'right' : 'left'),
           original: c
         }));
@@ -121,7 +143,7 @@ function ItemWiseSalesReport() {
           
           mergedCols = mergedCols.map(mc => {
             if (configMap[mc.id]) {
-              return { ...mc, visible: configMap[mc.id].visible !== undefined ? configMap[mc.id].visible : true, width: configMap[mc.id].width, align: configMap[mc.id].align };
+              return { ...mc, visible: configMap[mc.id].visible !== undefined ? configMap[mc.id].visible : true, width: configMap[mc.id].width || getDefaultColWidth(mc.id, null), align: configMap[mc.id].align };
             }
             return mc;
           });
@@ -160,7 +182,7 @@ function ItemWiseSalesReport() {
         id: c.fieldname,
         label: c.label,
         visible: true,
-        width: (c.width ? c.width + 'px' : '150px'),
+        width: getDefaultColWidth(c.fieldname, c.width),
         align: c.align || (c.fieldtype === 'Currency' || c.fieldtype === 'Float' ? 'right' : 'left'),
         original: c
       }));
@@ -224,7 +246,7 @@ function ItemWiseSalesReport() {
           </div>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <h1 className="iws-title">Item-Wise Sales Report</h1>
+              <h1 className="iws-title">ITEM-WISE SALES REPORT</h1>
               <span className="iws-tag">Products & Profitability</span>
             </div>
             <p className="iws-subtitle">Granular item-level sales volume, tax breakdown, and discounts</p>
@@ -287,7 +309,7 @@ function ItemWiseSalesReport() {
             {/* From Date */}
             <div className="iws-field-block">
               <label className="iws-label">
-                <Calendar size={12} color="#059669" />
+                <Calendar size={12} color="#2563eb" />
                 From Date
               </label>
               <input 
@@ -303,7 +325,7 @@ function ItemWiseSalesReport() {
             {/* To Date */}
             <div className="iws-field-block">
               <label className="iws-label">
-                <Calendar size={12} color="#059669" />
+                <Calendar size={12} color="#2563eb" />
                 To Date
               </label>
               <input 
@@ -486,13 +508,13 @@ function ItemWiseSalesReport() {
         <div className="iws-table-card">
           <div className="iws-table-header">
             <h3 className="iws-table-heading">
-              <FileText size={18} color="#10b981" />
+              <FileText size={18} color="#2563eb" />
               <span>Granular Item Sales Table</span>
             </h3>
             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', fontSize: '0.8rem', fontWeight: 700, color: '#64748b' }}>
               <span>Showing <b>{nonTotalRows.length}</b> line items</span>
               {loading && (
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#10b981' }}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#2563eb' }}>
                   <RefreshCw size={14} className="animate-spin" /> Fetching...
                 </span>
               )}
@@ -514,7 +536,7 @@ function ItemWiseSalesReport() {
                 {loading && data.length === 0 ? (
                   <tr>
                     <td colSpan={columnConfig.filter(c => c.visible && selectedPrintColumns.includes(c.id)).length || 1} style={{ padding: '5rem 0', textAlign: 'center' }}>
-                      <Loader2 size={32} color="#10b981" className="animate-spin" style={{ margin: '0 auto' }} />
+                      <Loader2 size={32} color="#2563eb" className="animate-spin" style={{ margin: '0 auto' }} />
                       <p style={{ marginTop: '0.75rem', fontWeight: 800, color: '#94a3b8', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Building Item Matrix...</p>
                     </td>
                   </tr>
@@ -551,11 +573,9 @@ function ItemWiseSalesReport() {
                                 fontFamily: col.original.fieldtype === 'Currency' || col.original.fieldtype === 'Float' ? 'ui-monospace, monospace' : 'inherit',
                                 width: col.width,
                                 minWidth: col.width,
-                                maxWidth: col.width,
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
+                                padding: '0.85rem 1rem',
                                 whiteSpace: 'nowrap',
-                                color: isTotalRow && fieldname === 'total' ? '#059669' : (isTotalRow ? '#0f172a' : '#334155'),
+                                color: isTotalRow && fieldname === 'total' ? '#2563eb' : (isTotalRow ? '#0f172a' : '#334155'),
                                 fontSize: isTotalRow ? '0.85rem' : '0.8rem'
                               }}
                               title={String(cellValue ?? '')}
@@ -568,7 +588,7 @@ function ItemWiseSalesReport() {
                                     style={{ justifyContent: col.align === 'right' ? 'flex-end' : 'flex-start' }}
                                   >
                                     {String(cellValue).replace(' - KSPL', '')}
-                                    <ExternalLink size={12} color="#10b981" />
+                                    <ExternalLink size={12} color="#2563eb" />
                                   </span>
                                 ) : fieldname === 'item_code' && !isTotalRow ? (
                                   <span 

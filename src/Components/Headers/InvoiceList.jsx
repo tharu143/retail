@@ -362,7 +362,7 @@ function InvoiceList() {
             <div className="so-layout">
                 <div className="so-filter-bar" style={{ background: 'white' }}>
                     <div style={{ flex: '1 1 200px', position: 'relative' }}>
-                        <label className="so-filter-label">Search ID</label>
+                        <label className="so-filter-label" style={{ textTransform: 'uppercase' }}>SEARCH ID</label>
                         <input
                             type="text"
                             className="so-filter-input"
@@ -388,7 +388,7 @@ function InvoiceList() {
                     </div>
 
                     <div style={{ flex: '1 1 150px' }}>
-                        <label className="so-filter-label">Date</label>
+                        <label className="so-filter-label" style={{ textTransform: 'uppercase' }}>DATE</label>
                         <input
                             type="date"
                             className="so-filter-input"
@@ -400,26 +400,26 @@ function InvoiceList() {
                     </div>
 
                     <div style={{ flex: '1 1 150px' }}>
-                        <label className="so-filter-label">Payment Mode</label>
+                        <label className="so-filter-label" style={{ textTransform: 'uppercase' }}>PAYMENT MODE</label>
                         <select className="so-filter-select" value={filterMode} onChange={(e) => setFilterMode(e.target.value)}>
-                            <option value="">All Modes</option>
-                            <option value="Cash">Cash</option>
-                            <option value="Credit Card">Credit Card</option>
-                            <option value="Bank">Bank</option>
+                            <option value="">ALL MODES</option>
+                            <option value="Cash">CASH</option>
+                            <option value="Credit Card">CREDIT CARD</option>
+                            <option value="Bank">BANK</option>
                         </select>
                     </div>
 
                     <div style={{ flex: '1 1 150px' }}>
-                        <label className="so-filter-label">Sync Status</label>
+                        <label className="so-filter-label" style={{ textTransform: 'uppercase' }}>SYNC STATUS</label>
                         <select className="so-filter-select" value={filterSource} onChange={(e) => setFilterSource(e.target.value)}>
-                            <option value="">All Sources</option>
-                            <option value="synced">Synced (Live)</option>
-                            <option value="pending">Pending Sync</option>
+                            <option value="">ALL SOURCES</option>
+                            <option value="synced">SYNCED (LIVE)</option>
+                            <option value="pending">PENDING SYNC</option>
                         </select>
                     </div>
 
-                    <button className="so-clear-btn" onClick={clearFilters} style={{ margin: 0, height: '38px', width: 'auto', padding: '0 1rem' }}>
-                        Clear
+                    <button className="so-clear-btn" onClick={clearFilters} style={{ margin: 0, height: '38px', width: 'auto', padding: '0 1rem', textTransform: 'uppercase' }}>
+                        CLEAR
                     </button>
                 </div>
 
@@ -429,15 +429,15 @@ function InvoiceList() {
                             <table className="so-table">
                                 <thead>
                                     <tr>
-                                        <th>Invoice Reference</th>
-                                        <th>Posting Details</th>
-                                        <th>Customer</th>
-                                        <th style={{ textAlign: 'right' }}>Grand Total</th>
+                                        <th style={{ textTransform: 'uppercase' }}>INVOICE REFERENCE</th>
+                                        <th style={{ textTransform: 'uppercase' }}>POSTING DETAILS</th>
+                                        <th style={{ textTransform: 'uppercase' }}>CUSTOMER</th>
+                                        <th style={{ textAlign: 'right', textTransform: 'uppercase' }}>GRAND TOTAL</th>
                                         {customColumns.map(col => (
                                             <th key={col}>{col.replace(/_/g, ' ').toUpperCase()}</th>
                                         ))}
-                                        <th style={{ textAlign: 'center' }}>Status</th>
-                                        <th style={{ textAlign: 'center' }}>Actions</th>
+                                        <th style={{ textAlign: 'center', textTransform: 'uppercase' }}>STATUS</th>
+                                        <th style={{ textAlign: 'center', textTransform: 'uppercase' }}>ACTIONS</th>
                                     </tr>
                                 </thead>
                                 <tbody>

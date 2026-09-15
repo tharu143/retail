@@ -1,28 +1,37 @@
 // src/Components/Admin/AttachmentSection.jsx
 import React, { useState, useEffect } from 'react';
 import { useLegacyTheme } from '../../hooks/useLegacyTheme';
-import { Paperclip, Trash2, Download, Upload, Loader2, FileText, CheckCircle } from 'lucide-react';
+import { Paperclip, Trash2, Download, UploadCloud, Loader2, FileText, ChevronDown, ChevronUp } from 'lucide-react';
 import axios from 'axios';
 import Swal from 'sweetalert2';
 
 export default function AttachmentSection({ doctype, docname, compact = false, themeColor: customThemeColor, themeLight: customThemeLight, isDarkRedTheme = false }) {
-  const { themeColor: defaultThemeColor, themeLight: defaultThemeLight } = useLegacyTheme();
+  const { themeColor: defaultThemeColor } = useLegacyTheme();
   const themeColor = customThemeColor || defaultThemeColor;
-  const themeLight = customThemeLight || defaultThemeLight;
   const [attachments, setAttachments] = useState([]);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(true);
+  const [isDragging, setIsDragging] = useState(false);
 
   const fetchAttachments = async () => {
     if (!docname) return;
     try {
       setLoading(true);
-      const res = await axios.get(`/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_attachments`, {
-        params: { doctype, name: docname }
-      });
-      if (res.data.message?.success) {
-        setAttachments(res.data.message.data || []);
+      let res;
+      try {
+        res = await axios.get(`/api/method/custom_retailpos.custom_retailpos.retail_api.retail.get_attachments`, {
+          params: { doctype, name: docname }
+        });
+      } catch (err1) {
+        res = await axios.get(`/api/method/frappe.desk.form.load.get_attachments`, {
+          params: { doctype, name: docname }
+        });
       }
+
+      const raw = res.data.message?.data || res.data.message || res.data.data || [];
+      const list = Array.isArray(raw) ? raw : (raw.success && Array.isArray(raw.data) ? raw.data : []);
+      setAttachments(list);
     } catch (err) {
       console.error("Failed to load attachments", err);
     } finally {
@@ -34,9 +43,12 @@ export default function AttachmentSection({ doctype, docname, compact = false, t
     fetchAttachments();
   }, [doctype, docname]);
 
-  const handleUpload = async (e) => {
-    const files = Array.from(e.target.files);
-    if (files.length === 0) return;
+  const processUploadFiles = async (files) => {
+    if (!files || files.length === 0) return;
+    if (!docname) {
+      Swal.fire('Unsaved Document', 'Please save document first before attaching files.', 'warning');
+      return;
+    }
 
     try {
       setUploading(true);
@@ -66,8 +78,34 @@ export default function AttachmentSection({ doctype, docname, compact = false, t
       Swal.fire('Upload Failed', 'Ensure file size is within limits and you are logged in.', 'error');
     } finally {
       setUploading(false);
-      // Reset input value
-      e.target.value = '';
+    }
+  };
+
+  const handleUpload = (e) => {
+    const files = Array.from(e.target.files);
+    processUploadFiles(files);
+    e.target.value = '';
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      const files = Array.from(e.dataTransfer.files);
+      processUploadFiles(files);
     }
   };
 
@@ -120,380 +158,180 @@ export default function AttachmentSection({ doctype, docname, compact = false, t
     return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
   };
 
-  const bgContainer = isDarkRedTheme ? '#751010' : '#ffffff';
-  const borderColor = isDarkRedTheme ? 'rgba(255, 255, 255, 0.3)' : '#e2e8f0';
-  const textColor = isDarkRedTheme ? '#ffffff' : '#334155';
-  const subTextColor = isDarkRedTheme ? 'rgba(255, 255, 255, 0.8)' : '#94a3b8';
-  const dashedBg = isDarkRedTheme ? 'rgba(255, 255, 255, 0.1)' : 'rgba(248, 250, 252, 0.4)';
-  const itemBg = isDarkRedTheme ? 'rgba(255, 255, 255, 0.15)' : 'rgba(248, 250, 252, 0.5)';
-  const headerBg = isDarkRedTheme ? 'rgba(0, 0, 0, 0.15)' : 'rgba(248, 250, 252, 0.5)';
-
-  if (!docname) {
-    if (compact) {
-      return (
-        <div 
-          className="rounded-lg flex items-center justify-between px-3 opacity-60"
-          style={{
-            height: '42px',
-            width: '100%',
-            background: bgContainer,
-            border: `1px solid ${borderColor}`,
-            borderRadius: '0.5rem',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            boxSizing: 'border-box'
-          }}
-        >
-          <div className="flex items-center gap-1.5" style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-            <Paperclip size={12} style={{ color: isDarkRedTheme ? '#ffffff' : themeColor }} />
-            <span style={{ fontSize: '10px', fontWeight: 'bold', color: textColor, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              Attachments (0)
-            </span>
-          </div>
-          <span style={{ fontSize: '9px', fontWeight: 'bold', color: subTextColor, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-            Unsaved Document
-          </span>
-        </div>
-      );
-    }
-
-    return (
-      <div 
-        className="rounded-xl overflow-hidden mt-2 shadow-sm opacity-70"
-        style={{
-          display: 'block',
-          width: '100%',
-          background: bgContainer,
-          border: `1px solid ${borderColor}`,
-          borderRadius: '0.75rem',
-          boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
-          marginTop: '0.5rem',
-          marginBottom: '0.5rem',
-          opacity: 0.7,
-          flexShrink: 0
-        }}
-      >
-        <div 
-          className={`px-3 py-2 flex ${compact ? 'flex-col gap-2 items-stretch' : 'items-center justify-between'}`}
-          style={{
-            display: 'flex',
-            flexDirection: compact ? 'column' : 'row',
-            alignItems: compact ? 'stretch' : 'center',
-            justifyContent: compact ? 'stretch' : 'space-between',
-            padding: '0.5rem 0.75rem',
-            borderBottom: `1px solid ${borderColor}`,
-            background: headerBg
-          }}
-        >
-          <div className="flex items-center gap-1.5" style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-            <div className="w-1 h-1 rounded-full" style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: isDarkRedTheme ? '#ffffff' : themeColor }} />
-            <div 
-              className="text-[10px] font-bold uppercase tracking-wider flex items-center gap-1"
-              style={{ fontSize: '10px', fontWeight: 'bold', color: textColor, textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
-            >
-              <Paperclip size={11} style={{ color: isDarkRedTheme ? '#ffffff' : themeColor }} />
-              Attachments (0)
-            </div>
-          </div>
-        </div>
-        <div className="p-3 text-center py-4" style={{ padding: '1rem', textAlign: 'center' }}>
-          <Paperclip size={18} className="mx-auto mb-1" style={{ margin: '0 auto 0.25rem', color: subTextColor }} />
-          <p className="text-[9px] font-bold uppercase tracking-widest" style={{ fontSize: '9px', fontWeight: 'bold', color: subTextColor, textTransform: 'uppercase', letterSpacing: '0.1em', margin: 0 }}>Unsaved Document</p>
-          <p className="text-[8px] mt-0.5 font-semibold" style={{ fontSize: '8px', color: subTextColor, marginTop: '0.125rem', fontWeight: '600', margin: '0.125rem 0 0' }}>Please save as draft to upload attachments.</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (compact) {
-    return (
-      <div className="flex flex-col gap-2 w-full">
-        <div 
-          className="rounded-lg flex items-center justify-between px-3"
-          style={{
-            height: '42px',
-            width: '100%',
-            background: bgContainer,
-            border: `1px solid ${borderColor}`,
-            borderRadius: '0.5rem',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            boxSizing: 'border-box'
-          }}
-        >
-          <div className="flex items-center gap-1.5" style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-            <Paperclip size={12} style={{ color: isDarkRedTheme ? '#ffffff' : themeColor }} />
-            <span style={{ fontSize: '10px', fontWeight: 'bold', color: textColor, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              Attachments ({attachments.length})
-            </span>
-          </div>
-
-          <label className="cursor-pointer" style={{ cursor: 'pointer', margin: 0 }}>
-            <input
-              type="file"
-              multiple
-              className="hidden"
-              style={{ display: 'none' }}
-              onChange={handleUpload}
-              disabled={uploading}
-            />
-            <span
-              className="flex items-center justify-center gap-1 px-2.5 py-1 rounded-full text-[9px] font-bold uppercase tracking-wider transition-all duration-200 text-white hover:opacity-95"
-              style={{ 
-                backgroundColor: isDarkRedTheme ? '#ffffff' : themeColor, 
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '0.25rem',
-                padding: '0.25rem 0.5rem',
-                borderRadius: '9999px',
-                fontSize: '9px',
-                fontWeight: 'bold',
-                textTransform: 'uppercase',
-                letterSpacing: '0.05em',
-                color: isDarkRedTheme ? '#751010' : '#ffffff',
-                cursor: 'pointer'
-              }}
-            >
-              {uploading ? (
-                <>
-                  <Loader2 size={10} className="animate-spin" />
-                  Uploading...
-                </>
-              ) : (
-                <>
-                  <Upload size={10} />
-                  Attach
-                </>
-              )}
-            </span>
-          </label>
-        </div>
-
-        {/* Attachments List below header */}
-        {attachments.length > 0 && (
-          <div className="space-y-1 max-h-32 overflow-y-auto pr-1" style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', maxHeight: '8rem', overflowY: 'auto', paddingRight: '0.125rem' }}>
-            {attachments.map((file) => (
-              <div
-                key={file.name}
-                className="flex items-center justify-between p-2 rounded-lg transition-colors"
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: '0.375rem 0.5rem',
-                  background: itemBg,
-                  borderRadius: '0.5rem',
-                  border: `1px solid ${borderColor}`
-                }}
-              >
-                <div className="flex items-center gap-2 min-w-0 flex-1" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', minWidth: 0, flex: 1 }}>
-                  <div className="p-1 rounded shrink-0" style={{ padding: '0.25rem', borderRadius: '0.25rem', background: isDarkRedTheme ? 'rgba(255,255,255,0.2)' : '#f1f5f9', color: textColor, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <FileText size={12} />
-                  </div>
-                  <div className="min-w-0 flex-1" style={{ minWidth: 0, flex: 1, textAlign: 'left' }}>
-                    <p className="text-[10px] font-bold truncate" title={file.file_name} style={{ fontSize: '0.7rem', fontWeight: 'bold', color: textColor, margin: 0, textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
-                      {file.file_name}
-                    </p>
-                    <p className="text-[8px] font-semibold uppercase tracking-wider mt-0.5" style={{ fontSize: '8px', color: subTextColor, fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em', margin: '0.0625rem 0 0' }}>
-                       {formatBytes(file.file_size)}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-1.5 shrink-0 ml-2" style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', marginLeft: '0.5rem' }}>
-                  <a
-                    href={file.file_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    download
-                    className="p-1 rounded transition-colors"
-                    style={{ padding: '0.25rem', color: textColor, borderRadius: '0.25rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                    title="Download Attachment"
-                  >
-                    <Download size={12} />
-                  </a>
-                  <button
-                    onClick={() => handleDelete(file.name)}
-                    className="p-1 rounded transition-colors"
-                    style={{ padding: '0.25rem', color: textColor, borderRadius: '0.25rem', border: 'none', background: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                    title="Delete Attachment"
-                  >
-                    <Trash2 size={12} />
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    );
-  }
-
   return (
     <div 
-      className="rounded-xl overflow-hidden mt-2 shadow-sm"
       style={{
-        display: 'block',
+        backgroundColor: isDarkRedTheme ? '#751010' : '#ffffff',
+        border: `1px solid ${isDarkRedTheme ? 'rgba(255, 255, 255, 0.3)' : '#e2e8f0'}`,
+        borderRadius: '16px',
+        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.02)',
+        overflow: 'hidden',
         width: '100%',
-        background: bgContainer,
-        border: `1px solid ${borderColor}`,
-        borderRadius: '0.75rem',
-        boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
-        marginTop: '0.5rem',
-        marginBottom: '0.5rem',
-        flexShrink: 0
+        marginBottom: '16px'
       }}
     >
-      {/* Header */}
+      {/* Sleek Top Bar (Matching reference image) */}
       <div 
-        className={`px-3 py-2 flex ${compact ? 'flex-col gap-2 items-stretch' : 'items-center justify-between'}`}
         style={{
           display: 'flex',
-          flexDirection: compact ? 'column' : 'row',
-          alignItems: compact ? 'stretch' : 'center',
-          justifyContent: compact ? 'stretch' : 'space-between',
-          padding: '0.5rem 0.75rem',
-          borderBottom: `1px solid ${borderColor}`,
-          background: headerBg
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '12px 20px',
+          gap: '16px',
+          flexWrap: 'wrap'
         }}
       >
-        <div className="flex items-center gap-1.5" style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-          <div className="w-1 h-1 rounded-full" style={{ width: '4px', height: '4px', borderRadius: '50%', backgroundColor: isDarkRedTheme ? '#ffffff' : themeColor }} />
-          <div 
-            className="text-[10px] font-bold uppercase tracking-wider flex items-center gap-1"
-            style={{ fontSize: '10px', fontWeight: 'bold', color: textColor, textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
+        {/* Left: Paperclip + Title + Count Pill Badge + Collapse Arrow */}
+        <div 
+          style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', userSelect: 'none' }}
+          onClick={() => setIsExpanded(!isExpanded)}
+        >
+          <Paperclip size={18} style={{ color: isDarkRedTheme ? '#ffffff' : '#64748b' }} />
+          <span style={{ fontSize: '14px', fontWeight: 700, color: isDarkRedTheme ? '#ffffff' : '#0f172a' }}>
+            Attachments
+          </span>
+          <span 
+            style={{
+              backgroundColor: isDarkRedTheme ? 'rgba(255, 255, 255, 0.2)' : '#e8f2ff',
+              color: isDarkRedTheme ? '#ffffff' : '#0082f6',
+              fontSize: '12px',
+              fontWeight: 800,
+              padding: '2px 9px',
+              borderRadius: '9999px',
+              minWidth: '20px',
+              textAlign: 'center'
+            }}
           >
-            <Paperclip size={11} style={{ color: isDarkRedTheme ? '#ffffff' : themeColor }} />
-            Attachments ({attachments.length})
-          </div>
+            {attachments.length}
+          </span>
+          {isExpanded ? (
+            <ChevronUp size={16} style={{ color: isDarkRedTheme ? '#ffffff' : '#94a3b8' }} />
+          ) : (
+            <ChevronDown size={16} style={{ color: isDarkRedTheme ? '#ffffff' : '#94a3b8' }} />
+          )}
         </div>
 
-        <label className="cursor-pointer" style={{ cursor: 'pointer', margin: 0 }}>
+        {/* Right: Dashed Drop Zone */}
+        <label
+          onClick={(e) => {
+            if (!docname) {
+              e.preventDefault();
+              Swal.fire({
+                icon: 'warning',
+                title: 'Unsaved Document',
+                text: 'Please save the record first before uploading attachments.',
+                confirmButtonColor: '#0082f6'
+              });
+            }
+          }}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+          style={{
+            flex: '1 1 300px',
+            maxWidth: '520px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px',
+            padding: '8px 20px',
+            border: `1.5px dashed ${isDragging ? themeColor : '#cbd5e1'}`,
+            borderRadius: '12px',
+            backgroundColor: isDragging ? '#eff6ff' : isDarkRedTheme ? 'rgba(255,255,255,0.08)' : '#f8fafc',
+            cursor: uploading ? 'wait' : 'pointer',
+            transition: 'all 0.2s ease'
+          }}
+        >
           <input
             type="file"
             multiple
             className="hidden"
             style={{ display: 'none' }}
             onChange={handleUpload}
-            disabled={uploading}
+            disabled={uploading || !docname}
           />
-          <span
-            className={`flex items-center justify-center gap-1 px-2.5 py-1 rounded-full text-[9px] font-bold uppercase tracking-wider transition-all duration-200 border text-white hover:opacity-95 ${compact ? 'w-full text-center' : ''}`}
-            style={{ 
-              backgroundColor: isDarkRedTheme ? '#ffffff' : themeColor, 
-              borderColor: isDarkRedTheme ? '#ffffff' : themeColor,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '0.25rem',
-              padding: '0.25rem 0.5rem',
-              borderRadius: '9999px',
-              fontSize: '9px',
-              fontWeight: 'bold',
-              textTransform: 'uppercase',
-              letterSpacing: '0.05em',
-              color: isDarkRedTheme ? '#751010' : '#ffffff',
-              border: '1px solid transparent',
-              cursor: 'pointer',
-              width: compact ? '100%' : 'auto'
-            }}
-          >
-            {uploading ? (
-              <>
-                <Loader2 size={10} className="animate-spin" />
-                Uploading...
-              </>
-            ) : (
-              <>
-                <Upload size={10} />
-                Attach Files
-              </>
-            )}
-          </span>
+          {uploading ? (
+            <>
+              <Loader2 size={16} className="animate-spin" style={{ color: themeColor }} />
+              <span style={{ fontSize: '13px', fontWeight: 600, color: '#64748b' }}>Uploading file(s)...</span>
+            </>
+          ) : (
+            <>
+              <UploadCloud size={18} style={{ color: themeColor }} />
+              <span style={{ fontSize: '13px', fontWeight: 600, color: isDarkRedTheme ? '#ffffff' : '#64748b' }}>
+                Drop zone
+              </span>
+            </>
+          )}
         </label>
       </div>
 
-      {/* Content */}
-      <div className="p-3" style={{ padding: '0.75rem' }}>
-        {loading && attachments.length === 0 ? (
-          <div className="py-4 text-center flex flex-col items-center justify-center gap-1.5" style={{ padding: '1rem 0', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifycontent: 'center', gap: '0.375rem' }}>
-            <Loader2 size={18} className="animate-spin" style={{ color: isDarkRedTheme ? '#ffffff' : themeColor }} />
-            <p className="text-[9px] font-bold uppercase tracking-wider" style={{ fontSize: '9px', fontWeight: 'bold', color: subTextColor, textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0 }}>Syncing...</p>
-          </div>
-        ) : attachments.length === 0 ? (
-          <div 
-            className="text-center py-4 rounded-lg"
-            style={{
-              textAlign: 'center',
-              padding: '1rem 0.5rem',
-              background: dashedBg,
-              borderRadius: '0.5rem',
-              border: `1px dashed ${borderColor}`
-            }}
-          >
-            <Paperclip size={18} className="mx-auto mb-1" style={{ margin: '0 auto 0.25rem', color: subTextColor }} />
-            <p className="text-[9px] font-bold uppercase tracking-widest" style={{ fontSize: '9px', fontWeight: 'bold', color: subTextColor, textTransform: 'uppercase', letterSpacing: '0.1em', margin: 0 }}>No attachments yet</p>
-            <p className="text-[8px] mt-0.5" style={{ fontSize: '8px', color: subTextColor, marginTop: '0.125rem', margin: '0.125rem 0 0' }}>Upload receipts or documentation.</p>
-          </div>
-        ) : (
-          <div className="space-y-1 max-h-32 overflow-y-auto pr-1" style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', maxHeight: '8rem', overflowY: 'auto', paddingRight: '0.125rem' }}>
-            {attachments.map((file) => (
-              <div
-                key={file.name}
-                className="flex items-center justify-between p-2 rounded-lg transition-colors"
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: '0.375rem 0.5rem',
-                  background: itemBg,
-                  borderRadius: '0.5rem',
-                  border: `1px solid ${borderColor}`
-                }}
-              >
-                <div className="flex items-center gap-2 min-w-0 flex-1" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', minWidth: 0, flex: 1 }}>
-                  <div className="p-1 rounded shrink-0" style={{ padding: '0.25rem', borderRadius: '0.25rem', background: isDarkRedTheme ? 'rgba(255,255,255,0.2)' : '#f1f5f9', color: textColor, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <FileText size={12} />
+      {/* Expanded Attachments List Body */}
+      {isExpanded && (
+        <div style={{ borderTop: `1px solid ${isDarkRedTheme ? 'rgba(255,255,255,0.1)' : '#f1f5f9'}`, padding: '16px 20px' }}>
+          {loading && attachments.length === 0 ? (
+            <div style={{ padding: '16px 0', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+              <Loader2 size={16} className="animate-spin" style={{ color: themeColor }} />
+              <span style={{ fontSize: '12px', fontWeight: 600, color: '#94a3b8' }}>Syncing attachments...</span>
+            </div>
+          ) : attachments.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '16px', color: '#94a3b8', fontSize: '13px', fontWeight: 500 }}>
+              No attachments uploaded yet. Drag files into the drop zone above to attach.
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '10px' }}>
+              {attachments.map((file) => (
+                <div
+                  key={file.name}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '10px 14px',
+                    backgroundColor: isDarkRedTheme ? 'rgba(255,255,255,0.1)' : '#f8fafc',
+                    borderRadius: '12px',
+                    border: `1px solid ${isDarkRedTheme ? 'rgba(255,255,255,0.15)' : '#e2e8f0'}`
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', overflow: 'hidden' }}>
+                    <div style={{ padding: '6px', borderRadius: '8px', backgroundColor: '#e2e8f0', color: '#334155', display: 'flex', alignItems: 'center' }}>
+                      <FileText size={14} />
+                    </div>
+                    <div style={{ overflow: 'hidden' }}>
+                      <p style={{ margin: 0, fontSize: '12px', fontWeight: 700, color: isDarkRedTheme ? '#ffffff' : '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={file.file_name}>
+                        {file.file_name}
+                      </p>
+                      <span style={{ fontSize: '10px', fontWeight: 600, color: '#94a3b8' }}>
+                        {formatBytes(file.file_size)}
+                      </span>
+                    </div>
                   </div>
-                  <div className="min-w-0 flex-1" style={{ minWidth: 0, flex: 1, textAlign: 'left' }}>
-                    <p className="text-[10px] font-bold truncate" title={file.file_name} style={{ fontSize: '0.7rem', fontWeight: 'bold', color: textColor, margin: 0, textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
-                      {file.file_name}
-                    </p>
-                    <p className="text-[8px] font-semibold uppercase tracking-wider mt-0.5" style={{ fontSize: '8px', color: subTextColor, fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em', margin: '0.0625rem 0 0' }}>
-                      {formatBytes(file.file_size)}
-                    </p>
-                  </div>
-                </div>
 
-                <div className="flex items-center gap-1.5 shrink-0 ml-2" style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', marginLeft: '0.5rem' }}>
-                  <a
-                    href={file.file_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    download
-                    className="p-1 rounded transition-colors"
-                    style={{ padding: '0.25rem', color: textColor, borderRadius: '0.25rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                    title="Download Attachment"
-                  >
-                    <Download size={12} />
-                  </a>
-                  <button
-                    onClick={() => handleDelete(file.name)}
-                    className="p-1 rounded transition-colors"
-                    style={{ padding: '0.25rem', color: textColor, borderRadius: '0.25rem', border: 'none', background: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                    title="Delete Attachment"
-                  >
-                    <Trash2 size={12} />
-                  </button>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginLeft: '8px' }}>
+                    <a
+                      href={file.file_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      download
+                      style={{ padding: '6px', color: '#64748b', borderRadius: '6px', display: 'flex', alignItems: 'center' }}
+                      title="Download"
+                    >
+                      <Download size={14} />
+                    </a>
+                    <button
+                      onClick={() => handleDelete(file.name)}
+                      style={{ padding: '6px', color: '#ef4444', borderRadius: '6px', border: 'none', background: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                      title="Delete"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

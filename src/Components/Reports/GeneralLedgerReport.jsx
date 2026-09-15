@@ -284,7 +284,7 @@ function GeneralLedgerReport() {
           className="glr-doc-link"
         >
           {row.voucher_no}
-          <ExternalLink size={12} color="#10b981" />
+          <ExternalLink size={12} color="#2563eb" />
         </span>
       );
     }
@@ -308,7 +308,7 @@ function GeneralLedgerReport() {
           </div>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <h1 className="glr-title">General Ledger Report</h1>
+              <h1 className="glr-title">GENERAL LEDGER REPORT</h1>
               <span className="glr-tag">Audit Ledger</span>
             </div>
             <p className="glr-subtitle">Chronological listing of account debit, credit, and running balance logs</p>
@@ -425,7 +425,7 @@ function GeneralLedgerReport() {
                 <DirhamIcon size={18} />
                 <span>{finalBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
               </div>
-              <div className="glr-kpi-subtext" style={{ color: '#059669' }}>
+              <div className="glr-kpi-subtext" style={{ color: '#2563eb' }}>
                 Period Closing Balance Change
               </div>
             </div>
@@ -438,7 +438,7 @@ function GeneralLedgerReport() {
             {/* From Date */}
             <div className="glr-field-block">
               <label className="glr-label">
-                <Calendar size={12} color="#059669" />
+                <Calendar size={12} color="#2563eb" />
                 From Date
               </label>
               <input 
@@ -454,7 +454,7 @@ function GeneralLedgerReport() {
             {/* To Date */}
             <div className="glr-field-block">
               <label className="glr-label">
-                <Calendar size={12} color="#059669" />
+                <Calendar size={12} color="#2563eb" />
                 To Date
               </label>
               <input 
@@ -496,7 +496,7 @@ function GeneralLedgerReport() {
                 }}
                 fetchData={fetchPartiesAPI}
                 optionsLabel="label"
-                themeColor="#10b981"
+                themeColor="#2563eb"
               />
             </div>
           </div>
@@ -531,13 +531,13 @@ function GeneralLedgerReport() {
         <div className="glr-table-card">
           <div className="glr-table-header">
             <h3 className="glr-table-heading">
-              <FileText size={18} color="#10b981" />
+              <FileText size={18} color="#2563eb" />
               <span>General Ledger Transactions</span>
             </h3>
             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', fontSize: '0.8rem', fontWeight: 700, color: '#64748b' }}>
               <span>Found <b>{data.length}</b> entries</span>
               {loading && (
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#10b981' }}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#2563eb' }}>
                   <RefreshCw size={14} className="animate-spin" /> Compiling...
                 </span>
               )}
@@ -566,7 +566,7 @@ function GeneralLedgerReport() {
                 {loading && data.length === 0 ? (
                   <tr>
                     <td colSpan={visibleColumns.length || 1} style={{ padding: '5rem 0', textAlign: 'center' }}>
-                      <Loader2 size={32} color="#10b981" className="animate-spin" style={{ margin: '0 auto' }} />
+                      <Loader2 size={32} color="#2563eb" className="animate-spin" style={{ margin: '0 auto' }} />
                       <p style={{ marginTop: '0.75rem', fontWeight: 800, color: '#94a3b8', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Compiling General Ledger...</p>
                     </td>
                   </tr>
@@ -642,7 +642,7 @@ function GeneralLedgerReport() {
                         return <td key={col.id} style={{ textAlign: col.align, fontFamily: 'monospace', color: '#b91c1c' }}>{totalCredit.toFixed(2)}</td>;
                       }
                       if (col.id === 'balance') {
-                        return <td key={col.id} style={{ textAlign: col.align, fontFamily: 'monospace', color: '#059669', fontSize: '0.95rem' }}>AED {finalBalance.toFixed(2)}</td>;
+                        return <td key={col.id} style={{ textAlign: col.align, fontFamily: 'monospace', color: '#2563eb', fontSize: '0.95rem' }}>AED {finalBalance.toFixed(2)}</td>;
                       }
                       return <td key={col.id}></td>;
                     })}
@@ -661,7 +661,7 @@ function GeneralLedgerReport() {
         config={columnConfig}
         onUpdate={handleColumnUpdate}
         doctype="General Ledger Report"
-        themeColor="#10b981"
+        themeColor="#2563eb"
       />
     </div>
   );

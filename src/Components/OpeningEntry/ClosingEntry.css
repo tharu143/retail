@@ -38,7 +38,7 @@
   height: 48px;
   border-radius: 14px;
   background: #0f172a;
-  color: #34d399;
+  color: #3b82f6;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -53,17 +53,18 @@
 }
 
 .pce-title {
-  font-size: 1.35rem;
+  font-size: 1.25rem;
   font-weight: 900;
   color: #0f172a;
-  letter-spacing: -0.02em;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
   margin: 0;
 }
 
 .pce-tag {
-  background: #ecfdf5;
-  color: #059669;
-  border: 1px solid #a7f3d0;
+  background: #eff6ff;
+  color: #2563eb;
+  border: 1px solid #bfdbfe;
   font-size: 0.68rem;
   font-weight: 800;
   text-transform: uppercase;
@@ -131,41 +132,43 @@
   align-items: center;
   gap: 0.5rem;
   padding: 0.6rem 1.4rem;
-  background: #0f172a;
-  border: 1px solid #0f172a;
+  background: #0082f6;
+  border: 1px solid #2563eb;
   border-radius: 10px;
   font-size: 0.8rem;
   font-weight: 900;
   color: #ffffff;
   cursor: pointer;
   transition: all 0.15s ease;
-  box-shadow: 0 4px 6px -1px rgba(15, 23, 42, 0.2);
+  box-shadow: 0 4px 6px -1px rgba(0, 130, 246, 0.25);
 }
 
 .pce-btn-submit:hover:not(:disabled) {
-  background: #1e293b;
+  background: #2563eb;
   transform: translateY(-1px);
 }
 
 .pce-btn-submit.green {
-  background: #059669;
-  border-color: #047857;
+  background: #0082f6;
+  border-color: #2563eb;
+  box-shadow: 0 4px 6px -1px rgba(0, 130, 246, 0.25);
 }
 
 .pce-btn-submit.green:hover:not(:disabled) {
-  background: #047857;
+  background: #2563eb;
 }
 
 /* Scroll Area */
 .pce-body {
   flex: 1;
   overflow-y: auto;
-  padding: 2rem 2.5rem 4rem 2.5rem;
+  padding: 1.5rem 2rem 3rem 2rem;
 }
 
 .pce-content {
-  max-width: 1400px;
-  margin: 0 auto;
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
   display: flex;
   flex-direction: column;
   gap: 1.75rem;
@@ -252,7 +255,7 @@
 }
 
 .pce-kpi-card.sales {
-  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  background: linear-gradient(135deg, #0082f6 0%, #1d4ed8 100%);
 }
 
 .pce-kpi-card.invoices {
@@ -342,7 +345,7 @@
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.04);
 }
 
-.pce-mode-item.cash { background: #f0fdf4; border-color: #bbf7d0; color: #166534; }
+.pce-mode-item.cash { background: #eff6ff; border-color: #bfdbfe; color: #1d4ed8; }
 .pce-mode-item.card { background: #eff6ff; border-color: #bfdbfe; color: #1e40af; }
 .pce-mode-item.bank { background: #f5f3ff; border-color: #ddd6fe; color: #5b21b6; }
 .pce-mode-item.insta { background: #fffbeb; border-color: #fde68a; color: #92400e; }
@@ -414,9 +417,9 @@
 }
 
 .pce-denom-box.active {
-  border-color: #10b981;
-  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.12);
-  background: #fafdfc;
+  border-color: #0082f6;
+  box-shadow: 0 0 0 3px rgba(0, 130, 246, 0.12);
+  background: #f8fafc;
 }
 
 .pce-denom-header {
@@ -448,7 +451,7 @@
 .pce-denom-subtotal {
   font-size: 0.8rem;
   font-weight: 800;
-  color: #059669;
+  color: #2563eb;
 }
 
 .pce-denom-subtotal.zero {
@@ -489,8 +492,8 @@
 
 .pce-denom-input:focus {
   background: #ffffff;
-  border-color: #10b981;
-  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
+  border-color: #0082f6;
+  box-shadow: 0 0 0 2px rgba(0, 130, 246, 0.2);
 }
 
 /* Modern Data Table */
@@ -548,8 +551,8 @@
 }
 
 .pce-table-input:focus {
-  border-color: #10b981;
-  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
+  border-color: #0082f6;
+  box-shadow: 0 0 0 2px rgba(0, 130, 246, 0.2);
 }
 
 .pce-table-input:disabled {
@@ -593,8 +596,8 @@
 .pce-select:focus,
 .pce-input:focus {
   background: #ffffff;
-  border-color: #10b981;
-  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.12);
+  border-color: #0082f6;
+  box-shadow: 0 0 0 3px rgba(0, 130, 246, 0.12);
 }
 
 .pce-select:disabled,
@@ -610,8 +613,8 @@
   align-items: center;
   gap: 0.5rem;
   padding: 0.45rem 1rem;
-  background: #ecfdf5;
-  border: 1.5px solid #a7f3d0;
+  background: #eff6ff;
+  border: 1.5px solid #bfdbfe;
   border-radius: 10px;
 }
 
@@ -619,12 +622,12 @@
   font-size: 0.72rem;
   font-weight: 900;
   text-transform: uppercase;
-  color: #059669;
+  color: #2563eb;
   letter-spacing: 0.05em;
 }
 
 .pce-total-badge-val {
   font-size: 0.95rem;
   font-weight: 900;
-  color: #047857;
+  color: #1d4ed8;
 }

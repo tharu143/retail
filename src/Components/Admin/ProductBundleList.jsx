@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import axios from 'axios';
 import Swal from 'sweetalert2';
 import {
   Boxes, Plus, Search, Filter, Trash2, Edit2, ChevronRight,
   Eye, CheckCircle2, AlertTriangle, Building2, Package, RefreshCw,
-  X, Save, Layers, ArrowLeft, Loader2, Info, ShoppingBag, Printer, Globe, Mail, Phone
+  X, Save, Layers, ArrowLeft, Loader2, Info, ShoppingBag, Printer, Globe, Mail, Phone, MoreVertical
 } from 'lucide-react';
 import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
@@ -35,6 +35,18 @@ const ProductBundleList = () => {
   const [selectedBundle, setSelectedBundle] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [activeDropdown, setActiveDropdown] = useState(null);
+  const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setActiveDropdown(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // Form State for Create / Edit
   const [formParentItem, setFormParentItem] = useState('');
@@ -68,12 +80,12 @@ const ProductBundleList = () => {
   const [quickCreatingParent, setQuickCreatingParent] = useState(false);
 
   // Theme Sync
-  const legacySubTheme = localStorage.getItem('legacySubTheme') || 'green';
+  const legacySubTheme = localStorage.getItem('legacySubTheme') || 'blue';
   const isGreen = legacySubTheme === 'green';
-  const themeColor = isGreen ? '#10b981' : '#0ea5e9';
-  const themeColorHover = isGreen ? '#059669' : '#0284c7';
-  const themeLight = isGreen ? '#f0fdf4' : '#f0f9ff';
-  const themeRgb = isGreen ? '16, 185, 129' : '14, 165, 233';
+  const themeColor = '#0082f6';
+  const themeColorHover = '#006ed4';
+  const themeLight = '#eff6ff';
+  const themeRgb = '0, 130, 246';
 
   // IntersectionObserver for scroll-animate-card
   useEffect(() => {
@@ -579,9 +591,9 @@ const ProductBundleList = () => {
                           display: 'inline-flex',
                           alignItems: 'center',
                           gap: '0.3rem',
-                          color: '#059669',
-                          background: '#ecfdf5',
-                          border: '1px solid #a7f3d0',
+                          color: '#2563eb',
+                          background: '#eff6ff',
+                          border: '1px solid #bfdbfe',
                           padding: '0.2rem 0.55rem',
                           borderRadius: '6px',
                           cursor: 'pointer'
@@ -752,7 +764,7 @@ const ProductBundleList = () => {
                 type="button"
                 onClick={handleAddBundleRow}
                 className="pbl-btn-secondary"
-                style={{ color: '#059669', borderColor: '#a7f3d0', background: '#ecfdf5' }}
+                style={{ color: '#2563eb', borderColor: '#bfdbfe', background: '#eff6ff' }}
               >
                 <Plus size={15} /> Add Component Item
               </button>
@@ -1084,34 +1096,38 @@ const ProductBundleList = () => {
     <div className="pbl-container">
       {/* Sticky Header */}
       <header className="pbl-header">
-        <div className="pbl-header-left">
-          <div className="pbl-header-icon">
-            <Boxes size={22} />
-          </div>
-          <div>
-            <div className="pbl-title-row">
-              <h1 className="pbl-title">Product Bundles</h1>
-              <span className="pbl-tag">{bundles.length} Active Bundles</span>
-            </div>
-            <p className="pbl-subtitle">Manage item bundles, component stocks & branch availability</p>
-          </div>
+        <div className="pbl-header-left" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 0 }}>
+          <h1 className="pbl-title" style={{ display: 'flex', alignItems: 'center', gap: '10px', margin: 0 }}>
+            <Package size={22} style={{ color: '#0082f6' }} strokeWidth={2.5} />
+            <span style={{ fontFamily: "'Outfit', 'Gilroy', sans-serif", fontSize: '22px', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.01em', textTransform: 'uppercase' }}>
+              PRODUCT BUNDLES
+            </span>
+            <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 700, background: '#f1f5f9', padding: '2px 8px', borderRadius: '4px', border: '1px solid #e2e8f0', marginLeft: '4px' }}>
+              {bundles.length} ACTIVE BUNDLES
+            </span>
+          </h1>
+          <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#64748b', fontWeight: 500 }}>
+            Manage item bundles, component stocks &amp; branch availability
+          </p>
         </div>
 
         <div className="pbl-header-actions">
           <button
             onClick={fetchBundles}
             className="pbl-btn-secondary"
+            style={{ height: '38px', borderRadius: '8px', padding: '0 16px', fontSize: '12px', fontWeight: 800, textTransform: 'uppercase', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
             title="Refresh Bundle Directory"
           >
-            <RefreshCw size={15} className={loading ? 'animate-spin' : ''} />
-            <span>Refresh</span>
+            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+            <span>REFRESH</span>
           </button>
           <button 
             className="pbl-btn-primary" 
+            style={{ height: '38px', borderRadius: '8px', padding: '0 16px', fontSize: '12px', fontWeight: 800, textTransform: 'uppercase', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px', background: '#0082f6' }}
             onClick={handleOpenCreateModal}
           >
             <Plus size={16} />
-            <span>Create Product Bundle</span>
+            <span>CREATE BUNDLE</span>
           </button>
         </div>
       </header>
@@ -1187,14 +1203,14 @@ const ProductBundleList = () => {
                   <th>Selling Price</th>
                   <th>Included Components</th>
                   <th>Availability Status</th>
-                  <th style={{ width: '120px', textAlign: 'center' }}>Actions</th>
+                  <th style={{ width: '48px', textAlign: 'center' }}></th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
                   <tr>
                     <td colSpan={6} style={{ textAlign: 'center', padding: '3.5rem' }}>
-                      <Loader2 size={32} className="animate-spin" style={{ margin: '0 auto', color: '#10b981' }} />
+                      <Loader2 size={32} className="animate-spin" style={{ margin: '0 auto', color: '#0082f6' }} />
                       <p style={{ marginTop: '0.75rem', fontSize: '0.85rem', fontWeight: 700, color: '#64748b' }}>
                         Loading Product Bundles...
                       </p>
@@ -1224,7 +1240,7 @@ const ProductBundleList = () => {
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
                           <div style={{
                             width: '42px', height: '42px', borderRadius: '12px',
-                            background: '#ecfdf5', color: '#059669',
+                            background: '#eff6ff', color: '#2563eb',
                             display: 'flex', alignItems: 'center', justifyContent: 'center',
                             flexShrink: 0, fontWeight: 900
                           }}>
@@ -1251,7 +1267,7 @@ const ProductBundleList = () => {
                       {/* Selling Price */}
                       <td>
                         <div style={{ display: 'flex', alignItems: 'center', fontWeight: 900, color: '#0f172a', fontSize: '0.9rem' }}>
-                          <DirhamIcon className="w-4 h-4 mr-1 text-emerald-600" />
+                          <DirhamIcon className="w-4 h-4 mr-1 text-blue-600" />
                           <span>{bundle.selling_price?.toFixed(2)}</span>
                           {bundle.calculated_price && bundle.calculated_price !== bundle.selling_price && (
                             <span style={{ fontSize: '0.72rem', color: '#94a3b8', textDecoration: 'line-through', marginLeft: '0.6rem', fontWeight: 600 }}>
@@ -1279,7 +1295,7 @@ const ProductBundleList = () => {
                               }}
                             >
                               <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                <span style={{ fontWeight: 900, color: '#059669', fontSize: '0.78rem' }}>{item.qty}x</span>
+                                <span style={{ fontWeight: 900, color: '#2563eb', fontSize: '0.78rem' }}>{item.qty}x</span>
                                 <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#334155' }}>{item.item_name || item.item_code}</span>
                               </div>
                               <span style={{
@@ -1289,9 +1305,9 @@ const ProductBundleList = () => {
                                 borderRadius: '6px',
                                 marginLeft: 'auto',
                                 flexShrink: 0,
-                                background: item.actual_qty > 0 ? '#ecfdf5' : '#fef2f2',
-                                color: item.actual_qty > 0 ? '#059669' : '#dc2626',
-                                border: `1px solid ${item.actual_qty > 0 ? '#a7f3d0' : '#fecaca'}`
+                                background: item.actual_qty > 0 ? '#eff6ff' : '#fef2f2',
+                                color: item.actual_qty > 0 ? '#2563eb' : '#dc2626',
+                                border: `1px solid ${item.actual_qty > 0 ? '#bfdbfe' : '#fecaca'}`
                               }}>
                                 {item.actual_qty || 0} {item.uom}
                               </span>
@@ -1312,51 +1328,143 @@ const ProductBundleList = () => {
                           fontWeight: 800,
                           textTransform: 'uppercase',
                           letterSpacing: '0.04em',
-                          background: bundle.available_bundle_qty > 0 ? '#ecfdf5' : '#fffbeb',
-                          color: bundle.available_bundle_qty > 0 ? '#059669' : '#d97706',
-                          border: `1px solid ${bundle.available_bundle_qty > 0 ? '#a7f3d0' : '#fde68a'}`
+                          background: bundle.available_bundle_qty > 0 ? '#eff6ff' : '#fffbeb',
+                          color: bundle.available_bundle_qty > 0 ? '#2563eb' : '#d97706',
+                          border: `1px solid ${bundle.available_bundle_qty > 0 ? '#bfdbfe' : '#fde68a'}`
                         }}>
                           <CheckCircle2 size={12} />
                           {bundle.available_bundle_qty} sets available
                         </span>
                       </td>
 
-                      {/* Controls / Actions */}
-                      <td onClick={(e) => e.stopPropagation()}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.45rem' }}>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setSelectedBundle(bundle);
-                              setShowDetailModal(true);
+                      {/* Controls / Actions Menu */}
+                      <td style={{ position: 'relative', textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setActiveDropdown(activeDropdown === bundle.name ? null : bundle.name);
+                          }}
+                          style={{
+                            background: activeDropdown === bundle.name ? '#eff6ff' : 'none',
+                            border: activeDropdown === bundle.name ? '1.5px solid #bfdbfe' : '1.5px solid transparent',
+                            cursor: 'pointer',
+                            padding: '0.4rem 0.5rem',
+                            borderRadius: '8px',
+                            color: activeDropdown === bundle.name ? '#0082f6' : '#64748b',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            transition: 'all 0.15s ease'
+                          }}
+                          title="Actions"
+                        >
+                          <MoreVertical size={18} />
+                        </button>
+
+                        {activeDropdown === bundle.name && (
+                          <div
+                            ref={dropdownRef}
+                            style={{
+                              position: 'absolute',
+                              right: '1rem',
+                              top: 'calc(100% - 8px)',
+                              zIndex: 50,
+                              background: '#ffffff',
+                              border: '1px solid #e2e8f0',
+                              borderRadius: '10px',
+                              boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05)',
+                              minWidth: '150px',
+                              overflow: 'hidden',
+                              padding: '4px'
                             }}
-                            className="pbl-btn-secondary"
-                            style={{ padding: '0.45rem', border: 'none', color: '#475569' }}
-                            title="View Details"
                           >
-                            <Eye size={16} />
-                          </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setActiveDropdown(null);
+                                setSelectedBundle(bundle);
+                                setShowDetailModal(true);
+                              }}
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '10px',
+                                width: '100%',
+                                padding: '8px 12px',
+                                border: 'none',
+                                background: 'none',
+                                fontSize: '13px',
+                                fontWeight: 600,
+                                color: '#334155',
+                                cursor: 'pointer',
+                                borderRadius: '6px',
+                                transition: 'background 0.15s'
+                              }}
+                              onMouseEnter={(e) => e.currentTarget.style.background = '#f1f5f9'}
+                              onMouseLeave={(e) => e.currentTarget.style.background = 'none'}
+                            >
+                              <Eye size={15} color="#475569" />
+                              <span>View Details</span>
+                            </button>
 
-                          <button
-                            type="button"
-                            onClick={() => handleOpenEditModal(bundle)}
-                            className="pbl-btn-secondary"
-                            style={{ padding: '0.45rem', border: 'none', color: '#059669' }}
-                            title="Edit Bundle"
-                          >
-                            <Edit2 size={16} />
-                          </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setActiveDropdown(null);
+                                handleOpenEditModal(bundle);
+                              }}
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '10px',
+                                width: '100%',
+                                padding: '8px 12px',
+                                border: 'none',
+                                background: 'none',
+                                fontSize: '13px',
+                                fontWeight: 600,
+                                color: '#2563eb',
+                                cursor: 'pointer',
+                                borderRadius: '6px',
+                                transition: 'background 0.15s'
+                              }}
+                              onMouseEnter={(e) => e.currentTarget.style.background = '#eff6ff'}
+                              onMouseLeave={(e) => e.currentTarget.style.background = 'none'}
+                            >
+                              <Edit2 size={15} color="#2563eb" />
+                              <span>Edit Bundle</span>
+                            </button>
 
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteBundle(bundle)}
-                            className="pbl-btn-secondary"
-                            style={{ padding: '0.45rem', border: 'none', color: '#ef4444' }}
-                            title="Delete Bundle"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setActiveDropdown(null);
+                                handleDeleteBundle(bundle);
+                              }}
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '10px',
+                                width: '100%',
+                                padding: '8px 12px',
+                                border: 'none',
+                                background: 'none',
+                                fontSize: '13px',
+                                fontWeight: 600,
+                                color: '#ef4444',
+                                cursor: 'pointer',
+                                borderRadius: '6px',
+                                transition: 'background 0.15s'
+                              }}
+                              onMouseEnter={(e) => e.currentTarget.style.background = '#fef2f2'}
+                              onMouseLeave={(e) => e.currentTarget.style.background = 'none'}
+                            >
+                              <Trash2 size={15} color="#ef4444" />
+                              <span>Delete Bundle</span>
+                            </button>
+                          </div>
+                        )}
                       </td>
                     </tr>
                   ))
@@ -1475,7 +1583,7 @@ const ProductBundleList = () => {
           <div className="pbl-modal-card">
             <div style={{ padding: '1.15rem 1.5rem', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: '#ecfdf5', color: '#059669', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: '#eff6ff', color: '#2563eb', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <Package size={20} />
                 </div>
                 <div>
@@ -1493,7 +1601,7 @@ const ProductBundleList = () => {
             </div>
 
             <form onSubmit={handleQuickCreateParent} style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.15rem' }}>
-              <div style={{ padding: '0.85rem', background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: '10px', display: 'flex', gap: '0.6rem', fontSize: '0.78rem', color: '#065f46' }}>
+              <div style={{ padding: '0.85rem', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '10px', display: 'flex', gap: '0.6rem', fontSize: '0.78rem', color: '#1e40af' }}>
                 <Info size={18} style={{ flexShrink: 0, marginTop: '2px' }} />
                 <span>
                   This creates a <strong>Non-Stock Item</strong> (Maintain Stock = NO) specifically for this Product Bundle.

@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { 
-    Loader2, FileText, AlertCircle, CheckCircle2, 
-    Calendar, Search, Filter, RefreshCw, 
-    Download, Printer, ChevronDown, Truck, Package, ExternalLink, Settings,
-    DollarSign, Receipt, Tag, TrendingUp
+import {
+  Loader2, FileText, AlertCircle, CheckCircle2,
+  Calendar, Search, Filter, RefreshCw,
+  Download, Printer, ChevronDown, Truck, Package, ExternalLink, Settings,
+  DollarSign, Receipt, Tag, TrendingUp
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import DirhamIcon from '../../assets/Currency/DirhamIcon';
@@ -20,11 +20,11 @@ function PurchaseReport() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  const [filters, setFilters] = useState({ 
+  const [filters, setFilters] = useState({
     from_date: new Date(new Date().setDate(1)).toISOString().split('T')[0],
     to_date: new Date().toISOString().split('T')[0],
-    supplier: '', 
-    item_code: '' 
+    supplier: '',
+    item_code: ''
   });
   const [suppliers, setSuppliers] = useState([]);
 
@@ -35,6 +35,27 @@ function PurchaseReport() {
     fetchSuppliers();
     fetchReport(filters);
   }, []);
+
+  const getDefaultColWidth = (fieldname, colWidth) => {
+    if (colWidth && parseInt(colWidth) >= 150) {
+      return typeof colWidth === 'number' ? colWidth + 'px' : colWidth;
+    }
+    switch (fieldname) {
+      case 'posting_date': case 'date': return '130px';
+      case 'name': case 'voucher_no': case 'purchase_invoice': return '190px';
+      case 'supplier': return '160px';
+      case 'supplier_name': return '200px';
+      case 'item_code': return '145px';
+      case 'item_name': return '220px';
+      case 'qty': return '90px';
+      case 'rate': return '110px';
+      case 'amount': return '125px';
+      case 'tax_amount': return '120px';
+      case 'total': return '135px';
+      case 'warehouse': return '160px';
+      default: return (colWidth ? (typeof colWidth === 'number' ? colWidth + 'px' : colWidth) : '150px');
+    }
+  };
 
   const fetchSuppliers = async () => {
     try {
@@ -70,31 +91,31 @@ function PurchaseReport() {
         setData(payload.data || []);
         const fetchedCols = payload.columns || [];
         setColumns(fetchedCols);
-        
+
         // Merge with local storage config
         const savedConfigStr = localStorage.getItem('purchase_report_columns');
         const savedConfig = savedConfigStr ? JSON.parse(savedConfigStr) : null;
-        
+
         let mergedCols = fetchedCols.map(c => ({
           id: c.fieldname,
           label: c.label,
           visible: true,
-          width: (c.width ? c.width + 'px' : '150px'),
+          width: getDefaultColWidth(c.fieldname, c.width),
           align: c.align || (c.fieldtype === 'Currency' || c.fieldtype === 'Float' ? 'right' : 'left'),
           original: c
         }));
-        
+
         if (savedConfig && Array.isArray(savedConfig)) {
           const configMap = {};
           savedConfig.forEach(sc => configMap[sc.id] = sc);
-          
+
           mergedCols = mergedCols.map(mc => {
             if (configMap[mc.id]) {
-              return { ...mc, visible: configMap[mc.id].visible !== undefined ? configMap[mc.id].visible : true, width: configMap[mc.id].width, align: configMap[mc.id].align };
+              return { ...mc, visible: configMap[mc.id].visible !== undefined ? configMap[mc.id].visible : true, width: configMap[mc.id].width || getDefaultColWidth(mc.id, null), align: configMap[mc.id].align };
             }
             return mc;
           });
-          
+
           mergedCols.sort((a, b) => {
             const idxA = savedConfig.findIndex(sc => sc.id === a.id);
             const idxB = savedConfig.findIndex(sc => sc.id === b.id);
@@ -104,7 +125,7 @@ function PurchaseReport() {
             return idxA - idxB;
           });
         }
-        
+
         setColumnConfig(mergedCols);
         setSuccess('Purchase records loaded');
       } else {
@@ -130,7 +151,7 @@ function PurchaseReport() {
         id: c.fieldname,
         label: c.label,
         visible: true,
-        width: (c.width ? c.width + 'px' : '150px'),
+        width: getDefaultColWidth(c.fieldname, c.width),
         align: c.align || (c.fieldtype === 'Currency' || c.fieldtype === 'Float' ? 'right' : 'left'),
         original: c
       }));
@@ -174,7 +195,7 @@ function PurchaseReport() {
 
   return (
     <div className="pr-container">
-      
+
       {/* 1. Header */}
       <header className="pr-header no-print">
         <div className="pr-header-title-box">
@@ -183,7 +204,7 @@ function PurchaseReport() {
           </div>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <h1 className="pr-title">Purchase Summary Report</h1>
+              <h1 className="pr-title">PURCHASE SUMMARY REPORT</h1>
               <span className="pr-tag">Procurement</span>
             </div>
             <p className="pr-subtitle">Historical breakdown of stock procurement and vendor payouts</p>
@@ -191,28 +212,28 @@ function PurchaseReport() {
         </div>
 
         <div className="pr-actions">
-          <button 
+          <button
             onClick={handlePrint}
             className="pr-btn-secondary"
           >
-            <Printer size={15} /> 
+            <Printer size={15} />
             <span>Print</span>
           </button>
-          <button 
+          <button
             onClick={handleExportCSV}
             className="pr-btn-primary"
           >
-            <Download size={15} /> 
+            <Download size={15} />
             <span>Export CSV</span>
           </button>
-          <button 
-            className="pr-btn-icon" 
+          <button
+            className="pr-btn-icon"
             onClick={() => setShowConfigModal(true)}
             title="Configure Columns"
           >
             <Settings size={18} />
           </button>
-          <button 
+          <button
             onClick={() => fetchReport(filters)}
             disabled={loading}
             className="pr-btn-icon"
@@ -238,39 +259,39 @@ function PurchaseReport() {
       </div>
 
       <main className="pr-main-body">
-        
+
         {/* 2. Filters Bar */}
         <div className="pr-filter-card no-print">
           <div className="pr-filter-inputs">
             {/* From Date */}
             <div className="pr-field-block">
               <label className="pr-label">
-                <Calendar size={12} color="#059669" />
+                <Calendar size={12} color="#2563eb" />
                 From Date
               </label>
-              <input 
-                type="date" 
-                className="pr-input" 
+              <input
+                type="date"
+                className="pr-input"
                 value={filters.from_date}
                 onChange={(e) => handleFilterUpdate('from_date', e.target.value)}
-                onFocus={(e) => { try { e.target.showPicker(); } catch(err) {} }}
-                onClick={(e) => { try { e.target.showPicker(); } catch(err) {} }}
+                onFocus={(e) => { try { e.target.showPicker(); } catch (err) { } }}
+                onClick={(e) => { try { e.target.showPicker(); } catch (err) { } }}
               />
             </div>
-            
+
             {/* To Date */}
             <div className="pr-field-block">
               <label className="pr-label">
-                <Calendar size={12} color="#059669" />
+                <Calendar size={12} color="#2563eb" />
                 To Date
               </label>
-              <input 
-                type="date" 
-                className="pr-input" 
+              <input
+                type="date"
+                className="pr-input"
                 value={filters.to_date}
                 onChange={(e) => handleFilterUpdate('to_date', e.target.value)}
-                onFocus={(e) => { try { e.target.showPicker(); } catch(err) {} }}
-                onClick={(e) => { try { e.target.showPicker(); } catch(err) {} }}
+                onFocus={(e) => { try { e.target.showPicker(); } catch (err) { } }}
+                onClick={(e) => { try { e.target.showPicker(); } catch (err) { } }}
               />
             </div>
 
@@ -281,8 +302,8 @@ function PurchaseReport() {
                 Vendor / Supplier
               </label>
               <div style={{ position: 'relative' }}>
-                <select 
-                  className="pr-select" 
+                <select
+                  className="pr-select"
                   value={filters.supplier}
                   onChange={(e) => handleFilterUpdate('supplier', e.target.value)}
                   style={{ paddingRight: '2.5rem' }}
@@ -297,7 +318,7 @@ function PurchaseReport() {
             </div>
           </div>
 
-          <button 
+          <button
             className="pr-btn-reset"
             onClick={() => {
               const reset = { from_date: '', to_date: '', supplier: '', item_code: '' };
@@ -396,13 +417,13 @@ function PurchaseReport() {
         <div className="pr-table-card">
           <div className="pr-table-header">
             <h3 className="pr-table-heading">
-              <FileText size={18} color="#10b981" />
+              <FileText size={18} color="#2563eb" />
               <span>Purchase Invoices & Items Log</span>
             </h3>
             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', fontSize: '0.8rem', fontWeight: 700, color: '#64748b' }}>
               <span>Computed <b>{data.length}</b> line entries</span>
               {loading && (
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#10b981' }}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#2563eb' }}>
                   <RefreshCw size={14} className="animate-spin" /> Fetching...
                 </span>
               )}
@@ -424,7 +445,7 @@ function PurchaseReport() {
                 {loading && data.length === 0 ? (
                   <tr>
                     <td colSpan={columnConfig.filter(c => c.visible).length || 1} style={{ padding: '5rem 0', textAlign: 'center' }}>
-                      <Loader2 size={32} color="#10b981" className="animate-spin" style={{ margin: '0 auto' }} />
+                      <Loader2 size={32} color="#2563eb" className="animate-spin" style={{ margin: '0 auto' }} />
                       <p style={{ marginTop: '0.75rem', fontWeight: 800, color: '#94a3b8', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Analyzing Inbound Orders...</p>
                     </td>
                   </tr>
@@ -444,41 +465,39 @@ function PurchaseReport() {
                         const fieldname = col.original.fieldname;
                         const cellValue = row[fieldname];
                         return (
-                          <td 
-                            key={col.id} 
-                            style={{ 
+                          <td
+                            key={col.id}
+                            style={{
                               textAlign: col.align,
                               fontFamily: col.original.fieldtype === 'Currency' || col.original.fieldtype === 'Float' ? 'ui-monospace, monospace' : 'inherit',
                               width: col.width,
                               minWidth: col.width,
-                              maxWidth: col.width,
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
+                              padding: '0.85rem 1rem',
                               whiteSpace: 'nowrap'
                             }}
                             title={String(cellValue ?? '')}
                           >
                             {cellValue !== null && cellValue !== undefined ? (
                               (fieldname === 'name' || fieldname === 'voucher_no') ? (
-                                <span 
-                                  onClick={() => navigate('/purchaseinvoicelist', { state: { search: cellValue } })} 
+                                <span
+                                  onClick={() => navigate('/purchaseinvoicelist', { state: { search: cellValue } })}
                                   className="pr-doc-link"
                                   style={{ justifyContent: col.align === 'right' ? 'flex-end' : 'flex-start' }}
                                 >
                                   {cellValue}
-                                  <ExternalLink size={12} color="#10b981" />
+                                  <ExternalLink size={12} color="#2563eb" />
                                 </span>
                               ) : fieldname === 'item_code' ? (
-                                <span 
-                                  onClick={() => navigate('/itemlist', { state: { search: cellValue } })} 
+                                <span
+                                  onClick={() => navigate('/itemlist', { state: { search: cellValue } })}
                                   className="pr-item-pill"
                                   style={{ marginLeft: col.align === 'right' ? 'auto' : '0' }}
                                 >
                                   {cellValue}
                                   <ExternalLink size={11} color="#64748b" />
                                 </span>
-                              ) : typeof cellValue === 'number' && (col.label?.toLowerCase().includes('total') || col.label?.toLowerCase().includes('rate') || col.label?.toLowerCase().includes('amount')) ? 
-                                cellValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : 
+                              ) : typeof cellValue === 'number' && (col.label?.toLowerCase().includes('total') || col.label?.toLowerCase().includes('rate') || col.label?.toLowerCase().includes('amount')) ?
+                                cellValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) :
                                 cellValue
                             ) : '-'}
                           </td>

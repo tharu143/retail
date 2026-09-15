@@ -5,7 +5,7 @@ import Swal from 'sweetalert2';
 import {
   Plus, X, Search, Filter, ChevronDown, FileText,
   Loader2, ChevronLeft, ChevronRight, ArrowLeft, Palette, Truck,
-  Zap, Link as LinkIcon, Edit2, CheckCircle2, Save, Printer, Settings
+  Zap, Link as LinkIcon, Edit2, CheckCircle2, Save, Printer, Settings, Package
 } from 'lucide-react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useSelector } from 'react-redux';
@@ -19,19 +19,19 @@ import ColumnConfigModal from '../Purchase/ColumnConfigModal';
 import { loadLocalMatrixConfig, fetchUserMatrixConfig, saveUserMatrixConfig } from '../../utils/tableMatrixHelper';
 
 export const DEFAULT_SI_COLUMNS = [
-  { id: 'barcode', label: 'Barcode', visible: true, width: 140 },
-  { id: 'item_name', label: 'Item Name', visible: true, width: 220 },
-  { id: 'custom_box_qty', label: 'Box Qty', visible: true, width: 90 },
+  { id: 'barcode', label: 'BARCODE', visible: true, width: 140 },
+  { id: 'item_name', label: 'ITEM NAME', visible: true, width: 220 },
+  { id: 'custom_box_qty', label: 'BOX QTY', visible: true, width: 90 },
   { id: 'uom', label: 'UOM', visible: true, width: 90 },
-  { id: 'custom_pieces_per_box', label: 'Pcs/Box', visible: true, width: 80 },
-  { id: 'custom_box_price', label: 'Box Price', visible: true, width: 100 },
-  { id: 'rate', label: 'Rate (Nos)', visible: true, width: 100 },
-  { id: 'qty', label: 'Total Qty', visible: true, width: 90 },
-  { id: 'is_tax_inclusive', label: 'Tax', visible: true, width: 100 },
-  { id: 'amount', label: 'Amount', visible: true, width: 130 },
-  { id: 'item_code', label: 'Item Code', visible: false, width: 130 },
-  { id: 'custom_ref_sl_no', label: 'Ref / Serial #', visible: false, width: 110 },
-  { id: 'discount_amount', label: 'Discount', visible: false, width: 90 }
+  { id: 'custom_pieces_per_box', label: 'PCS/BOX', visible: true, width: 80 },
+  { id: 'custom_box_price', label: 'BOX PRICE', visible: true, width: 100 },
+  { id: 'rate', label: 'RATE (NOS)', visible: true, width: 100 },
+  { id: 'qty', label: 'TOTAL QTY', visible: true, width: 90 },
+  { id: 'is_tax_inclusive', label: 'TAX', visible: true, width: 100 },
+  { id: 'amount', label: 'AMOUNT', visible: true, width: 130 },
+  { id: 'item_code', label: 'ITEM CODE', visible: false, width: 130 },
+  { id: 'custom_ref_sl_no', label: 'REF / SERIAL #', visible: false, width: 110 },
+  { id: 'discount_amount', label: 'DISCOUNT', visible: false, width: 90 }
 ];
 
 const loadSIColumnConfig = () => {
@@ -275,9 +275,9 @@ const SalesInvoiceList = () => {
   // Theme toggle (synced with POS & Sales Order)
   const [siTheme, setSiTheme] = useState(localStorage.getItem('legacySubTheme') || 'green');
   const isGreen = siTheme === 'green';
-  const themeColor = isGreen ? '#10b981' : '#0ea5e9';
-  const themeColorHover = isGreen ? '#059669' : '#0284c7';
-  const themeLight = isGreen ? '#f0fdf4' : '#f0f9ff';
+  const themeColor = isGreen ? '#10b981' : '#0082f6';
+  const themeColorHover = isGreen ? '#059669' : '#0070d8';
+  const themeLight = isGreen ? '#f0fdf4' : '#ebf4fe';
 
   useEffect(() => {
     localStorage.setItem('legacySubTheme', siTheme);
@@ -1892,114 +1892,177 @@ const SalesInvoiceList = () => {
           </div>
           <div className="so-page-header">
             <div>
-              <h1 className="so-page-title">Sales Invoice Management</h1>
-              <p className="so-page-subtitle">Manage and track all invoices</p>
+              <h1 className="so-page-title" style={{ display: 'flex', alignItems: 'center', gap: '10px', margin: 0 }}>
+                <Package size={22} style={{ color: themeColor || '#0082f6' }} strokeWidth={2.5} />
+                <span style={{ fontFamily: "'Outfit', 'Gilroy', sans-serif", fontSize: '22px', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.01em', textTransform: 'uppercase' }}>
+                  SALES INVOICE MANAGEMENT
+                </span>
+              </h1>
+              <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#64748b', fontWeight: 500 }}>
+                Manage and track all sales invoices
+              </p>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               {/* Theme Toggle */}
               <button
+                type="button"
                 onClick={() => {
                   const nextTheme = siTheme === 'green' ? 'blue' : 'green';
                   setSiTheme(nextTheme);
                 }}
                 style={{
-                  display: 'flex', alignItems: 'center', gap: '0.4rem',
-                  padding: '0.45rem 0.9rem', background: '#f8fafc',
-                  border: `1.5px solid ${themeColor}`, borderRadius: '0.375rem',
-                  fontSize: '0.75rem', fontWeight: 700, color: themeColor,
-                  cursor: 'pointer', transition: 'all 0.2s',
-                  textTransform: 'uppercase', letterSpacing: '0.04em'
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  height: '38px',
+                  padding: '0 16px',
+                  background: '#ffffff',
+                  color: themeColor || '#0082f6',
+                  border: `1.5px solid ${themeColor || '#0082f6'}`,
+                  borderRadius: '8px',
+                  fontSize: '12px',
+                  fontWeight: 800,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.04em',
+                  cursor: 'pointer',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+                  transition: 'all 0.15s ease-in-out',
+                  boxSizing: 'border-box'
                 }}
                 title="Toggle Theme"
               >
-                <Palette size={13} />
-                {siTheme.toUpperCase()}
+                <Palette size={14} />
+                <span>{siTheme.toUpperCase()}</span>
               </button>
+
               <ListCustomizer
                 doctype="Sales Invoice"
                 onSave={cols => setCustomColumns(cols)}
-                themeColor={themeColor}
+                themeColor={themeColor || '#0082f6'}
+                btnStyle={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  height: '38px',
+                  padding: '0 16px',
+                  background: '#ffffff',
+                  color: themeColor || '#0082f6',
+                  border: `1.5px solid ${themeColor || '#0082f6'}`,
+                  borderRadius: '8px',
+                  fontSize: '12px',
+                  fontWeight: 800,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.04em',
+                  cursor: 'pointer',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+                  transition: 'all 0.15s ease-in-out',
+                  boxSizing: 'border-box'
+                }}
               />
+
               <button
-                className="so-btn-primary"
+                type="button"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  height: '38px',
+                  padding: '0 16px',
+                  background: themeColor || '#0082f6',
+                  color: '#ffffff',
+                  border: `1.5px solid ${themeColor || '#0082f6'}`,
+                  borderRadius: '8px',
+                  fontSize: '12px',
+                  fontWeight: 800,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.04em',
+                  cursor: 'pointer',
+                  boxShadow: '0 2px 4px rgba(0, 130, 246, 0.25)',
+                  transition: 'all 0.15s ease-in-out',
+                  boxSizing: 'border-box'
+                }}
                 onClick={() => navigate('/homepage')}
               >
-                <Plus size={16} /> Create Invoice
+                <Plus size={16} />
+                <span>CREATE INVOICE</span>
               </button>
             </div>
           </div>
         </div>
 
-
-
-
-
-        <div className="so-layout" style={{ flexDirection: 'column' }}>
+        <div className="so-layout" style={{ flexDirection: 'column', background: '#f8fafc', padding: '1.5rem 2rem' }}>
           {/* Top Filters Bar */}
           <div className="so-filter-bar" style={{
-            background: 'white',
-            padding: '1.25rem 1.5rem',
-            borderBottom: '1px solid var(--so-border)',
+            background: 'transparent',
+            padding: '0 0 0.5rem 0',
+            border: 'none',
             display: 'flex',
             flexWrap: 'wrap',
             gap: '1.25rem',
-            alignItems: 'flex-end'
+            alignItems: 'flex-end',
+            marginBottom: '1.25rem'
           }}>
             <div className="so-filter-group" style={{ minWidth: '150px', flex: 1 }}>
-              <label className="so-filter-label">Search</label>
-              <input className="so-filter-input" placeholder="Search invoices..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+              <label className="so-filter-label" style={{ fontSize: '12px', fontWeight: 800, color: '#334155', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: '6px' }}>SEARCH</label>
+              <div style={{ position: 'relative' }}>
+                <Search size={14} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', zIndex: 2 }} />
+                <input className="so-filter-input so-filter-input-icon" placeholder="Search invoices..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} style={{ width: '100%', height: '38px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none', background: '#fff', paddingLeft: '2.5rem' }} />
+              </div>
             </div>
 
             <div className="so-filter-group" style={{ minWidth: '120px', flex: 1 }}>
-              <label className="so-filter-label">Title</label>
-              <input className="so-filter-input" placeholder="e.g., Cash" value={titleFilter} onChange={e => setTitleFilter(e.target.value)} />
+              <label className="so-filter-label" style={{ fontSize: '12px', fontWeight: 800, color: '#334155', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: '6px' }}>TITLE</label>
+              <input className="so-filter-input" placeholder="e.g., Cash" value={titleFilter} onChange={e => setTitleFilter(e.target.value)} style={{ width: '100%', height: '38px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none', background: '#fff', padding: '0 12px' }} />
             </div>
 
             <div className="so-filter-group" style={{ minWidth: '120px', flex: 1 }}>
-              <label className="so-filter-label">Customer</label>
-              <input className="so-filter-input" placeholder="Customer name..." value={customerFilter} onChange={e => setCustomerFilter(e.target.value)} />
+              <label className="so-filter-label" style={{ fontSize: '12px', fontWeight: 800, color: '#334155', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: '6px' }}>CUSTOMER</label>
+              <input className="so-filter-input" placeholder="Customer name..." value={customerFilter} onChange={e => setCustomerFilter(e.target.value)} style={{ width: '100%', height: '38px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none', background: '#fff', padding: '0 12px' }} />
             </div>
 
             <div className="so-filter-group" style={{ minWidth: '120px', flex: 1 }}>
-              <label className="so-filter-label">Status</label>
-              <select className="so-filter-input" value={statusFilter} onChange={e => setStatusFilter(e.target.value)} style={{ padding: '0.5rem' }}>
-                <option value="all">All Status</option>
-                <option value="Draft">Draft</option>
-                <option value="Submitted">Submitted</option>
-                <option value="Paid">Paid</option>
-                <option value="Unpaid">Unpaid</option>
-                <option value="Overdue">Overdue</option>
+              <label className="so-filter-label" style={{ fontSize: '12px', fontWeight: 800, color: '#334155', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: '6px' }}>STATUS</label>
+              <select className="so-filter-input" value={statusFilter} onChange={e => setStatusFilter(e.target.value)} style={{ width: '100%', height: '38px', padding: '0 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none', background: '#fff', fontWeight: 600, color: '#0f172a' }}>
+                <option value="all">ALL STATUS</option>
+                <option value="Draft">DRAFT</option>
+                <option value="Submitted">SUBMITTED</option>
+                <option value="Paid">PAID</option>
+                <option value="Unpaid">UNPAID</option>
+                <option value="Overdue">OVERDUE</option>
               </select>
             </div>
 
             <div className="so-filter-group" style={{ minWidth: '130px', flex: 1 }}>
-              <label className="so-filter-label">From Date</label>
-              <input className="so-filter-input" type="date" value={dateStart} onChange={e => setDateStart(e.target.value)} onClick={(e) => e.target.showPicker && e.target.showPicker()} />
+              <label className="so-filter-label" style={{ fontSize: '12px', fontWeight: 800, color: '#334155', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: '6px' }}>FROM DATE</label>
+              <input className="so-filter-input" type="date" value={dateStart} onChange={e => setDateStart(e.target.value)} onClick={(e) => e.target.showPicker && e.target.showPicker()} style={{ width: '100%', height: '38px', padding: '0 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none', color: dateStart ? '#0f172a' : '#64748b', fontWeight: 500 }} />
             </div>
 
             <div className="so-filter-group" style={{ minWidth: '130px', flex: 1 }}>
-              <label className="so-filter-label">To Date</label>
-              <input className="so-filter-input" type="date" value={dateEnd} onChange={e => setDateEnd(e.target.value)} onClick={(e) => e.target.showPicker && e.target.showPicker()} />
+              <label className="so-filter-label" style={{ fontSize: '12px', fontWeight: 800, color: '#334155', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: '6px' }}>TO DATE</label>
+              <input className="so-filter-input" type="date" value={dateEnd} onChange={e => setDateEnd(e.target.value)} onClick={(e) => e.target.showPicker && e.target.showPicker()} style={{ width: '100%', height: '38px', padding: '0 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none', color: dateEnd ? '#0f172a' : '#64748b', fontWeight: 500 }} />
             </div>
 
             <div className="so-filter-group" style={{ minWidth: '140px', flex: 1 }}>
-              <label className="so-filter-label">Amount Range</label>
+              <label className="so-filter-label" style={{ fontSize: '12px', fontWeight: 800, color: '#334155', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: '6px' }}>AMOUNT RANGE</label>
               <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <input className="so-filter-input" type="number" placeholder="Min" value={minAmount} onChange={e => setMinAmount(e.target.value)} />
-                <input className="so-filter-input" type="number" placeholder="Max" value={maxAmount} onChange={e => setMaxAmount(e.target.value)} />
+                <input className="so-filter-input" type="number" placeholder="Min" value={minAmount} onChange={e => setMinAmount(e.target.value)} style={{ width: '50%', height: '38px', padding: '0 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none' }} />
+                <input className="so-filter-input" type="number" placeholder="Max" value={maxAmount} onChange={e => setMaxAmount(e.target.value)} style={{ width: '50%', height: '38px', padding: '0 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none' }} />
               </div>
             </div>
 
             {isAdmin && (
               <div className="so-filter-group" style={{ minWidth: '150px', flex: 1 }}>
-                <label className="so-filter-label">Branch</label>
+                <label className="so-filter-label" style={{ fontSize: '12px', fontWeight: 800, color: '#334155', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: '6px' }}>BRANCH</label>
                 <select
                   className="so-filter-input"
                   value={branchFilter}
                   onChange={e => setBranchFilter(e.target.value)}
-                  style={{ padding: '0.5rem' }}
+                  style={{ width: '100%', height: '38px', padding: '0 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none', background: '#fff', fontWeight: 600, color: '#0f172a' }}
                 >
-                  <option value="all">All Branches</option>
+                  <option value="all">ALL BRANCHES</option>
                   {warehouses.map(w => (
                     <option key={w.name} value={w.name}>{w.name}</option>
                   ))}
@@ -2007,41 +2070,73 @@ const SalesInvoiceList = () => {
               </div>
             )}
 
-            <button className="so-clear-btn" style={{ margin: 0, height: '38px', width: 'auto', padding: '0 1rem' }} onClick={() => { setSearchTerm(''); setTitleFilter(''); setCustomerFilter(''); setStatusFilter('all'); setMinAmount(''); setMaxAmount(''); setDateStart(''); setDateEnd(''); setBranchFilter('all'); }}>
-              Clear Filters
+            <button
+              type="button"
+              className="so-clear-btn"
+              style={{
+                height: '38px',
+                padding: '0 18px',
+                borderRadius: '8px',
+                background: '#ffffff',
+                color: (searchTerm || titleFilter || customerFilter || statusFilter !== 'all' || minAmount || maxAmount || dateStart || dateEnd || branchFilter !== 'all') ? '#ef4444' : '#64748b',
+                border: `1px solid ${(searchTerm || titleFilter || customerFilter || statusFilter !== 'all' || minAmount || maxAmount || dateStart || dateEnd || branchFilter !== 'all') ? '#fecaca' : '#cbd5e1'}`,
+                fontSize: '12px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+                transition: 'all 0.15s ease'
+              }}
+              onClick={() => { setSearchTerm(''); setTitleFilter(''); setCustomerFilter(''); setStatusFilter('all'); setMinAmount(''); setMaxAmount(''); setDateStart(''); setDateEnd(''); setBranchFilter('all'); }}
+            >
+              {(searchTerm || titleFilter || customerFilter || statusFilter !== 'all' || minAmount || maxAmount || dateStart || dateEnd || branchFilter !== 'all') ? <X size={14} /> : null}
+              <span>CLEAR</span>
             </button>
           </div>
 
-          <div className="so-content" style={{ padding: '1.5rem' }}>
-            <p className="so-list-meta" style={{ marginBottom: '1rem', fontWeight: 600 }}>{filteredInvoices.length} record(s) found</p>
-            <div className="so-table-card">
+          <div className="so-content" style={{ padding: 0 }}>
+            <p className="so-list-meta" style={{ marginBottom: '1rem', fontWeight: 600, color: '#64748b', fontSize: '13px' }}>{filteredInvoices.length} record(s) found</p>
+            <div className="so-table-card" style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)' }}>
               <div className="so-table-wrapper">
                 <table className="so-table">
                   <thead>
                     <tr>
-                      <th>Title</th>
-                      <th>Status</th>
-                      <th>Branch</th>
-                      <th>Date</th>
-                      <th>Customer</th>
-                      <th style={{ textAlign: 'right' }}>Grand Total</th>
+                      <th style={{ padding: '0.95rem 1.25rem' }}>TITLE</th>
+                      <th style={{ padding: '0.95rem 1.25rem' }}>STATUS</th>
+                      <th style={{ padding: '0.95rem 1.25rem' }}>BRANCH</th>
+                      <th style={{ padding: '0.95rem 1.25rem' }}>DATE</th>
+                      <th style={{ padding: '0.95rem 1.25rem' }}>CUSTOMER</th>
+                      <th style={{ textAlign: 'right', padding: '0.95rem 1.25rem' }}>GRAND TOTAL</th>
                       {customColumns.map(col => (
-                        <th key={col}>{col.replace(/_/g, ' ').toUpperCase()}</th>
+                        <th key={col} style={{ padding: '0.95rem 1.25rem' }}>{col.replace(/_/g, ' ').toUpperCase()}</th>
                       ))}
-                      <th>ID</th>
+                      <th style={{ padding: '0.95rem 1.25rem' }}>ID</th>
                     </tr>
                   </thead>
                   <tbody>
                     {loading ? (
-                      <tr><td colSpan={7 + customColumns.length} className="so-empty"><Loader2 size={28} className="so-spinner" style={{ margin: '0 auto' }} /></td></tr>
+                      <tr><td colSpan={7 + customColumns.length} className="so-empty" style={{ padding: '3rem' }}><Loader2 size={28} className="so-spinner" style={{ margin: '0 auto' }} /></td></tr>
                     ) : paginated.length === 0 ? (
-                      <tr><td colSpan={7 + customColumns.length} className="so-empty">No invoices found</td></tr>
+                      <tr><td colSpan={7 + customColumns.length} className="so-empty" style={{ padding: '3rem' }}>No invoices found</td></tr>
                     ) : (
                       paginated.map(inv => (
-                        <tr key={inv.name} onClick={() => loadInvoiceForEdit(inv.name)} style={{ cursor: 'pointer' }}>
-                          <td style={{ fontWeight: 600 }}>{inv.title || 'Invoice'}</td>
-                          <td>
-                            <span className="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider" style={{
+                        <tr key={inv.name} onClick={() => loadInvoiceForEdit(inv.name)} style={{ cursor: 'pointer', transition: 'all 0.15s ease' }}>
+                          <td style={{ padding: '0.95rem 1.25rem', fontWeight: 600 }}>{inv.title || 'Invoice'}</td>
+                          <td style={{ padding: '0.95rem 1.25rem' }}>
+                            <span style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              height: '24px',
+                              padding: '0 12px',
+                              borderRadius: '9999px',
+                              fontSize: '11px',
+                              fontWeight: 800,
+                              textTransform: 'uppercase',
+                              letterSpacing: '0.04em',
+                              boxSizing: 'border-box',
                               backgroundColor: (inv.status === 'Paid' || inv.status === 'Submitted') ? `${themeColor}20` : (inv.status === 'Draft' ? '#f1f5f9' : (inv.status === 'Unpaid' ? '#fef9c3' : '#fee2e2')),
                               color: (inv.status === 'Paid' || inv.status === 'Submitted') ? themeColor : (inv.status === 'Draft' ? '#64748b' : (inv.status === 'Unpaid' ? '#854d0e' : '#ef4444')),
                               border: `1px solid ${(inv.status === 'Paid' || inv.status === 'Submitted') ? `${themeColor}40` : (inv.status === 'Draft' ? '#e2e8f0' : (inv.status === 'Unpaid' ? '#fde047' : '#fecaca'))}`
@@ -2049,32 +2144,36 @@ const SalesInvoiceList = () => {
                               {inv.status || 'Draft'} {inv.is_return ? '(CN)' : ''}
                             </span>
                           </td>
-                          <td>
+                          <td style={{ padding: '0.95rem 1.25rem' }}>
                             <span style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              height: '24px',
+                              padding: '0 10px',
+                              borderRadius: '6px',
                               fontSize: '0.75rem',
                               fontWeight: 700,
                               color: '#334155',
                               backgroundColor: '#f1f5f9',
-                              padding: '0.2rem 0.5rem',
-                              borderRadius: '0.375rem',
-                              border: '1px solid #e2e8f0'
+                              border: '1px solid #e2e8f0',
+                              boxSizing: 'border-box'
                             }}>
                               {inv.branch || inv.set_warehouse || '—'}
                             </span>
                           </td>
-                          <td style={{ fontSize: '0.8rem', fontWeight: 600, color: '#475569' }}>
+                          <td style={{ padding: '0.95rem 1.25rem', fontSize: '0.825rem', fontWeight: 600, color: '#475569' }}>
                             {inv.posting_date ? new Date(inv.posting_date).toLocaleDateString('en-GB') : '-'}
                           </td>
-                          <td style={{ fontSize: '0.8rem' }}>{inv.customer_name || 'Customer'}</td>
-                          <td style={{ textAlign: 'right', fontWeight: 700 }}>
+                          <td style={{ padding: '0.95rem 1.25rem', fontSize: '0.825rem' }}>{inv.customer_name || 'Customer'}</td>
+                          <td style={{ padding: '0.95rem 1.25rem', textAlign: 'right', fontWeight: 700, fontSize: '0.875rem' }}>
                             {getCurrencySymbol(inv.currency || 'AED')}{inv.is_return ? '-' : ''}{Math.abs(Number(inv.grand_total || 0)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                           </td>
                           {customColumns.map(col => (
-                            <td key={col} style={{ fontSize: '0.8rem', fontWeight: 600 }}>
+                            <td key={col} style={{ padding: '0.95rem 1.25rem', fontSize: '0.825rem', fontWeight: 600 }}>
                               {inv[col] !== undefined && inv[col] !== null ? String(inv[col]) : '-'}
                             </td>
                           ))}
-                          <td style={{ fontFamily: 'monospace', fontSize: '0.7rem', color: 'var(--so-text-muted)' }}>{inv.name}</td>
+                          <td style={{ padding: '0.95rem 1.25rem', fontFamily: 'monospace', fontSize: '0.725rem', color: 'var(--so-text-muted)' }}>{inv.name}</td>
                         </tr>
                       ))
                     )}
@@ -2407,8 +2506,8 @@ const SalesInvoiceList = () => {
                           {activeCols.map(col => {
                             let finalLabel = col.label;
                             if (!hasAnyBox) {
-                              if (col.id === 'custom_box_qty') finalLabel = 'Qty';
-                              if (col.id === 'rate') finalLabel = 'Rate';
+                              if (col.id === 'custom_box_qty') finalLabel = 'QTY';
+                              if (col.id === 'rate') finalLabel = 'RATE';
                             }
                             const colW = col.width ? (typeof col.width === 'number' || !col.width.includes('px') ? `${parseInt(col.width)}px` : col.width) : '100px';
                             const isDraggingThis = draggedColId === col.id;
@@ -3679,25 +3778,25 @@ const SalesInvoiceList = () => {
                               <table className="so-items-table">
                                 <thead>
                                   <tr>
-                                    <th style={{ paddingLeft: '1.5rem' }}>Item Details</th>
+                                    <th style={{ paddingLeft: '1.5rem', textTransform: 'uppercase' }}>ITEM DETAILS</th>
                                     {hasAnyBox ? (
                                       <>
-                                        <th style={{ width: '90px', textAlign: 'center' }}>Box Qty</th>
-                                        <th style={{ width: '90px', textAlign: 'center' }}>UOM</th>
-                                        <th style={{ width: '90px', textAlign: 'center' }}>Pcs/Box</th>
-                                        <th style={{ width: '90px', textAlign: 'right' }}>Box Price</th>
-                                        <th style={{ width: '90px', textAlign: 'right' }}>Rate (Nos)</th>
-                                        <th style={{ width: '90px', textAlign: 'center' }}>Total Qty</th>
+                                        <th style={{ width: '90px', textAlign: 'center', textTransform: 'uppercase' }}>BOX QTY</th>
+                                        <th style={{ width: '90px', textAlign: 'center', textTransform: 'uppercase' }}>UOM</th>
+                                        <th style={{ width: '90px', textAlign: 'center', textTransform: 'uppercase' }}>PCS/BOX</th>
+                                        <th style={{ width: '90px', textAlign: 'right', textTransform: 'uppercase' }}>BOX PRICE</th>
+                                        <th style={{ width: '90px', textAlign: 'right', textTransform: 'uppercase' }}>RATE (NOS)</th>
+                                        <th style={{ width: '90px', textAlign: 'center', textTransform: 'uppercase' }}>TOTAL QTY</th>
                                       </>
                                     ) : (
                                       <>
-                                        <th style={{ width: '100px', textAlign: 'center' }}>Qty</th>
-                                        <th style={{ width: '80px', textAlign: 'center' }}>UOM</th>
-                                        <th style={{ width: '140px', textAlign: 'right' }}>Rate</th>
+                                        <th style={{ width: '100px', textAlign: 'center', textTransform: 'uppercase' }}>QTY</th>
+                                        <th style={{ width: '80px', textAlign: 'center', textTransform: 'uppercase' }}>UOM</th>
+                                        <th style={{ width: '140px', textAlign: 'right', textTransform: 'uppercase' }}>RATE</th>
                                       </>
                                     )}
-                                    <th style={{ width: '100px', textAlign: 'center' }}>Tax</th>
-                                    <th style={{ width: '140px', textAlign: 'right', paddingRight: '1.5rem' }}>Amount</th>
+                                    <th style={{ width: '100px', textAlign: 'center', textTransform: 'uppercase' }}>TAX</th>
+                                    <th style={{ width: '140px', textAlign: 'right', paddingRight: '1.5rem', textTransform: 'uppercase' }}>AMOUNT</th>
                                     <th style={{ width: '50px' }}></th>
                                   </tr>
                                 </thead>
@@ -3990,12 +4089,12 @@ const SalesInvoiceList = () => {
                       {/* Taxes Card */}
                       <div className="so-card" style={{ background: 'white', borderRadius: '0.75rem', border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column' }}>
                         <div className="so-card-header" style={{ padding: '1rem 1.25rem', borderBottom: '1px solid #e2e8f0' }}>
-                          <p className="so-card-title" style={{ margin: 0, fontWeight: 700 }}>Taxes & Charges</p>
+                          <p className="so-card-title" style={{ margin: 0, fontWeight: 700, textTransform: 'uppercase' }}>TAXES & CHARGES</p>
                         </div>
                         <div className="so-card-body" style={{ padding: '1.25rem' }}>
-                          <label className="so-label" style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem' }}>Tax Template</label>
+                          <label className="so-label" style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.875rem', textTransform: 'uppercase' }}>TAX TEMPLATE</label>
                           <select value={form.taxes_and_charges} onChange={e => applyTaxTemplate(e.target.value)} className="so-select" style={{ width: '100%', padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid #cbd5e1' }}>
-                            <option value="">No Tax</option>
+                            <option value="">NO TAX</option>
                             {taxTemplates.map(t => <option key={t.name} value={t.name}>{t.name}</option>)}
                           </select>
                         </div>
@@ -4003,18 +4102,18 @@ const SalesInvoiceList = () => {
 
                       {/* Summary Card */}
                       <div className="so-card" style={{ borderRadius: '0.75rem', background: isGreen ? 'linear-gradient(135deg, #064e3b 0%, #065f46 100%)' : 'linear-gradient(135deg, #0c4a6e 0%, #075985 100%)', color: 'white', padding: '1.5rem', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-                        <p className="so-card-title" style={{ color: 'white', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '0.75rem', marginBottom: '1rem' }}>Final Summary</p>
+                        <p className="so-card-title" style={{ color: 'white', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '0.75rem', marginBottom: '1rem', textTransform: 'uppercase' }}>FINAL SUMMARY</p>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', opacity: 0.9 }}>
-                            <span>Subtotal</span>
+                            <span>SUBTOTAL</span>
                             <span style={{ fontWeight: 700 }}>{getCurrencySymbol()}{form.base_total.toLocaleString()}</span>
                           </div>
                           <div style={{ display: 'flex', justifyContent: 'space-between', opacity: 0.9 }}>
-                            <span>Taxes</span>
+                            <span>TAXES</span>
                             <span style={{ fontWeight: 700 }}>{getCurrencySymbol()}{form.total_taxes_and_charges.toLocaleString()}</span>
                           </div>
                           <div style={{ marginTop: '0.5rem', paddingTop: '1rem', borderTop: '1px solid rgba(255,255,255,0.2)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span style={{ fontSize: '1.1rem' }}>Grand Total</span>
+                            <span style={{ fontSize: '1.1rem' }}>GRAND TOTAL</span>
                             <span style={{ fontSize: '2rem', fontWeight: 900 }}>{getCurrencySymbol()}{form.rounded_total.toLocaleString()}</span>
                           </div>
                         </div>
