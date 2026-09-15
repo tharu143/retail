@@ -13,13 +13,13 @@ export const useLegacyTheme = () => {
     const isGreen = legacySubTheme === 'green';
     
     // Core color tokens derived from the theme
-    const themeColor = isGreen ? '#10b981' : '#0ea5e9';       // --so-primary
-    const themeColorHover = isGreen ? '#059669' : '#0284c7';  // --so-primary-hover
-    const themeLight = isGreen ? '#f0fdf4' : '#f0f9ff';       // --so-primary-light
+    const themeColor = isGreen ? '#10b981' : '#0082f6';       // --so-primary
+    const themeColorHover = isGreen ? '#059669' : '#0070f3';  // --so-primary-hover
+    const themeLight = isGreen ? '#f0fdf4' : '#ebf4fe';       // --so-primary-light
     
     // Additional report/ui tokens
-    const themeHeaderBg = isGreen ? '#f2fdf9' : '#eff6ff';
-    const themeHeaderText = isGreen ? '#0d9488' : '#1d4ed8';
+    const themeHeaderBg = isGreen ? '#f2fdf9' : '#ebf4fe';
+    const themeHeaderText = isGreen ? '#0d9488' : '#0082f6';
 
     useEffect(() => {
         // Persist theme choice

@@ -125,6 +125,15 @@ export default function PosProfileList() {
     setCurrentPage(1);
   }, [searchTerm, companyFilter, statusFilter, profiles, user]);
 
+  const extractArray = (res) => {
+    if (!res) return [];
+    if (Array.isArray(res)) return res;
+    if (Array.isArray(res.data)) return res.data;
+    if (Array.isArray(res.message)) return res.message;
+    if (res.message && Array.isArray(res.message.data)) return res.message.data;
+    return [];
+  };
+
   const fetchDropdowns = async () => {
     try {
       const endpoints = [
@@ -143,11 +152,11 @@ export default function PosProfileList() {
       const [def, comp, wh, usr, mod, cur] = await Promise.all(responses.map(r => r.json()));
 
       setDefaultCompany(def.message?.company || '');
-      setCompaniesList(comp.message || []);
-      setWarehouses(wh.message || []);
-      setUsersList(usr.message || []);
-      setModesList(mod.message || []);
-      setCurrenciesList(cur.message || []);
+      setCompaniesList(extractArray(comp));
+      setWarehouses(extractArray(wh));
+      setUsersList(extractArray(usr));
+      setModesList(extractArray(mod));
+      setCurrenciesList(extractArray(cur));
     } catch (err) {
       console.error(err);
     }
@@ -163,8 +172,8 @@ export default function PosProfileList() {
         fetch(`${API_PATH}.get_company_default_currency?${params}`, { headers: { 'X-Frappe-SID': getSession() }, credentials: 'include' })
       ]).then(async ([accRes, ccRes, curRes]) => {
         const [acc, cc, cur] = await Promise.all([accRes.json(), ccRes.json(), curRes.json()]);
-        setAccountsList(acc.message || []);
-        setCostCentersList(cc.message || []);
+        setAccountsList(extractArray(acc));
+        setCostCentersList(extractArray(cc));
         if (cur.message?.currency && !formData.currency) {
           setFormData(prev => ({ ...prev, currency: cur.message.currency }));
         }
@@ -318,118 +327,126 @@ export default function PosProfileList() {
     <>
       <div className="so-page">
         {/* Header (Matching Customer List) */}
-        <div className="so-page-header">
+        <div className="so-page-header" style={{ padding: '1.25rem 2rem', background: '#ffffff', borderBottom: '1px solid #e2e8f0' }}>
           <div>
-            <h1 className="so-page-title">
-              <CreditCard size={20} /> POS Profiles
+            <h1 className="so-page-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
+              <CreditCard size={22} style={{ color: themeColor }} />
+              <span style={{ fontSize: '1.25rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '-0.01em' }}>POS PROFILES</span>
             </h1>
-            <p className="so-page-subtitle">{total} profile(s) found</p>
+            <p className="so-page-subtitle" style={{ margin: '4px 0 0 0', fontSize: '0.75rem', color: '#64748b' }}>{total} profile(s) found</p>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
             <button
-               onClick={() => setPolTheme(isGreen ? 'blue' : 'green')}
-               style={{
-                 display: 'flex', alignItems: 'center', gap: '0.4rem',
-                 padding: '0.45rem 0.9rem', background: '#f8fafc',
-                 border: `1.5px solid ${themeColor}`, borderRadius: '0.375rem',
-                 fontSize: '0.75rem', fontWeight: 700, color: themeColor,
-                 cursor: 'pointer', transition: 'all 0.2s',
-                 textTransform: 'uppercase', letterSpacing: '0.04em'
-               }}
+              onClick={() => setPolTheme(isGreen ? 'blue' : 'green')}
+              style={{
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem',
+                height: '38px', padding: '0 1rem', background: '#ffffff',
+                border: `1.5px solid ${themeColor}`, borderRadius: '8px',
+                fontSize: '12px', fontWeight: 800, color: themeColor,
+                cursor: 'pointer', transition: 'all 0.15s ease-in-out',
+                textTransform: 'uppercase', letterSpacing: '0.04em', boxSizing: 'border-box'
+              }}
             >
-              <Palette size={13} /> {polTheme.toUpperCase()}
+              <Palette size={14} /> {polTheme.toUpperCase()}
             </button>
-            <button className="so-btn-primary" onClick={openCreateModal}>
-              <Plus size={16} /> Create Profile
+            <button
+              className="so-btn-primary"
+              onClick={openCreateModal}
+              style={{
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem',
+                height: '38px', padding: '0 1rem', background: themeColor,
+                color: '#ffffff', border: 'none', borderRadius: '8px',
+                fontSize: '12px', fontWeight: 800, textTransform: 'uppercase',
+                letterSpacing: '0.04em', cursor: 'pointer', transition: 'all 0.15s ease-in-out',
+                boxSizing: 'border-box'
+              }}
+            >
+              <Plus size={16} /> CREATE PROFILE
             </button>
           </div>
         </div>
 
         {/* Layout: Full Width Column (No Sidebar) */}
-        <div className="so-layout" style={{ flexDirection: 'column' }}>
-          
-          {/* Top Filter Bar (Full Width) */}
-          <div className="so-filter-bar" style={{ 
-            background: 'white', 
-            padding: '1.25rem 2rem', 
-            borderBottom: '1px solid var(--so-border)',
-            display: 'flex',
-            flexWrap: 'wrap',
-            gap: '1.5rem',
-            alignItems: 'flex-end'
-          }}>
+        <div className="so-layout" style={{ flexDirection: 'column', background: '#f8fafc', padding: '1.5rem 2rem' }}>
+
+          {/* Top Filter Bar (Transparent, Aligned with Content Card) */}
+          <div className="so-filter-bar" style={{ padding: '0 0 1.25rem 0', background: 'transparent', border: 'none', boxShadow: 'none', display: 'flex', flexWrap: 'wrap', gap: '1.25rem', alignItems: 'flex-end', marginBottom: '0.5rem' }}>
             <div style={{ flex: '1 1 250px' }}>
-              <label className="so-filter-label">Search Profile</label>
-              <input 
-                type="text" 
-                placeholder="Name or company..." 
-                value={searchTerm} 
-                onChange={e => setSearchTerm(e.target.value)} 
-                className="so-filter-input" 
-              />
+              <label className="so-filter-label" style={{ fontSize: '11px', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: '6px' }}>SEARCH PROFILE</label>
+              <div style={{ position: 'relative' }}>
+                <Search size={14} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', zIndex: 2 }} />
+                <input
+                  type="text"
+                  placeholder="Name or company..."
+                  value={searchTerm}
+                  onChange={e => setSearchTerm(e.target.value)}
+                  className="so-filter-input"
+                  style={{ width: '100%', height: '38px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none', background: '#fff', paddingLeft: '2.25rem' }}
+                />
+              </div>
             </div>
 
             <div style={{ flex: '0 0 200px' }}>
-              <label className="so-filter-label">Company</label>
-              <select value={companyFilter} onChange={e => setCompanyFilter(e.target.value)} className="so-filter-input">
-                <option value="">All Companies</option>
-                {companiesList.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
+              <label className="so-filter-label" style={{ fontSize: '11px', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: '6px' }}>COMPANY</label>
+              <select value={companyFilter} onChange={e => setCompanyFilter(e.target.value)} className="so-filter-input" style={{ width: '100%', height: '38px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none', background: '#fff', padding: '0 0.75rem' }}>
+                <option value="">ALL COMPANIES</option>
+                {(Array.isArray(companiesList) ? companiesList : []).map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
               </select>
             </div>
 
             <div style={{ flex: '0 0 150px' }}>
-              <label className="so-filter-label">Status</label>
-              <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="so-filter-input">
-                <option value="all">All Status</option>
-                <option value="enabled">Enabled</option>
-                <option value="disabled">Disabled</option>
+              <label className="so-filter-label" style={{ fontSize: '11px', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: '6px' }}>STATUS</label>
+              <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="so-filter-input" style={{ width: '100%', height: '38px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none', background: '#fff', padding: '0 0.75rem' }}>
+                <option value="all">ALL STATUS</option>
+                <option value="enabled">ENABLED</option>
+                <option value="disabled">DISABLED</option>
               </select>
             </div>
 
-            <button 
-              onClick={() => { setSearchTerm(''); setCompanyFilter(''); setStatusFilter('all'); }} 
+            <button
+              onClick={() => { setSearchTerm(''); setCompanyFilter(''); setStatusFilter('all'); }}
               className="so-clear-btn"
-              style={{ margin: 0, height: '38px', width: 'auto', padding: '0 1.5rem' }}
+              style={{ margin: 0, height: '38px', width: 'auto', padding: '0 1.5rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', fontWeight: 600, color: '#64748b', background: '#ffffff', cursor: 'pointer', textTransform: 'uppercase' }}
             >
-              Reset
+              RESET
             </button>
           </div>
 
           {/* Main List Area */}
-          <div className="so-content" style={{ padding: '1.5rem 2rem' }}>
-            <p className="so-list-meta" style={{ marginBottom: '1rem', fontWeight: 600 }}>{filteredProfiles.length} record(s) found</p>
-            
-            <div className="so-table-card">
+          <div className="so-content" style={{ padding: 0, flex: 1, background: 'transparent' }}>
+            <p className="so-list-meta" style={{ marginBottom: '0.75rem', fontWeight: 600, color: '#64748b', fontSize: '13px' }}>{filteredProfiles.length} record(s) found</p>
+
+            <div className="so-table-card" style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)' }}>
               <div className="so-table-wrapper">
                 <table className="so-table">
                   <thead>
                     <tr>
-                      <th className="w-12 px-6 py-3"><input type="checkbox" /></th>
-                      <th>Profile Name</th>
-                      <th>Company</th>
-                      <th>Branch</th>
-                      <th>Users</th>
-                      <th className="text-center">Status</th>
+                      <th className="w-12"><input type="checkbox" className="w-4 h-4 rounded border-slate-300 accent-blue-600 cursor-pointer" style={{ verticalAlign: 'middle' }} /></th>
+                      <th>PROFILE NAME</th>
+                      <th>COMPANY</th>
+                      <th>BRANCH</th>
+                      <th>USERS</th>
+                      <th className="text-center">STATUS</th>
                     </tr>
                   </thead>
                   <tbody>
                     {loading ? (
                       <tr><td colSpan="6" className="so-empty">
-                         <Loader2 size={24} className="so-spinner" style={{ margin: '0 auto' }} />
+                        <Loader2 size={24} className="so-spinner" style={{ margin: '0 auto' }} />
                       </td></tr>
                     ) : paginated.length === 0 ? (
                       <tr><td colSpan="6" className="so-empty">No POS profiles found</td></tr>
                     ) : (
                       paginated.map(p => (
                         <tr key={p.name} className="cursor-pointer hover:bg-slate-50" onClick={() => openEditModal(p)}>
-                          <td className="px-6 py-4" onClick={e => e.stopPropagation()}><input type="checkbox" /></td>
+                          <td className="w-12" onClick={e => e.stopPropagation()}><input type="checkbox" className="w-4 h-4 rounded border-slate-300 accent-blue-600 cursor-pointer" style={{ verticalAlign: 'middle' }} /></td>
                           <td className="font-semibold" style={{ color: themeColor }}>{p.name}</td>
                           <td>{p.company}</td>
                           <td>{p.warehouse}</td>
                           <td>
                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem' }}>
                               {p.users?.slice(0, 3).map(u => (
-                                <span key={u.user} style={{ 
+                                <span key={u.user} style={{
                                   fontSize: '0.65rem', padding: '0.15rem 0.5rem', borderRadius: '1rem',
                                   background: u.default ? 'var(--so-primary-light)' : '#f1f5f9',
                                   color: u.default ? 'var(--so-primary)' : '#64748b',
@@ -442,7 +459,7 @@ export default function PosProfileList() {
                             </div>
                           </td>
                           <td className="text-center">
-                            <span style={{ 
+                            <span style={{
                               fontSize: '0.65rem', padding: '0.2rem 0.75rem', borderRadius: '1rem', fontWeight: 800, textTransform: 'uppercase',
                               background: p.disabled ? '#fee2e2' : 'var(--so-primary-light)',
                               color: p.disabled ? '#ef4444' : 'var(--so-primary)'
@@ -463,7 +480,7 @@ export default function PosProfileList() {
                   <span style={{ color: 'var(--so-text-muted)', fontSize: '0.75rem' }}>
                     Showing {(currentPage - 1) * pageSize + 1}–{Math.min(currentPage * pageSize, filteredProfiles.length)} of {filteredProfiles.length}
                   </span>
-                  
+
                   <div className="so-pagination-btns" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                     <button className="so-page-btn" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}><ChevronLeft size={14} /></button>
                     <span style={{ fontWeight: 700, color: 'var(--so-primary)', padding: '0 0.5rem', fontSize: '0.75rem' }}>{currentPage} / {totalPages}</span>
@@ -477,18 +494,18 @@ export default function PosProfileList() {
 
         {/* Modal (Matching Customer List Modal Style) */}
         {isModalOpen && (
-          <div className="so-modal-overlay" onClick={e => e.target === e.currentTarget && setIsModalOpen(false)}>
-            <div className="so-modal" style={{ maxWidth: '800px' }}>
+          <div className="so-modal-overlay" style={{ zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={e => e.target === e.currentTarget && setIsModalOpen(false)}>
+            <div className="so-modal" style={{ maxWidth: '800px', margin: 'auto' }}>
               <div className="so-modal-header">
                 <h2 className="so-modal-title">
                   <CreditCard size={16} style={{ display: 'inline', marginRight: '0.4rem' }} />
                   {editingProfile ? `Edit: ${editingProfile.name}` : 'New POS Profile'}
                 </h2>
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
-                   <button className="so-btn-primary" onClick={handleSave} disabled={saving}>
-                      {saving ? 'Saving...' : 'Save Profile'}
-                   </button>
-                   <button className="so-modal-close" onClick={() => setIsModalOpen(false)}>
+                  <button className="so-btn-primary" onClick={handleSave} disabled={saving}>
+                    {saving ? 'Saving...' : 'Save Profile'}
+                  </button>
+                  <button className="so-modal-close" onClick={() => setIsModalOpen(false)}>
                     <X size={20} />
                   </button>
                 </div>
@@ -496,152 +513,152 @@ export default function PosProfileList() {
 
               <div className="so-modal-body" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
-                   <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                      <h3 style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', color: '#94a3b8' }}>Basic Identity</h3>
-                      
-                      <div>
-                        <label className="so-filter-label">Profile Name *</label>
-                        <input 
-                          type="text" 
-                          value={formData.name} 
-                          onChange={e => updateField('name', e.target.value)} 
-                          disabled={!!editingProfile}
-                          placeholder="Main Counter"
-                          className="so-filter-input"
-                          style={editingProfile ? { background: '#f8fafc' } : {}}
-                        />
-                      </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    <h3 style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', color: '#94a3b8' }}>Basic Identity</h3>
 
-                      <div>
-                        <label className="so-filter-label">Company *</label>
-                        <select value={formData.company} onChange={e => updateField('company', e.target.value)} className="so-filter-input">
-                          <option value="">Select...</option>
-                          {companiesList.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
-                        </select>
-                      </div>
+                    <div>
+                      <label className="so-filter-label" style={{ textTransform: 'uppercase' }}>PROFILE NAME *</label>
+                      <input
+                        type="text"
+                        value={formData.name}
+                        onChange={e => updateField('name', e.target.value)}
+                        disabled={!!editingProfile}
+                        placeholder="Main Counter"
+                        className="so-filter-input"
+                        style={editingProfile ? { background: '#f8fafc' } : {}}
+                      />
+                    </div>
 
-                      <div>
-                        <label className="so-filter-label">Default Branch *</label>
-                        <select value={formData.warehouse} onChange={e => updateField('warehouse', e.target.value)} className="so-filter-input">
-                          <option value="">Select...</option>
-                          {warehouses.map(w => <option key={w.name} value={w.name}>{w.warehouse_name || w.name}</option>)}
-                        </select>
-                      </div>
+                    <div>
+                      <label className="so-filter-label" style={{ textTransform: 'uppercase' }}>COMPANY *</label>
+                      <select value={formData.company} onChange={e => updateField('company', e.target.value)} className="so-filter-input">
+                        <option value="">SELECT...</option>
+                        {(Array.isArray(companiesList) ? companiesList : []).map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
+                      </select>
+                    </div>
 
-                      <div>
-                        <label className="so-filter-label">Currency *</label>
-                        <select value={formData.currency} onChange={e => updateField('currency', e.target.value)} className="so-filter-input">
-                          <option value="">Select...</option>
-                          {currenciesList.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
-                        </select>
-                      </div>
-                   </div>
+                    <div>
+                      <label className="so-filter-label" style={{ textTransform: 'uppercase' }}>DEFAULT BRANCH *</label>
+                      <select value={formData.warehouse} onChange={e => updateField('warehouse', e.target.value)} className="so-filter-input">
+                        <option value="">SELECT...</option>
+                        {(Array.isArray(warehouses) ? warehouses : []).map(w => <option key={w.name || w} value={w.name || w}>{w.warehouse_name || w.name || w}</option>)}
+                      </select>
+                    </div>
 
-                   <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                      <h3 style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', color: '#94a3b8' }}>Account & Limits</h3>
-                      
-                      <div>
-                        <label className="so-filter-label">Write Off Account *</label>
-                        <select value={formData.write_off_account} onChange={e => updateField('write_off_account', e.target.value)} className="so-filter-input">
-                          <option value="">Select...</option>
-                          {accountsList.map(a => <option key={a.name} value={a.name}>{a.account_name}</option>)}
-                        </select>
-                      </div>
+                    <div>
+                      <label className="so-filter-label" style={{ textTransform: 'uppercase' }}>CURRENCY *</label>
+                      <select value={formData.currency} onChange={e => updateField('currency', e.target.value)} className="so-filter-input">
+                        <option value="">SELECT...</option>
+                        {(Array.isArray(currenciesList) ? currenciesList : []).map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
+                      </select>
+                    </div>
+                  </div>
 
-                      <div>
-                        <label className="so-filter-label">Cost Center *</label>
-                        <select value={formData.write_off_cost_center} onChange={e => updateField('write_off_cost_center', e.target.value)} className="so-filter-input">
-                          <option value="">Select...</option>
-                          {costCentersList.map(cc => <option key={cc.name} value={cc.name}>{cc.cost_center_name || cc.name}</option>)}
-                        </select>
-                      </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    <h3 style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', color: '#94a3b8' }}>ACCOUNT & LIMITS</h3>
 
-                      <div>
-                        <label className="so-filter-label">Write Off Limit</label>
-                        <input 
-                          type="number" 
-                          value={formData.write_off_limit} 
-                          onChange={e => updateField('write_off_limit', parseFloat(e.target.value) || 0)} 
-                          className="so-filter-input" 
-                        />
-                      </div>
-                   </div>
+                    <div>
+                      <label className="so-filter-label" style={{ textTransform: 'uppercase' }}>WRITE OFF ACCOUNT *</label>
+                      <select value={formData.write_off_account} onChange={e => updateField('write_off_account', e.target.value)} className="so-filter-input">
+                        <option value="">SELECT...</option>
+                        {(Array.isArray(accountsList) ? accountsList : []).map(a => <option key={a.name} value={a.name}>{a.account_name}</option>)}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="so-filter-label" style={{ textTransform: 'uppercase' }}>COST CENTER *</label>
+                      <select value={formData.write_off_cost_center} onChange={e => updateField('write_off_cost_center', e.target.value)} className="so-filter-input">
+                        <option value="">SELECT...</option>
+                        {(Array.isArray(costCentersList) ? costCentersList : []).map(cc => <option key={cc.name} value={cc.name}>{cc.cost_center_name || cc.name}</option>)}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="so-filter-label" style={{ textTransform: 'uppercase' }}>WRITE OFF LIMIT</label>
+                      <input
+                        type="number"
+                        value={formData.write_off_limit}
+                        onChange={e => updateField('write_off_limit', parseFloat(e.target.value) || 0)}
+                        className="so-filter-input"
+                      />
+                    </div>
+                  </div>
                 </div>
 
                 <div style={{ marginTop: '2rem' }}>
-                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                      <h3 style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', color: '#94a3b8' }}>Assigned Operators</h3>
-                      <button className="so-clear-btn" style={{ margin: 0, padding: '0.2rem 1rem' }} onClick={() => addRow('users')}>+ User</button>
-                   </div>
-                   <div className="so-table-wrapper" style={{ maxHeight: '150px', border: '1px solid #f1f5f9', borderRadius: '0.5rem' }}>
-                      <table className="so-table text-xs">
-                         <thead className="bg-[#f8fafc]">
-                            <tr>
-                               <th style={{ width: '80px' }}>Default</th>
-                               <th>User Email</th>
-                               <th style={{ width: '50px' }}></th>
-                            </tr>
-                         </thead>
-                         <tbody>
-                            {formData.users.map((u, i) => (
-                              <tr key={i}>
-                                 <td className="text-center">
-                                    <input type="checkbox" checked={u.default} onChange={e => updateTable('users', i, 'default', e.target.checked)} />
-                                 </td>
-                                 <td>
-                                    <select value={u.user} onChange={e => updateTable('users', i, 'user', e.target.value)} className="so-filter-input" style={{ padding: '0.25rem' }}>
-                                       <option value="">Select User...</option>
-                                       {usersList.map(usr => <option key={usr.name} value={usr.name}>{usr.email || usr.name}</option>)}
-                                    </select>
-                                 </td>
-                                 <td className="text-center">
-                                    <button onClick={() => removeRow('users', i)} style={{ color: '#ef4444' }}><Trash2 size={12} /></button>
-                                 </td>
-                              </tr>
-                            ))}
-                         </tbody>
-                      </table>
-                   </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                    <h3 style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', color: '#94a3b8' }}>ASSIGNED OPERATORS</h3>
+                    <button className="so-clear-btn" style={{ margin: 0, padding: '0.2rem 1rem', textTransform: 'uppercase' }} onClick={() => addRow('users')}>+ USER</button>
+                  </div>
+                  <div className="so-table-wrapper" style={{ maxHeight: '150px', border: '1px solid #f1f5f9', borderRadius: '0.5rem' }}>
+                    <table className="so-table text-xs">
+                      <thead className="bg-[#f8fafc]">
+                        <tr>
+                          <th style={{ width: '80px', textTransform: 'uppercase' }}>DEFAULT</th>
+                          <th style={{ textTransform: 'uppercase' }}>USER EMAIL</th>
+                          <th style={{ width: '50px' }}></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {formData.users.map((u, i) => (
+                          <tr key={i}>
+                            <td className="text-center">
+                              <input type="checkbox" checked={u.default} onChange={e => updateTable('users', i, 'default', e.target.checked)} />
+                            </td>
+                            <td>
+                              <select value={u.user} onChange={e => updateTable('users', i, 'user', e.target.value)} className="so-filter-input" style={{ padding: '0.25rem' }}>
+                                <option value="">Select User...</option>
+                                {(Array.isArray(usersList) ? usersList : []).map(usr => <option key={usr.name} value={usr.name}>{usr.email || usr.name}</option>)}
+                              </select>
+                            </td>
+                            <td className="text-center">
+                              <button onClick={() => removeRow('users', i)} style={{ color: '#ef4444' }}><Trash2 size={12} /></button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
 
                 <div style={{ marginTop: '2rem' }}>
-                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                      <h3 style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', color: '#94a3b8' }}>Payment Gateways</h3>
-                      <button className="so-clear-btn" style={{ margin: 0, padding: '0.2rem 1rem' }} onClick={() => addRow('payment_methods')}>+ Method</button>
-                   </div>
-                   <div className="so-table-wrapper" style={{ maxHeight: '200px', border: '1px solid #f1f5f9', borderRadius: '0.5rem' }}>
-                      <table className="so-table text-xs">
-                         <thead className="bg-[#f8fafc]">
-                            <tr>
-                               <th style={{ width: '80px' }}>Default</th>
-                               <th style={{ width: '80px' }}>Return</th>
-                               <th>Mode of Payment</th>
-                               <th style={{ width: '50px' }}></th>
-                            </tr>
-                         </thead>
-                         <tbody>
-                            {formData.payment_methods.map((p, i) => (
-                              <tr key={i}>
-                                 <td className="text-center">
-                                    <input type="checkbox" checked={p.default} onChange={e => updateTable('payment_methods', i, 'default', e.target.checked)} />
-                                 </td>
-                                 <td className="text-center">
-                                    <input type="checkbox" checked={p.allow_in_returns} onChange={e => updateTable('payment_methods', i, 'allow_in_returns', e.target.checked)} />
-                                 </td>
-                                 <td>
-                                    <select value={p.mode_of_payment} onChange={e => updateTable('payment_methods', i, 'mode_of_payment', e.target.value)} className="so-filter-input" style={{ padding: '0.25rem' }}>
-                                       <option value="">Select Gateway...</option>
-                                       {modesList.map(m => <option key={m.name} value={m.name}>{m.name}</option>)}
-                                    </select>
-                                 </td>
-                                 <td className="text-center">
-                                    <button onClick={() => removeRow('payment_methods', i)} style={{ color: '#ef4444' }}><Trash2 size={12} /></button>
-                                 </td>
-                              </tr>
-                            ))}
-                         </tbody>
-                      </table>
-                   </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                    <h3 style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', color: '#94a3b8' }}>PAYMENT GATEWAYS</h3>
+                    <button className="so-clear-btn" style={{ margin: 0, padding: '0.2rem 1rem', textTransform: 'uppercase' }} onClick={() => addRow('payment_methods')}>+ METHOD</button>
+                  </div>
+                  <div className="so-table-wrapper" style={{ maxHeight: '200px', border: '1px solid #f1f5f9', borderRadius: '0.5rem' }}>
+                    <table className="so-table text-xs">
+                      <thead className="bg-[#f8fafc]">
+                        <tr>
+                          <th style={{ width: '80px', textTransform: 'uppercase' }}>DEFAULT</th>
+                          <th style={{ width: '80px', textTransform: 'uppercase' }}>RETURN</th>
+                          <th style={{ textTransform: 'uppercase' }}>MODE OF PAYMENT</th>
+                          <th style={{ width: '50px' }}></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {formData.payment_methods.map((p, i) => (
+                          <tr key={i}>
+                            <td className="text-center">
+                              <input type="checkbox" checked={p.default} onChange={e => updateTable('payment_methods', i, 'default', e.target.checked)} />
+                            </td>
+                            <td className="text-center">
+                              <input type="checkbox" checked={p.allow_in_returns} onChange={e => updateTable('payment_methods', i, 'allow_in_returns', e.target.checked)} />
+                            </td>
+                            <td>
+                              <select value={p.mode_of_payment} onChange={e => updateTable('payment_methods', i, 'mode_of_payment', e.target.value)} className="so-filter-input" style={{ padding: '0.25rem' }}>
+                                <option value="">Select Gateway...</option>
+                                {(Array.isArray(modesList) ? modesList : []).map(m => <option key={m.name} value={m.name}>{m.name}</option>)}
+                              </select>
+                            </td>
+                            <td className="text-center">
+                              <button onClick={() => removeRow('payment_methods', i)} style={{ color: '#ef4444' }}><Trash2 size={12} /></button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               </div>
             </div>

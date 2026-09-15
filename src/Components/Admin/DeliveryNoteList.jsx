@@ -209,9 +209,9 @@ const DeliveryNoteList = () => {
     // Theme toggle
     const [dnTheme, setDnTheme] = useState(localStorage.getItem('legacySubTheme') || 'green');
     const isGreen = dnTheme === 'green';
-    const themeColor = isGreen ? '#10b981' : '#0ea5e9';
-    const themeColorHover = isGreen ? '#059669' : '#0284c7';
-    const themeLight = isGreen ? '#f0fdf4' : '#f0f9ff';
+    const themeColor = isGreen ? '#10b981' : '#0082f6';
+    const themeColorHover = isGreen ? '#059669' : '#0070d8';
+    const themeLight = isGreen ? '#f0fdf4' : '#ebf4fe';
 
     useEffect(() => {
         localStorage.setItem('legacySubTheme', dnTheme);
@@ -803,62 +803,157 @@ const DeliveryNoteList = () => {
                     </div>
                     <div className="so-page-header">
                         <div>
-                            <h1 className="so-page-title">Delivery Note Management</h1>
-                            <p className="so-page-subtitle">Manage and track all delivery notes</p>
+                            <h1 className="so-page-title" style={{ display: 'flex', alignItems: 'center', gap: '10px', margin: 0 }}>
+                                <Package size={22} style={{ color: themeColor || '#0082f6' }} strokeWidth={2.5} />
+                                <span style={{ fontFamily: "'Outfit', 'Gilroy', sans-serif", fontSize: '22px', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.01em', textTransform: 'uppercase' }}>
+                                    DELIVERY NOTE MANAGEMENT
+                                </span>
+                            </h1>
+                            <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#64748b', fontWeight: 500 }}>
+                                Manage and track all delivery notes
+                            </p>
                         </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                             <button
+                                type="button"
                                 onClick={() => setDnTheme(isGreen ? 'blue' : 'green')}
                                 style={{
-                                    display: 'flex', alignItems: 'center', gap: '0.4rem',
-                                    padding: '0.45rem 0.9rem', background: '#f8fafc',
-                                    border: `1.5px solid ${themeColor}`, borderRadius: '0.375rem',
-                                    fontSize: '0.75rem', fontWeight: 700, color: themeColor,
-                                    cursor: 'pointer', transition: 'all 0.2s', textTransform: 'uppercase'
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: '8px',
+                                    height: '38px',
+                                    padding: '0 16px',
+                                    background: '#ffffff',
+                                    color: themeColor || '#0082f6',
+                                    border: `1.5px solid ${themeColor || '#0082f6'}`,
+                                    borderRadius: '8px',
+                                    fontSize: '12px',
+                                    fontWeight: 800,
+                                    textTransform: 'uppercase',
+                                    letterSpacing: '0.04em',
+                                    cursor: 'pointer',
+                                    boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+                                    transition: 'all 0.15s ease-in-out',
+                                    boxSizing: 'border-box'
                                 }}
+                                title="Toggle Theme"
                             >
-                                <Palette size={13} /> {dnTheme.toUpperCase()}
+                                <Palette size={14} />
+                                <span>{dnTheme.toUpperCase()}</span>
                             </button>
                             <ListCustomizer
                                 doctype="Delivery Note"
                                 onSave={cols => setCustomColumns(cols)}
-                                themeColor={themeColor}
+                                themeColor={themeColor || '#0082f6'}
+                                btnStyle={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: '8px',
+                                    height: '38px',
+                                    padding: '0 16px',
+                                    background: '#ffffff',
+                                    color: themeColor || '#0082f6',
+                                    border: `1.5px solid ${themeColor || '#0082f6'}`,
+                                    borderRadius: '8px',
+                                    fontSize: '12px',
+                                    fontWeight: 800,
+                                    textTransform: 'uppercase',
+                                    letterSpacing: '0.04em',
+                                    cursor: 'pointer',
+                                    boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+                                    transition: 'all 0.15s ease-in-out',
+                                    boxSizing: 'border-box'
+                                }}
                             />
-                            <button className="so-btn-primary" onClick={() => navigate('/deliverynote/create')}>
-                                <Plus size={16} /> New Delivery Note
+                            <button
+                                type="button"
+                                style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: '8px',
+                                    height: '38px',
+                                    padding: '0 16px',
+                                    background: themeColor || '#0082f6',
+                                    color: '#ffffff',
+                                    border: `1.5px solid ${themeColor || '#0082f6'}`,
+                                    borderRadius: '8px',
+                                    fontSize: '12px',
+                                    fontWeight: 800,
+                                    textTransform: 'uppercase',
+                                    letterSpacing: '0.04em',
+                                    cursor: 'pointer',
+                                    boxShadow: '0 2px 4px rgba(0, 130, 246, 0.25)',
+                                    transition: 'all 0.15s ease-in-out',
+                                    boxSizing: 'border-box'
+                                }}
+                                onClick={() => navigate('/deliverynote/create')}
+                            >
+                                <Plus size={16} />
+                                <span>NEW DELIVERY NOTE</span>
                             </button>
                         </div>
                     </div>
                 </div>
 
-                <div className="so-layout" style={{ flexDirection: 'column' }}>
-                    <div style={{ background: 'white', padding: '1.25rem 1.5rem', borderBottom: '1px solid var(--so-border)', display: 'flex', flexWrap: 'wrap', gap: '1.25rem', alignItems: 'flex-end' }}>
+                <div className="so-layout" style={{ flexDirection: 'column', background: '#f8fafc', padding: '1.5rem 2rem' }}>
+                    <div className="so-filter-bar" style={{ background: '#f8fafc', padding: '0 0 1.25rem 0', borderBottom: 'none', display: 'flex', flexWrap: 'wrap', gap: '1.25rem', alignItems: 'flex-end', marginBottom: '0.5rem' }}>
                         <div className="so-filter-group" style={{ minWidth: '200px', flex: 1 }}>
-                            <label className="so-filter-label">Search</label>
-                            <input className="so-filter-input" placeholder="Search..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+                            <label className="so-filter-label" style={{ fontSize: '12px', fontWeight: 800, color: '#334155', textTransform: 'uppercase', letterSpacing: '0.01em', display: 'block', marginBottom: '6px' }}>SEARCH</label>
+                            <div style={{ position: 'relative' }}>
+                                <Search size={14} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', zIndex: 2 }} />
+                                <input className="so-filter-input so-filter-input-icon" placeholder="Search..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} style={{ width: '100%', height: '38px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none', background: '#fff', paddingLeft: '2.5rem' }} />
+                            </div>
                         </div>
                         <div className="so-filter-group" style={{ minWidth: '150px', flex: 1 }}>
-                            <label className="so-filter-label">Status</label>
-                            <select className="so-filter-input" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
-                                <option value="all">All Status</option>
-                                <option value="Draft">Draft</option>
-                                <option value="Submitted">Submitted</option>
-                                <option value="Cancelled">Cancelled</option>
+                            <label className="so-filter-label" style={{ fontSize: '12px', fontWeight: 800, color: '#334155', textTransform: 'uppercase', letterSpacing: '0.01em', display: 'block', marginBottom: '6px' }}>STATUS</label>
+                            <select className="so-filter-input" value={statusFilter} onChange={e => setStatusFilter(e.target.value)} style={{ width: '100%', height: '38px', padding: '0 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none', background: '#fff', fontWeight: 600, color: '#0f172a' }}>
+                                <option value="all">ALL STATUS</option>
+                                <option value="Draft">DRAFT</option>
+                                <option value="Submitted">SUBMITTED</option>
+                                <option value="Cancelled">CANCELLED</option>
                             </select>
                         </div>
-                        <button className="so-clear-btn" onClick={() => { setSearchTerm(''); setStatusFilter('all'); }}>Clear</button>
+                        <button
+                            type="button"
+                            className="so-clear-btn"
+                            style={{
+                                height: '38px',
+                                padding: '0 18px',
+                                borderRadius: '8px',
+                                background: '#ffffff',
+                                color: (searchTerm || statusFilter !== 'all') ? '#ef4444' : '#64748b',
+                                border: `1px solid ${(searchTerm || statusFilter !== 'all') ? '#fecaca' : '#cbd5e1'}`,
+                                fontSize: '13px',
+                                fontWeight: 600,
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+                                transition: 'all 0.15s ease',
+                                textTransform: 'uppercase'
+                            }}
+                            onClick={() => { setSearchTerm(''); setStatusFilter('all'); }}
+                        >
+                            {(searchTerm || statusFilter !== 'all') ? <X size={14} /> : null}
+                            <span>CLEAR</span>
+                        </button>
                     </div>
 
-                    <div className="so-content" style={{ padding: '1.5rem' }}>
-                        <div className="so-table-card">
+                    <div className="so-content" style={{ padding: 0 }}>
+                        <p className="so-list-meta" style={{ marginBottom: '0.75rem', fontWeight: 600, color: '#64748b', fontSize: '13px' }}>{filteredNotes.length} record(s) found</p>
+                        <div className="so-table-card" style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)' }}>
                             <div className="so-table-wrapper">
                                 <table className="so-table">
                                     <thead>
                                         <tr>
-                                            <th>Title</th>
-                                            <th>Status</th>
-                                            <th>Customer</th>
-                                            <th style={{ textAlign: 'right' }}>Grand Total</th>
+                                            <th>TITLE</th>
+                                            <th>STATUS</th>
+                                            <th>CUSTOMER</th>
+                                            <th style={{ textAlign: 'right' }}>GRAND TOTAL</th>
                                             {customColumns.map(col => (
                                                 <th key={col}>{col.replace(/_/g, ' ').toUpperCase()}</th>
                                             ))}

@@ -14,6 +14,7 @@ import { useLegacyTheme } from '../../hooks/useLegacyTheme';
 import Swal from 'sweetalert2';
 import DirhamIcon from '../../assets/Currency/DirhamIcon';
 import './SalesOrder.css';
+import './ItemList.css';
 import ListCustomizer from './ListCustomizer';
 import CreateVariantModal from './CreateVariantModal';
 import CreateMultipleVariantsModal from './CreateMultipleVariantsModal';
@@ -31,7 +32,7 @@ const T = {
   text: '#302D3D',
   textSub: '#969DB6',
   textMuted: '#969DB6',
-  blue: '#604BE8',
+  blue: '#0082f6',
   blueLight: '#f0f2fe',
   blueMid: '#C3CDE4',
   green: '#06D6A0',
@@ -40,8 +41,8 @@ const T = {
   amberLight: '#fffbeb',
   red: '#FF595E',
   redLight: '#fef2f2',
-  purple: '#604BE8',
-  purpleLight: '#f0f2fe',
+  purple: '#0082f6',
+  purpleLight: '#ebf4fe',
   shadow: '0 4px 20px rgba(195, 205, 228, 0.15)',
   shadowMd: '0 10px 30px rgba(96, 75, 232, 0.15)',
   radius: '12px',
@@ -73,10 +74,12 @@ const GlobalStyle = () => (
     .il-btn-danger { background: ${T.redLight}; color: ${T.red}; border: 1.5px solid #FECACA; }
     .il-btn-danger:hover { background: #FEE2E2; }
     .il-table { width: 100%; border-collapse: collapse; }
-    .il-table thead th { background: ${T.green} !important; color: white !important; font-size: 14px !important; font-weight: 700 !important; text-transform: capitalize !important; letter-spacing: 0.02em !important; padding: 1rem 1.25rem !important; border: none !important; border-bottom: 1px solid ${T.border} !important; text-align: left !important; }
+    .il-table thead th { background: #EBF3FC !important; color: #1e293b !important; font-size: 13px !important; font-weight: 700 !important; text-transform: capitalize !important; letter-spacing: 0.02em !important; padding: 12px 14px !important; border: none !important; border-bottom: 1.5px solid #dce6f5 !important; }
+    .il-table thead th.text-right, .il-table thead th[style*="text-align: right"], .il-table thead th[style*="text-align:right"] { text-align: right !important; }
+    .il-table thead th.text-center, .il-table thead th[style*="text-align: center"], .il-table thead th[style*="text-align:center"] { text-align: center !important; }
     .il-table tbody tr { cursor: pointer !important; transition: background 0.15s !important; background: white !important; }
     .il-table tbody tr:hover { background: #f8fafc !important; }
-    .il-table tbody td { padding: 1rem 1.25rem !important; font-size: 14px !important; color: ${T.text} !important; border: none !important; border-bottom: 1px solid #f1f5f9 !important; vertical-align: middle; }
+    .il-table tbody td { padding: 12px 14px !important; font-size: 14px !important; color: ${T.text} !important; border: none !important; border-bottom: 1px solid #f1f5f9 !important; vertical-align: middle; }
     .il-badge { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border-radius: 100px; font-size: 11px; font-weight: 600; }
     .il-badge-green { background: ${T.greenLight}; color: ${T.green}; border: 1px solid #BBF7D0; }
     .il-badge-red { background: ${T.redLight}; color: ${T.red}; border: 1px solid #FECACA; }
@@ -156,7 +159,7 @@ const GlobalStyle = () => (
     .il-switch input { opacity: 0; width: 0; height: 0; position: absolute; }
     .il-switch-track { position: relative; width: 38px; height: 22px; background-color: #cbd5e1; border-radius: 20px; transition: background-color 0.25s ease; flex-shrink: 0; }
     .il-switch input:checked + .il-switch-track { background-color: #2563eb; }
-    .il-switch input:checked + .il-switch-track.purple { background-color: #7c3aed; }
+    .il-switch input:checked + .il-switch-track.purple { background-color: #0082f6; }
     .il-switch input:disabled + .il-switch-track { opacity: 0.5; cursor: not-allowed; }
     .il-switch-thumb { position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; background-color: #ffffff; border-radius: 50%; transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
     .il-switch input:checked + .il-switch-track .il-switch-thumb { transform: translateX(16px); }
@@ -328,8 +331,8 @@ const DashboardDocRow = ({ title, count, docs, search, fromDate, toDate, navigat
 };
 
 const StatusBadge = ({ disabled }) => (
-  <span className={`il-badge ${disabled ? 'il-badge-red' : 'il-badge-green'}`}>
-    <span style={{ width: 5, height: 5, borderRadius: '50%', background: disabled ? T.red : T.green }} />
+  <span className={`il-status-badge ${disabled ? 'disabled' : 'active'}`}>
+    <span className="il-status-dot" />
     {disabled ? 'Disabled' : 'Active'}
   </span>
 );
@@ -556,9 +559,9 @@ const SearchableSelectInline = ({ value, options, onChange, placeholder, style }
           padding: '0 8px',
           background: '#ffffff',
           fontSize: 12,
-          border: `1.5px solid ${open ? '#8b5cf6' : '#cbd5e1'}`,
+          border: `1.5px solid ${open ? '#0082f6' : '#cbd5e1'}`,
           borderRadius: 6,
-          boxShadow: open ? '0 0 0 2px rgba(139, 92, 246, 0.12)' : 'none',
+          boxShadow: open ? '0 0 0 2px rgba(0, 130, 246, 0.12)' : 'none',
           userSelect: 'none',
           transition: 'all 0.15s'
         }}
@@ -569,7 +572,7 @@ const SearchableSelectInline = ({ value, options, onChange, placeholder, style }
         <ChevronDown size={13} style={{ color: '#64748b', flexShrink: 0, transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s', marginLeft: 4 }} />
       </div>
       {open && (
-        <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, minWidth: 200, background: '#ffffff', border: '1.5px solid #8b5cf6', borderRadius: 8, zIndex: 1200, marginTop: 4, maxHeight: 220, overflow: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: '0 8px 24px rgba(0,0,0,0.12)' }}>
+        <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, minWidth: 200, background: '#ffffff', border: '1.5px solid #0082f6', borderRadius: 8, zIndex: 1200, marginTop: 4, maxHeight: 220, overflow: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: '0 8px 24px rgba(0,0,0,0.12)' }}>
           <div style={{ padding: 6, borderBottom: '1px solid #f1f5f9', background: '#f8fafc' }}>
             <input
               style={{ width: '100%', height: 28, fontSize: 11, padding: '0 8px', border: '1px solid #cbd5e1', borderRadius: 5, outline: 'none' }}
@@ -585,7 +588,7 @@ const SearchableSelectInline = ({ value, options, onChange, placeholder, style }
               <div
                 key={o.value}
                 onClick={(e) => { e.stopPropagation(); onChange(o.value); setOpen(false); setSearch(''); }}
-                style={{ padding: '7px 10px', fontSize: 11, cursor: 'pointer', background: String(value) === String(o.value) ? '#f5f3ff' : 'transparent', color: String(value) === String(o.value) ? '#7c3aed' : '#1e293b', fontWeight: String(value) === String(o.value) ? 700 : 500, borderBottom: '1px solid #f8fafc' }}
+                style={{ padding: '7px 10px', fontSize: 11, cursor: 'pointer', background: String(value) === String(o.value) ? '#ebf4fe' : 'transparent', color: String(value) === String(o.value) ? '#0082f6' : '#1e293b', fontWeight: String(value) === String(o.value) ? 700 : 500, borderBottom: '1px solid #f8fafc' }}
               >
                 {o.label}
               </div>
@@ -636,9 +639,9 @@ const SearchableSelectCompact = ({ value, options = [], onChange, placeholder = 
           background: disabled ? '#f1f5f9' : '#ffffff',
           opacity: disabled ? 0.85 : 1,
           fontSize: 13,
-          border: `1.5px solid ${open && !disabled ? '#8b5cf6' : '#cbd5e1'}`,
+          border: `1.5px solid ${open && !disabled ? '#0082f6' : '#cbd5e1'}`,
           borderRadius: 8,
-          boxShadow: open && !disabled ? '0 0 0 3px rgba(139, 92, 246, 0.15)' : 'none',
+          boxShadow: open && !disabled ? '0 0 0 3px rgba(0, 130, 246, 0.15)' : 'none',
           userSelect: 'none',
           transition: 'all 0.15s'
         }}
@@ -657,7 +660,7 @@ const SearchableSelectCompact = ({ value, options = [], onChange, placeholder = 
           right: 0,
           minWidth: 220,
           background: '#ffffff',
-          border: '1.5px solid #8b5cf6',
+          border: '1.5px solid #0082f6',
           borderRadius: 8,
           zIndex: 1200,
           marginTop: 4,
@@ -696,9 +699,9 @@ const SearchableSelectCompact = ({ value, options = [], onChange, placeholder = 
                 style={{
                   width: '100%',
                   padding: '6px 8px',
-                  background: '#f5f3ff',
-                  color: '#6d28d9',
-                  border: '1px dashed #8b5cf6',
+                  background: '#f0f2fe',
+                  color: '#0082f6',
+                  border: '1px dashed #0082f6',
                   borderRadius: 6,
                   fontSize: 11,
                   fontWeight: 700,
@@ -734,8 +737,8 @@ const SearchableSelectCompact = ({ value, options = [], onChange, placeholder = 
                       padding: '8px 12px',
                       fontSize: 12,
                       cursor: 'pointer',
-                      background: isSelected ? '#f5f3ff' : 'transparent',
-                      color: isSelected ? '#6d28d9' : '#334155',
+                      background: isSelected ? '#f0f2fe' : 'transparent',
+                      color: isSelected ? '#0082f6' : '#334155',
                       fontWeight: isSelected ? 700 : 500,
                       borderBottom: '1px solid #f8fafc',
                       display: 'flex',
@@ -746,7 +749,7 @@ const SearchableSelectCompact = ({ value, options = [], onChange, placeholder = 
                     onMouseOut={e => { if (!isSelected) e.currentTarget.style.background = 'transparent'; }}
                   >
                     <span>{o.label}</span>
-                    {isSelected && <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#7c3aed' }} />}
+                    {isSelected && <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#0082f6' }} />}
                   </div>
                 );
               })
@@ -2524,25 +2527,33 @@ export default function ItemList() {
       <div className="il-page">
 
         {/* PAGE HEADER */}
-        <div className="so-page-header-container">
-          <div className="so-page-tabs">
-            <span className="so-page-tab active">Item</span>
-            <span className="so-page-tab" onClick={() => navigate('/stockledgerreport')} style={{ cursor: 'pointer' }}>Reports</span>
+        <div className="il-header-wrapper">
+          <div className="il-top-tabs">
+            <span className="il-top-tab active">Item</span>
+            <span className="il-top-tab" onClick={() => navigate('/stockledgerreport')}>Reports</span>
           </div>
-          <div className="so-page-header">
+          <div className="il-header-main">
             <div>
-              <h1 className="so-page-title">Item Management</h1>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 4 }}>
-                <div style={{ fontSize: 11, color: T.textMuted }}>{total} records</div>
-                <div className="il-tabs">
-                  <button className={`il-tab ${viewType === 'list' ? 'active' : ''}`} onClick={() => setViewType('list')} style={{ display: 'flex', alignItems: 'center', gap: 5 }}><List size={13} />List</button>
-                  <button className={`il-tab ${viewType === 'card' ? 'active' : ''}`} onClick={() => setViewType('card')} style={{ display: 'flex', alignItems: 'center', gap: 5 }}><LayoutGrid size={13} />Grid</button>
+              <h1 className="il-header-title">ITEM MANAGEMENT</h1>
+              <div className="il-header-sub">
+                <div className="il-records-badge">{total} records</div>
+                <div className="il-view-toggle">
+                  <button className={`il-view-btn ${viewType === 'list' ? 'active' : ''}`} onClick={() => setViewType('list')}>
+                    <List size={13} />List
+                  </button>
+                  <button className={`il-view-btn ${viewType === 'card' ? 'active' : ''}`} onClick={() => setViewType('card')}>
+                    <LayoutGrid size={13} />Grid
+                  </button>
                 </div>
               </div>
             </div>
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-              <button className="il-btn il-btn-secondary" onClick={() => navigate('/itempricelist')}><Scale size={14} />Price Master</button>
-              <button className="il-btn il-btn-secondary" onClick={fetchItems} title="Refresh"><RefreshCw size={14} /></button>
+            <div className="il-action-group">
+              <button className="il-btn il-btn-secondary" onClick={() => navigate('/itempricelist')}>
+                <Scale size={14} />Price Master
+              </button>
+              <button type="button" className="il-btn il-btn-secondary il-btn-icon-only" onClick={fetchItems} title="Refresh">
+                <RefreshCw size={16} strokeWidth={2.2} style={{ width: 16, height: 16, color: '#334155', flexShrink: 0 }} />
+              </button>
               <ListCustomizer
                 doctype="Item"
                 onSave={cols => setCustomColumns(cols)}
@@ -2551,21 +2562,11 @@ export default function ItemList() {
                 btnStyle={{ gap: 6 }}
               />
               <button
-                className="il-btn il-btn-secondary"
+                className="il-btn il-btn-sync"
                 onClick={openSyncModal}
-                style={{ color: '#604BE8', borderColor: '#C3CDE4', background: '#f0f2fe', gap: 6 }}
               >
                 <Warehouse size={14} />Sync Items to Branch
               </button>
-              {/* NBI button hidden for now
-              <button 
-                className="il-btn il-btn-secondary" 
-                onClick={() => setShowNbiModal(true)}
-                style={{ color: '#166534', borderColor: '#bbf7d0', background: '#f0fdf4', gap: 6 }}
-              >
-                <Tag size={14} />No Barcode Item (NBI)
-              </button>
-              */}
               <button className="il-btn il-btn-primary" onClick={() => {
                 resetForm();
                 const myWh = localStorage.getItem('warehouse');
@@ -2576,9 +2577,8 @@ export default function ItemList() {
           </div>
         </div>
 
-
         {/* SUBGROUP HIERARCHY FILTER NAVBAR */}
-        <div style={{ padding: '10px 28px 0 28px' }}>
+        <div style={{ padding: '12px 28px 0 28px' }}>
           <SubgroupFilterNavbar 
             activeMainGroup={subgroupFilterMain}
             activeSubgroup={subgroupFilterSub}
@@ -2595,134 +2595,95 @@ export default function ItemList() {
           />
         </div>
 
-        {/* FILTER BAR */}
-        <div style={{ background: T.surface, borderBottom: `1.5px solid ${T.border}`, padding: '14px 28px' }}>
-
-          <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap' }}>
-            <div style={{ flex: 1, minWidth: 220 }}>
-              <span className="il-section-label">Barcode / Scan</span>
-              <div style={{ position: 'relative' }}>
-                <Barcode size={14} style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', color: T.blue, pointerEvents: 'none' }} />
-                <input
-                  className="il-input"
-                  style={{ paddingLeft: 34, paddingRight: 60, borderColor: barcodeFilter ? T.blue : T.border }}
-                  placeholder="Scan or type barcode..."
-                  value={barcodeFilter}
-                  onChange={e => setBarcodeFilter(e.target.value)}
-                />
-                <div style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', display: 'flex', gap: 4 }}>
-                  <button onClick={startBarcodeScanner} style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.textMuted, display: 'flex' }} title="Camera Scan"><Camera size={14} /></button>
-                  <label style={{ cursor: 'pointer', color: T.textMuted, display: 'flex' }} title="Image Scan">
-                    <Upload size={14} />
-                    <input type="file" hidden accept="image/*" onChange={handleBarcodeFileScan} />
-                  </label>
+        {/* SEARCH & FILTER CARDS */}
+        <div className="il-filter-container">
+          <div className="il-filter-card">
+            <div className="il-filter-grid">
+              <div className="il-field-group" style={{ flex: 1, minWidth: 220 }}>
+                <span className="il-section-label">BARCODE / SCAN</span>
+                <div className="il-input-wrapper">
+                  <Barcode size={14} className="il-input-icon" style={{ color: T.blue }} />
+                  <input
+                    className="il-input"
+                    style={{ paddingLeft: 34, paddingRight: 60, borderColor: barcodeFilter ? T.blue : undefined }}
+                    placeholder="Scan or type barcode..."
+                    value={barcodeFilter}
+                    onChange={e => setBarcodeFilter(e.target.value)}
+                  />
+                  <div style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', display: 'flex', gap: 4 }}>
+                    <button onClick={startBarcodeScanner} style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.textMuted, display: 'flex' }} title="Camera Scan"><Camera size={14} /></button>
+                    <label style={{ cursor: 'pointer', color: T.textMuted, display: 'flex' }} title="Image Scan">
+                      <Upload size={14} />
+                      <input type="file" hidden accept="image/*" onChange={handleBarcodeFileScan} />
+                    </label>
+                  </div>
                 </div>
               </div>
+
+              <div className="il-field-group" style={{ flex: 1.5, minWidth: 280 }}>
+                <span className="il-section-label">NAME OR CODE</span>
+                <div className="il-input-wrapper">
+                  <Search size={14} className="il-input-icon" />
+                  <input className="il-input" style={{ paddingLeft: 34 }} placeholder="Search items..." value={filterName} onChange={e => { setFilterName(e.target.value); setCurrentPage(1); }} />
+                </div>
+              </div>
+              <div className="il-field-group" style={{ width: 190 }}>
+                <span className="il-section-label">GROUP</span>
+                <SearchableSelectInline
+                  value={filterGroup}
+                  options={[{ label: 'ALL GROUPS', value: '' }, ...itemGroups]}
+                  placeholder="Filter by group..."
+                  onChange={val => { setFilterGroup(val); setCurrentPage(1); }}
+                />
+              </div>
+              <div className="il-field-group" style={{ width: 150 }}>
+                <span className="il-section-label">STATUS</span>
+                <div className="il-input-wrapper">
+                  <select className="il-select" value={filterStatus} onChange={e => { setFilterStatus(e.target.value); setCurrentPage(1); }}>
+                    <option value="">ALL</option>
+                    <option value="Enabled">ACTIVE</option>
+                    <option value="Disabled">DISABLED</option>
+                  </select>
+                  <ChevronDown size={13} style={{ position: 'absolute', right: 11, pointerEvents: 'none', color: T.textMuted }} />
+                </div>
+              </div>
+              <div className="il-field-group" style={{ width: 150 }}>
+                <span className="il-section-label">VARIANTS</span>
+                <div className="il-input-wrapper">
+                  <select className="il-select" value={filterHasVariants} onChange={e => { setFilterHasVariants(e.target.value); setCurrentPage(1); }}>
+                    <option value="">ALL</option>
+                    <option value="Yes">HAS VARIANTS</option>
+                    <option value="No">NO VARIANTS</option>
+                  </select>
+                  <ChevronDown size={13} style={{ position: 'absolute', right: 11, pointerEvents: 'none', color: T.textMuted }} />
+                </div>
+              </div>
+              {hasFilters && (
+                <button className="il-btn il-btn-secondary" onClick={clearFilters} style={{ color: T.red, alignSelf: 'flex-end' }}><X size={13} />CLEAR</button>
+              )}
             </div>
 
-            <div style={{ flex: 1.5, minWidth: 280 }}>
-              <span className="il-section-label">Name or Code</span>
-              <div style={{ position: 'relative' }}>
-                <Search size={14} style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', color: T.textMuted, pointerEvents: 'none' }} />
-                <input className="il-input" style={{ paddingLeft: 34 }} placeholder="Search items..." value={filterName} onChange={e => { setFilterName(e.target.value); setCurrentPage(1); }} />
-              </div>
-            </div>
-            <div style={{ width: 190 }}>
-              <span className="il-section-label">Group</span>
-              <SearchableSelectInline
-                value={filterGroup}
-                options={[{ label: 'All Groups', value: '' }, ...itemGroups]}
-                placeholder="Filter by group..."
-                onChange={val => { setFilterGroup(val); setCurrentPage(1); }}
-                style={{ background: T.surface, border: `1.5px solid ${T.border}`, borderRadius: T.radius, padding: '0 12px', minHeight: 38, display: 'flex', alignItems: 'center' }}
-              />
-            </div>
-            <div style={{ width: 150 }}>
-              <span className="il-section-label">Status</span>
-              <div style={{ position: 'relative' }}>
-                <select className="il-select" value={filterStatus} onChange={e => { setFilterStatus(e.target.value); setCurrentPage(1); }}>
-                  <option value="">All</option>
-                  <option value="Enabled">Active</option>
-                  <option value="Disabled">Disabled</option>
-                </select>
-                <ChevronDown size={13} style={{ position: 'absolute', right: 11, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: T.textMuted }} />
-              </div>
-            </div>
-            <div style={{ width: 150 }}>
-              <span className="il-section-label">Variants</span>
-              <div style={{ position: 'relative' }}>
-                <select className="il-select" value={filterHasVariants} onChange={e => { setFilterHasVariants(e.target.value); setCurrentPage(1); }}>
-                  <option value="">All</option>
-                  <option value="Yes">Has Variants</option>
-                  <option value="No">No Variants</option>
-                </select>
-                <ChevronDown size={13} style={{ position: 'absolute', right: 11, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: T.textMuted }} />
-              </div>
-            </div>
-            {hasFilters && (
-              <button className="il-btn il-btn-ghost" onClick={clearFilters} style={{ color: T.red, alignSelf: 'flex-end' }}><X size={13} />Clear</button>
-            )}
-          </div>
-        </div>
-
-        {/* GROUP TABS SCROLL */}
-        <div style={{ background: T.surface, borderBottom: `1px solid ${T.border}`, padding: '4px 28px' }}>
-          <div className="il-group-tabs-scroll" style={{ overflowX: 'auto', display: 'flex', gap: 8, padding: '8px 0', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-            <button
-              onClick={() => { setFilterGroup(''); setCurrentPage(1); }}
-              style={{
-                padding: '7px 16px',
-                borderRadius: 10,
-                fontSize: 11,
-                fontWeight: 800,
-                textTransform: 'uppercase',
-                whiteSpace: 'nowrap',
-                border: 'none',
-                transition: 'all 0.2s',
-                background: filterGroup === '' ? T.text : T.bg,
-                color: filterGroup === '' ? '#fff' : T.textSub,
-                boxShadow: filterGroup === '' ? '0 4px 12px rgba(0,0,0,0.1)' : 'none'
-              }}
-            >
-              All Assets
-            </button>
-            {itemGroups.map(g => (
-              <button
-                key={g.value}
-                onClick={() => { setFilterGroup(g.value); setCurrentPage(1); }}
-                style={{
-                  padding: '7px 16px',
-                  borderRadius: 10,
-                  fontSize: 11,
-                  fontWeight: 800,
-                  textTransform: 'uppercase',
-                  whiteSpace: 'nowrap',
-                  border: 'none',
-                  transition: 'all 0.2s',
-                  background: filterGroup === g.value ? T.blue : T.bg,
-                  color: filterGroup === g.value ? '#fff' : T.textSub,
-                  boxShadow: filterGroup === g.value ? '0 4px 12px rgba(37,99,235,0.2)' : 'none'
-                }}
-              >
-                {g.label}
+            <div className="il-asset-pill-row">
+              <button className="il-asset-pill" onClick={() => { setFilterGroup(''); setCurrentPage(1); }}>
+                ALL ASSETS
               </button>
-            ))}
+            </div>
           </div>
         </div>
 
-        {/* MAIN CONTENT */}
-        <div style={{ padding: '20px 28px' }}>
+        {/* MAIN CONTENT AREA */}
+        <div className="il-content-container">
           {loading ? (
             <div style={{ padding: '80px 0', textAlign: 'center' }}>
               <Loader2 size={28} style={{ color: T.blue, margin: '0 auto' }} className="spin" />
             </div>
           ) : paginatedItems.length > 0 ? (
             viewType === 'card' ? (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))', gap: 14 }}>
+              <div className="il-grid-container">
                 {paginatedItems.map(item => <ItemCard key={item.item_code} item={item} onClick={handleRowClick} />)}
               </div>
             ) : (
-              <div className="il-card" style={{ overflow: 'hidden' }}>
+              <div className="il-table-card">
                 <table className="il-table">
                   <thead>
                     <tr>
@@ -2737,11 +2698,11 @@ export default function ItemList() {
                         />
                       </th>
                       <th style={{ width: 52 }}></th>
-                      <th>Item</th>
-                      <th>Group</th>
+                      <th>ITEM</th>
+                      <th>GROUP</th>
                       <th>UOM</th>
-                      <th>Status</th>
-                      <th style={{ textAlign: 'right' }}><span className="flex items-center justify-end gap-1">Valuation Rate (<DirhamIcon size={10} />)</span></th>
+                      <th>STATUS</th>
+                      <th className="text-right" style={{ textAlign: 'right' }}>VALUATION RATE ( AED )</th>
                       {customColumns.map(col => (
                         <th key={col}>{col.replace(/_/g, ' ').toUpperCase()}</th>
                       ))}
@@ -2755,7 +2716,7 @@ export default function ItemList() {
                         <tr
                           key={item.item_code}
                           onClick={() => handleRowClick(item)}
-                          style={{ background: isChecked ? '#EFF6FF' : undefined }}
+                          className={isChecked ? 'selected' : ''}
                         >
                           <td style={{ paddingLeft: 18 }} onClick={e => e.stopPropagation()}>
                             <input
@@ -2766,31 +2727,31 @@ export default function ItemList() {
                             />
                           </td>
                           <td>
-                            <div style={{ width: 36, height: 36, background: T.bg, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', border: `1px solid ${T.border}` }}>
-                              {item.image ? <img src={item.image} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" /> : <Package size={15} style={{ color: '#D1D9E6' }} />}
+                            <div className="il-thumb-box">
+                              {item.image ? <img src={item.image} alt="" /> : <Package size={15} style={{ color: '#94A3B8' }} />}
                             </div>
                           </td>
                           <td>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                              <div style={{ fontWeight: 600, fontSize: 14, color: T.text }}>{item.item_name}</div>
+                              <div className="il-item-title">{item.item_name}</div>
                               {(item.has_variants === 1 || item.has_variants === true) && (
-                                <span style={{ fontSize: 9, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.5px', background: '#F5F3FF', color: '#7C3AED', border: '1px solid #DDD6FE', padding: '1px 6px', borderRadius: 6 }}>
+                                <span className="il-tag-template">
                                   Template
                                 </span>
                               )}
                             </div>
-                            <div style={{ fontSize: 11, color: T.textMuted, fontFamily: "'DM Mono', monospace", marginTop: 1 }}>{item.item_code}</div>
+                            <div className="il-item-code">{item.item_code}</div>
                           </td>
-                          <td style={{ fontSize: 13, color: T.textSub }}>{item.item_group}</td>
-                          <td><span style={{ fontSize: 11, color: T.textMuted, background: T.bg, padding: '2px 7px', borderRadius: 6, fontWeight: 600 }}>{item.stock_uom || 'Nos'}</span></td>
+                          <td style={{ fontSize: '0.85rem', color: '#475569', fontWeight: 500 }}>{item.item_group}</td>
+                          <td><span className="il-uom-tag">{item.stock_uom || 'Nos'}</span></td>
                           <td><StatusBadge disabled={item.disabled} /></td>
-                          <td style={{ textAlign: 'right', fontWeight: 700, fontSize: 14 }}>{Number(item.valuation_rate || 0).toFixed(2)}</td>
+                          <td className="il-valuation-rate">{Number(item.valuation_rate || 0).toFixed(2)}</td>
                           {customColumns.map(col => (
                              <td key={col} style={{ fontSize: '0.8rem', fontWeight: 600 }}>
-                               {item[col] !== undefined && item[col] !== null ? String(item[col]) : '-'}
+                                {item[col] !== undefined && item[col] !== null ? String(item[col]) : '-'}
                              </td>
-                           ))}
-                          <td style={{ paddingRight: 16 }}><ChevronRight size={15} style={{ color: T.textMuted }} /></td>
+                            ))}
+                          <td style={{ paddingRight: 16 }}><ChevronRight size={16} style={{ color: '#94A3B8' }} /></td>
                         </tr>
                       );
                     })}
@@ -2825,7 +2786,7 @@ export default function ItemList() {
                 <button
                   onClick={openSyncModal}
                   className="il-btn il-btn-primary"
-                  style={{ padding: '0 28px', fontSize: 13, height: 44, borderRadius: 12, background: 'linear-gradient(135deg,#7C3AED,#6D28D9)', boxShadow: '0 8px 24px rgba(124,58,237,0.3)' }}
+                  style={{ padding: '0 28px', fontSize: 13, height: 44, borderRadius: 12, background: 'linear-gradient(135deg,#0082f6,#0066cc)', boxShadow: '0 8px 24px rgba(0,130,246,0.3)' }}
                 >
                   <Warehouse size={15} style={{ marginRight: 8 }} />
                   Sync Items to Branch
@@ -2891,8 +2852,8 @@ export default function ItemList() {
                 <div className="il-sync-header">
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <div style={{ width: 36, height: 36, background: '#F5F3FF', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <Warehouse size={18} color="#7C3AED" />
+                      <div style={{ width: 36, height: 36, background: '#f0f2fe', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Warehouse size={18} color="#0082f6" />
                       </div>
                       <div>
                         <div style={{ fontSize: 15, fontWeight: 800, color: T.text }}>Sync Items to Branch</div>
@@ -2955,7 +2916,7 @@ export default function ItemList() {
                           {allSyncSelected ? 'Deselect All' : `Select All (${filteredSync.length})`}
                         </span>
                         {syncSelectedItems.length > 0 && (
-                          <span style={{ marginLeft: 'auto', fontSize: 11, fontWeight: 800, background: '#7C3AED', color: '#fff', padding: '2px 10px', borderRadius: 100 }}>
+                          <span style={{ marginLeft: 'auto', fontSize: 11, fontWeight: 800, background: '#0082f6', color: '#fff', padding: '2px 10px', borderRadius: 100 }}>
                             {syncSelectedItems.length} selected
                           </span>
                         )}
@@ -2993,7 +2954,7 @@ export default function ItemList() {
                     <span style={{ fontSize: 11, fontWeight: 700, color: T.textMuted, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Target Branch</span>
                     <div style={{ position: 'relative', width: 260 }}>
                       <select
-                        style={{ appearance: 'none', width: '100%', padding: '9px 32px 9px 14px', border: `1.5px solid ${syncTargetWarehouse ? '#7C3AED' : T.border}`, borderRadius: 10, fontSize: 13, fontWeight: 600, color: T.text, outline: 'none', background: '#fff', cursor: 'pointer', boxShadow: syncTargetWarehouse ? '0 0 0 3px rgba(124,58,237,0.1)' : 'none' }}
+                        style={{ appearance: 'none', width: '100%', padding: '9px 32px 9px 14px', border: `1.5px solid ${syncTargetWarehouse ? '#0082f6' : T.border}`, borderRadius: 10, fontSize: 13, fontWeight: 600, color: T.text, outline: 'none', background: '#fff', cursor: 'pointer', boxShadow: syncTargetWarehouse ? '0 0 0 3px rgba(0,130,246,0.1)' : 'none' }}
                         value={syncTargetWarehouse}
                         onChange={e => setSyncTargetWarehouse(e.target.value)}
                       >
@@ -3012,7 +2973,7 @@ export default function ItemList() {
                   <button
                     onClick={handleSyncModalSubmit}
                     disabled={syncLoading || syncSelectedItems.length === 0 || !syncTargetWarehouse}
-                    style={{ background: syncLoading || syncSelectedItems.length === 0 || !syncTargetWarehouse ? '#a78bfa' : 'linear-gradient(135deg,#7C3AED,#6D28D9)', color: '#fff', border: 'none', padding: '10px 28px', borderRadius: 10, fontSize: 13, fontWeight: 800, cursor: syncLoading || syncSelectedItems.length === 0 || !syncTargetWarehouse ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 8, boxShadow: '0 4px 16px rgba(124,58,237,0.3)', transition: 'all 0.15s' }}
+                    style={{ background: syncLoading || syncSelectedItems.length === 0 || !syncTargetWarehouse ? '#93c5fd' : 'linear-gradient(135deg,#0082f6,#0066cc)', color: '#fff', border: 'none', padding: '10px 28px', borderRadius: 10, fontSize: 13, fontWeight: 800, cursor: syncLoading || syncSelectedItems.length === 0 || !syncTargetWarehouse ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 8, boxShadow: '0 4px 16px rgba(0,130,246,0.3)', transition: 'all 0.15s' }}
                   >
                     {syncLoading ? <><Loader2 size={14} className="spin" />Syncing...</> : <><Warehouse size={14} />Sync {syncSelectedItems.length > 0 ? syncSelectedItems.length : ''} Items to Branch</>}
                   </button>
@@ -3192,7 +3153,7 @@ export default function ItemList() {
                     height: 38,
                     padding: '0 20px',
                     borderRadius: 10,
-                    background: '#7c3aed',
+                    background: '#0082f6',
                     color: '#ffffff',
                     border: 'none',
                     fontWeight: 700,
@@ -3201,7 +3162,7 @@ export default function ItemList() {
                     alignItems: 'center',
                     gap: 8,
                     cursor: saving ? 'not-allowed' : 'pointer',
-                    boxShadow: '0 2px 8px rgba(124, 58, 237, 0.25)',
+                    boxShadow: '0 2px 8px rgba(0, 130, 246, 0.25)',
                     opacity: saving ? 0.7 : 1,
                     transition: 'all 0.15s'
                   }}
@@ -3237,7 +3198,7 @@ export default function ItemList() {
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14 }}>
                       <StatCard label="Valuation Rate" value={<span className="flex items-center gap-1"><DirhamIcon size={20} /> {Number(valuationData?.valuation_rate || form.valuation_rate || 0).toFixed(2)}</span>} accent={T.blue} />
                       <StatCard label="Last Buy Price" value={<span className="flex items-center gap-1"><DirhamIcon size={20} /> {Number(priceData.metrics?.last_buying_price || 0).toFixed(2)}</span>} accent={T.amber} />
-                      <StatCard label="Total Stock" value={`${valuationData?.stock_qty || priceData.metrics?.total_stock || 0} ${form.default_uom}`} accent={T.purple} />
+                      <StatCard label="Total Stock" value={`${valuationData?.stock_qty || priceData.metrics?.total_stock || 0} ${form.default_uom}`} accent={T.blue} />
                       <StatCard label="Stock Value" value={<span className="flex items-center gap-1"><DirhamIcon size={20} /> {Number(valuationData?.stock_value || priceData.metrics?.stock_value || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>} accent={T.green} />
                     </div>
 
@@ -3487,11 +3448,11 @@ export default function ItemList() {
                         <div style={{ gridColumn: '1 / -1' }}>
                           <CardSection 
                             title={`Variants of this Template (${templateVariants.length})`} 
-                            icon={<Layers size={14} style={{ color: '#7c3aed' }} />}
+                            icon={<Layers size={14} style={{ color: '#0082f6' }} />}
                             action={
                               <button
                                 className="il-btn il-btn-secondary"
-                                style={{ padding: '4px 10px', fontSize: 11, background: '#f5f3ff', color: '#7c3aed', borderColor: '#ddd6fe', fontWeight: 700 }}
+                                style={{ padding: '4px 10px', fontSize: 11, background: '#f0f2fe', color: '#0082f6', borderColor: '#c3cde4', fontWeight: 700 }}
                                 onClick={() => { setIsViewMode(false); setIsEditMode(true); }}
                               >
                                 <Plus size={12} /> + Add More Variants
@@ -3501,7 +3462,7 @@ export default function ItemList() {
                             <div style={{ padding: 0 }}>
                               {loadingTemplateVariants ? (
                                 <div style={{ padding: '40px', textAlign: 'center' }}>
-                                  <Loader2 size={24} style={{ color: '#7c3aed', margin: '0 auto' }} className="spin" />
+                                  <Loader2 size={24} style={{ color: '#0082f6', margin: '0 auto' }} className="spin" />
                                 </div>
                               ) : templateVariants.length > 0 ? (
                                 <div style={{ overflowX: 'auto' }}>
@@ -3530,7 +3491,7 @@ export default function ItemList() {
                                           <td style={{ padding: '10px 14px' }}>
                                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                                               {(v.attributes || []).map((at, ai) => (
-                                                <span key={ai} style={{ fontSize: 10, fontWeight: 700, padding: '2px 6px', background: '#f5f3ff', color: '#7c3aed', borderRadius: 4, border: '1px solid #ddd6fe' }}>
+                                                <span key={ai} style={{ fontSize: 10, fontWeight: 700, padding: '2px 6px', background: '#f0f2fe', color: '#0082f6', borderRadius: 4, border: '1px solid #c3cde4' }}>
                                                   {at.attribute_value}
                                                 </span>
                                               ))}
@@ -4156,7 +4117,7 @@ export default function ItemList() {
                           style={{
                             width: 22,
                             height: 22,
-                            accentColor: '#7c3aed',
+                            accentColor: '#0082f6',
                             marginTop: 2,
                             cursor: 'pointer',
                             borderRadius: 6
@@ -4187,7 +4148,7 @@ export default function ItemList() {
                           {/* Header + Add Option button */}
                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                              <div style={{ width: 26, height: 26, borderRadius: 7, background: '#f5f3ff', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#7c3aed' }}>
+                              <div style={{ width: 26, height: 26, borderRadius: 7, background: '#ebf4fe', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#0082f6' }}>
                                 <Layers size={14} />
                               </div>
                               <div>
@@ -4213,9 +4174,9 @@ export default function ItemList() {
                                 gap: 4,
                                 padding: '6px 14px',
                                 borderRadius: 8,
-                                border: '1.5px solid #7c3aed',
+                                border: '1.5px solid #0082f6',
                                 background: '#ffffff',
-                                color: '#7c3aed',
+                                color: '#0082f6',
                                 fontSize: 12,
                                 fontWeight: 700,
                                 cursor: 'pointer',
@@ -4248,8 +4209,8 @@ export default function ItemList() {
                                     gap: 10,
                                     padding: '10px 14px',
                                     borderRadius: 10,
-                                    border: isSelected ? '1.5px solid #7c3aed' : '1px solid #e2e8f0',
-                                    background: isSelected ? '#faf5ff' : '#ffffff',
+                                    border: isSelected ? '1.5px solid #0082f6' : '1px solid #e2e8f0',
+                                    background: isSelected ? '#ebf4fe' : '#ffffff',
                                     cursor: 'pointer',
                                     transition: 'all 0.15s'
                                   }}
@@ -4312,12 +4273,12 @@ export default function ItemList() {
                                     style={{
                                       width: 16,
                                       height: 16,
-                                      accentColor: '#7c3aed',
+                                      accentColor: '#0082f6',
                                       margin: 0,
                                       cursor: 'pointer'
                                     }}
                                   />
-                                  <span style={{ fontSize: 13, fontWeight: 700, color: isSelected ? '#7c3aed' : '#334155' }}>
+                                  <span style={{ fontSize: 13, fontWeight: 700, color: isSelected ? '#0082f6' : '#334155' }}>
                                     {attr.value}
                                   </span>
                                 </label>
@@ -4334,7 +4295,7 @@ export default function ItemList() {
                 <CardSection 
                   title="Specifications" 
                   icon={
-                    <div style={{ width: 24, height: 24, borderRadius: 6, background: '#f5f3ff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: '#7c3aed', marginRight: 4 }}>
+                    <div style={{ width: 24, height: 24, borderRadius: 6, background: '#ebf4fe', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: '#0082f6', marginRight: 4 }}>
                       <Boxes size={14} />
                     </div>
                   }
@@ -4395,9 +4356,9 @@ export default function ItemList() {
                                   style={{
                                     fontSize: 11,
                                     padding: '3px 8px',
-                                    background: b.uom === 'Box' ? '#fef3c7' : (b.uom === 'Master Box' ? '#f5f3ff' : '#eff6ff'),
-                                    color: b.uom === 'Box' ? '#92400e' : (b.uom === 'Master Box' ? '#6d28d9' : '#1d4ed8'),
-                                    border: `1px solid ${b.uom === 'Box' ? '#fde68a' : (b.uom === 'Master Box' ? '#ddd6fe' : '#bfdbfe')}`,
+                                    background: b.uom === 'Box' ? '#fef3c7' : (b.uom === 'Master Box' ? '#f0f2fe' : '#eff6ff'),
+                                    color: b.uom === 'Box' ? '#92400e' : (b.uom === 'Master Box' ? '#0082f6' : '#1d4ed8'),
+                                    border: `1px solid ${b.uom === 'Box' ? '#fde68a' : (b.uom === 'Master Box' ? '#c3cde4' : '#bfdbfe')}`,
                                     display: 'inline-flex',
                                     alignItems: 'center',
                                     gap: 6

@@ -29,7 +29,7 @@ function PurchaseOrderLists() {
   const [loading, setLoading] = useState(true);
   const [pageSize, setPageSize] = useState(20);
   const [currentPage, setCurrentPage] = useState(1);
-  const [showFilters, setShowFilters] = useState(false);
+  const [showFilters, setShowFilters] = useState(true);
   const [showActions, setShowActions] = useState(null);
 
   // Filters
@@ -161,137 +161,249 @@ function PurchaseOrderLists() {
     <>
       <div className="so-page">
         {/* Page Header */}
-        <div className="so-page-header">
+        <div className="so-page-header" style={{ background: '#fff', padding: '0.85rem 2rem 1.25rem 2rem', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
-            <h1 className="so-page-title">
-              <Package size={20} /> Purchase Orders
+            <h1 className="so-page-title" style={{ display: 'flex', alignItems: 'center', gap: '10px', margin: 0 }}>
+              <Package size={22} style={{ color: themeColor || '#0082f6' }} strokeWidth={2.5} />
+              <span style={{ fontFamily: "'Outfit', 'Gilroy', sans-serif", fontSize: '22px', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.01em', textTransform: 'uppercase' }}>
+                PURCHASE ORDERS
+              </span>
             </h1>
-            <p className="so-page-subtitle">{total} record(s) found</p>
+            <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#64748b', fontWeight: 500 }}>
+              Manage and track all purchase orders
+            </p>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             {/* Theme Toggle */}
             <button
+              type="button"
               onClick={toggleTheme}
-
               style={{
-                display: 'flex', alignItems: 'center', gap: '0.4rem',
-                padding: '0.45rem 0.9rem', background: '#f8fafc',
-                border: `1.5px solid ${themeColor}`, borderRadius: '0.375rem',
-                fontSize: '0.75rem', fontWeight: 700, color: themeColor,
-                cursor: 'pointer', transition: 'all 0.2s',
-                textTransform: 'uppercase', letterSpacing: '0.04em'
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                height: '38px',
+                padding: '0 16px',
+                background: '#ffffff',
+                color: themeColor || '#0082f6',
+                border: `1.5px solid ${themeColor || '#0082f6'}`,
+                borderRadius: '8px',
+                fontSize: '12px',
+                fontWeight: 800,
+                textTransform: 'uppercase',
+                letterSpacing: '0.04em',
+                cursor: 'pointer',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+                transition: 'all 0.15s ease-in-out',
+                boxSizing: 'border-box'
               }}
               title="Toggle Theme"
             >
-              <Palette size={13} />
-              {isGreen ? 'BLUE' : 'GREEN'}
-
-
+              <Palette size={14} />
+              <span>{isGreen ? 'BLUE' : 'GREEN'}</span>
             </button>
 
             {/* Toggle Filters */}
             <button
-              className="so-btn-secondary"
+              type="button"
               onClick={() => setShowFilters(f => !f)}
-              style={hasFilters ? { borderColor: themeColor, color: themeColor } : {}}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                height: '38px',
+                padding: '0 16px',
+                background: '#ffffff',
+                color: hasFilters || showFilters ? (themeColor || '#0082f6') : '#475569',
+                border: `1.5px solid ${hasFilters || showFilters ? (themeColor || '#0082f6') : '#cbd5e1'}`,
+                borderRadius: '8px',
+                fontSize: '12px',
+                fontWeight: 800,
+                textTransform: 'uppercase',
+                letterSpacing: '0.04em',
+                cursor: 'pointer',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+                transition: 'all 0.15s ease-in-out',
+                boxSizing: 'border-box'
+              }}
             >
-              <Filter size={14} /> Filters {hasFilters ? '●' : ''}
+              <Filter size={14} />
+              <span>FILTERS</span>
+              {hasFilters && <span style={{ width: 6, height: 6, borderRadius: '50%', background: themeColor || '#0082f6' }} />}
             </button>
 
+            {/* ListCustomizer / COLUMNS */}
             <ListCustomizer
               doctype="Purchase Order"
               onSave={cols => setCustomColumns(cols)}
-              themeColor={themeColor}
+              themeColor={themeColor || '#0082f6'}
+              btnStyle={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                height: '38px',
+                padding: '0 16px',
+                background: '#ffffff',
+                color: themeColor || '#0082f6',
+                border: `1.5px solid ${themeColor || '#0082f6'}`,
+                borderRadius: '8px',
+                fontSize: '12px',
+                fontWeight: 800,
+                textTransform: 'uppercase',
+                letterSpacing: '0.04em',
+                cursor: 'pointer',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+                transition: 'all 0.15s ease-in-out',
+                boxSizing: 'border-box'
+              }}
             />
 
-            <button onClick={() => navigate('/purchaseorder')} className="so-btn-primary" style={{ textDecoration: 'none', border: 'none', cursor: 'pointer' }}>
-              <Plus size={16} /> Add Purchase Order
-            </button>
-          </div>
-        </div>
-
-        {/* Top Filters Bar */}
-        <div className="so-filter-bar" style={{
-          background: 'white',
-          padding: '1.25rem 2rem',
-          borderBottom: '1px solid var(--so-border)',
-          display: 'flex',
-          flexWrap: 'wrap',
-          gap: '1.25rem',
-          alignItems: 'flex-end'
-        }}>
-          <div style={{ flex: '1 1 180px' }}>
-            <label className="so-filter-label">Supplier</label>
-            <input
-              className="so-filter-input"
-              type="text"
-              value={filterSupplier}
-              onChange={e => setFilterSupplier(e.target.value)}
-              placeholder="Search supplier..."
-            />
-          </div>
-          <div style={{ flex: '1 1 140px' }}>
-            <label className="so-filter-label">Status</label>
-            <select
-              className="so-filter-input"
-              value={filterStatus}
-              onChange={e => setFilterStatus(e.target.value)}
-              style={{ padding: '0.45rem' }}
+            {/* ADD PURCHASE ORDER */}
+            <button
+              type="button"
+              onClick={() => navigate('/purchaseorder')}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                height: '38px',
+                padding: '0 16px',
+                background: themeColor || '#0082f6',
+                color: '#ffffff',
+                border: 'none',
+                borderRadius: '8px',
+                fontSize: '12px',
+                fontWeight: 800,
+                textTransform: 'uppercase',
+                letterSpacing: '0.04em',
+                cursor: 'pointer',
+                boxShadow: '0 2px 4px rgba(0, 130, 246, 0.25)',
+                transition: 'all 0.15s ease-in-out',
+                boxSizing: 'border-box'
+              }}
             >
-              <option value="">All Statuses</option>
-              <option value="Draft">Draft</option>
-              <option value="To Receive">To Receive</option>
-              <option value="To Bill">To Bill</option>
-              <option value="To Receive and Bill">To Receive and Bill</option>
-              <option value="Completed">Completed</option>
-              <option value="Cancelled">Cancelled</option>
-              <option value="Closed">Closed</option>
-            </select>
-          </div>
-          <div style={{ flex: '1 1 150px' }}>
-            <label className="so-filter-label">From Date</label>
-            <input
-              className="so-filter-input"
-              type="date"
-              value={filterDateFrom}
-              onChange={e => setFilterDateFrom(e.target.value)}
-              onFocus={(e) => { try { e.target.showPicker(); } catch(err) {} }}
-              onClick={(e) => { try { e.target.showPicker(); } catch(err) {} }}
-            />
-          </div>
-          <div style={{ flex: '1 1 150px' }}>
-            <label className="so-filter-label">To Date</label>
-            <input
-              className="so-filter-input"
-              type="date"
-              value={filterDateTo}
-              onChange={e => setFilterDateTo(e.target.value)}
-              onFocus={(e) => { try { e.target.showPicker(); } catch(err) {} }}
-              onClick={(e) => { try { e.target.showPicker(); } catch(err) {} }}
-            />
-          </div>
-          <div>
-            <button className="so-clear-btn" style={{ margin: 0, height: '38px' }} onClick={clearFilters}>
-              Clear
+              <Plus size={16} />
+              <span>ADD PURCHASE ORDER</span>
             </button>
           </div>
         </div>
 
-        <div style={{ padding: '1.5rem 2rem' }}>
-          <p className="so-list-meta" style={{ marginBottom: '1rem', fontWeight: 600 }}>{total} record(s) found</p>
-          <div className="so-table-card">
+        <div className="so-layout" style={{ background: '#f8fafc', padding: '1.5rem 2rem' }}>
+          {/* Top Filters Bar */}
+          {showFilters && (
+            <div className="so-filter-bar animate-in fade-in duration-200" style={{
+              background: '#f8fafc',
+              padding: '0 0 1.25rem 0',
+              borderBottom: 'none',
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: '1.25rem',
+              alignItems: 'flex-end',
+              marginBottom: '0.5rem'
+            }}>
+              <div style={{ flex: '1 1 220px' }}>
+                <label style={{ fontSize: '12px', fontWeight: 800, color: '#334155', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: '6px' }}>SUPPLIER</label>
+                <div style={{ position: 'relative' }}>
+                  <Search size={14} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', zIndex: 2 }} />
+                  <input
+                    className="so-filter-input so-filter-input-icon"
+                    type="text"
+                    value={filterSupplier}
+                    onChange={e => setFilterSupplier(e.target.value)}
+                    placeholder="Search supplier..."
+                    style={{ width: '100%', height: '38px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none', background: '#fff', paddingLeft: '2.5rem' }}
+                  />
+                </div>
+              </div>
+              <div style={{ flex: '1 1 180px' }}>
+                <label style={{ fontSize: '12px', fontWeight: 800, color: '#334155', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: '6px' }}>STATUS</label>
+                <select
+                  className="so-filter-input"
+                  value={filterStatus}
+                  onChange={e => setFilterStatus(e.target.value)}
+                  style={{ width: '100%', height: '38px', padding: '0 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none', background: '#fff', fontWeight: 600, color: '#0f172a' }}
+                >
+                  <option value="">All Statuses</option>
+                  <option value="Draft">Draft</option>
+                  <option value="To Receive">To Receive</option>
+                  <option value="To Bill">To Bill</option>
+                  <option value="To Receive and Bill">To Receive and Bill</option>
+                  <option value="Completed">Completed</option>
+                  <option value="Cancelled">Cancelled</option>
+                  <option value="Closed">Closed</option>
+                </select>
+              </div>
+              <div style={{ flex: '1 1 180px' }}>
+                <label style={{ fontSize: '12px', fontWeight: 800, color: '#334155', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: '6px' }}>FROM DATE</label>
+                <input
+                  className="so-filter-input"
+                  type="date"
+                  value={filterDateFrom}
+                  onChange={e => setFilterDateFrom(e.target.value)}
+                  onFocus={(e) => { try { e.target.showPicker(); } catch(err) {} }}
+                  onClick={(e) => { try { e.target.showPicker(); } catch(err) {} }}
+                  style={{ width: '100%', height: '38px', padding: '0 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none', color: filterDateFrom ? '#0f172a' : '#64748b', fontWeight: 500 }}
+                />
+              </div>
+              <div style={{ flex: '1 1 180px' }}>
+                <label style={{ fontSize: '12px', fontWeight: 800, color: '#334155', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: '6px' }}>TO DATE</label>
+                <input
+                  className="so-filter-input"
+                  type="date"
+                  value={filterDateTo}
+                  onChange={e => setFilterDateTo(e.target.value)}
+                  onFocus={(e) => { try { e.target.showPicker(); } catch(err) {} }}
+                  onClick={(e) => { try { e.target.showPicker(); } catch(err) {} }}
+                  style={{ width: '100%', height: '38px', padding: '0 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none', color: filterDateTo ? '#0f172a' : '#64748b', fontWeight: 500 }}
+                />
+              </div>
+              <div>
+                <button
+                  type="button"
+                  onClick={clearFilters}
+                  style={{
+                    height: '38px',
+                    padding: '0 18px',
+                    borderRadius: '8px',
+                    background: '#ffffff',
+                    color: hasFilters ? '#ef4444' : '#64748b',
+                    border: `1px solid ${hasFilters ? '#fecaca' : '#cbd5e1'}`,
+                    fontSize: '13px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+                    transition: 'all 0.15s ease'
+                  }}
+                >
+                  {hasFilters ? <X size={14} /> : null}
+                  <span>CLEAR</span>
+                </button>
+              </div>
+            </div>
+          )}
+
+          <div className="so-content" style={{ padding: 0 }}>
+            <p className="so-list-meta" style={{ marginBottom: '0.75rem', fontWeight: 600, color: '#64748b', fontSize: '13px' }}>{total} record(s) found</p>
+            <div className="so-table-card" style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)' }}>
             <div className="so-table-wrapper">
               <table className="so-table">
                 <thead>
                   <tr>
                     <th>ID</th>
-                    <th>Supplier</th>
-                    <th>Status</th>
-                    <th>Date</th>
-                    <th style={{ textAlign: 'right' }}>Grand Total</th>
-                    <th>Billed %</th>
-                    <th>Received %</th>
-                    <th>Last Updated</th>
+                    <th>SUPPLIER</th>
+                    <th>STATUS</th>
+                    <th>DATE</th>
+                    <th className="text-right" style={{ textAlign: 'right' }}>GRAND TOTAL</th>
+                    <th>BILLED %</th>
+                    <th>RECEIVED %</th>
+                    <th>LAST UPDATED</th>
                     {customColumns.map(col => (
                       <th key={col}>{col.replace(/_/g, ' ').toUpperCase()}</th>
                     ))}
@@ -438,6 +550,7 @@ function PurchaseOrderLists() {
           </div>
         </div>
       </div>
+    </div>
     </>
   );
 }

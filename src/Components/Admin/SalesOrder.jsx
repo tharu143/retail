@@ -278,9 +278,9 @@ function SalesOrder() {
 
   const [soTheme, setSoTheme] = useState(localStorage.getItem('legacySubTheme') || 'green');
   const isGreen = soTheme === 'green';
-  const themeColor = isGreen ? '#10b981' : '#0ea5e9';
-  const themeColorHover = isGreen ? '#059669' : '#0284c7';
-  const themeLight = isGreen ? '#f0fdf4' : '#f0f9ff';
+  const themeColor = isGreen ? '#10b981' : '#0082f6';
+  const themeColorHover = isGreen ? '#059669' : '#0070d8';
+  const themeLight = isGreen ? '#f0fdf4' : '#ebf4fe';
 
   useEffect(() => {
     localStorage.setItem('legacySubTheme', soTheme);
@@ -1074,7 +1074,7 @@ function SalesOrder() {
                     <th>Order ID</th>
                     <th>Date</th>
                     <th>Customer</th>
-                    <th>Grand Total</th>
+                    <th style={{ textAlign: 'right' }}>Grand Total</th>
                     <th>Status</th>
                   </tr>
                 </thead>

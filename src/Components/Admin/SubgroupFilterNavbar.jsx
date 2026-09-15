@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import './SubgroupFilterNavbar.css';
 
 export default function SubgroupFilterNavbar({ 
@@ -11,6 +12,7 @@ export default function SubgroupFilterNavbar({
   const [hierarchy, setHierarchy] = useState([]);
   const [subgroupsList, setSubgroupsList] = useState([]);
   const [loading, setLoading] = useState(false);
+  const scrollRef = useRef(null);
 
   useEffect(() => {
     fetchHierarchy();
@@ -46,25 +48,45 @@ export default function SubgroupFilterNavbar({
     onSelectSubgroup(subName);
   };
 
+  const scrollLeft = () => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollBy({ left: -200, behavior: 'smooth' });
+    }
+  };
+
+  const scrollRight = () => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollBy({ left: 200, behavior: 'smooth' });
+    }
+  };
+
   return (
     <div className="subgroup-filter-navbar">
-      {/* Top Bar: Main Groups */}
-      <div className="main-groups-scroll">
-        <button
-          className={`main-group-pill ${activeMainGroup === 'All' ? 'active' : ''}`}
-          onClick={() => handleMainGroupClick('All')}
-        >
-          All Items
+      {/* Top Bar: Main Groups Carousel with Scroll Controls */}
+      <div className="main-groups-wrapper">
+        <button type="button" className="carousel-arrow-btn left" onClick={scrollLeft} title="Scroll Left">
+          <ChevronLeft size={16} />
         </button>
-        {hierarchy.map(item => (
+        <div className="main-groups-scroll" ref={scrollRef}>
           <button
-            key={item.main_group}
-            className={`main-group-pill ${activeMainGroup === item.main_group ? 'active' : ''}`}
-            onClick={() => handleMainGroupClick(item.main_group)}
+            className={`main-group-pill ${activeMainGroup === 'All' ? 'active' : ''}`}
+            onClick={() => handleMainGroupClick('All')}
           >
-            {item.main_group}
+            All Items
           </button>
-        ))}
+          {hierarchy.map(item => (
+            <button
+              key={item.main_group}
+              className={`main-group-pill ${activeMainGroup === item.main_group ? 'active' : ''}`}
+              onClick={() => handleMainGroupClick(item.main_group)}
+            >
+              {item.main_group}
+            </button>
+          ))}
+        </div>
+        <button type="button" className="carousel-arrow-btn right" onClick={scrollRight} title="Scroll Right">
+          <ChevronRight size={16} />
+        </button>
       </div>
 
       {/* Secondary Bar: Subgroups of Selected Main Group */}
@@ -91,3 +113,4 @@ export default function SubgroupFilterNavbar({
     </div>
   );
 }
+

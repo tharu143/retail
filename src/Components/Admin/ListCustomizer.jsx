@@ -3,7 +3,7 @@ import { Settings, X, Search, CheckSquare, Square, RefreshCcw, Loader2, Trash2, 
 import axios from 'axios';
 import Swal from 'sweetalert2';
 
-export default function ListCustomizer({ doctype, onSave, themeColor = '#0ea5e9', saveKey, btnClassName, btnStyle }) {
+export default function ListCustomizer({ doctype, onSave, themeColor = '#0082f6', saveKey, btnClassName, btnStyle }) {
   const [isOpen, setIsOpen] = useState(false);
   const [fields, setFields] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -105,21 +105,22 @@ export default function ListCustomizer({ doctype, onSave, themeColor = '#0ea5e9'
         onClick={handleOpen}
         className={btnClassName}
         style={btnStyle || (btnClassName ? {} : {
-          display: 'flex',
+          display: 'inline-flex',
           alignItems: 'center',
-          gap: '0.4rem',
-          padding: '0.45rem 0.9rem',
-          background: '#f8fafc',
+          justifyContent: 'center',
+          gap: '8px',
+          height: '38px',
+          padding: '0 16px',
+          background: '#ffffff',
           border: `1.5px solid ${themeColor}`,
-          borderRadius: '0.375rem',
-          fontSize: '0.75rem',
-          fontWeight: 700,
+          borderRadius: '8px',
+          fontSize: '12px',
+          fontWeight: 800,
           color: themeColor,
           cursor: 'pointer',
           transition: 'all 0.2s',
           textTransform: 'uppercase',
           letterSpacing: '0.04em',
-          height: '38px',
           boxSizing: 'border-box'
         })}
         title="Customize Columns"

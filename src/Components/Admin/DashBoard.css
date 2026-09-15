@@ -57,9 +57,9 @@
 }
 
 .sidebar-brand-subtitle {
-  font-size: 0.75rem !important;
-  font-weight: 600 !important;
-  color: #64748b !important;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #64748b;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   margin-top: 0.25rem;
@@ -146,24 +146,24 @@
 .sidebar-sub-links {
   display: flex !important;
   flex-direction: column !important;
-  gap: 0.25rem !important;
-  margin-top: 0.25rem !important;
-  padding-left: 1rem !important;
-  border-left: 1px solid #e2e8f0 !important;
-  margin-left: 1.5rem !important;
+  gap: 0.35rem !important;
+  margin-top: 0.35rem !important;
+  padding-left: 0.85rem !important;
+  border-left: 1.5px solid #e2e8f0 !important;
+  margin-left: 1.25rem !important;
 }
 
 .sidebar-sub-item {
   display: flex !important;
   align-items: center !important;
   gap: 0.75rem !important;
-  padding: 0.6rem 1rem !important;
-  font-size: 0.8rem !important;
+  padding: 0.65rem 1rem !important;
+  font-size: 0.825rem !important;
   font-weight: 600 !important;
   color: #475569 !important;
-  border-radius: 0.5rem !important;
+  border-radius: 0.75rem !important;
   cursor: pointer !important;
-  transition: all 0.2s ease !important;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
   text-decoration: none !important;
 }
 
@@ -174,8 +174,14 @@
 
 .sidebar-sub-item.active {
   color: #ffffff !important;
-  background-color: var(--so-primary, #10b981) !important;
-  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2) !important;
+  background-color: #0082f6 !important;
+  border-radius: 0.75rem !important;
+  font-weight: 700 !important;
+  box-shadow: 0 4px 14px rgba(0, 130, 246, 0.35) !important;
+}
+
+.sidebar-sub-item.active svg {
+  color: #ffffff !important;
 }
 
 .fav-pin-btn {
@@ -220,6 +226,14 @@
   color: #64748b !important;
 }
 
+.sidebar-user-greeting {
+  color: #0f172a;
+}
+
+.sidebar-nav.dark .sidebar-user-greeting {
+  color: #f8fafc !important;
+}
+
 .sidebar-nav.dark .sidebar-home-link {
   color: #94a3b8 !important;
 }
@@ -231,7 +245,7 @@
 }
 
 .sidebar-nav.dark .sidebar-home-link.active {
-  border-left: 3px solid var(--so-primary, #10b981) !important;
+  border-left: 3px solid #0082f6 !important;
   color: #ffffff !important;
 }
 
@@ -271,7 +285,9 @@
 
 .sidebar-nav.dark .sidebar-sub-item.active {
   color: #ffffff !important;
-  background-color: var(--so-primary, #10b981) !important;
+  background-color: #0082f6 !important;
+  border-radius: 0.75rem !important;
+  box-shadow: 0 4px 14px rgba(0, 130, 246, 0.35) !important;
 }
 
 /* Right Content Panel */

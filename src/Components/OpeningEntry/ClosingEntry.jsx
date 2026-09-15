@@ -827,7 +827,7 @@ function ClosingEntry() {
           <div>
             <div className="pce-title-row">
               <h1 className="pce-title">
-                POS Shift Closing Entry
+                POS SHIFT CLOSING ENTRY
               </h1>
               <span className="pce-tag">
                 Shift Reconciliation

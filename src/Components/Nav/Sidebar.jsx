@@ -60,7 +60,7 @@ const routeMap = {
   'Stock Entry': { icon: Activity },
   'Stock Balance Report': { icon: FileText },
   'Stock Ledger Report': { icon: FileText },
- 
+
   // POS
   'POS Profile': { icon: LayoutDashboard },
   'Opening Entry': { icon: Lock },
@@ -317,15 +317,15 @@ function Sidebar({ activeItem: propsActiveItem, setActiveItem: propsSetActiveIte
           </button>
         </div>
         {!isCollapsed && (
-          <div className="sidebar-brand-subtitle flex items-center justify-between gap-1">
-            <span className="truncate">
+          <div className="sidebar-brand-subtitle flex flex-col items-start gap-1.5 mt-2">
+            <div className="sidebar-user-greeting" style={{ color: sidebarTheme === 'dark' ? '#f8fafc' : '#0f172a', fontWeight: 800, fontSize: '0.85rem' }}>
               {typeof user === 'string' && user
                 ? (user.includes('@') ? user.split('@')[0] : user).replace(/^\w/, c => c.toUpperCase())
                 : (typeof user === 'object' && user ? (user.full_name || user.name) : 'Admin')}! 👋
-            </span>
+            </div>
             {activeItem && activeItem !== 'home' && (
-              <span className="text-[10px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 shrink-0">
-                {activeItem}
+              <span className="inline-flex items-center px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-wider bg-blue-50 text-[#0082f6] border border-blue-200 dark:bg-blue-950/80 dark:text-blue-300 dark:border-blue-800/80 shadow-2xs">
+                {activeItem.replace(/[-_]/g, ' ')}
               </span>
             )}
           </div>

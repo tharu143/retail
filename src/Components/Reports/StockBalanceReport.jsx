@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { 
-    Loader2, FileText, AlertCircle, Calendar, Search, 
-    Filter, Palette, RefreshCw, Download, Printer, 
-    ChevronDown, Boxes, Layers, Package, TrendingUp, TrendingDown, DollarSign,
-    Settings, ExternalLink
+import {
+  Loader2, FileText, AlertCircle, Calendar, Search,
+  Filter, Palette, RefreshCw, Download, Printer,
+  ChevronDown, Boxes, Layers, Package, TrendingUp, TrendingDown, DollarSign,
+  Settings, ExternalLink
 } from 'lucide-react';
 import { db } from '../../db';
 import CustomSearchDropdown from '../Purchase/CustomSearchDropdown';
@@ -16,7 +16,7 @@ import './StockBalanceReport.css';
 const DEFAULT_STOCK_COLUMNS = [
   { id: 'item_code', label: 'Item Code', visible: true, width: 140 },
   { id: 'item_name', label: 'Item Name', visible: true, width: 180 },
-  { id: 'item_group', label: 'Item Group', visible: true, width: 120 },
+  { id: 'item_group', label: 'Item Group', visible: true, width: 150 },
   { id: 'warehouse', label: 'Warehouse', visible: true, width: 160 },
   { id: 'stock_uom', label: 'UOM', visible: true, width: 90 },
   { id: 'opening_qty', label: 'Opening Qty', visible: true, width: 110 },
@@ -63,7 +63,7 @@ function StockBalanceReport() {
     setStockColumns(updated);
     localStorage.setItem('stock_balance_report_columns', JSON.stringify(updated));
   };
-  
+
   // Theme Hook
   const { legacySubTheme, isGreen, themeColor, themeColorHover, themeLight, themeHeaderBg, themeHeaderText, toggleTheme } = useLegacyTheme();
 
@@ -134,11 +134,11 @@ function StockBalanceReport() {
 
   useEffect(() => {
     fetchWarehousesAndGroups();
-    
+
     if (filters.item_code) {
       resolveInitialItem(filters.item_code);
     }
-    
+
     fetchReport(filters);
   }, []);
 
@@ -155,11 +155,11 @@ function StockBalanceReport() {
         if (!isAdmin) {
           // Cashier: restrict list to only their login warehouse
           const cashierWh = (defaultUserWh || '').toLowerCase();
-          const filteredWhs = allWhs.filter(wh => 
-            wh.name.toLowerCase() === cashierWh || 
+          const filteredWhs = allWhs.filter(wh =>
+            wh.name.toLowerCase() === cashierWh ||
             (wh.warehouse_name && wh.warehouse_name.toLowerCase() === cashierWh)
           );
-          
+
           if (filteredWhs.length === 0 && defaultUserWh) {
             setWarehouses([{ name: defaultUserWh, warehouse_name: defaultUserWh.replace(' - KSPL', '') }]);
           } else {
@@ -271,8 +271,8 @@ function StockBalanceReport() {
 
   const handleAllWarehousesToggle = (checked) => {
     if (!isAdmin) return; // Non-admins cannot toggle all warehouses
-    const next = { 
-      ...filters, 
+    const next = {
+      ...filters,
       all_warehouses: checked,
       warehouse: checked ? '' : (defaultUserWh || (warehouses[0]?.name || ''))
     };
@@ -308,7 +308,7 @@ function StockBalanceReport() {
         if (res.ok) {
           const json = await res.json();
           const online = json.message || [];
-          const filteredOnline = online.filter(it => 
+          const filteredOnline = online.filter(it =>
             (it.item_code || '').toLowerCase().includes(term) ||
             (it.item_name || '').toLowerCase().includes(term)
           ).slice(0, 15);
@@ -379,138 +379,155 @@ function StockBalanceReport() {
   };
 
   return (
-    <div className="so-page stock-balance-report-container">
-      
+    <div className="so-page stock-balance-report-container" style={{ padding: 0 }}>
+
       {/* 1. PREMIUM HEADER */}
-      <div className="so-page-header">
+      <div className="so-page-header" style={{ background: 'white', borderBottom: '1px solid #e2e8f0', padding: '1.25rem 2rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div>
-          <h1 className="so-page-title">
-            <Boxes size={22} />
-            Stock Balance Report
+          <h1 className="so-page-title" style={{ display: 'flex', alignItems: 'center', gap: '10px', margin: 0 }}>
+            <Package size={22} style={{ color: themeColor || '#0082f6' }} strokeWidth={2.5} />
+            <span style={{ fontFamily: "'Outfit', 'Gilroy', sans-serif", fontSize: '22px', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.01em', textTransform: 'uppercase' }}>
+              STOCK BALANCE REPORT
+            </span>
           </h1>
-          <p className="so-page-subtitle">Real-time valuation, inventory levels, inward/outward logs and ledger balances</p>
+          <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#64748b', fontWeight: 500 }}>
+            Real-time valuation, inventory levels, inward/outward logs and ledger balances
+          </p>
         </div>
-        
-        <div className="header-actions">
-          <button onClick={toggleTheme} className="theme-toggle-btn" style={{ borderColor: themeColor, color: themeColor }}>
+
+        <div className="header-actions" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <button
+            onClick={toggleTheme}
+            style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '0 16px', height: '38px', background: '#ffffff', border: `1.5px solid ${themeColor || '#0082f6'}`, borderRadius: '8px', fontSize: '12px', fontWeight: 800, color: themeColor || '#0082f6', cursor: 'pointer', textTransform: 'uppercase' }}
+          >
             <Palette size={14} /> {isGreen ? 'BLUE THEME' : 'GREEN THEME'}
           </button>
-          <div className="action-divider"></div>
-          <button className="so-btn-secondary" onClick={() => setShowColConfig(true)}>
-             <Settings size={16} /> Customize Columns
+          <div className="action-divider" style={{ width: '1px', height: '24px', background: '#e2e8f0' }}></div>
+          <button
+            style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '0 16px', height: '38px', background: '#f8fafc', border: '1.5px solid #e2e8f0', borderRadius: '8px', fontSize: '12px', fontWeight: 800, color: '#475569', cursor: 'pointer', textTransform: 'uppercase' }}
+            onClick={() => setShowColConfig(true)}
+          >
+            <Settings size={14} /> CUSTOMIZE COLUMNS
           </button>
-          <button className="so-btn-secondary" onClick={printReport}>
-             <Printer size={16} /> Print
+          <button
+            style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '0 16px', height: '38px', background: '#f8fafc', border: '1.5px solid #e2e8f0', borderRadius: '8px', fontSize: '12px', fontWeight: 800, color: '#475569', cursor: 'pointer', textTransform: 'uppercase' }}
+            onClick={printReport}
+          >
+            <Printer size={14} /> PRINT
           </button>
-          <button className="so-btn-primary" onClick={exportCSV} style={{ background: themeColor, borderColor: themeColor }}>
-             <Download size={16} /> Export CSV
+          <button
+            style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '0 16px', height: '38px', background: themeColor || '#0082f6', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 800, color: '#ffffff', cursor: 'pointer', textTransform: 'uppercase' }}
+            onClick={exportCSV}
+          >
+            <Download size={14} /> EXPORT CSV
           </button>
         </div>
       </div>
 
-      <div className="so-layout">
-        
-        {/* 2. SUMMARY METRIC CARDS */}
-        <div className="metrics-grid">
-          <div className="metric-card balance">
-            <div className="metric-icon-box" style={{ background: themeColor + '15', color: themeColor }}>
-              <Boxes size={22} />
+      <div style={{ padding: '1.5rem 2rem' }}>
+        <div className="so-layout">
+
+          {/* 2. SUMMARY METRIC CARDS */}
+          <div className="metrics-grid">
+            <div className="metric-card balance">
+              <div className="metric-icon-box" style={{ background: themeColor + '15', color: themeColor }}>
+                <Boxes size={22} />
+              </div>
+              <div className="metric-info">
+                <h3>Closing Qty</h3>
+                <p className="metric-value">{totalClosingQty.toLocaleString(undefined, { maximumFractionDigits: 3 })}</p>
+                <span className="metric-sub">Total Units on Hand</span>
+              </div>
             </div>
-            <div className="metric-info">
-              <h3>Closing Qty</h3>
-              <p className="metric-value">{totalClosingQty.toLocaleString(undefined, { maximumFractionDigits: 3 })}</p>
-              <span className="metric-sub">Total Units on Hand</span>
+
+            <div className="metric-card value">
+              <div className="metric-icon-box" style={{ background: '#10b98115', color: '#10b981' }}>
+                <DollarSign size={22} />
+              </div>
+              <div className="metric-info">
+                <h3 className="flex items-center gap-1">Closing Value (<DirhamIcon size={12} />)</h3>
+                <p className="metric-value flex items-center justify-center gap-1.5"><DirhamIcon size={22} /> {totalClosingValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                <span className="metric-sub">Total Capital Investment</span>
+              </div>
+            </div>
+
+            <div className="metric-card inbound">
+              <div className="metric-icon-box" style={{ background: '#3b82f615', color: '#3b82f6' }}>
+                <TrendingUp size={22} />
+              </div>
+              <div className="metric-info">
+                <h3>Inward Movement</h3>
+                <p className="metric-value">{totalInQty.toLocaleString(undefined, { maximumFractionDigits: 3 })} Units</p>
+                <span className="metric-sub flex items-center justify-center gap-1">Value: <DirhamIcon size={9} /> {totalInValue.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+              </div>
+            </div>
+
+            <div className="metric-card outbound">
+              <div className="metric-icon-box" style={{ background: '#f59e0b15', color: '#f59e0b' }}>
+                <TrendingDown size={22} />
+              </div>
+              <div className="metric-info">
+                <h3>Outward Movement</h3>
+                <p className="metric-value">{totalOutQty.toLocaleString(undefined, { maximumFractionDigits: 3 })} Units</p>
+                <span className="metric-sub flex items-center justify-center gap-1">Value: <DirhamIcon size={9} /> {totalOutValue.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+              </div>
             </div>
           </div>
 
-          <div className="metric-card value">
-            <div className="metric-icon-box" style={{ background: '#10b98115', color: '#10b981' }}>
-              <DollarSign size={22} />
+          {/* 3. DYNAMIC HORIZONTAL FILTERS */}
+          <div className="filters-wrapper">
+            <div className="filter-input-field flex-2">
+              <label className="so-filter-label">From Date</label>
+              <div className="so-relative">
+                <Calendar size={14} className="input-icon" style={{ color: themeColor }} />
+                <input
+                  type="date"
+                  className="so-filter-input"
+                  value={filters.from_date}
+                  onChange={(e) => handleFilterUpdate('from_date', e.target.value)}
+                  onFocus={(e) => { try { e.target.showPicker(); } catch (err) { } }}
+                  onClick={(e) => { try { e.target.showPicker(); } catch (err) { } }}
+                />
+              </div>
             </div>
-            <div className="metric-info">
-              <h3 className="flex items-center gap-1">Closing Value (<DirhamIcon size={12} />)</h3>
-              <p className="metric-value flex items-center justify-center gap-1.5"><DirhamIcon size={22} /> {totalClosingValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-              <span className="metric-sub">Total Capital Investment</span>
-            </div>
-          </div>
 
-          <div className="metric-card inbound">
-            <div className="metric-icon-box" style={{ background: '#3b82f615', color: '#3b82f6' }}>
-              <TrendingUp size={22} />
+            <div className="filter-input-field flex-2">
+              <label className="so-filter-label">To Date</label>
+              <div className="so-relative">
+                <Calendar size={14} className="input-icon" style={{ color: themeColor }} />
+                <input
+                  type="date"
+                  className="so-filter-input"
+                  value={filters.to_date}
+                  onChange={(e) => handleFilterUpdate('to_date', e.target.value)}
+                  onFocus={(e) => { try { e.target.showPicker(); } catch (err) { } }}
+                  onClick={(e) => { try { e.target.showPicker(); } catch (err) { } }}
+                />
+              </div>
             </div>
-            <div className="metric-info">
-              <h3>Inward Movement</h3>
-              <p className="metric-value">{totalInQty.toLocaleString(undefined, { maximumFractionDigits: 3 })} Units</p>
-               <span className="metric-sub flex items-center justify-center gap-1">Value: <DirhamIcon size={9} /> {totalInValue.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
-            </div>
-          </div>
 
-          <div className="metric-card outbound">
-            <div className="metric-icon-box" style={{ background: '#f59e0b15', color: '#f59e0b' }}>
-              <TrendingDown size={22} />
+            <div className="filter-input-field flex-3">
+              <label className="so-filter-label">Filter by Product</label>
+              <div className="so-relative dropdown-search-container">
+                <CustomSearchDropdown
+                  placeholder="All Products (Search or type...)"
+                  value={selectedItemObj}
+                  onSelect={(item) => {
+                    setSelectedItemObj(item);
+                    handleFilterUpdate('item_code', item ? item.name : '');
+                  }}
+                  fetchData={fetchItemsAPI}
+                  optionsLabel="item_name"
+                />
+              </div>
             </div>
-            <div className="metric-info">
-              <h3>Outward Movement</h3>
-              <p className="metric-value">{totalOutQty.toLocaleString(undefined, { maximumFractionDigits: 3 })} Units</p>
-               <span className="metric-sub flex items-center justify-center gap-1">Value: <DirhamIcon size={9} /> {totalOutValue.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
-            </div>
-          </div>
-        </div>
 
-        {/* 3. DYNAMIC HORIZONTAL FILTERS */}
-        <div className="so-filter-bar filters-wrapper">
-          <div className="filter-input-field flex-2">
-            <label className="so-filter-label">From Date</label>
-            <div className="so-relative">
-               <Calendar size={14} className="input-icon" style={{ color: themeColor }} />
-               <input 
-                 type="date" 
-                 className="so-filter-input" 
-                 value={filters.from_date}
-                 onChange={(e) => handleFilterUpdate('from_date', e.target.value)}
-                 onFocus={(e) => { try { e.target.showPicker(); } catch(err) {} }}
-                 onClick={(e) => { try { e.target.showPicker(); } catch(err) {} }}
-               />
-            </div>
-          </div>
-          
-          <div className="filter-input-field flex-2">
-            <label className="so-filter-label">To Date</label>
-            <div className="so-relative">
-               <Calendar size={14} className="input-icon" style={{ color: themeColor }} />
-               <input 
-                 type="date" 
-                 className="so-filter-input" 
-                 value={filters.to_date}
-                 onChange={(e) => handleFilterUpdate('to_date', e.target.value)}
-                 onFocus={(e) => { try { e.target.showPicker(); } catch(err) {} }}
-                 onClick={(e) => { try { e.target.showPicker(); } catch(err) {} }}
-               />
-            </div>
-          </div>
-
-          <div className="filter-input-field flex-3">
-            <label className="so-filter-label">Filter by Product</label>
-            <div className="so-relative dropdown-search-container">
-              <CustomSearchDropdown
-                placeholder="All Products (Search or type...)"
-                value={selectedItemObj}
-                onSelect={(item) => {
-                  setSelectedItemObj(item);
-                  handleFilterUpdate('item_code', item ? item.name : '');
-                }}
-                fetchData={fetchItemsAPI}
-                optionsLabel="item_name"
-              />
-            </div>
-          </div>
-
-          <div className="filter-input-field flex-3">
-            <label className="so-filter-label">Item Group</label>
-            <div className="so-relative">
-               <Layers size={14} className="input-icon" style={{ color: '#94a3b8' }} />
-                <select 
-                  className="so-filter-select" 
+            <div className="filter-input-field flex-3">
+              <label className="so-filter-label">Item Group</label>
+              <div className="so-relative">
+                <Layers size={14} className="input-icon" style={{ color: '#94a3b8' }} />
+                <select
+                  className="so-filter-select"
                   value={filters.item_group}
                   onChange={(e) => handleFilterUpdate('item_group', e.target.value)}
                 >
@@ -521,230 +538,231 @@ function StockBalanceReport() {
                     </option>
                   ))}
                 </select>
-               <ChevronDown size={14} className="select-arrow" />
+                <ChevronDown size={14} className="select-arrow" />
+              </div>
             </div>
+
+            <div className="filter-input-field flex-3">
+              <div className="warehouse-filter-header">
+                <label className="so-filter-label">Target Warehouse</label>
+                <label className={`all-warehouses-checkbox ${!isAdmin ? 'disabled' : ''}`}>
+                  <input
+                    type="checkbox"
+                    checked={filters.all_warehouses}
+                    disabled={!isAdmin}
+                    onChange={(e) => handleAllWarehousesToggle(e.target.checked)}
+                  />
+                  <span>All Warehouses</span>
+                </label>
+              </div>
+              <div className="so-relative">
+                <Boxes size={14} className="input-icon" style={{ color: filters.all_warehouses ? '#cbd5e1' : themeColor }} />
+                <select
+                  className="so-filter-select"
+                  value={filters.warehouse}
+                  disabled={filters.all_warehouses || !isAdmin}
+                  onChange={(e) => handleFilterUpdate('warehouse', e.target.value)}
+                  style={{ opacity: (filters.all_warehouses || !isAdmin) ? 0.6 : 1 }}
+                >
+                  {warehouses.map(wh => (
+                    <option key={wh.name} value={wh.name}>{wh.warehouse_name || wh.name}</option>
+                  ))}
+                </select>
+                <ChevronDown size={14} className="select-arrow" />
+              </div>
+            </div>
+
+            <button
+              className="so-clear-btn"
+              onClick={() => {
+                const reset = {
+                  from_date: getDate30DaysAgo(),
+                  to_date: getTodayDate(),
+                  warehouse: defaultUserWh,
+                  all_warehouses: isAdmin ? !defaultUserWh : false,
+                  item_code: '',
+                  item_group: ''
+                };
+                setSelectedItemObj(null);
+                setFilters(reset);
+                fetchReport(reset);
+              }}
+            >
+              Reset
+            </button>
           </div>
 
-          <div className="filter-input-field flex-3">
-            <div className="warehouse-filter-header">
-              <label className="so-filter-label">Target Warehouse</label>
-              <label className={`all-warehouses-checkbox ${!isAdmin ? 'disabled' : ''}`}>
-                <input 
-                  type="checkbox" 
-                  checked={filters.all_warehouses}
-                  disabled={!isAdmin}
-                  onChange={(e) => handleAllWarehousesToggle(e.target.checked)}
-                />
-                <span>All Warehouses</span>
-              </label>
-            </div>
-            <div className="so-relative">
-               <Boxes size={14} className="input-icon" style={{ color: filters.all_warehouses ? '#cbd5e1' : themeColor }} />
-               <select 
-                 className="so-filter-select" 
-                 value={filters.warehouse}
-                 disabled={filters.all_warehouses || !isAdmin}
-                 onChange={(e) => handleFilterUpdate('warehouse', e.target.value)}
-                 style={{ opacity: (filters.all_warehouses || !isAdmin) ? 0.6 : 1 }}
-               >
-                 {warehouses.map(wh => (
-                   <option key={wh.name} value={wh.name}>{wh.warehouse_name || wh.name}</option>
-                 ))}
-               </select>
-               <ChevronDown size={14} className="select-arrow" />
-            </div>
-          </div>
-
-          <button 
-             className="so-clear-btn" 
-             onClick={() => {
-               const reset = { 
-                 from_date: getDate30DaysAgo(), 
-                 to_date: getTodayDate(), 
-                 warehouse: defaultUserWh,
-                 all_warehouses: isAdmin ? !defaultUserWh : false,
-                 item_code: '',
-                 item_group: ''
-               };
-               setSelectedItemObj(null);
-               setFilters(reset);
-               fetchReport(reset);
-             }}
-          >
-            Reset
-          </button>
-        </div>
-
-        {/* 4. CONTENT VIEWPORT */}
-        <main className="so-content stock-table-viewport">
-          {error && (
-            <div className="report-error-banner">
-               <AlertCircle size={18} /> {error}
-            </div>
-          )}
-
-          <div className="results-header">
-            <p className="so-list-meta">Found <b>{data.length}</b> rows matching criteria</p>
-            {loading && (
-              <div className="loading-indicator" style={{ color: themeColor }}>
-                <Loader2 size={16} className="animate-spin" /> RUNNING STOCK CALCULATION...
+          {/* 4. CONTENT VIEWPORT */}
+          <main className="stock-table-viewport">
+            {error && (
+              <div className="report-error-banner">
+                <AlertCircle size={18} /> {error}
               </div>
             )}
-          </div>
 
-          <div className="so-table-card table-outer-box">
-            <div className="so-table-wrapper scrollable-table-area">
-              <table className="so-table premium-stock-table">
-                <thead>
-                  <tr>
-                    {stockColumns.filter(c => c.visible).map(col => (
-                      <th 
-                        key={col.id} 
-                        style={{ 
-                          width: col.width, 
-                          minWidth: col.width,
-                          textAlign: ['opening_qty', 'opening_val', 'in_qty', 'in_val', 'out_qty', 'out_val', 'bal_qty', 'val_rate', 'bal_val'].includes(col.id) ? 'right' : 'left'
-                        }}
-                      >
-                        {col.label}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {loading && data.length === 0 ? (
-                    <tr>
-                      <td colSpan={stockColumns.filter(c => c.visible).length} className="so-empty" style={{ padding: '6rem 0' }}>
-                        <Loader2 size={32} className="animate-spin" style={{ margin: '0 auto', color: themeColor }} />
-                        <p className="loading-text">Rebuilding Stock Ledger...</p>
-                      </td>
-                    </tr>
-                  ) : data.length === 0 ? (
-                    <tr>
-                      <td colSpan={stockColumns.filter(c => c.visible).length} className="so-empty" style={{ padding: '6rem 0' }}>
-                        <div className="empty-state-icon">
-                           <FileText size={48} />
-                        </div>
-                        <p className="empty-state-text">No inventory ledger transactions match the filters.</p>
-                      </td>
-                    </tr>
-                  ) : (
-                    data.map((row, idx) => {
-                      const openingQty = parseFloat(row.opening_qty) || 0;
-                      const inQty = parseFloat(row.in_qty) || 0;
-                      const outQty = parseFloat(row.out_qty) || 0;
-                      const balQty = parseFloat(row.bal_qty) || 0;
-
-                      return (
-                        <tr key={idx} className="table-row-hover">
-                          {stockColumns.filter(c => c.visible).map(col => {
-                            switch (col.id) {
-                              case 'item_code':
-                                return (
-                                  <td key={col.id} className="item-code-cell">
-                                    <span onClick={() => navigate('/itemlist', { state: { search: row.item_code } })} className="code-capsule group flex items-center gap-1.5 w-fit hover:text-indigo-600 transition-colors cursor-pointer">
-                                      {row.item_code}
-                                      <ExternalLink size={12} className="opacity-0 group-hover:opacity-100 transition-opacity" />
-                                    </span>
-                                  </td>
-                                );
-                              case 'item_name':
-                                return (
-                                  <td key={col.id} className="item-name-cell">{row.item_name}</td>
-                                );
-                              case 'item_group':
-                                return (
-                                  <td key={col.id}><span className="badge-item-group">{row.item_group}</span></td>
-                                );
-                              case 'warehouse':
-                                return (
-                                  <td key={col.id} className="warehouse-cell">
-                                    <span className="warehouse-name">{row.warehouse}</span>
-                                  </td>
-                                );
-                              case 'stock_uom':
-                                return (
-                                  <td key={col.id}><span className="badge-uom">{row.stock_uom}</span></td>
-                                );
-                              case 'opening_qty':
-                                return (
-                                  <td key={col.id} style={{ textAlign: 'right', fontWeight: 600 }}>
-                                    {openingQty === 0 ? <span className="text-muted-zero">0</span> : openingQty.toLocaleString(undefined, { maximumFractionDigits: 3 })}
-                                  </td>
-                                );
-                              case 'opening_val':
-                                return (
-                                  <td key={col.id} style={{ textAlign: 'right' }}>
-                                    <span className="flex items-center justify-end gap-1"><DirhamIcon size={12} className="text-slate-400" /> {(parseFloat(row.opening_val) || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                                  </td>
-                                );
-                              case 'in_qty':
-                                return (
-                                  <td key={col.id} style={{ textAlign: 'right' }}>
-                                    {inQty > 0 ? (
-                                      <span className="qty-badge-pill incoming">
-                                        +{inQty.toLocaleString(undefined, { maximumFractionDigits: 3 })}
-                                      </span>
-                                    ) : (
-                                      <span className="text-muted-zero">-</span>
-                                    )}
-                                  </td>
-                                );
-                              case 'in_val':
-                                return (
-                                  <td key={col.id} style={{ textAlign: 'right' }}>
-                                    <span className="flex items-center justify-end gap-1"><DirhamIcon size={12} className="text-slate-400" /> {(parseFloat(row.in_val) || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                                  </td>
-                                );
-                              case 'out_qty':
-                                return (
-                                  <td key={col.id} style={{ textAlign: 'right' }}>
-                                    {outQty > 0 ? (
-                                      <span className="qty-badge-pill outgoing">
-                                        {outQty.toLocaleString(undefined, { maximumFractionDigits: 3 })}
-                                      </span>
-                                    ) : (
-                                      <span className="text-muted-zero">-</span>
-                                    )}
-                                  </td>
-                                );
-                              case 'out_val':
-                                return (
-                                  <td key={col.id} style={{ textAlign: 'right' }}>
-                                    <span className="flex items-center justify-end gap-1"><DirhamIcon size={12} className="text-slate-400" /> {(parseFloat(row.out_val) || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                                  </td>
-                                );
-                              case 'bal_qty':
-                                return (
-                                  <td key={col.id} style={{ textAlign: 'right', fontWeight: 700, color: '#1e293b' }}>
-                                    {balQty.toLocaleString(undefined, { maximumFractionDigits: 3 })}
-                                  </td>
-                                );
-                              case 'val_rate':
-                                return (
-                                  <td key={col.id} style={{ textAlign: 'right', color: '#64748b' }}>
-                                    <span className="flex items-center justify-end gap-1"><DirhamIcon size={12} className="text-slate-400" /> {(parseFloat(row.val_rate) || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                                  </td>
-                                );
-                              case 'bal_val':
-                                return (
-                                  <td key={col.id} style={{ textAlign: 'right', fontWeight: 800, color: themeColor }}>
-                                    <span className="flex items-center justify-end gap-1"><DirhamIcon size={12} style={{ color: themeColor }} /> {(parseFloat(row.bal_val) || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                                  </td>
-                                );
-                              default:
-                                return null;
-                            }
-                          })}
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
+            <div className="results-header">
+              <p className="so-list-meta">Found <b>{data.length}</b> rows matching criteria</p>
+              {loading && (
+                <div className="loading-indicator" style={{ color: themeColor }}>
+                  <Loader2 size={16} className="animate-spin" /> RUNNING STOCK CALCULATION...
+                </div>
+              )}
             </div>
-          </div>
-        </main>
+
+            <div className="so-table-card table-outer-box">
+              <div className="so-table-wrapper scrollable-table-area">
+                <table className="so-table premium-stock-table">
+                  <thead>
+                    <tr>
+                      {stockColumns.filter(c => c.visible).map(col => (
+                        <th
+                          key={col.id}
+                          style={{
+                            width: col.width,
+                            minWidth: col.width,
+                            textAlign: ['opening_qty', 'opening_val', 'in_qty', 'in_val', 'out_qty', 'out_val', 'bal_qty', 'val_rate', 'bal_val'].includes(col.id) ? 'right' : 'left'
+                          }}
+                        >
+                          {col.label}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {loading && data.length === 0 ? (
+                      <tr>
+                        <td colSpan={stockColumns.filter(c => c.visible).length} className="so-empty" style={{ padding: '6rem 0' }}>
+                          <Loader2 size={32} className="animate-spin" style={{ margin: '0 auto', color: themeColor }} />
+                          <p className="loading-text">Rebuilding Stock Ledger...</p>
+                        </td>
+                      </tr>
+                    ) : data.length === 0 ? (
+                      <tr>
+                        <td colSpan={stockColumns.filter(c => c.visible).length} className="so-empty" style={{ padding: '6rem 0' }}>
+                          <div className="empty-state-icon">
+                            <FileText size={48} />
+                          </div>
+                          <p className="empty-state-text">No inventory ledger transactions match the filters.</p>
+                        </td>
+                      </tr>
+                    ) : (
+                      data.map((row, idx) => {
+                        const openingQty = parseFloat(row.opening_qty) || 0;
+                        const inQty = parseFloat(row.in_qty) || 0;
+                        const outQty = parseFloat(row.out_qty) || 0;
+                        const balQty = parseFloat(row.bal_qty) || 0;
+
+                        return (
+                          <tr key={idx} className="table-row-hover">
+                            {stockColumns.filter(c => c.visible).map(col => {
+                              switch (col.id) {
+                                case 'item_code':
+                                  return (
+                                    <td key={col.id} className="item-code-cell">
+                                      <span onClick={() => navigate('/itemlist', { state: { search: row.item_code } })} className="code-capsule group flex items-center gap-1.5 w-fit hover:text-indigo-600 transition-colors cursor-pointer">
+                                        {row.item_code}
+                                        <ExternalLink size={12} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+                                      </span>
+                                    </td>
+                                  );
+                                case 'item_name':
+                                  return (
+                                    <td key={col.id} className="item-name-cell">{row.item_name}</td>
+                                  );
+                                case 'item_group':
+                                  return (
+                                    <td key={col.id}><span className="badge-item-group">{row.item_group}</span></td>
+                                  );
+                                case 'warehouse':
+                                  return (
+                                    <td key={col.id} className="warehouse-cell">
+                                      <span className="warehouse-name">{row.warehouse}</span>
+                                    </td>
+                                  );
+                                case 'stock_uom':
+                                  return (
+                                    <td key={col.id}><span className="badge-uom">{row.stock_uom}</span></td>
+                                  );
+                                case 'opening_qty':
+                                  return (
+                                    <td key={col.id} style={{ textAlign: 'right', fontWeight: 600 }}>
+                                      {openingQty === 0 ? <span className="text-muted-zero">0</span> : openingQty.toLocaleString(undefined, { maximumFractionDigits: 3 })}
+                                    </td>
+                                  );
+                                case 'opening_val':
+                                  return (
+                                    <td key={col.id} style={{ textAlign: 'right' }}>
+                                      <span className="flex items-center justify-end gap-1"><DirhamIcon size={12} className="text-slate-400" /> {(parseFloat(row.opening_val) || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                    </td>
+                                  );
+                                case 'in_qty':
+                                  return (
+                                    <td key={col.id} style={{ textAlign: 'right' }}>
+                                      {inQty > 0 ? (
+                                        <span className="qty-badge-pill incoming">
+                                          +{inQty.toLocaleString(undefined, { maximumFractionDigits: 3 })}
+                                        </span>
+                                      ) : (
+                                        <span className="text-muted-zero">-</span>
+                                      )}
+                                    </td>
+                                  );
+                                case 'in_val':
+                                  return (
+                                    <td key={col.id} style={{ textAlign: 'right' }}>
+                                      <span className="flex items-center justify-end gap-1"><DirhamIcon size={12} className="text-slate-400" /> {(parseFloat(row.in_val) || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                    </td>
+                                  );
+                                case 'out_qty':
+                                  return (
+                                    <td key={col.id} style={{ textAlign: 'right' }}>
+                                      {outQty > 0 ? (
+                                        <span className="qty-badge-pill outgoing">
+                                          {outQty.toLocaleString(undefined, { maximumFractionDigits: 3 })}
+                                        </span>
+                                      ) : (
+                                        <span className="text-muted-zero">-</span>
+                                      )}
+                                    </td>
+                                  );
+                                case 'out_val':
+                                  return (
+                                    <td key={col.id} style={{ textAlign: 'right' }}>
+                                      <span className="flex items-center justify-end gap-1"><DirhamIcon size={12} className="text-slate-400" /> {(parseFloat(row.out_val) || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                    </td>
+                                  );
+                                case 'bal_qty':
+                                  return (
+                                    <td key={col.id} style={{ textAlign: 'right', fontWeight: 700, color: '#1e293b' }}>
+                                      {balQty.toLocaleString(undefined, { maximumFractionDigits: 3 })}
+                                    </td>
+                                  );
+                                case 'val_rate':
+                                  return (
+                                    <td key={col.id} style={{ textAlign: 'right', color: '#64748b' }}>
+                                      <span className="flex items-center justify-end gap-1"><DirhamIcon size={12} className="text-slate-400" /> {(parseFloat(row.val_rate) || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                    </td>
+                                  );
+                                case 'bal_val':
+                                  return (
+                                    <td key={col.id} style={{ textAlign: 'right', fontWeight: 800, color: themeColor }}>
+                                      <span className="flex items-center justify-end gap-1"><DirhamIcon size={12} style={{ color: themeColor }} /> {(parseFloat(row.bal_val) || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                    </td>
+                                  );
+                                default:
+                                  return null;
+                              }
+                            })}
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </main>
+        </div>
       </div>
 
       {/* Column Customization Modal */}

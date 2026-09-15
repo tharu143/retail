@@ -38,9 +38,9 @@
   width: 44px;
   height: 44px;
   border-radius: 12px;
-  background: #ecfdf5;
-  border: 1px solid #a7f3d0;
-  color: #059669;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  color: #2563eb;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -49,10 +49,12 @@
 }
 
 .dsr-title {
-  font-size: 1.35rem;
-  font-weight: 900;
+  font-family: 'Outfit', 'Gilroy', sans-serif;
+  font-size: 22px;
+  font-weight: 800;
   color: #0f172a;
-  letter-spacing: -0.025em;
+  letter-spacing: -0.01em;
+  text-transform: uppercase;
   margin: 0;
   display: flex;
   align-items: center;
@@ -60,15 +62,15 @@
 }
 
 .dsr-live-tag {
-  background: #dcfce7;
-  color: #15803d;
+  background: #dbeafe;
+  color: #1d4ed8;
   font-size: 0.65rem;
   font-weight: 900;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   padding: 0.2rem 0.5rem;
   border-radius: 6px;
-  border: 1px solid #bbf7d0;
+  border: 1px solid #93c5fd;
 }
 
 .dsr-subtitle {
@@ -132,19 +134,19 @@
   align-items: center;
   gap: 0.5rem;
   padding: 0.6rem 1.15rem;
-  background: #10b981;
-  border: 1px solid #059669;
+  background: #2563eb;
+  border: 1px solid #1d4ed8;
   color: #ffffff;
   font-weight: 800;
   font-size: 0.8rem;
   border-radius: 10px;
   cursor: pointer;
   transition: all 0.15s ease;
-  box-shadow: 0 1px 3px 0 rgba(16, 185, 129, 0.2);
+  box-shadow: 0 1px 3px 0 rgba(37, 99, 235, 0.2);
 }
 
 .dsr-btn-refresh:hover {
-  background: #059669;
+  background: #1d4ed8;
 }
 
 .dsr-btn-refresh:disabled {
@@ -154,9 +156,10 @@
 
 /* Main Content Wrapper */
 .dsr-main-body {
-  max-width: 1440px;
-  margin: 0 auto;
-  padding: 1.75rem 2rem;
+  width: 100%;
+  max-width: 100%;
+  padding: 1.5rem 2rem;
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
@@ -219,8 +222,8 @@
 
 .dsr-input:focus, .dsr-select:focus {
   background: #ffffff;
-  border-color: #10b981;
-  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.12);
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
 }
 
 .dsr-active-branch-box {
@@ -241,8 +244,8 @@
 .dsr-timing-badge-box {
   height: 42px;
   padding: 0 1rem;
-  background: #f0fdf4;
-  border: 1.5px solid #bbf7d0;
+  background: #eff6ff;
+  border: 1.5px solid #bfdbfe;
   border-radius: 10px;
   display: flex;
   align-items: center;
@@ -259,7 +262,7 @@
 .dsr-timing-label {
   font-size: 0.65rem;
   font-weight: 900;
-  color: #059669;
+  color: #2563eb;
 }
 
 .dsr-timing-val {
@@ -271,7 +274,7 @@
 .dsr-timing-divider {
   width: 1px;
   height: 16px;
-  background: #86efac;
+  background: #93c5fd;
 }
 
 .dsr-btn-reset {
@@ -311,15 +314,15 @@
 /* KPI Summary Cards Grid */
 .dsr-kpi-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(175px, 1fr));
-  gap: 0.875rem;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 1.1rem;
 }
 
 .dsr-kpi-card {
   background: #ffffff;
   border: 1px solid #e2e8f0;
   border-radius: 16px;
-  padding: 0.9rem 1.1rem;
+  padding: 1.15rem 1.35rem;
   box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.02);
   display: flex;
   flex-direction: column;
@@ -328,6 +331,7 @@
   overflow: hidden;
   cursor: pointer;
   transition: all 0.2s ease;
+  min-height: 105px;
 }
 
 .dsr-kpi-card:hover {
@@ -427,12 +431,22 @@
 /* Tabs Bar */
 .dsr-tab-nav {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 0.35rem;
   border-bottom: 2px solid #e2e8f0;
   padding-bottom: 0;
   margin-top: 0.5rem;
   overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.dsr-tab-nav::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 .dsr-tab-btn {
@@ -461,8 +475,8 @@
 }
 
 .dsr-tab-btn.active {
-  color: #059669;
-  border-bottom-color: #10b981;
+  color: #2563eb;
+  border-bottom-color: #2563eb;
   background: #ffffff;
 }
 

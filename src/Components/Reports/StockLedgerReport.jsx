@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { 
-    Loader2, FileText, AlertCircle, Calendar, Search, 
-    Filter, Palette, RefreshCw, Download, Printer, 
-    ChevronDown, Boxes, Layers, Package, TrendingUp, TrendingDown, DollarSign,
-    Settings, Activity, ExternalLink
+import {
+  Loader2, FileText, AlertCircle, Calendar, Search,
+  Filter, Palette, RefreshCw, Download, Printer,
+  ChevronDown, Boxes, Layers, Package, TrendingUp, TrendingDown, DollarSign,
+  Settings, Activity, ExternalLink
 } from 'lucide-react';
 import { db } from '../../db';
 import CustomSearchDropdown from '../Purchase/CustomSearchDropdown';
@@ -74,7 +74,7 @@ function StockLedgerReport() {
     const from_date = searchParams.get('from_date') || getDate30DaysAgo();
     const to_date = searchParams.get('to_date') || getTodayDate();
     const valuation_field_type = searchParams.get('valuation_field_type') || 'Currency';
-    
+
     let item_code = '';
     const itemCodeParam = searchParams.get('item_code');
     if (itemCodeParam) {
@@ -95,7 +95,7 @@ function StockLedgerReport() {
     // Role-based warehouse fallback
     let warehouse = searchParams.get('warehouse') || defaultUserWh;
     let all_warehouses = false;
-    
+
     if (isAdmin) {
       // Admins default to all warehouses if no warehouse specified
       all_warehouses = !searchParams.get('warehouse');
@@ -154,7 +154,7 @@ function StockLedgerReport() {
   // Fetch initial dropdown items, resolve pre-selected item, and fetch report
   useEffect(() => {
     fetchWarehousesAndGroups();
-    
+
     // Resolve item details if item_code is passed via URL query
     if (filters.item_code) {
       resolveInitialItem(filters.item_code);
@@ -186,15 +186,15 @@ function StockLedgerReport() {
       if (whRes.ok) {
         const json = await whRes.json();
         const allWhs = json.message || [];
-        
+
         if (!isAdmin) {
           // Cashier: restrict list to only their login warehouse
           const cashierWh = (defaultUserWh || '').toLowerCase();
-          const filteredWhs = allWhs.filter(wh => 
-            wh.name.toLowerCase() === cashierWh || 
+          const filteredWhs = allWhs.filter(wh =>
+            wh.name.toLowerCase() === cashierWh ||
             (wh.warehouse_name && wh.warehouse_name.toLowerCase() === cashierWh)
           );
-          
+
           if (filteredWhs.length === 0 && defaultUserWh) {
             setWarehouses([{ name: defaultUserWh, warehouse_name: defaultUserWh.replace(' - KSPL', '') }]);
           } else {
@@ -286,8 +286,8 @@ function StockLedgerReport() {
 
   const handleAllWarehousesToggle = (checked) => {
     if (!isAdmin) return; // Cashiers cannot toggle all warehouses
-    const next = { 
-      ...filters, 
+    const next = {
+      ...filters,
       all_warehouses: checked,
       warehouse: checked ? '' : (defaultUserWh || (warehouses[0]?.name || ''))
     };
@@ -320,7 +320,7 @@ function StockLedgerReport() {
         if (res.ok) {
           const json = await res.json();
           const online = json.message || [];
-          const filteredOnline = online.filter(it => 
+          const filteredOnline = online.filter(it =>
             (it.item_code || '').toLowerCase().includes(term) ||
             (it.item_name || '').toLowerCase().includes(term)
           ).slice(0, 15);
@@ -384,138 +384,155 @@ function StockLedgerReport() {
   };
 
   return (
-    <div className="so-page stock-ledger-report-container">
-      
+    <div className="so-page stock-ledger-report-container" style={{ padding: 0 }}>
+
       {/* 1. PREMIUM HEADER */}
-      <div className="so-page-header">
+      <div className="so-page-header" style={{ background: 'white', borderBottom: '1px solid #e2e8f0', padding: '1.25rem 2rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div>
-          <h1 className="so-page-title">
-            <Activity size={22} />
-            Stock Ledger Report
+          <h1 className="so-page-title" style={{ display: 'flex', alignItems: 'center', gap: '10px', margin: 0 }}>
+            <Package size={22} style={{ color: themeColor || '#0082f6' }} strokeWidth={2.5} />
+            <span style={{ fontFamily: "'Outfit', 'Gilroy', sans-serif", fontSize: '22px', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.01em', textTransform: 'uppercase' }}>
+              STOCK LEDGER REPORT
+            </span>
           </h1>
-          <p className="so-page-subtitle">Chronological ledger of inventory logs, rates, incoming receipts and valuations</p>
+          <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#64748b', fontWeight: 500 }}>
+            Chronological ledger of inventory logs, rates, incoming receipts and valuations
+          </p>
         </div>
-        
-        <div className="header-actions">
-          <button onClick={toggleTheme} className="theme-toggle-btn" style={{ borderColor: themeColor, color: themeColor }}>
+
+        <div className="header-actions" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <button
+            onClick={toggleTheme}
+            style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '0 16px', height: '38px', background: '#ffffff', border: `1.5px solid ${themeColor || '#0082f6'}`, borderRadius: '8px', fontSize: '12px', fontWeight: 800, color: themeColor || '#0082f6', cursor: 'pointer', textTransform: 'uppercase' }}
+          >
             <Palette size={14} /> {isGreen ? 'BLUE THEME' : 'GREEN THEME'}
           </button>
-          <div className="action-divider"></div>
-          <button className="so-btn-secondary" onClick={() => setShowColConfig(true)}>
-             <Settings size={16} /> Customize Columns
+          <div className="action-divider" style={{ width: '1px', height: '24px', background: '#e2e8f0' }}></div>
+          <button
+            style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '0 16px', height: '38px', background: '#f8fafc', border: '1.5px solid #e2e8f0', borderRadius: '8px', fontSize: '12px', fontWeight: 800, color: '#475569', cursor: 'pointer', textTransform: 'uppercase' }}
+            onClick={() => setShowColConfig(true)}
+          >
+            <Settings size={14} /> CUSTOMIZE COLUMNS
           </button>
-          <button className="so-btn-secondary" onClick={() => window.print()}>
-             <Printer size={16} /> Print
+          <button
+            style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '0 16px', height: '38px', background: '#f8fafc', border: '1.5px solid #e2e8f0', borderRadius: '8px', fontSize: '12px', fontWeight: 800, color: '#475569', cursor: 'pointer', textTransform: 'uppercase' }}
+            onClick={() => window.print()}
+          >
+            <Printer size={14} /> PRINT
           </button>
-          <button className="so-btn-primary" onClick={exportCSV} style={{ background: themeColor, borderColor: themeColor }}>
-             <Download size={16} /> Export CSV
+          <button
+            style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '0 16px', height: '38px', background: themeColor || '#0082f6', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 800, color: '#ffffff', cursor: 'pointer', textTransform: 'uppercase' }}
+            onClick={exportCSV}
+          >
+            <Download size={14} /> EXPORT CSV
           </button>
         </div>
       </div>
 
-      <div className="so-layout">
-        
-        {/* 2. SUMMARY METRIC CARDS */}
-        <div className="metrics-grid">
-          <div className="metric-card balance">
-            <div className="metric-icon-box" style={{ background: themeColor + '15', color: themeColor }}>
-              <Boxes size={22} />
+      <div style={{ padding: '1.5rem 2rem' }}>
+        <div className="so-layout">
+
+          {/* 2. SUMMARY METRIC CARDS */}
+          <div className="metrics-grid">
+            <div className="metric-card balance">
+              <div className="metric-icon-box" style={{ background: themeColor + '15', color: themeColor }}>
+                <Boxes size={22} />
+              </div>
+              <div className="metric-info">
+                <h3>Closing Qty</h3>
+                <p className="metric-value">{finalBalQty.toLocaleString(undefined, { maximumFractionDigits: 3 })}</p>
+                <span className="metric-sub">Latest Ledger Units</span>
+              </div>
             </div>
-            <div className="metric-info">
-              <h3>Closing Qty</h3>
-              <p className="metric-value">{finalBalQty.toLocaleString(undefined, { maximumFractionDigits: 3 })}</p>
-              <span className="metric-sub">Latest Ledger Units</span>
+
+            <div className="metric-card value">
+              <div className="metric-icon-box" style={{ background: '#10b98115', color: '#10b981' }}>
+                <DollarSign size={22} />
+              </div>
+              <div className="metric-info">
+                <h3 className="flex items-center gap-1">Closing Value (<DirhamIcon size={12} />)</h3>
+                <p className="metric-value flex items-center justify-center gap-1.5"><DirhamIcon size={22} /> {finalBalVal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                <span className="metric-sub">Latest Valuation Balance</span>
+              </div>
+            </div>
+
+            <div className="metric-card inbound">
+              <div className="metric-icon-box" style={{ background: '#3b82f615', color: '#3b82f6' }}>
+                <TrendingUp size={22} />
+              </div>
+              <div className="metric-info">
+                <h3>Total Inward</h3>
+                <p className="metric-value">+{totalInQty.toLocaleString(undefined, { maximumFractionDigits: 3 })} Units</p>
+                <span className="metric-sub">Sum of incoming transactions</span>
+              </div>
+            </div>
+
+            <div className="metric-card outbound">
+              <div className="metric-icon-box" style={{ background: '#f59e0b15', color: '#f59e0b' }}>
+                <TrendingDown size={22} />
+              </div>
+              <div className="metric-info">
+                <h3>Total Outward</h3>
+                <p className="metric-value">-{Math.abs(totalOutQty).toLocaleString(undefined, { maximumFractionDigits: 3 })} Units</p>
+                <span className="metric-sub">Sum of outgoing transactions</span>
+              </div>
             </div>
           </div>
 
-          <div className="metric-card value">
-            <div className="metric-icon-box" style={{ background: '#10b98115', color: '#10b981' }}>
-              <DollarSign size={22} />
+          {/* 3. DYNAMIC HORIZONTAL FILTERS */}
+          <div className="filters-wrapper">
+            <div className="filter-input-field flex-2">
+              <label className="so-filter-label">From Date</label>
+              <div className="so-relative">
+                <Calendar size={14} className="input-icon" style={{ color: themeColor }} />
+                <input
+                  type="date"
+                  className="so-filter-input"
+                  value={filters.from_date}
+                  onChange={(e) => handleFilterUpdate('from_date', e.target.value)}
+                  onFocus={(e) => { try { e.target.showPicker(); } catch (err) { } }}
+                  onClick={(e) => { try { e.target.showPicker(); } catch (err) { } }}
+                />
+              </div>
             </div>
-            <div className="metric-info">
-              <h3 className="flex items-center gap-1">Closing Value (<DirhamIcon size={12} />)</h3>
-              <p className="metric-value flex items-center justify-center gap-1.5"><DirhamIcon size={22} /> {finalBalVal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-              <span className="metric-sub">Latest Valuation Balance</span>
-            </div>
-          </div>
 
-          <div className="metric-card inbound">
-            <div className="metric-icon-box" style={{ background: '#3b82f615', color: '#3b82f6' }}>
-              <TrendingUp size={22} />
+            <div className="filter-input-field flex-2">
+              <label className="so-filter-label">To Date</label>
+              <div className="so-relative">
+                <Calendar size={14} className="input-icon" style={{ color: themeColor }} />
+                <input
+                  type="date"
+                  className="so-filter-input"
+                  value={filters.to_date}
+                  onChange={(e) => handleFilterUpdate('to_date', e.target.value)}
+                  onFocus={(e) => { try { e.target.showPicker(); } catch (err) { } }}
+                  onClick={(e) => { try { e.target.showPicker(); } catch (err) { } }}
+                />
+              </div>
             </div>
-            <div className="metric-info">
-              <h3>Total Inward</h3>
-              <p className="metric-value">+{totalInQty.toLocaleString(undefined, { maximumFractionDigits: 3 })} Units</p>
-              <span className="metric-sub">Sum of incoming transactions</span>
-            </div>
-          </div>
 
-          <div className="metric-card outbound">
-            <div className="metric-icon-box" style={{ background: '#f59e0b15', color: '#f59e0b' }}>
-              <TrendingDown size={22} />
+            <div className="filter-input-field flex-3">
+              <label className="so-filter-label">Filter by Product</label>
+              <div className="so-relative dropdown-search-container">
+                <CustomSearchDropdown
+                  placeholder="Search Product..."
+                  value={selectedItemObj}
+                  onSelect={(item) => {
+                    setSelectedItemObj(item);
+                    handleFilterUpdate('item_code', item ? item.name : '');
+                  }}
+                  fetchData={fetchItemsAPI}
+                  optionsLabel="item_name"
+                />
+              </div>
             </div>
-            <div className="metric-info">
-              <h3>Total Outward</h3>
-              <p className="metric-value">-{Math.abs(totalOutQty).toLocaleString(undefined, { maximumFractionDigits: 3 })} Units</p>
-              <span className="metric-sub">Sum of outgoing transactions</span>
-            </div>
-          </div>
-        </div>
 
-        {/* 3. DYNAMIC HORIZONTAL FILTERS */}
-        <div className="so-filter-bar filters-wrapper">
-          <div className="filter-input-field flex-2">
-            <label className="so-filter-label">From Date</label>
-            <div className="so-relative">
-               <Calendar size={14} className="input-icon" style={{ color: themeColor }} />
-               <input 
-                 type="date" 
-                 className="so-filter-input" 
-                 value={filters.from_date}
-                 onChange={(e) => handleFilterUpdate('from_date', e.target.value)}
-                 onFocus={(e) => { try { e.target.showPicker(); } catch(err) {} }}
-                 onClick={(e) => { try { e.target.showPicker(); } catch(err) {} }}
-               />
-            </div>
-          </div>
-          
-          <div className="filter-input-field flex-2">
-            <label className="so-filter-label">To Date</label>
-            <div className="so-relative">
-               <Calendar size={14} className="input-icon" style={{ color: themeColor }} />
-               <input 
-                 type="date" 
-                 className="so-filter-input" 
-                 value={filters.to_date}
-                 onChange={(e) => handleFilterUpdate('to_date', e.target.value)}
-                 onFocus={(e) => { try { e.target.showPicker(); } catch(err) {} }}
-                 onClick={(e) => { try { e.target.showPicker(); } catch(err) {} }}
-               />
-            </div>
-          </div>
-
-          <div className="filter-input-field flex-3">
-            <label className="so-filter-label">Filter by Product</label>
-            <div className="so-relative dropdown-search-container">
-              <CustomSearchDropdown
-                placeholder="Search Product..."
-                value={selectedItemObj}
-                onSelect={(item) => {
-                  setSelectedItemObj(item);
-                  handleFilterUpdate('item_code', item ? item.name : '');
-                }}
-                fetchData={fetchItemsAPI}
-                optionsLabel="item_name"
-              />
-            </div>
-          </div>
-
-          <div className="filter-input-field flex-3">
-            <label className="so-filter-label">Item Group</label>
-            <div className="so-relative">
-               <Layers size={14} className="input-icon" style={{ color: '#94a3b8' }} />
-                <select 
-                  className="so-filter-select" 
+            <div className="filter-input-field flex-3">
+              <label className="so-filter-label">Item Group</label>
+              <div className="so-relative">
+                <Layers size={14} className="input-icon" style={{ color: '#94a3b8' }} />
+                <select
+                  className="so-filter-select"
                   value={filters.item_group}
                   onChange={(e) => handleFilterUpdate('item_group', e.target.value)}
                 >
@@ -526,249 +543,250 @@ function StockLedgerReport() {
                     </option>
                   ))}
                 </select>
-               <ChevronDown size={14} className="select-arrow" />
+                <ChevronDown size={14} className="select-arrow" />
+              </div>
             </div>
+
+            <div className="filter-input-field flex-3">
+              <div className="warehouse-filter-header">
+                <label className="so-filter-label">Target Warehouse</label>
+                <label className={`all-warehouses-checkbox ${!isAdmin ? 'disabled' : ''}`}>
+                  <input
+                    type="checkbox"
+                    checked={filters.all_warehouses}
+                    disabled={!isAdmin}
+                    onChange={(e) => handleAllWarehousesToggle(e.target.checked)}
+                  />
+                  <span>All Warehouses</span>
+                </label>
+              </div>
+              <div className="so-relative">
+                <Boxes size={14} className="input-icon" style={{ color: filters.all_warehouses ? '#cbd5e1' : themeColor }} />
+                <select
+                  className="so-filter-select"
+                  value={filters.warehouse}
+                  disabled={filters.all_warehouses || !isAdmin}
+                  onChange={(e) => handleFilterUpdate('warehouse', e.target.value)}
+                  style={{ opacity: (filters.all_warehouses || !isAdmin) ? 0.6 : 1 }}
+                >
+                  {warehouses.map(wh => (
+                    <option key={wh.name} value={wh.name}>{wh.warehouse_name || wh.name}</option>
+                  ))}
+                </select>
+                <ChevronDown size={14} className="select-arrow" />
+              </div>
+            </div>
+
+            <button
+              className="so-clear-btn"
+              onClick={() => {
+                const reset = {
+                  from_date: getDate30DaysAgo(),
+                  to_date: getTodayDate(),
+                  warehouse: defaultUserWh,
+                  all_warehouses: isAdmin ? !defaultUserWh : false,
+                  item_code: '',
+                  item_group: '',
+                  valuation_field_type: 'Currency'
+                };
+                setSelectedItemObj(null);
+                setFilters(reset);
+                fetchReport(reset);
+              }}
+            >
+              Reset
+            </button>
           </div>
 
-          <div className="filter-input-field flex-3">
-            <div className="warehouse-filter-header">
-              <label className="so-filter-label">Target Warehouse</label>
-              <label className={`all-warehouses-checkbox ${!isAdmin ? 'disabled' : ''}`}>
-                <input 
-                  type="checkbox" 
-                  checked={filters.all_warehouses}
-                  disabled={!isAdmin}
-                  onChange={(e) => handleAllWarehousesToggle(e.target.checked)}
-                />
-                <span>All Warehouses</span>
-              </label>
-            </div>
-            <div className="so-relative">
-               <Boxes size={14} className="input-icon" style={{ color: filters.all_warehouses ? '#cbd5e1' : themeColor }} />
-               <select 
-                 className="so-filter-select" 
-                 value={filters.warehouse}
-                 disabled={filters.all_warehouses || !isAdmin}
-                 onChange={(e) => handleFilterUpdate('warehouse', e.target.value)}
-                 style={{ opacity: (filters.all_warehouses || !isAdmin) ? 0.6 : 1 }}
-               >
-                 {warehouses.map(wh => (
-                   <option key={wh.name} value={wh.name}>{wh.warehouse_name || wh.name}</option>
-                 ))}
-               </select>
-               <ChevronDown size={14} className="select-arrow" />
-            </div>
-          </div>
-
-          <button 
-             className="so-clear-btn" 
-             onClick={() => {
-               const reset = { 
-                 from_date: getDate30DaysAgo(), 
-                 to_date: getTodayDate(), 
-                 warehouse: defaultUserWh,
-                 all_warehouses: isAdmin ? !defaultUserWh : false,
-                 item_code: '',
-                 item_group: '',
-                 valuation_field_type: 'Currency'
-               };
-               setSelectedItemObj(null);
-               setFilters(reset);
-               fetchReport(reset);
-             }}
-          >
-            Reset
-          </button>
-        </div>
-
-        {/* 4. CONTENT VIEWPORT */}
-        <main className="so-content stock-table-viewport">
-          {error && (
-            <div className="report-error-banner">
-               <AlertCircle size={18} /> {error}
-            </div>
-          )}
-
-          <div className="results-header">
-            <p className="so-list-meta">Found <b>{data.length}</b> ledger rows</p>
-            {loading && (
-              <div className="loading-indicator" style={{ color: themeColor }}>
-                <Loader2 size={16} className="animate-spin" /> RUNNING LEDGER CALCULATION...
+          {/* 4. CONTENT VIEWPORT */}
+          <main className="stock-table-viewport">
+            {error && (
+              <div className="report-error-banner">
+                <AlertCircle size={18} /> {error}
               </div>
             )}
-          </div>
 
-          <div className="so-table-card table-outer-box">
-            <div className="so-table-wrapper scrollable-table-area">
-              <table className="so-table premium-stock-table">
-                <thead>
-                  <tr>
-                    {ledgerColumns.filter(c => c.visible).map(col => (
-                      <th 
-                        key={col.id} 
-                        style={{ 
-                          width: col.width, 
-                          minWidth: col.width,
-                          textAlign: ['in_qty', 'out_qty', 'qty_after_transaction', 'valuation_rate', 'stock_value', 'stock_value_difference'].includes(col.id) ? 'right' : 'left'
-                        }}
-                      >
-                        {col.label}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {loading && data.length === 0 ? (
-                    <tr>
-                      <td colSpan={ledgerColumns.filter(c => c.visible).length} className="so-empty" style={{ padding: '6rem 0' }}>
-                        <Loader2 size={32} className="animate-spin" style={{ margin: '0 auto', color: themeColor }} />
-                        <p className="loading-text">Rebuilding Stock Ledger...</p>
-                      </td>
-                    </tr>
-                  ) : data.length === 0 ? (
-                    <tr>
-                      <td colSpan={ledgerColumns.filter(c => c.visible).length} className="so-empty" style={{ padding: '6rem 0' }}>
-                        <div className="empty-state-icon">
-                           <FileText size={48} />
-                        </div>
-                        <p className="empty-state-text">No ledger entries match the criteria.</p>
-                      </td>
-                    </tr>
-                  ) : (
-                    data.map((row, idx) => {
-                      const inQty = parseFloat(row.in_qty) || 0;
-                      const outQty = parseFloat(row.out_qty) || 0;
-                      const balQty = parseFloat(row.qty_after_transaction) || 0;
-                      const valRate = parseFloat(row.valuation_rate) || 0;
-                      const stockVal = parseFloat(row.stock_value) || 0;
-                      const valDiff = parseFloat(row.stock_value_difference) || 0;
-
-                      // Display customized special columns
-                      return (
-                        <tr key={idx} className="table-row-hover">
-                          {ledgerColumns.filter(c => c.visible).map(col => {
-                            switch (col.id) {
-                              case 'date':
-                                return (
-                                  <td key={col.id} style={{ fontWeight: 500 }}>
-                                    {row.date ? row.date.replace('T', ' ').substring(0, 10) : ''}
-                                  </td>
-                                );
-                              case 'time':
-                                return (
-                                  <td key={col.id} style={{ fontWeight: 500, color: '#64748b', fontFamily: 'monospace', fontSize: '11px' }}>
-                                    {row.date ? row.date.replace('T', ' ').substring(11, 19) : ''}
-                                  </td>
-                                );
-                              case 'item_code':
-                                return (
-                                  <td key={col.id} className="item-code-cell">
-                                    <span onClick={() => navigate('/itemlist', { state: { search: row.item_code } })} className="code-capsule group flex items-center gap-1.5 w-fit hover:text-indigo-600 transition-colors cursor-pointer">
-                                      {row.item_code}
-                                      <ExternalLink size={12} className="opacity-0 group-hover:opacity-100 transition-opacity" />
-                                    </span>
-                                  </td>
-                                );
-                              case 'item_name':
-                                return (
-                                  <td key={col.id} className="item-name-cell">{row.item_name}</td>
-                                );
-                              case 'warehouse':
-                                return (
-                                  <td key={col.id} className="warehouse-cell">
-                                    <span className="warehouse-name">{row.warehouse}</span>
-                                  </td>
-                                );
-                              case 'voucher_type':
-                                return (
-                                  <td key={col.id}><span className="badge-item-group">{row.voucher_type}</span></td>
-                                );
-                              case 'voucher_no':
-                                const url = getVoucherUrl(row.voucher_type, row.voucher_no);
-                                const isExternal = url && url.startsWith('/app/');
-                                return (
-                                  <td key={col.id} style={{ fontFamily: 'monospace', fontWeight: 600, color: '#475569' }}>
-                                    {url ? (
-                                      isExternal ? (
-                                        <a href={url} target={window.location.protocol === 'file:' ? '_self' : '_blank'} rel="noopener noreferrer" className="group flex items-center gap-1.5 hover:text-indigo-600 transition-colors underline-offset-4 hover:underline cursor-pointer">
-                                          {row.voucher_no}
-                                          <ExternalLink size={12} className="opacity-0 group-hover:opacity-100 transition-opacity text-indigo-400" />
-                                        </a>
-                                      ) : (
-                                        <span onClick={() => navigate(url)} className="group flex items-center gap-1.5 hover:text-indigo-600 transition-colors underline-offset-4 hover:underline cursor-pointer">
-                                          {row.voucher_no}
-                                          <ExternalLink size={12} className="opacity-0 group-hover:opacity-100 transition-opacity text-indigo-400" />
-                                        </span>
-                                      )
-                                    ) : (
-                                      row.voucher_no
-                                    )}
-                                  </td>
-                                );
-                              case 'in_qty':
-                                return (
-                                  <td key={col.id} style={{ textAlign: 'right' }}>
-                                    {inQty > 0 ? (
-                                      <span className="qty-badge-pill incoming">
-                                        +{inQty.toLocaleString(undefined, { maximumFractionDigits: 3 })}
-                                      </span>
-                                    ) : (
-                                      <span className="text-muted-zero">-</span>
-                                    )}
-                                  </td>
-                                );
-                              case 'out_qty':
-                                return (
-                                  <td key={col.id} style={{ textAlign: 'right' }}>
-                                    {outQty < 0 || outQty > 0 ? (
-                                      <span className="qty-badge-pill outgoing">
-                                        -{Math.abs(outQty).toLocaleString(undefined, { maximumFractionDigits: 3 })}
-                                      </span>
-                                    ) : (
-                                      <span className="text-muted-zero">-</span>
-                                    )}
-                                  </td>
-                                );
-                              case 'qty_after_transaction':
-                                return (
-                                  <td key={col.id} style={{ textAlign: 'right', fontWeight: 700, color: '#1e293b' }}>
-                                    {balQty.toLocaleString(undefined, { maximumFractionDigits: 3 })}
-                                  </td>
-                                );
-                              case 'valuation_rate':
-                                return (
-                                  <td key={col.id} style={{ textAlign: 'right', color: '#64748b' }}>
-                                    <span className="flex items-center justify-end gap-1"><DirhamIcon size={12} className="text-slate-400" /> {valRate.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                                  </td>
-                                );
-                              case 'stock_value':
-                                return (
-                                  <td key={col.id} style={{ textAlign: 'right', fontWeight: 800, color: themeColor }}>
-                                    <span className="flex items-center justify-end gap-1"><DirhamIcon size={12} style={{ color: themeColor }} /> {stockVal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                                  </td>
-                                );
-                              case 'stock_value_difference':
-                                return (
-                                  <td key={col.id} style={{ textAlign: 'right', fontWeight: 600 }}>
-                                    <span className="flex items-center justify-end gap-1"><DirhamIcon size={12} className="text-slate-400" /> 
-                                    <span className="curr-val" style={{ color: valDiff > 0 ? '#047857' : valDiff < 0 ? '#b91c1c' : '#334155' }}>
-                                      {valDiff > 0 ? '+' : ''}{valDiff.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                    </span></span>
-                                  </td>
-                                );
-                              default:
-                                return null;
-                            }
-                          })}
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
+            <div className="results-header">
+              <p className="so-list-meta">Found <b>{data.length}</b> ledger rows</p>
+              {loading && (
+                <div className="loading-indicator" style={{ color: themeColor }}>
+                  <Loader2 size={16} className="animate-spin" /> RUNNING LEDGER CALCULATION...
+                </div>
+              )}
             </div>
-          </div>
-        </main>
+
+            <div className="so-table-card table-outer-box">
+              <div className="so-table-wrapper scrollable-table-area">
+                <table className="so-table premium-stock-table">
+                  <thead>
+                    <tr>
+                      {ledgerColumns.filter(c => c.visible).map(col => (
+                        <th
+                          key={col.id}
+                          style={{
+                            width: col.width,
+                            minWidth: col.width,
+                            textAlign: ['in_qty', 'out_qty', 'qty_after_transaction', 'valuation_rate', 'stock_value', 'stock_value_difference'].includes(col.id) ? 'right' : 'left'
+                          }}
+                        >
+                          {col.label}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {loading && data.length === 0 ? (
+                      <tr>
+                        <td colSpan={ledgerColumns.filter(c => c.visible).length} className="so-empty" style={{ padding: '6rem 0' }}>
+                          <Loader2 size={32} className="animate-spin" style={{ margin: '0 auto', color: themeColor }} />
+                          <p className="loading-text">Rebuilding Stock Ledger...</p>
+                        </td>
+                      </tr>
+                    ) : data.length === 0 ? (
+                      <tr>
+                        <td colSpan={ledgerColumns.filter(c => c.visible).length} className="so-empty" style={{ padding: '6rem 0' }}>
+                          <div className="empty-state-icon">
+                            <FileText size={48} />
+                          </div>
+                          <p className="empty-state-text">No ledger entries match the criteria.</p>
+                        </td>
+                      </tr>
+                    ) : (
+                      data.map((row, idx) => {
+                        const inQty = parseFloat(row.in_qty) || 0;
+                        const outQty = parseFloat(row.out_qty) || 0;
+                        const balQty = parseFloat(row.qty_after_transaction) || 0;
+                        const valRate = parseFloat(row.valuation_rate) || 0;
+                        const stockVal = parseFloat(row.stock_value) || 0;
+                        const valDiff = parseFloat(row.stock_value_difference) || 0;
+
+                        // Display customized special columns
+                        return (
+                          <tr key={idx} className="table-row-hover">
+                            {ledgerColumns.filter(c => c.visible).map(col => {
+                              switch (col.id) {
+                                case 'date':
+                                  return (
+                                    <td key={col.id} style={{ fontWeight: 500 }}>
+                                      {row.date ? row.date.replace('T', ' ').substring(0, 10) : ''}
+                                    </td>
+                                  );
+                                case 'time':
+                                  return (
+                                    <td key={col.id} style={{ fontWeight: 500, color: '#64748b', fontFamily: 'monospace', fontSize: '11px' }}>
+                                      {row.date ? row.date.replace('T', ' ').substring(11, 19) : ''}
+                                    </td>
+                                  );
+                                case 'item_code':
+                                  return (
+                                    <td key={col.id} className="item-code-cell">
+                                      <span onClick={() => navigate('/itemlist', { state: { search: row.item_code } })} className="code-capsule group flex items-center gap-1.5 w-fit hover:text-indigo-600 transition-colors cursor-pointer">
+                                        {row.item_code}
+                                        <ExternalLink size={12} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+                                      </span>
+                                    </td>
+                                  );
+                                case 'item_name':
+                                  return (
+                                    <td key={col.id} className="item-name-cell">{row.item_name}</td>
+                                  );
+                                case 'warehouse':
+                                  return (
+                                    <td key={col.id} className="warehouse-cell">
+                                      <span className="warehouse-name">{row.warehouse}</span>
+                                    </td>
+                                  );
+                                case 'voucher_type':
+                                  return (
+                                    <td key={col.id}><span className="badge-item-group">{row.voucher_type}</span></td>
+                                  );
+                                case 'voucher_no':
+                                  const url = getVoucherUrl(row.voucher_type, row.voucher_no);
+                                  const isExternal = url && url.startsWith('/app/');
+                                  return (
+                                    <td key={col.id} style={{ fontFamily: 'monospace', fontWeight: 600, color: '#475569' }}>
+                                      {url ? (
+                                        isExternal ? (
+                                          <a href={url} target={window.location.protocol === 'file:' ? '_self' : '_blank'} rel="noopener noreferrer" className="group flex items-center gap-1.5 hover:text-indigo-600 transition-colors underline-offset-4 hover:underline cursor-pointer">
+                                            {row.voucher_no}
+                                            <ExternalLink size={12} className="opacity-0 group-hover:opacity-100 transition-opacity text-indigo-400" />
+                                          </a>
+                                        ) : (
+                                          <span onClick={() => navigate(url)} className="group flex items-center gap-1.5 hover:text-indigo-600 transition-colors underline-offset-4 hover:underline cursor-pointer">
+                                            {row.voucher_no}
+                                            <ExternalLink size={12} className="opacity-0 group-hover:opacity-100 transition-opacity text-indigo-400" />
+                                          </span>
+                                        )
+                                      ) : (
+                                        row.voucher_no
+                                      )}
+                                    </td>
+                                  );
+                                case 'in_qty':
+                                  return (
+                                    <td key={col.id} style={{ textAlign: 'right' }}>
+                                      {inQty > 0 ? (
+                                        <span className="qty-badge-pill incoming">
+                                          +{inQty.toLocaleString(undefined, { maximumFractionDigits: 3 })}
+                                        </span>
+                                      ) : (
+                                        <span className="text-muted-zero">-</span>
+                                      )}
+                                    </td>
+                                  );
+                                case 'out_qty':
+                                  return (
+                                    <td key={col.id} style={{ textAlign: 'right' }}>
+                                      {outQty < 0 || outQty > 0 ? (
+                                        <span className="qty-badge-pill outgoing">
+                                          -{Math.abs(outQty).toLocaleString(undefined, { maximumFractionDigits: 3 })}
+                                        </span>
+                                      ) : (
+                                        <span className="text-muted-zero">-</span>
+                                      )}
+                                    </td>
+                                  );
+                                case 'qty_after_transaction':
+                                  return (
+                                    <td key={col.id} style={{ textAlign: 'right', fontWeight: 700, color: '#1e293b' }}>
+                                      {balQty.toLocaleString(undefined, { maximumFractionDigits: 3 })}
+                                    </td>
+                                  );
+                                case 'valuation_rate':
+                                  return (
+                                    <td key={col.id} style={{ textAlign: 'right', color: '#64748b' }}>
+                                      <span className="flex items-center justify-end gap-1"><DirhamIcon size={12} className="text-slate-400" /> {valRate.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                    </td>
+                                  );
+                                case 'stock_value':
+                                  return (
+                                    <td key={col.id} style={{ textAlign: 'right', fontWeight: 800, color: themeColor }}>
+                                      <span className="flex items-center justify-end gap-1"><DirhamIcon size={12} style={{ color: themeColor }} /> {stockVal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                    </td>
+                                  );
+                                case 'stock_value_difference':
+                                  return (
+                                    <td key={col.id} style={{ textAlign: 'right', fontWeight: 600 }}>
+                                      <span className="flex items-center justify-end gap-1"><DirhamIcon size={12} className="text-slate-400" />
+                                        <span className="curr-val" style={{ color: valDiff > 0 ? '#047857' : valDiff < 0 ? '#b91c1c' : '#334155' }}>
+                                          {valDiff > 0 ? '+' : ''}{valDiff.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                        </span></span>
+                                    </td>
+                                  );
+                                default:
+                                  return null;
+                              }
+                            })}
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </main>
+        </div>
       </div>
 
       {/* Column Customization Modal */}

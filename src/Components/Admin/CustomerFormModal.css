@@ -1,6 +1,6 @@
-/* src/Components/Admin/SupplierFormModal.css */
+/* src/Components/Admin/CustomerFormModal.css */
 
-.supplier-form-canvas {
+.customer-form-canvas {
   font-family: 'Outfit', 'Inter', system-ui, -apple-system, sans-serif;
   color: #1e293b;
   background-color: #f1f5f9;
@@ -8,17 +8,17 @@
 }
 
 /* Stepper Pill Bar */
-.stepper-bar-container {
+.customer-stepper-bar-container {
   background-color: #f1f5f9;
   padding: 14px 28px !important;
   border-bottom: 1px solid #e2e8f0;
 }
 
-.supplier-save-btn {
+.customer-save-btn {
   border-radius: 9999px !important;
 }
 
-.stepper-pill {
+.customer-stepper-pill {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -32,7 +32,7 @@
   text-transform: uppercase;
 }
 
-.stepper-pill.active {
+.customer-stepper-pill.active {
   background-color: #e0f2fe;
   color: #0284c7;
   border: 1px solid #7dd3fc;
@@ -40,7 +40,7 @@
   box-shadow: 0 1px 4px rgba(2, 132, 199, 0.12);
 }
 
-.stepper-pill.completed {
+.customer-stepper-pill.completed {
   background-color: #0082f6;
   color: #ffffff;
   border: 1px solid #0082f6;
@@ -48,13 +48,13 @@
   box-shadow: 0 2px 6px rgba(0, 130, 246, 0.2);
 }
 
-.stepper-pill.inactive {
+.customer-stepper-pill.inactive {
   background-color: #ffffff;
   color: #475569;
   border: 1px solid #cbd5e1;
 }
 
-.stepper-line {
+.customer-stepper-line {
   height: 2px;
   width: 24px;
   background-color: #cbd5e1;
@@ -62,7 +62,7 @@
 }
 
 /* Form Section Cards */
-.form-card {
+.customer-form-card {
   background-color: #ffffff;
   border: 1px solid #e2e8f0;
   border-radius: 16px;
@@ -73,7 +73,7 @@
   box-sizing: border-box;
 }
 
-.form-card-header {
+.customer-form-card-header {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -82,7 +82,7 @@
   border-bottom: 1px solid #f1f5f9;
 }
 
-.form-card-title-number {
+.customer-form-card-title-number {
   width: 28px;
   height: 28px;
   border-radius: 50%;
@@ -97,7 +97,7 @@
   flex-shrink: 0;
 }
 
-.form-card-title-text {
+.customer-form-card-title-text {
   font-size: 15.5px;
   font-weight: 800;
   color: #0f172a;
@@ -105,21 +105,21 @@
   text-transform: uppercase !important;
 }
 
-.form-card-subtitle-text {
+.customer-form-card-subtitle-text {
   font-size: 11.5px;
   font-weight: 500;
   color: #94a3b8;
   margin-top: 1px;
 }
 
-/* Inputs & Selects - Light Fill (#f8fafc), Soft Border (#e2e8f0) */
-.form-field-group {
+/* Inputs & Selects */
+.customer-form-field-group {
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
 
-.form-field-label {
+.customer-form-field-label {
   font-size: 11px;
   font-weight: 700;
   color: #475569;
@@ -127,8 +127,9 @@
   letter-spacing: 0.04em;
 }
 
-.form-field-input,
-.form-field-select {
+.customer-form-field-input,
+.customer-form-field-select,
+.customer-form-field-textarea {
   height: 38px;
   padding: 0 12px;
   background-color: #f8fafc;
@@ -140,22 +141,32 @@
   outline: none;
   transition: all 0.15s ease;
   width: 100%;
+  box-sizing: border-box;
 }
 
-.form-field-input:focus,
-.form-field-select:focus {
+.customer-form-field-textarea {
+  height: auto;
+  min-height: 80px;
+  padding: 10px 12px;
+  resize: vertical;
+}
+
+.customer-form-field-input:focus,
+.customer-form-field-select:focus,
+.customer-form-field-textarea:focus {
   background-color: #ffffff;
   border-color: #0082f6;
   box-shadow: 0 0 0 3px rgba(0, 130, 246, 0.15);
 }
 
-.form-field-input::placeholder {
+.customer-form-field-input::placeholder,
+.customer-form-field-textarea::placeholder {
   color: #94a3b8;
   font-weight: 400;
 }
 
-/* Checkbox Cards in Section 4 */
-.checkbox-card {
+/* Checkbox Cards */
+.customer-checkbox-card {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -168,18 +179,18 @@
   transition: all 0.15s ease;
 }
 
-.checkbox-card:hover {
+.customer-checkbox-card:hover {
   border-color: #0082f6;
   background-color: #ffffff;
 }
 
-.checkbox-card.checked {
+.customer-checkbox-card.checked {
   border-color: #0082f6;
   background-color: #f0f7ff;
 }
 
 /* Live Summary Card */
-.live-summary-card {
+.customer-live-summary-card {
   background-color: #ffffff;
   border: 1px solid #e2e8f0;
   border-radius: 16px;
@@ -188,78 +199,32 @@
   position: sticky;
   top: 20px;
   width: 100%;
-  max-height: calc(82vh - 80px);
+  max-height: calc(85vh - 80px);
   display: flex;
   flex-direction: column;
   overflow: hidden;
 }
 
-.live-summary-body {
+.customer-live-summary-body {
   overflow-y: auto;
   flex: 1;
   padding-right: 6px;
 }
 
-.live-summary-body::-webkit-scrollbar {
+.customer-live-summary-body::-webkit-scrollbar {
   width: 5px;
 }
 
-.live-summary-body::-webkit-scrollbar-track {
+.customer-live-summary-body::-webkit-scrollbar-track {
   background: transparent;
 }
 
-.live-summary-body::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 9999px;
+.customer-live-summary-body::-webkit-scrollbar-thumb {
+  background-color: #cbd5e1;
+  border-radius: 10px;
 }
 
-.live-summary-body::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
-}
-
-.live-summary-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid #f1f5f9;
-  font-size: 15px;
-  font-weight: 700;
-  color: #0f172a;
-}
-
-.live-summary-section-title {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-size: 12.5px;
-  font-weight: 700;
-  color: #0f172a;
-  margin-bottom: 6px;
-}
-
-.live-summary-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-size: 12px;
-  padding: 3px 0;
-}
-
-.live-summary-key {
-  color: #64748b;
-  font-weight: 500;
-  font-size: 12px;
-}
-
-.live-summary-val {
-  color: #0f172a;
-  font-weight: 800;
-  font-size: 12px;
-  text-align: right;
-}
-
-.supplier-summary-section-box {
+.customer-summary-section-box {
   background-color: #f8fafc;
   border: 1px solid #e2e8f0;
   border-radius: 12px;
@@ -268,36 +233,33 @@
   transition: all 0.15s ease;
 }
 
-.supplier-summary-section-box:hover {
+.customer-summary-section-box:hover {
   border-color: #cbd5e1;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
 }
 
-.live-summary-add-btn {
-  width: 100%;
-  height: 34px;
+.customer-summary-kv-row {
   display: flex;
+  justify-content: space-between;
   align-items: center;
-  justify-content: center;
-  background-color: #f1f5f9;
-  color: #475569;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
+  padding: 3px 0;
   font-size: 12px;
-  font-weight: 700;
-  cursor: pointer;
-  margin-top: 8px;
-  transition: all 0.15s ease;
 }
 
-.live-summary-add-btn:hover {
-  background-color: #e2e8f0;
+.customer-summary-k {
+  color: #64748b;
+  font-weight: 500;
+}
+
+.customer-summary-v {
   color: #0f172a;
+  font-weight: 700;
+  text-align: right;
 }
 
 /* Live Summary Inline Edit Mode */
 .live-summary-edit-container {
-  background-color: #f8fafc;
+  background-color: #ffffff;
   border: 1px solid #cbd5e1;
   border-radius: 12px;
   padding: 10px 12px;
@@ -391,79 +353,4 @@
 .live-summary-cancel-btn:hover {
   background-color: #f1f5f9;
   color: #0f172a;
-}
-
-/* Branch Availability Scroll & Cards */
-.branch-availability-scroll {
-  max-height: 460px;
-  overflow-y: auto;
-  padding-right: 8px;
-}
-
-.branch-availability-scroll::-webkit-scrollbar {
-  width: 8px;
-}
-
-.branch-availability-scroll::-webkit-scrollbar-track {
-  background: #f1f5f9;
-  border-radius: 8px;
-}
-
-.branch-availability-scroll::-webkit-scrollbar-thumb {
-  background: #94a3b8;
-  border-radius: 8px;
-}
-
-.branch-availability-scroll::-webkit-scrollbar-thumb:hover {
-  background: #64748b;
-}
-
-.branch-card-item {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 14px 18px;
-  border-radius: 14px;
-  border: 1.5px solid #e2e8f0;
-  background-color: #ffffff;
-  cursor: pointer;
-  user-select: none;
-  transition: all 0.15s ease-in-out;
-}
-
-.branch-card-item:hover {
-  border-color: #cbd5e1;
-  background-color: #f8fafc;
-}
-
-.branch-card-item.selected {
-  background-color: #f0f7ff;
-  border-color: #0082f6;
-  box-shadow: 0 1px 4px rgba(0, 130, 246, 0.12);
-}
-
-.branch-checkbox-box {
-  width: 22px;
-  height: 22px;
-  border-radius: 6px;
-  border: 2px solid #cbd5e1;
-  background-color: #ffffff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  transition: all 0.15s ease-in-out;
-}
-
-.branch-card-item.selected .branch-checkbox-box {
-  background-color: #0082f6;
-  border-color: #0082f6;
-  color: #ffffff;
-}
-
-.branch-name-text {
-  font-size: 14px;
-  font-weight: 700;
-  color: #0f172a;
-  line-height: 1.35;
 }

@@ -16,11 +16,11 @@ const POSHealth = () => {
     const [isOnline, setIsOnline] = useState(navigator.onLine);
 
     // Theme Support
-    const [healthTheme, setHealthTheme] = useState(localStorage.getItem('legacySubTheme') || 'green');
+    const [healthTheme, setHealthTheme] = useState(localStorage.getItem('legacySubTheme') || 'blue');
     const isGreen = healthTheme === 'green';
-    const themeColor = isGreen ? '#10b981' : '#0ea5e9';
-    const themeColorHover = isGreen ? '#059669' : '#0284c7';
-    const themeLight = isGreen ? '#f0fdf4' : '#f0f9ff';
+    const themeColor = isGreen ? '#10b981' : '#0082f6';
+    const themeColorHover = isGreen ? '#059669' : '#2563eb';
+    const themeLight = isGreen ? '#f0fdf4' : '#eff6ff';
 
     useEffect(() => {
         localStorage.setItem('legacySubTheme', healthTheme);
@@ -65,28 +65,30 @@ const POSHealth = () => {
         const serverTime = new Date(healthData.last_item_update).getTime();
         const localTime = new Date(localSyncTime).getTime();
         if (serverTime > localTime + 1000) return { label: 'OUTDATED', color: '#dc2626', bg: '#fef2f2' };
-        return { label: 'UP TO DATE', color: isGreen ? '#059669' : '#0ea5e9', bg: isGreen ? '#ecfdf5' : '#f0f9ff' };
+        return { label: 'UP TO DATE', color: isGreen ? '#059669' : '#2563eb', bg: isGreen ? '#ecfdf5' : '#eff6ff' };
     };
 
     const syncStatus = getSyncStatus();
     const isOutOfSync = syncStatus.label === 'OUTDATED';
 
     const DashboardCard = ({ title, value, subtitle, icon: Icon, color, trend }) => (
-        <div className="so-table-card" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem', borderTop: `4px solid ${color || themeColor}` }}>
+        <div className="so-table-card" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', height: '100%', minHeight: '140px', borderTop: `4px solid ${color || themeColor}`, boxSizing: 'border-box' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div>
-                    <p style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--so-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.25rem' }}>{title}</p>
-                    <h3 style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--so-text-heading)', margin: 0 }}>{value}</h3>
+                    <p style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--so-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.25rem' }}>{title}</p>
+                    <h3 style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--so-text-heading)', margin: 0, wordBreak: 'break-word' }}>{value}</h3>
                     {subtitle && <p style={{ fontSize: '0.7rem', color: 'var(--so-text-muted)', marginTop: '4px' }}>{subtitle}</p>}
                 </div>
-                <div style={{ padding: '0.75rem', borderRadius: '12px', background: `${color || themeColor}15`, color: color || themeColor }}>
-                    <Icon size={24} />
+                <div style={{ padding: '0.75rem', borderRadius: '12px', background: `${color || themeColor}15`, color: color || themeColor, flexShrink: 0 }}>
+                    <Icon size={22} />
                 </div>
             </div>
-            {trend && (
+            {trend ? (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.7rem', fontWeight: 700, color: color || themeColor }}>
                     <TrendingUp size={12} /> {trend} since opening
                 </div>
+            ) : (
+                <div style={{ height: '16px' }} />
             )}
         </div>
     );
@@ -105,17 +107,19 @@ const POSHealth = () => {
             <div className="so-page-header">
                 <div>
                     <h1 className="so-page-title">
-                        <ShieldCheck size={22} color={themeColor} />
-                        System Health & Telemetry
+                        <ShieldCheck size={20} color={themeColor} />
+                        SYSTEM HEALTH & TELEMETRY
                     </h1>
                     <p className="so-page-subtitle">Real-time monitoring of POS data integrity and sync status.</p>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                     <div style={{
-                        display: 'flex', alignItems: 'center', gap: '8px', padding: '0.45rem 1rem',
-                        borderRadius: '99px', background: isOnline ? (isGreen ? '#ecfdf5' : '#f0f9ff') : '#fef2f2',
-                        color: isOnline ? themeColor : '#dc2626', fontSize: '0.7rem', fontWeight: 800,
-                        border: `1.5px solid ${isOnline ? themeColor : '#ef4444'}`
+                        height: '38px', display: 'inline-flex', alignItems: 'center', gap: '6px',
+                        padding: '0 1rem', borderRadius: '10px',
+                        background: isOnline ? (isGreen ? '#ecfdf5' : '#eff6ff') : '#fef2f2',
+                        color: isOnline ? themeColor : '#dc2626', fontSize: '0.75rem', fontWeight: 800,
+                        border: `1.5px solid ${isOnline ? themeColor : '#ef4444'}`,
+                        boxSizing: 'border-box'
                     }}>
                         {isOnline ? <Wifi size={14} /> : <WifiOff size={14} />}
                         {isOnline ? 'NETWORK STABLE' : 'NETWORK OFFLINE'}
@@ -123,20 +127,27 @@ const POSHealth = () => {
                     <button
                         onClick={() => setHealthTheme(isGreen ? 'blue' : 'green')}
                         style={{
-                            display: 'flex', alignItems: 'center', gap: '0.4rem',
-                            padding: '0.45rem 1rem', background: '#f8fafc',
-                            border: `1.5px solid ${themeColor}`, borderRadius: '0.5rem',
+                            height: '38px', display: 'inline-flex', alignItems: 'center', gap: '6px',
+                            padding: '0 1rem', background: '#ffffff',
+                            border: `1.5px solid ${themeColor}`, borderRadius: '10px',
                             fontSize: '0.75rem', fontWeight: 800, color: themeColor,
                             cursor: 'pointer', transition: 'all 0.2s',
-                            textTransform: 'uppercase', letterSpacing: '0.04em'
+                            textTransform: 'uppercase', letterSpacing: '0.04em',
+                            boxSizing: 'border-box'
                         }}
                     >
                         <Palette size={14} /> {healthTheme.toUpperCase()}
                     </button>
                     <button className="so-btn-primary" 
-                            style={{ background: themeColor, borderColor: themeColor }}
+                            style={{
+                                height: '38px', display: 'inline-flex', alignItems: 'center', gap: '6px',
+                                padding: '0 1.25rem', background: themeColor, borderColor: themeColor,
+                                borderRadius: '10px', fontSize: '0.75rem', fontWeight: 900,
+                                textTransform: 'uppercase', letterSpacing: '0.04em',
+                                boxSizing: 'border-box'
+                            }}
                             onClick={fetchHealthData} disabled={loading}>
-                        <RefreshCw size={16} className={loading ? "animate-spin" : ""} /> Run Diagnostic
+                        <RefreshCw size={15} className={loading ? "animate-spin" : ""} /> Run Diagnostic
                     </button>
                 </div>
             </div>

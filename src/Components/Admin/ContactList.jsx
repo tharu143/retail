@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Plus, Search, X, Save, User, ChevronLeft, 
   Trash2, Edit2, Palette, Loader2, ChevronRight, Eye, 
-  Mail, Phone as PhoneIcon, Building2, Filter, MoreHorizontal
+  Mail, Phone as PhoneIcon, Building2, Filter, MoreHorizontal, MoreVertical
 } from 'lucide-react';
 import axios from 'axios';
 import Swal from 'sweetalert2';
@@ -16,6 +16,7 @@ const ContactList = () => {
   const [pageSize, setPageSize] = useState(20);
   const [currentPage, setCurrentPage] = useState(1);
   const [total, setTotal] = useState(0);
+  const [openActionId, setOpenActionId] = useState(null);
 
   // Theme (Emerald & Slate)
   const themeColor = '#10b981';
@@ -45,6 +46,9 @@ const ContactList = () => {
   useEffect(() => {
     fetchContacts();
     fetchMeta();
+    const handleClickOutside = () => setOpenActionId(null);
+    window.addEventListener('click', handleClickOutside);
+    return () => window.removeEventListener('click', handleClickOutside);
   }, []);
 
   const fetchMeta = async () => {
@@ -209,87 +213,165 @@ const ContactList = () => {
       <div className="so-page-header">
         <div className="so-page-left">
           <h1 className="so-page-title">
-            <User size={20} /> Personnel & Contacts
+            <User size={20} /> PERSONNEL & CONTACTS
           </h1>
-          <p className="so-page-subtitle">Managed Communications & Representative Registry</p>
+          <p className="so-page-subtitle">MANAGED COMMUNICATIONS & REPRESENTATIVE REGISTRY</p>
         </div>
         <div style={{ display: 'flex', gap: '0.75rem' }}>
           <button className="so-btn-primary" onClick={() => { setIsEditMode(false); setIsViewMode(false); setShowModal(true); }}>
-            <Plus size={16} /> Add Personnel
+            <Plus size={16} /> ADD PERSONNEL
           </button>
         </div>
       </div>
 
-      <div className="so-filter-bar">
-        <div style={{ flex: 1 }}>
-          <label className="so-filter-label">Search Identity</label>
-          <input 
-            className="so-filter-input" 
-            placeholder="Name, Email, Reference..." 
-            value={filterSearch} 
-            onChange={e => setFilterSearch(e.target.value)} 
-          />
+      <div className="so-layout" style={{ flexDirection: 'column', background: '#f8fafc', padding: '1.5rem 2rem' }}>
+        <div className="so-filter-bar" style={{ padding: '0 0 1.25rem 0', background: 'transparent', border: 'none', boxShadow: 'none', display: 'flex', gap: '1.25rem', alignItems: 'flex-end', marginBottom: '0.5rem' }}>
+          <div style={{ flex: 1 }}>
+            <label className="so-filter-label">SEARCH IDENTITY</label>
+            <input 
+              className="so-filter-input" 
+              placeholder="Name, Email, Reference..." 
+              value={filterSearch} 
+              onChange={e => setFilterSearch(e.target.value)} 
+            />
+          </div>
+          <div style={{ width: '220px' }}>
+            <label className="so-filter-label">DESIGNATION FILTER</label>
+            <select className="so-filter-input" value={filterDesignation} onChange={e => setFilterDesignation(e.target.value)}>
+              <option value="">ALL DESIGNATIONS</option>
+              {metaOptions.designations?.map(d => <option key={d} value={d}>{d}</option>)}
+            </select>
+          </div>
         </div>
-        <div style={{ width: '220px' }}>
-          <label className="so-filter-label">Designation Filter</label>
-          <select className="so-filter-input" value={filterDesignation} onChange={e => setFilterDesignation(e.target.value)}>
-            <option value="">All Designations</option>
-            {metaOptions.designations?.map(d => <option key={d} value={d}>{d}</option>)}
-          </select>
-        </div>
-      </div>
 
-      <div className="so-content" style={{ padding: '1.5rem 2rem' }}>
-        <div className="so-table-card">
-          <div className="so-table-wrapper">
-            <table className="so-table">
-              <thead>
-                <tr>
-                  <th>Contact Identity</th>
-                  <th>Communication Channels</th>
-                  <th>Professional Role</th>
-                  <th style={{ width: '120px', textAlign: 'center' }}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? (
-                  <tr><td colSpan="4" className="so-empty"><Loader2 className="so-spinner" /></td></tr>
-                ) : paginatedData.length === 0 ? (
-                  <tr><td colSpan="4" className="so-empty">No personnel registrations found.</td></tr>
-                ) : (
-                  paginatedData.map(c => (
-                    <tr key={c.name} onClick={() => handleView(c)}>
-                      <td>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                          <div style={{ width: '32px', height: '32px', background: themeLight, color: themeColor, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: '0.75rem' }}>
-                            {c.first_name?.[0]}{c.last_name?.[0]}
+        <div className="so-content" style={{ padding: 0, flex: 1, background: 'transparent' }}>
+          <div className="so-table-card">
+            <div className="so-table-wrapper">
+              <table className="so-table">
+                <thead>
+                  <tr>
+                    <th>CONTACT IDENTITY</th>
+                    <th>COMMUNICATION CHANNELS</th>
+                    <th>PROFESSIONAL ROLE</th>
+                    <th style={{ width: '120px', textAlign: 'center' }}>ACTIONS</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {loading ? (
+                    <tr><td colSpan="4" className="so-empty"><Loader2 className="so-spinner" /></td></tr>
+                  ) : paginatedData.length === 0 ? (
+                    <tr><td colSpan="4" className="so-empty">NO PERSONNEL REGISTRATIONS FOUND.</td></tr>
+                  ) : (
+                    paginatedData.map(c => (
+                      <tr key={c.name} onClick={() => handleView(c)}>
+                        <td>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                            <div style={{ width: '32px', height: '32px', background: themeLight, color: themeColor, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: '0.75rem' }}>
+                              {c.first_name?.[0]}{c.last_name?.[0]}
+                            </div>
+                            <div>
+                              <div style={{ fontWeight: 800, color: 'var(--so-text-heading)' }}>{c.first_name} {c.last_name}</div>
+                              <div style={{ fontSize: '0.68rem', opacity: 0.6, fontFamily: 'monospace' }}>{c.name}</div>
+                            </div>
                           </div>
-                          <div>
-                            <div style={{ fontWeight: 800, color: 'var(--so-text-heading)' }}>{c.first_name} {c.last_name}</div>
-                            <div style={{ fontSize: '0.68rem', opacity: 0.6, fontFamily: 'monospace' }}>{c.name}</div>
+                        </td>
+                        <td>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                            {c.email_id && <div style={{ fontSize: '0.72rem', color: '#475569', display: 'flex', alignItems: 'center', gap: '0.4rem' }}><Mail size={12} /> {c.email_id}</div>}
+                            {c.mobile_no && <div style={{ fontSize: '0.72rem', color: '#475569', display: 'flex', alignItems: 'center', gap: '0.4rem' }}><PhoneIcon size={12} /> {c.mobile_no}</div>}
                           </div>
-                        </div>
-                      </td>
-                      <td>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
-                          {c.email_id && <div style={{ fontSize: '0.72rem', color: '#475569', display: 'flex', alignItems: 'center', gap: '0.4rem' }}><Mail size={12} /> {c.email_id}</div>}
-                          {c.mobile_no && <div style={{ fontSize: '0.72rem', color: '#475569', display: 'flex', alignItems: 'center', gap: '0.4rem' }}><PhoneIcon size={12} /> {c.mobile_no}</div>}
-                        </div>
-                      </td>
-                      <td>
-                        <div style={{ fontSize: '0.8rem', fontWeight: 700 }}>{c.designation || 'General'}</div>
-                      </td>
-                      <td>
-                        <div style={{ display: 'flex', justifyContent: 'center', gap: '0.5rem' }}>
-                          <button className="so-btn-ghost" onClick={(e) => { e.stopPropagation(); handleView(c); }}><Eye size={14} /></button>
-                          <button className="so-btn-ghost" onClick={(e) => { e.stopPropagation(); handleEdit(c); }} style={{ color: '#d97706' }}><Edit2 size={14} /></button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                        </td>
+                        <td>
+                          <div style={{ fontSize: '0.8rem', fontWeight: 700 }}>{c.designation || 'General'}</div>
+                        </td>
+                        <td style={{ textAlign: 'center', position: 'relative' }} onClick={e => e.stopPropagation()}>
+                          <button
+                            className="so-btn-ghost"
+                            style={{ padding: '0.35rem', borderRadius: '0.375rem', color: '#64748b', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setOpenActionId(openActionId === c.name ? null : c.name);
+                            }}
+                          >
+                            <MoreVertical size={16} />
+                          </button>
+                          {openActionId === c.name && (
+                            <div
+                              style={{
+                                position: 'absolute',
+                                right: '1rem',
+                                top: '80%',
+                                zIndex: 100,
+                                background: '#ffffff',
+                                border: '1px solid #e2e8f0',
+                                borderRadius: '0.5rem',
+                                boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+                                minWidth: '140px',
+                                overflow: 'hidden',
+                                padding: '0.35rem'
+                              }}
+                            >
+                              <button
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '0.5rem',
+                                  width: '100%',
+                                  padding: '0.5rem 0.75rem',
+                                  fontSize: '0.75rem',
+                                  fontWeight: 700,
+                                  color: '#334155',
+                                  background: 'none',
+                                  border: 'none',
+                                  borderRadius: '0.25rem',
+                                  cursor: 'pointer',
+                                  textAlign: 'left'
+                                }}
+                                onMouseEnter={e => e.currentTarget.style.background = '#f1f5f9'}
+                                onMouseLeave={e => e.currentTarget.style.background = 'none'}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setOpenActionId(null);
+                                  handleView(c);
+                                }}
+                              >
+                                <Eye size={14} style={{ color: '#0082f6' }} /> VIEW DETAILS
+                              </button>
+                              <button
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '0.5rem',
+                                  width: '100%',
+                                  padding: '0.5rem 0.75rem',
+                                  fontSize: '0.75rem',
+                                  fontWeight: 700,
+                                  color: '#334155',
+                                  background: 'none',
+                                  border: 'none',
+                                  borderRadius: '0.25rem',
+                                  cursor: 'pointer',
+                                  textAlign: 'left'
+                                }}
+                                onMouseEnter={e => e.currentTarget.style.background = '#f1f5f9'}
+                                onMouseLeave={e => e.currentTarget.style.background = 'none'}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setOpenActionId(null);
+                                  handleEdit(c);
+                                }}
+                              >
+                                <Edit2 size={14} style={{ color: '#d97706' }} /> EDIT RECORD
+                              </button>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </div>
@@ -299,29 +381,29 @@ const ContactList = () => {
           <div className="so-modal" style={{ maxWidth: '850px' }}>
             <div className="so-modal-header">
               <h2 className="so-modal-title">
-                {isViewMode ? 'Personnel Profile' : isEditMode ? 'Modify Identity Parameters' : 'Register New Personnel'}
+                {isViewMode ? 'PERSONNEL PROFILE' : isEditMode ? 'MODIFY IDENTITY PARAMETERS' : 'REGISTER NEW PERSONNEL'}
               </h2>
               <button className="so-modal-close" onClick={closeModal}><X size={20} /></button>
             </div>
             <div className="so-modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
               <div className="so-card" style={{ marginBottom: 0 }}>
-                <div className="so-card-header"><p className="so-card-title">Core Identity</p></div>
+                <div className="so-card-header"><p className="so-card-title">CORE IDENTITY</p></div>
                 <div className="so-card-body">
                   <div className="so-form-grid" style={{ gridTemplateColumns: '1fr 2fr 2fr' }}>
                     <div className="so-field">
-                      <label className="so-label">Salutation</label>
+                      <label className="so-label">SALUTATION</label>
                       <select 
                         className="so-select"
                         value={formData.salutation}
                         onChange={e => setFormData({...formData, salutation: e.target.value})}
                         disabled={isViewMode}
                       >
-                        <option value="">Select</option>
+                        <option value="">SELECT</option>
                         {metaOptions.salutations?.map(s => <option key={s} value={s}>{s}</option>)}
                       </select>
                     </div>
                     <div className="so-field">
-                      <label className="so-label">First Name *</label>
+                      <label className="so-label">FIRST NAME *</label>
                       <input 
                         className="so-input"
                         value={formData.first_name}
@@ -330,7 +412,7 @@ const ContactList = () => {
                       />
                     </div>
                     <div className="so-field">
-                      <label className="so-label">Last Name</label>
+                      <label className="so-label">LAST NAME</label>
                       <input 
                         className="so-input"
                         value={formData.last_name}
@@ -339,26 +421,26 @@ const ContactList = () => {
                       />
                     </div>
                     <div className="so-field">
-                      <label className="so-label">Designation</label>
+                      <label className="so-label">DESIGNATION</label>
                       <select 
                         className="so-select"
                         value={formData.designation}
                         onChange={e => setFormData({...formData, designation: e.target.value})}
                         disabled={isViewMode}
                       >
-                        <option value="">Select Designation</option>
+                        <option value="">SELECT DESIGNATION</option>
                         {metaOptions.designations?.map(d => <option key={d} value={d}>{d}</option>)}
                       </select>
                     </div>
                     <div className="so-field">
-                      <label className="so-label">Gender</label>
+                      <label className="so-label">GENDER</label>
                       <select 
                         className="so-select"
                         value={formData.gender}
                         onChange={e => setFormData({...formData, gender: e.target.value})}
                         disabled={isViewMode}
                       >
-                        <option value="">Select</option>
+                        <option value="">SELECT</option>
                         {metaOptions.genders?.map(g => <option key={g} value={g}>{g}</option>)}
                       </select>
                     </div>
@@ -367,19 +449,19 @@ const ContactList = () => {
               </div>
 
               <div className="so-card" style={{ marginBottom: 0 }}>
-                <div className="so-card-header"><p className="so-card-title">Communication Framework</p></div>
+                <div className="so-card-header"><p className="so-card-title">COMMUNICATION FRAMEWORK</p></div>
                 <div className="so-card-body">
                    <div style={{ marginBottom: '1.5rem' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-                         <label className="so-label" style={{ margin: 0 }}>Digital Channels (Emails)</label>
-                         {!isViewMode && <button onClick={addEmail} className="so-btn-ghost" style={{ padding: '0.2rem 0.5rem', fontSize: '0.65rem' }}><Plus size={12} /> Add Channel</button>}
+                         <label className="so-label" style={{ margin: 0 }}>DIGITAL CHANNELS (EMAILS)</label>
+                         {!isViewMode && <button onClick={addEmail} className="so-btn-ghost" style={{ padding: '0.2rem 0.5rem', fontSize: '0.65rem' }}><Plus size={12} /> ADD CHANNEL</button>}
                       </div>
                       <div className="so-table-wrapper" style={{ border: '1px solid var(--so-border)', borderRadius: '0.5rem' }}>
                          <table className="so-table">
                             <thead>
                                <tr>
-                                  <th>Email Address</th>
-                                  <th style={{ width: '100px', textAlign: 'center' }}>Primary</th>
+                                  <th>EMAIL ADDRESS</th>
+                                  <th style={{ width: '100px', textAlign: 'center' }}>PRIMARY</th>
                                   {!isViewMode && <th style={{ width: '50px' }}></th>}
                                </tr>
                             </thead>
@@ -417,16 +499,16 @@ const ContactList = () => {
 
                    <div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-                         <label className="so-label" style={{ margin: 0 }}>Voice Channels (Phone/Mobile)</label>
-                         {!isViewMode && <button onClick={addPhone} className="so-btn-ghost" style={{ padding: '0.2rem 0.5rem', fontSize: '0.65rem' }}><Plus size={12} /> Add Line</button>}
+                         <label className="so-label" style={{ margin: 0 }}>VOICE CHANNELS (PHONE/MOBILE)</label>
+                         {!isViewMode && <button onClick={addPhone} className="so-btn-ghost" style={{ padding: '0.2rem 0.5rem', fontSize: '0.65rem' }}><Plus size={12} /> ADD LINE</button>}
                       </div>
                       <div className="so-table-wrapper" style={{ border: '1px solid var(--so-border)', borderRadius: '0.5rem' }}>
                          <table className="so-table">
                             <thead>
                                <tr>
-                                  <th>Phone Number</th>
-                                  <th style={{ width: '80px', textAlign: 'center' }}>Mobile</th>
-                                  <th style={{ width: '80px', textAlign: 'center' }}>Primary</th>
+                                  <th>PHONE NUMBER</th>
+                                  <th style={{ width: '80px', textAlign: 'center' }}>MOBILE</th>
+                                  <th style={{ width: '80px', textAlign: 'center' }}>PRIMARY</th>
                                   {!isViewMode && <th style={{ width: '50px' }}></th>}
                                </tr>
                             </thead>
@@ -474,10 +556,10 @@ const ContactList = () => {
             </div>
             {!isViewMode && (
               <div className="so-modal-footer">
-                <button className="so-btn-secondary" onClick={closeModal} disabled={saving}>Discard Revision</button>
+                <button className="so-btn-secondary" onClick={closeModal} disabled={saving}>DISCARD REVISION</button>
                 <button className="so-btn-primary" onClick={handleSave} disabled={saving}>
                   {saving ? <Loader2 size={16} className="so-spinner" /> : <Save size={16} />}
-                  Authorize Registry Save
+                  AUTHORIZE REGISTRY SAVE
                 </button>
               </div>
             )}

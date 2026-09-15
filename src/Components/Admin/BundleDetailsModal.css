@@ -115,7 +115,7 @@
 .bundle-modal-hero-card {
   background-color: #ffffff;
   border-radius: 0.75rem;
-  border: 1px solid #dcfce7;
+  border: 1px solid #bfdbfe;
   padding: 1.5rem 1.75rem;
   box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
   position: relative;
@@ -132,7 +132,7 @@
   top: -2rem;
   width: 8rem;
   height: 8rem;
-  background-color: #f0fdf4;
+  background-color: #eff6ff;
   border-radius: 9999px;
   opacity: 0.6;
   pointer-events: none;
@@ -158,7 +158,7 @@
   font-size: 2.25rem;
   line-height: 2.5rem;
   font-weight: 800;
-  color: #16a34a;
+  color: #2563eb;
   letter-spacing: -0.025em;
 }
 
@@ -236,9 +236,9 @@
   align-items: center;
   padding: 0.25rem 0.75rem;
   border-radius: 9999px;
-  background-color: #ecfdf5;
-  border: 1px solid #a7f3d0;
-  color: #047857;
+  background-color: #eff6ff;
+  border: 1px solid #bfdbfe;
+  color: #1d4ed8;
   font-size: 0.875rem;
   font-weight: 500;
 }
@@ -247,7 +247,7 @@
   width: 0.5rem;
   height: 0.5rem;
   border-radius: 9999px;
-  background-color: #10b981;
+  background-color: #0082f6;
   margin-right: 0.5rem;
 }
 

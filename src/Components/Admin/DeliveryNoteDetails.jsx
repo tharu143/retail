@@ -2851,9 +2851,8 @@ const DeliveryNoteDetails = () => {
                                                                 onDragLeave={(e) => handleColumnDragLeave(e, col.id)}
                                                                 onDrop={(e) => handleColumnDrop(e, col.id)}
                                                                 onDragEnd={handleColumnDragEnd}
-                                                                className={`relative group select-none cursor-grab active:cursor-grabbing transition-colors ${
-                                                                    isDragOverThis ? 'border-l-2 border-emerald-500 bg-emerald-50' : ''
-                                                                } ${isDraggingThis ? 'opacity-40 bg-slate-200' : ''}`}
+                                                                className={`relative group select-none cursor-grab active:cursor-grabbing transition-colors ${isDragOverThis ? 'border-l-2 border-emerald-500 bg-emerald-50' : ''
+                                                                    } ${isDraggingThis ? 'opacity-40 bg-slate-200' : ''}`}
                                                                 style={alignStyle}
                                                             >
                                                                 <span className="truncate block pointer-events-none">{finalLabel}</span>
@@ -2930,14 +2929,14 @@ const DeliveryNoteDetails = () => {
                                                                                             warehouse: targetWh
                                                                                         }, { withCredentials: true });
                                                                                         if (res.data?.message?.success || res.data?.success) {
-                                                                                        Swal.fire({ icon: 'success', title: 'Item Linked', text: 'Linked to branch!', timer: 1500, showConfirmButton: false });
-                                                                                        selectItem(idx, it);
-                                                                                        return true;
-                                                                                    }
-                                                                                    return false;
-                                                                                }}
-                                                                            />
-                                                                        </td>
+                                                                                            Swal.fire({ icon: 'success', title: 'Item Linked', text: 'Linked to branch!', timer: 1500, showConfirmButton: false });
+                                                                                            selectItem(idx, it);
+                                                                                            return true;
+                                                                                        }
+                                                                                        return false;
+                                                                                    }}
+                                                                                />
+                                                                            </td>
                                                                         );
 
                                                                     case 'item_name':
