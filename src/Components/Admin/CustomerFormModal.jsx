@@ -481,7 +481,7 @@ export default function CustomerFormModal({
                         type="text"
                         className="customer-form-field-input"
                         value={form.mobile_no}
-                        onChange={e => setForm({ ...form, mobile_no: e.target.value })}
+                        onChange={e => { const val = e.target.value; const code = form.custom_phone_code || countryPhoneCodes[(form.country || '').toLowerCase().trim()] || '+971'; setForm({ ...form, mobile_no: sanitizeMobileNo(val, code) }); }} onBlur={() => { const code = form.custom_phone_code || countryPhoneCodes[(form.country || '').toLowerCase().trim()] || '+971'; setForm(prev => ({ ...prev, mobile_no: sanitizeMobileNo(prev.mobile_no, code) })); }}
                         placeholder="+971"
                       />
                     </div>
@@ -989,7 +989,7 @@ export default function CustomerFormModal({
                           type="text"
                           className="live-summary-edit-input"
                           value={form.mobile_no}
-                          onChange={e => setForm({ ...form, mobile_no: e.target.value })}
+                          onChange={e => { const val = e.target.value; const code = form.custom_phone_code || countryPhoneCodes[(form.country || '').toLowerCase().trim()] || '+971'; setForm({ ...form, mobile_no: sanitizeMobileNo(val, code) }); }} onBlur={() => { const code = form.custom_phone_code || countryPhoneCodes[(form.country || '').toLowerCase().trim()] || '+971'; setForm(prev => ({ ...prev, mobile_no: sanitizeMobileNo(prev.mobile_no, code) })); }}
                           placeholder="+971"
                         />
                       </div>
