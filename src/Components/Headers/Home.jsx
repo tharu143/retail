@@ -1450,6 +1450,25 @@ function Home() {
         }
     }, [selectedCustomer, customerName]);
 
+    const isItemBarcode = useCallback((code) => {
+        if (!code) return false;
+        const trimmed = String(code).trim().toLowerCase();
+        const numOnly = trimmed.replace(/\D/g, '');
+        if (!trimmed) return false;
+        return (Items || []).some(it => {
+            if ((it.id && String(it.id).toLowerCase() === trimmed) || 
+                (it.item_code && String(it.item_code).toLowerCase() === trimmed) ||
+                (numOnly && it.item_code && String(it.item_code).replace(/\D/g, '') === numOnly)) {
+                return true;
+            }
+            return (it.barcodes || []).some(b => {
+                const bVal = typeof b === 'object' ? (b.barcode || b.name || '') : String(b);
+                const bStr = String(bVal).trim().toLowerCase();
+                return bStr === trimmed || (numOnly && bStr.replace(/\D/g, '') === numOnly);
+            });
+        });
+    }, [Items]);
+
     const getCustomerLastPriceInfo = useCallback((item) => {
         if (!item || !customerLastPrices || Object.keys(customerLastPrices).length === 0) return null;
         const itemCode = item.item_code || item.id;
@@ -1993,6 +2012,16 @@ function Home() {
                 }
                 setSearchResults([]);
                 setShowDropdown(false);
+                return;
+            }
+
+            // If user accidentally scans or types an item barcode in customer search, do not search customer - redirect to barcode scanner
+            if (isItemBarcode(searchTerm)) {
+                setSearchResults([]);
+                setShowDropdown(false);
+                setCustomerName('Cash');
+                setCustomerMobile('');
+                handleBarcodeScan(searchTerm);
                 return;
             }
 
@@ -5421,6 +5450,34 @@ function Home() {
             const rawTerm = (customerMobile || customerName).trim();
             if (!rawTerm || rawTerm === 'Cash') return;
 
+            // Priority 0: Check if scanned value is an item barcode or item code (Local Cache)
+            if (isItemBarcode(rawTerm)) {
+                setSearchResults([]);
+                setShowDropdown(false);
+                setCustomerName('Cash');
+                setCustomerMobile('');
+                handleBarcodeScan(rawTerm);
+                return;
+            }
+
+            // Priority 0.5: Quick Remote check if this is an Item Barcode from Backend before treating as customer
+            try {
+                const itemCheck = await frappeCall({
+                    method: 'kyle_retail.retail_api.api.get_retail_item_details',
+                    args: { search_term: rawTerm, warehouse: warehouse }
+                });
+                if (itemCheck && itemCheck.length > 0) {
+                    setSearchResults([]);
+                    setShowDropdown(false);
+                    setCustomerName('Cash');
+                    setCustomerMobile('');
+                    handleBarcodeScan(rawTerm);
+                    return;
+                }
+            } catch (err) {
+                console.warn('Item barcode check fallback error:', err);
+            }
+
             // Strip any country code prefix to get bare local number
             const strippedNumber = stripCountryPrefix(rawTerm);
 
@@ -8171,28 +8228,39 @@ function Home() {
             // 1. GLOBAL HID SCANNER LISTENER (Intercepts rapid digits)
             const now = Date.now();
             const activeEl = document.activeElement;
-            const isInputFocused = activeEl && ['INPUT', 'TEXTAREA'].includes(activeEl.tagName);
+            const isCustomerInput = activeEl === mobileInputRef.current;
+            const isInputFocused = activeEl && ['INPUT', 'TEXTAREA'].includes(activeEl.tagName) && !isCustomerInput;
             const isLegacyTableInput = (el) => {
                 if (!el) return false;
                 const id = el.id || '';
                 return id === 'legacy-inline-search' || id.startsWith('desc-input-') || id.startsWith('qty-input-') || id.startsWith('price-input-');
             };
 
-            // If user is not typing in a specific input, or if it's very fast (typical of hardware scanners)
-            if (now - lastKeyTime.current > 150) {
+            // If user is not typing in a specific input, or if it's very fast (typical of hardware scanners < 50ms per char)
+            if (now - lastKeyTime.current > 100) {
                 scannerBuffer.current = ""; // Reset buffer if typing is too slow to be a scanner
             }
             lastKeyTime.current = now;
 
-            if (e.key && e.key.length === 1 && /^[0-9]$/.test(e.key) && !isInputFocused) {
+            if (e.key && e.key.length === 1 && /^[0-9a-zA-Z\-_]$/.test(e.key) && (!isInputFocused || isCustomerInput)) {
                 scannerBuffer.current += e.key;
-            } else if (e.key === 'Enter' && scannerBuffer.current.length >= 6 && !isInputFocused) {
-                // Hardware Scanner finished sequence (min 6 chars for retail codes)
-                e.preventDefault();
+            } else if (e.key === 'Enter' && scannerBuffer.current.length >= 3) {
+                // Hardware Scanner finished sequence
                 const scanValue = scannerBuffer.current;
-                scannerBuffer.current = "";
-                handleBarcodeScan(scanValue);
-                return;
+                // If this is an item barcode or we are on customer input, intercept it!
+                if (isItemBarcode(scanValue) || isCustomerInput) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    scannerBuffer.current = "";
+                    if (isCustomerInput) {
+                        setCustomerMobile('');
+                        setCustomerName('Cash');
+                        setSearchResults([]);
+                        setShowDropdown(false);
+                    }
+                    handleBarcodeScan(scanValue);
+                    return;
+                }
             }
 
             // 2. KEYBOARD SHORTCUTS
@@ -9632,9 +9700,12 @@ function Home() {
 
                             {/* Sales Invoice Quick Button */}
                             <button
-                                onClick={() => navigate('/salesinvoice')}
+                                onClick={() => {
+                                    dispatch(setTheme('legacy'));
+                                    navigate('/homepage');
+                                }}
                                 style={{ padding: '4px 8px', background: 'var(--so-primary-light, #f0fdf4)', border: '1px solid var(--so-primary, #10b981)', cursor: 'pointer', color: 'var(--so-primary, #10b981)', borderRadius: '8px', flexShrink: 0, fontSize: '11px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}
-                                title="Sales Invoice"
+                                title="Sales Invoice (POS Classic)"
                             >
                                 <Receipt size={14} />
                                 <span>Sales Invoice</span>

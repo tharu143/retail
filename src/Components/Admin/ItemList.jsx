@@ -772,7 +772,7 @@ const defaultForm = () => ({
   default_uom: 'Nos', description: '', image: null, imagePreview: null,
   uoms: [{ uom: 'Nos', conversion_factor: 1 }], hsn_code: '', country_of_origin: '', custom_loyalty_eligible: 0, custom_allow_discount: 1,
   is_stock_item: 1, is_sales_item: 1, is_purchase_item: 1, supplier_items: [],
-  branch_availability: [], custom_pieces_per_box: 0,
+  branch_availability: [], custom_pieces_per_box: 0, custom_boxes_per_master_box: 0,
   buying_price_list: 'Standard Buying', buying_price: 0,
   selling_price_list: 'Standard Selling', selling_price: 0,
   box_buying_price_list: 'Standard Buying', box_buying_price: 0,
@@ -1232,6 +1232,7 @@ export default function ItemList() {
             brand: itm.brand || prev.brand,
             country_of_origin: itm.country_of_origin || prev.country_of_origin,
             custom_pieces_per_box: itm.custom_pieces_per_box || prev.custom_pieces_per_box,
+            custom_boxes_per_master_box: itm.custom_boxes_per_master_box || prev.custom_boxes_per_master_box,
             hsn_code: itm.hsn_code || prev.hsn_code,
             description: itm.description || prev.description
           }));
@@ -1260,8 +1261,10 @@ export default function ItemList() {
                     // Barcodes
                     let nosBarcode = '';
                     let boxBarcode = '';
+                    let masterBoxBarcode = '';
                     (v.barcodes || []).forEach(b => {
-                      if (b.uom === 'Box') boxBarcode = b.barcode;
+                      if (b.uom === 'Master Box' || b.uom === 'Carton') masterBoxBarcode = b.barcode;
+                      else if (b.uom === 'Box') boxBarcode = b.barcode;
                       else if (!nosBarcode) nosBarcode = b.barcode;
                     });
 
@@ -1274,11 +1277,15 @@ export default function ItemList() {
                       variant_barcode: nosBarcode,
                       nos_barcode: nosBarcode,
                       box_barcode: boxBarcode,
+                      master_box_barcode: masterBoxBarcode,
                       buying_price: v.buying_price !== undefined ? v.buying_price : '',
                       selling_price: v.selling_price !== undefined ? v.selling_price : (v.standard_rate || ''),
                       box_buying_price: v.box_buying_price !== undefined ? v.box_buying_price : '',
                       box_selling_price: v.box_selling_price !== undefined ? v.box_selling_price : '',
+                      master_box_buying_price: v.master_box_buying_price !== undefined ? v.master_box_buying_price : '',
+                      master_box_selling_price: v.master_box_selling_price !== undefined ? v.master_box_selling_price : '',
                       custom_pieces_per_box: v.custom_pieces_per_box !== undefined ? v.custom_pieces_per_box : '',
+                      custom_boxes_per_master_box: v.custom_boxes_per_master_box !== undefined ? v.custom_boxes_per_master_box : '',
                       image: v.image || '',
                       imagePreview: v.image || '',
                       use_custom_code: true,
@@ -1368,7 +1375,37 @@ export default function ItemList() {
         withCredentials: true
       });
       const r = res.data.message;
-      setPriceData({ prices: r?.data || [], metrics: r?.metrics || {}, warehouse_breakdown: r?.warehouse_breakdown || [] });
+      const fetchedPrices = r?.data || [];
+      setPriceData({ prices: fetchedPrices, metrics: r?.metrics || {}, warehouse_breakdown: r?.warehouse_breakdown || [] });
+
+      // Auto populate form price fields
+      if (fetchedPrices.length > 0) {
+        setForm(prev => {
+          const uomBase = prev.default_uom || 'Nos';
+          const buyNos = fetchedPrices.find(p => p.buying === 1 && (p.uom === uomBase || !p.uom));
+          const sellNos = fetchedPrices.find(p => p.selling === 1 && (p.uom === uomBase || !p.uom));
+          const buyBox = fetchedPrices.find(p => p.buying === 1 && p.uom === 'Box');
+          const sellBox = fetchedPrices.find(p => p.selling === 1 && p.uom === 'Box');
+          const buyMaster = fetchedPrices.find(p => p.buying === 1 && (p.uom === 'Master Box' || p.uom === 'Carton'));
+          const sellMaster = fetchedPrices.find(p => p.selling === 1 && (p.uom === 'Master Box' || p.uom === 'Carton'));
+
+          return {
+            ...prev,
+            buying_price: buyNos?.price_list_rate !== undefined ? buyNos.price_list_rate : (prev.buying_price || 0),
+            buying_price_list: buyNos?.price_list || prev.buying_price_list || 'Standard Buying',
+            selling_price: sellNos?.price_list_rate !== undefined ? sellNos.price_list_rate : (prev.selling_price || 0),
+            selling_price_list: sellNos?.price_list || prev.selling_price_list || 'Standard Selling',
+            box_buying_price: buyBox?.price_list_rate !== undefined ? buyBox.price_list_rate : (prev.box_buying_price || 0),
+            box_buying_price_list: buyBox?.price_list || prev.box_buying_price_list || 'Standard Buying',
+            box_selling_price: sellBox?.price_list_rate !== undefined ? sellBox.price_list_rate : (prev.box_selling_price || 0),
+            box_selling_price_list: sellBox?.price_list || prev.box_selling_price_list || 'Standard Selling',
+            master_box_buying_price: buyMaster?.price_list_rate !== undefined ? buyMaster.price_list_rate : (prev.master_box_buying_price || 0),
+            master_box_buying_price_list: buyMaster?.price_list || prev.master_box_buying_price_list || 'Standard Buying',
+            master_box_selling_price: sellMaster?.price_list_rate !== undefined ? sellMaster.price_list_rate : (prev.master_box_selling_price || 0),
+            master_box_selling_price_list: sellMaster?.price_list || prev.master_box_selling_price_list || 'Standard Selling',
+          };
+        });
+      }
     } catch { setPriceData({ prices: [], metrics: {}, warehouse_breakdown: [] }); } finally { setLoadingPrices(false); }
   };
 
@@ -1874,23 +1911,32 @@ export default function ItemList() {
     setBarcodeInput(''); setIsScanning(false);
   };
 
-  const handlePiecesPerBoxChange = (val) => {
-    const pcs = parseFloat(val) || 0;
-    const baseUom = form.default_uom || 'Nos';
-    
-    // Auto rebuild UOM table: base uom (factor 1) + Box (factor pcs if pcs > 1)
-    let newUoms = [{ uom: baseUom, conversion_factor: 1 }];
-    if (pcs > 1) {
-      newUoms.push({ uom: 'Box', conversion_factor: pcs });
+  const rebuildUoms = (baseUom, pcsPerBoxVal, boxesPerMasterVal, currentUoms = []) => {
+    const base = baseUom || 'Nos';
+    const pcsPerBox = parseFloat(pcsPerBoxVal) || 0;
+    const boxesPerMaster = parseFloat(boxesPerMasterVal) || 0;
+    const totalPcsMaster = (pcsPerBox > 0 && boxesPerMaster > 0) ? (pcsPerBox * boxesPerMaster) : (boxesPerMaster > 1 ? boxesPerMaster : 0);
+
+    let newUoms = [{ uom: base, conversion_factor: 1 }];
+    if (pcsPerBox > 1) {
+      newUoms.push({ uom: 'Box', conversion_factor: pcsPerBox });
     }
-    
-    // Preserve any custom non-box/non-base UOMs added previously
-    (form.uoms || []).forEach(existing => {
-      if (existing.uom && existing.uom !== baseUom && existing.uom !== 'Box') {
+    if (totalPcsMaster > 1) {
+      newUoms.push({ uom: 'Master Box', conversion_factor: totalPcsMaster });
+    }
+
+    // Preserve any custom non-box/non-master-box/non-base UOMs added previously
+    (currentUoms || []).forEach(existing => {
+      if (existing.uom && existing.uom !== base && existing.uom !== 'Box' && existing.uom !== 'Master Box') {
         newUoms.push(existing);
       }
     });
 
+    return newUoms;
+  };
+
+  const handlePiecesPerBoxChange = (val) => {
+    const newUoms = rebuildUoms(form.default_uom, val, form.custom_boxes_per_master_box, form.uoms);
     setForm(prev => ({
       ...prev,
       custom_pieces_per_box: val,
@@ -1898,19 +1944,18 @@ export default function ItemList() {
     }));
   };
 
+  const handleBoxesPerMasterBoxChange = (val) => {
+    const newUoms = rebuildUoms(form.default_uom, form.custom_pieces_per_box, val, form.uoms);
+    setForm(prev => ({
+      ...prev,
+      custom_boxes_per_master_box: val,
+      uoms: newUoms
+    }));
+  };
+
   const handleDefaultUomChange = (val) => {
     const baseUom = val || 'Nos';
-    const pcs = parseFloat(form.custom_pieces_per_box) || 0;
-    let newUoms = [{ uom: baseUom, conversion_factor: 1 }];
-    if (pcs > 1) {
-      newUoms.push({ uom: 'Box', conversion_factor: pcs });
-    }
-    (form.uoms || []).forEach(existing => {
-      if (existing.uom && existing.uom !== baseUom && existing.uom !== 'Box') {
-        newUoms.push(existing);
-      }
-    });
-
+    const newUoms = rebuildUoms(baseUom, form.custom_pieces_per_box, form.custom_boxes_per_master_box, form.uoms);
     setForm(prev => ({
       ...prev,
       default_uom: baseUom,
@@ -2127,6 +2172,7 @@ export default function ItemList() {
         is_sales_item: form.has_variants ? 0 : (form.is_sales_item ? 1 : 0),
         is_purchase_item: form.has_variants ? 0 : (form.is_purchase_item ? 1 : 0),
         custom_pieces_per_box: parseFloat(form.custom_pieces_per_box) || 0,
+        custom_boxes_per_master_box: parseFloat(form.custom_boxes_per_master_box) || 0,
         barcodes: barcodes.map(b => ({ barcode: b.barcode, uom: b.uom })),
         uoms: form.uoms.map(u => ({ uom: u.uom, conversion_factor: u.conversion_factor })),
         supplier_items: form.supplier_items,
@@ -2149,10 +2195,14 @@ export default function ItemList() {
               const sPrice = v.selling_price !== undefined && v.selling_price !== '' ? parseFloat(v.selling_price) : (parseFloat(form.selling_price) || 0);
               const boxBPrice = v.box_buying_price !== undefined && v.box_buying_price !== '' ? parseFloat(v.box_buying_price) : (parseFloat(form.box_buying_price) || 0);
               const boxSPrice = v.box_selling_price !== undefined && v.box_selling_price !== '' ? parseFloat(v.box_selling_price) : (parseFloat(form.box_selling_price) || 0);
+              const masterBoxBPrice = v.master_box_buying_price !== undefined && v.master_box_buying_price !== '' ? parseFloat(v.master_box_buying_price) : (parseFloat(form.master_box_buying_price) || 0);
+              const masterBoxSPrice = v.master_box_selling_price !== undefined && v.master_box_selling_price !== '' ? parseFloat(v.master_box_selling_price) : (parseFloat(form.master_box_selling_price) || 0);
               const pcsPerBox = v.custom_pieces_per_box !== undefined && v.custom_pieces_per_box !== '' ? parseFloat(v.custom_pieces_per_box) : (parseFloat(form.custom_pieces_per_box) || 0);
+              const boxesPerMaster = v.custom_boxes_per_master_box !== undefined && v.custom_boxes_per_master_box !== '' ? parseFloat(v.custom_boxes_per_master_box) : (parseFloat(form.custom_boxes_per_master_box) || 0);
 
               const nosBc = (v.nos_barcode !== undefined ? v.nos_barcode : (v.variant_barcode || '')).trim();
               const boxBc = (v.box_barcode || '').trim();
+              const masterBoxBc = (v.master_box_barcode || '').trim();
 
               return {
                 attribute_values: v.selected_attributes,
@@ -2161,13 +2211,17 @@ export default function ItemList() {
                 barcode: nosBc || null,
                 nos_barcode: nosBc || null,
                 box_barcode: boxBc || null,
+                master_box_barcode: masterBoxBc || null,
                 image: v.image || v.imagePreview || null,
                 buying_price: bPrice || 0,
                 selling_price: sPrice || 0,
                 standard_rate: sPrice || 0,
                 box_buying_price: boxBPrice || 0,
                 box_selling_price: boxSPrice || 0,
+                master_box_buying_price: masterBoxBPrice || 0,
+                master_box_selling_price: masterBoxSPrice || 0,
                 custom_pieces_per_box: pcsPerBox || 0,
+                custom_boxes_per_master_box: boxesPerMaster || 0,
                 brand: v.brand !== undefined ? v.brand : form.brand || null,
                 country_of_origin: v.country_of_origin !== undefined ? v.country_of_origin : form.country_of_origin || null,
                 item_group: v.item_group !== undefined ? v.item_group : form.item_group || null,
@@ -3345,7 +3399,8 @@ export default function ItemList() {
                             ['Valuation', `AED ${Number(form.valuation_rate || 0).toFixed(2)}`],
                             ['HSN Code', form.hsn_code || '—'],
                             ['Origin', form.country_of_origin || '—'],
-                            ['Packing', `${form.custom_pieces_per_box || 0} ${form.default_uom} / Box`],
+                            ['Box Packing', `${form.custom_pieces_per_box || 0} ${form.default_uom} / Box`],
+                            ['Master Box Packing', form.custom_boxes_per_master_box > 0 ? `${form.custom_boxes_per_master_box} Boxes (${(form.custom_pieces_per_box || 1) * form.custom_boxes_per_master_box} ${form.default_uom}) / Master Box` : '—'],
                           ].map(([l, v]) => (
 
                             <div key={l} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: `1px solid ${T.borderLight}`, alignItems: 'center' }}>
@@ -4333,12 +4388,13 @@ export default function ItemList() {
                             />
                             <select
                               className="il-select"
-                              style={{ width: 110, height: 38, fontSize: 12, fontWeight: 700, background: '#fff' }}
+                              style={{ width: 120, height: 38, fontSize: 12, fontWeight: 700, background: '#fff' }}
                               value={barcodeUom}
                               onChange={e => setBarcodeUom(e.target.value)}
                             >
                               <option value={form.default_uom || 'Nos'}>{form.default_uom || 'Nos'} (Base)</option>
                               <option value="Box">Box</option>
+                              <option value="Master Box">Master Box</option>
                               {(form.uoms || []).filter(u => u.uom && u.uom !== form.default_uom && u.uom !== 'Box' && u.uom !== 'Master Box').map(u => (
                                 <option key={u.uom} value={u.uom}>{u.uom}</option>
                               ))}
@@ -4356,9 +4412,9 @@ export default function ItemList() {
                                   style={{
                                     fontSize: 11,
                                     padding: '3px 8px',
-                                    background: b.uom === 'Box' ? '#fef3c7' : (b.uom === 'Master Box' ? '#f0f2fe' : '#eff6ff'),
-                                    color: b.uom === 'Box' ? '#92400e' : (b.uom === 'Master Box' ? '#0082f6' : '#1d4ed8'),
-                                    border: `1px solid ${b.uom === 'Box' ? '#fde68a' : (b.uom === 'Master Box' ? '#c3cde4' : '#bfdbfe')}`,
+                                    background: b.uom === 'Box' ? '#fef3c7' : (b.uom === 'Master Box' ? '#f5f3ff' : '#eff6ff'),
+                                    color: b.uom === 'Box' ? '#92400e' : (b.uom === 'Master Box' ? '#7c3aed' : '#1d4ed8'),
+                                    border: `1px solid ${b.uom === 'Box' ? '#fde68a' : (b.uom === 'Master Box' ? '#ddd6fe' : '#bfdbfe')}`,
                                     display: 'inline-flex',
                                     alignItems: 'center',
                                     gap: 6
@@ -4386,6 +4442,7 @@ export default function ItemList() {
                                   >
                                     <option value={form.default_uom || 'Nos'}>{form.default_uom || 'Nos'}</option>
                                     <option value="Box">Box</option>
+                                    <option value="Master Box">Master Box</option>
                                     {(form.uoms || []).filter(u => u.uom && u.uom !== form.default_uom && u.uom !== 'Box' && u.uom !== 'Master Box').map(u => (
                                       <option key={u.uom} value={u.uom}>{u.uom}</option>
                                     ))}
@@ -4541,19 +4598,25 @@ export default function ItemList() {
 
                       {/* ROW 3: 9. No of units in box (Only shown for non-variant items) */}
                       {!Boolean(form.has_variants) && (
-                        <div className="il-form-field">
-                          <label className="il-form-label">No of units in box</label>
-                          <input type="number" className="il-input" value={form.custom_pieces_per_box} onChange={e => handlePiecesPerBoxChange(e.target.value)} placeholder="Conversion factor (e.g. 12)" />
-                        </div>
+                        <>
+                          <div className="il-form-field">
+                            <label className="il-form-label">No of units in box</label>
+                            <input type="number" className="il-input" value={form.custom_pieces_per_box} onChange={e => handlePiecesPerBoxChange(e.target.value)} placeholder="Conversion factor (e.g. 12)" />
+                          </div>
+                          <div className="il-form-field">
+                            <label className="il-form-label">No of boxes in master box</label>
+                            <input type="number" className="il-input" value={form.custom_boxes_per_master_box} onChange={e => handleBoxesPerMasterBoxChange(e.target.value)} placeholder="e.g. 10 (Master Box = 10 Boxes)" />
+                          </div>
+                        </>
                       )}
                     </div>
                   </div>
                 </CardSection>
 
-                {/* ROW 4: Price Lists (Nos, Box) - Only shown for Standard Single Items */}
+                {/* ROW 4: Price Lists (Nos, Box, Master Box) - Only shown for Standard Single Items */}
                 {!Boolean(form.has_variants) && (
                   <CardSection
-                    title="Price Lists (Nos · Box)"
+                    title="Price Lists (Nos · Box · Master Box)"
                     icon={<Tag size={14} />}
                     action={
                       isEditMode && (
@@ -4569,7 +4632,7 @@ export default function ItemList() {
                     }
                   >
                     <div style={{ padding: '16px 20px' }}>
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16 }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
                         {/* 1. NOS PRICE */}
                         <div style={{ background: '#f8fafc', border: `1.5px solid ${T.border}`, borderRadius: 12, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: `1px solid ${T.borderLight}`, paddingBottom: 8 }}>
@@ -4607,7 +4670,11 @@ export default function ItemList() {
                                   type="number"
                                   className="il-input"
                                   style={{ fontWeight: 800, fontSize: 14, color: T.amber, background: '#fff', height: 32 }}
-                                  value={form.buying_price || (priceData.prices || []).find(p => p.price_list === (form.buying_price_list || 'Standard Buying') && p.buying === 1 && p.uom === (form.default_uom || 'Nos'))?.price_list_rate || 0}
+                                  value={
+                                    form.buying_price !== undefined && form.buying_price !== null && form.buying_price !== 0
+                                      ? form.buying_price
+                                      : ((priceData.prices || []).find(p => p.price_list === (form.buying_price_list || 'Standard Buying') && p.buying === 1 && p.uom === (form.default_uom || 'Nos'))?.price_list_rate ?? form.buying_price ?? 0)
+                                  }
                                   onChange={e => setForm(p => ({ ...p, buying_price: Number(e.target.value) }))}
                                   onBlur={async () => {
                                     if (!isEditMode || !editingItemCode) return;
@@ -4655,7 +4722,11 @@ export default function ItemList() {
                                   type="number"
                                   className="il-input"
                                   style={{ fontWeight: 800, fontSize: 14, color: T.green, background: '#fff', height: 32 }}
-                                  value={form.selling_price || (priceData.prices || []).find(p => p.price_list === (form.selling_price_list || 'Standard Selling') && p.selling === 1 && p.uom === (form.default_uom || 'Nos'))?.price_list_rate || 0}
+                                  value={
+                                    form.selling_price !== undefined && form.selling_price !== null && form.selling_price !== 0
+                                      ? form.selling_price
+                                      : ((priceData.prices || []).find(p => p.price_list === (form.selling_price_list || 'Standard Selling') && p.selling === 1 && p.uom === (form.default_uom || 'Nos'))?.price_list_rate ?? form.selling_price ?? 0)
+                                  }
                                   onChange={e => setForm(p => ({ ...p, selling_price: Number(e.target.value) }))}
                                   onBlur={async () => {
                                     if (!isEditMode || !editingItemCode) return;
@@ -4714,7 +4785,11 @@ export default function ItemList() {
                                   type="number"
                                   className="il-input"
                                   style={{ fontWeight: 800, fontSize: 14, color: T.amber, background: '#fff', height: 32 }}
-                                  value={form.box_buying_price || (priceData.prices || []).find(p => p.price_list === (form.box_buying_price_list || 'Standard Buying') && p.buying === 1 && p.uom === 'Box')?.price_list_rate || 0}
+                                  value={
+                                    form.box_buying_price !== undefined && form.box_buying_price !== null && form.box_buying_price !== 0
+                                      ? form.box_buying_price
+                                      : ((priceData.prices || []).find(p => p.price_list === (form.box_buying_price_list || 'Standard Buying') && p.buying === 1 && p.uom === 'Box')?.price_list_rate ?? form.box_buying_price ?? 0)
+                                  }
                                   onChange={e => setForm(p => ({ ...p, box_buying_price: Number(e.target.value) }))}
                                   onBlur={async () => {
                                     if (!isEditMode || !editingItemCode) return;
@@ -4762,7 +4837,11 @@ export default function ItemList() {
                                   type="number"
                                   className="il-input"
                                   style={{ fontWeight: 800, fontSize: 14, color: T.green, background: '#fff', height: 32 }}
-                                  value={form.box_selling_price || (priceData.prices || []).find(p => p.price_list === (form.box_selling_price_list || 'Standard Selling') && p.selling === 1 && p.uom === 'Box')?.price_list_rate || 0}
+                                  value={
+                                    form.box_selling_price !== undefined && form.box_selling_price !== null && form.box_selling_price !== 0
+                                      ? form.box_selling_price
+                                      : ((priceData.prices || []).find(p => p.price_list === (form.box_selling_price_list || 'Standard Selling') && p.selling === 1 && p.uom === 'Box')?.price_list_rate ?? form.box_selling_price ?? 0)
+                                  }
                                   onChange={e => setForm(p => ({ ...p, box_selling_price: Number(e.target.value) }))}
                                   onBlur={async () => {
                                     if (!isEditMode || !editingItemCode) return;
@@ -4783,10 +4862,125 @@ export default function ItemList() {
                             </div>
                           </div>
                         </div>
+
+                        {/* 3. MASTER BOX PRICE */}
+                        <div style={{ background: '#f8fafc', border: `1.5px solid ${T.border}`, borderRadius: 12, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: `1px solid ${T.borderLight}`, paddingBottom: 8 }}>
+                            <div style={{ fontSize: 13, fontWeight: 800, color: '#7c3aed', display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#7c3aed' }} />
+                              Master Box Price <span style={{ fontSize: 11, color: T.textMuted, fontWeight: 600 }}>({(form.custom_pieces_per_box > 0 && form.custom_boxes_per_master_box > 0) ? `${form.custom_boxes_per_master_box} Boxes = ${form.custom_pieces_per_box * form.custom_boxes_per_master_box} ${form.default_uom || 'Nos'}` : 'Master Box'})</span>
+                            </div>
+                            <span className="il-chip" style={{ fontSize: 10, padding: '1px 7px', background: '#f5f3ff', color: '#7c3aed', border: '1px solid #ddd6fe', fontWeight: 700 }}>Master Box</span>
+                          </div>
+
+                          {/* Master Box Buying Price */}
+                          <div style={{ background: '#fffbeb', border: '1px solid #FDE68A', borderRadius: 8, padding: '10px 12px' }}>
+                            <div style={{ fontSize: 10, fontWeight: 800, color: T.amber, textTransform: 'uppercase', marginBottom: 6 }}>
+                              ● Buying Price
+                            </div>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                              <div>
+                                <label style={{ fontSize: 10, fontWeight: 600, color: '#78350f', display: 'block', marginBottom: 2 }}>Price List</label>
+                                <SearchableSelectCompact
+                                  value={form.master_box_buying_price_list || 'Standard Buying'}
+                                  options={buyingPriceListOptions}
+                                  placeholder="Select Buying Price List"
+                                  onChange={pl => {
+                                    setForm(p => ({ ...p, master_box_buying_price_list: pl }));
+                                    if (isEditMode && editingItemCode) {
+                                      const found = (priceData.prices || []).find(p => p.price_list === pl && p.buying === 1 && p.uom === 'Master Box');
+                                      if (found) setForm(prev => ({ ...prev, master_box_buying_price_list: pl, master_box_buying_price: found.price_list_rate }));
+                                    }
+                                  }}
+                                />
+                              </div>
+                              <div>
+                                <label style={{ fontSize: 10, fontWeight: 600, color: '#78350f', display: 'block', marginBottom: 2 }}>Rate (AED)</label>
+                                <input
+                                  type="number"
+                                  className="il-input"
+                                  style={{ fontWeight: 800, fontSize: 14, color: T.amber, background: '#fff', height: 32 }}
+                                  value={
+                                    form.master_box_buying_price !== undefined && form.master_box_buying_price !== null && form.master_box_buying_price !== 0
+                                      ? form.master_box_buying_price
+                                      : ((priceData.prices || []).find(p => p.price_list === (form.master_box_buying_price_list || 'Standard Buying') && p.buying === 1 && p.uom === 'Master Box')?.price_list_rate ?? form.master_box_buying_price ?? 0)
+                                  }
+                                  onChange={e => setForm(p => ({ ...p, master_box_buying_price: Number(e.target.value) }))}
+                                  onBlur={async () => {
+                                    if (!isEditMode || !editingItemCode) return;
+                                    try {
+                                      const pl = form.master_box_buying_price_list || 'Standard Buying';
+                                      const existing = (priceData.prices || []).find(p => p.price_list === pl && p.buying === 1 && p.uom === 'Master Box');
+                                      await axios.post('/api/method/kyle_retail.retail_api.api.update_item_price', {
+                                        item_code: editingItemCode,
+                                        data: { price_list: pl, uom: 'Master Box', price_list_rate: form.master_box_buying_price || 0, buying: 1, selling: 0, name: existing?.name || '' }
+                                      }, { withCredentials: true });
+                                      fetchPriceList(editingItemCode);
+                                    } catch (err) { console.warn('Price save err:', err); }
+                                  }}
+                                  placeholder="0.00"
+                                  onFocus={e => e.target.select()}
+                                />
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Master Box Selling Price */}
+                          <div style={{ background: '#f0fdf4', border: '1px solid #BBF7D0', borderRadius: 8, padding: '10px 12px' }}>
+                            <div style={{ fontSize: 10, fontWeight: 800, color: T.green, textTransform: 'uppercase', marginBottom: 6 }}>
+                              ● Selling Price
+                            </div>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                              <div>
+                                <label style={{ fontSize: 10, fontWeight: 600, color: '#14532d', display: 'block', marginBottom: 2 }}>Price List</label>
+                                <SearchableSelectCompact
+                                  value={form.master_box_selling_price_list || 'Standard Selling'}
+                                  options={sellingPriceListOptions}
+                                  placeholder="Select Selling Price List"
+                                  onChange={pl => {
+                                    setForm(p => ({ ...p, master_box_selling_price_list: pl }));
+                                    if (isEditMode && editingItemCode) {
+                                      const found = (priceData.prices || []).find(p => p.price_list === pl && p.selling === 1 && p.uom === 'Master Box');
+                                      if (found) setForm(prev => ({ ...prev, master_box_selling_price_list: pl, master_box_selling_price: found.price_list_rate }));
+                                    }
+                                  }}
+                                />
+                              </div>
+                              <div>
+                                <label style={{ fontSize: 10, fontWeight: 600, color: '#14532d', display: 'block', marginBottom: 2 }}>Rate (AED)</label>
+                                <input
+                                  type="number"
+                                  className="il-input"
+                                  style={{ fontWeight: 800, fontSize: 14, color: T.green, background: '#fff', height: 32 }}
+                                  value={
+                                    form.master_box_selling_price !== undefined && form.master_box_selling_price !== null && form.master_box_selling_price !== 0
+                                      ? form.master_box_selling_price
+                                      : ((priceData.prices || []).find(p => p.price_list === (form.master_box_selling_price_list || 'Standard Selling') && p.selling === 1 && p.uom === 'Master Box')?.price_list_rate ?? form.master_box_selling_price ?? 0)
+                                  }
+                                  onChange={e => setForm(p => ({ ...p, master_box_selling_price: Number(e.target.value) }))}
+                                  onBlur={async () => {
+                                    if (!isEditMode || !editingItemCode) return;
+                                    try {
+                                      const pl = form.master_box_selling_price_list || 'Standard Selling';
+                                      const existing = (priceData.prices || []).find(p => p.price_list === pl && p.selling === 1 && p.uom === 'Master Box');
+                                      await axios.post('/api/method/kyle_retail.retail_api.api.update_item_price', {
+                                        item_code: editingItemCode,
+                                        data: { price_list: pl, uom: 'Master Box', price_list_rate: form.master_box_selling_price || 0, buying: 0, selling: 1, name: existing?.name || '' }
+                                      }, { withCredentials: true });
+                                      fetchPriceList(editingItemCode);
+                                    } catch (err) { console.warn('Price save err:', err); }
+                                  }}
+                                  placeholder="0.00"
+                                  onFocus={e => e.target.select()}
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        </div>
                       </div>
 
                       {/* Existing prices summary */}
-                      {isEditMode && priceData.prices?.length > 0 && (
+                      {priceData.prices?.length > 0 && (
                         <div style={{ marginTop: 14, display: 'flex', flexWrap: 'wrap', gap: 6, paddingTop: 10, borderTop: `1px dashed ${T.border}` }}>
                           {priceData.prices.map((p, i) => (
                             <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 10px', background: '#fff', border: `1px solid ${T.border}`, borderRadius: 8 }}>
@@ -5097,163 +5291,251 @@ export default function ItemList() {
                                     {/* Expanded Details Section */}
                                     {isExpanded && (
                                       <>
-                                        {/* Middle Row: Two Clean Cards - Nos Unit (Blue Left Accent) & Box Package (Amber Left Accent) */}
-                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: 14 }}>
-                                      {/* Column 1: Nos Unit */}
-                                      <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderLeft: '3.5px solid #2563eb', borderRadius: 10, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                                          <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b' }}>
-                                            Nos Unit <span style={{ fontSize: 11, color: '#64748b', fontWeight: 500 }}>({vRow.stock_uom || form.default_uom || 'Nos'})</span>
-                                          </div>
-                                          <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', background: '#eff6ff', color: '#2563eb', borderRadius: 4, border: '1px solid #bfdbfe' }}>Base Unit</span>
-                                        </div>
+                                        {/* Middle Row: Three Clean Cards - Nos Unit (Blue Left Accent), Box Package (Amber Left Accent), Master Box (Purple Left Accent) */}
+                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 14 }}>
+                                       {/* Column 1: Nos Unit */}
+                                       <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderLeft: '3.5px solid #2563eb', borderRadius: 10, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                           <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b' }}>
+                                             Nos Unit <span style={{ fontSize: 11, color: '#64748b', fontWeight: 500 }}>({vRow.stock_uom || form.default_uom || 'Nos'})</span>
+                                           </div>
+                                           <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', background: '#eff6ff', color: '#2563eb', borderRadius: 4, border: '1px solid #bfdbfe' }}>Base Unit</span>
+                                         </div>
 
-                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1.4fr', gap: 8, alignItems: 'flex-end' }}>
-                                          <div>
-                                            <label style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: 4 }}>BUYING PRICE NOS</label>
-                                            <input
-                                              type="number"
-                                              step="any"
-                                              min="0"
-                                              className="il-input"
-                                              style={{ height: 34, fontSize: 13, fontWeight: 700, color: '#1e293b', background: '#ffffff', border: '1px solid #cbd5e1', borderRadius: 6 }}
-                                              value={vRow.buying_price !== undefined ? vRow.buying_price : (form.buying_price || '')}
-                                              onChange={e => {
-                                                const updatedVariants = [...variantForm.initial_variants];
-                                                updatedVariants[vIdx] = { ...vRow, buying_price: e.target.value };
-                                                setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
-                                              }}
-                                              placeholder="0.00"
-                                            />
-                                          </div>
+                                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1.4fr', gap: 8, alignItems: 'flex-end' }}>
+                                           <div>
+                                             <label style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: 4 }}>BUYING PRICE NOS</label>
+                                             <input
+                                               type="number"
+                                               step="any"
+                                               min="0"
+                                               className="il-input"
+                                               style={{ height: 34, fontSize: 13, fontWeight: 700, color: '#1e293b', background: '#ffffff', border: '1px solid #cbd5e1', borderRadius: 6 }}
+                                               value={vRow.buying_price !== undefined ? vRow.buying_price : (form.buying_price || '')}
+                                               onChange={e => {
+                                                 const updatedVariants = [...variantForm.initial_variants];
+                                                 updatedVariants[vIdx] = { ...vRow, buying_price: e.target.value };
+                                                 setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
+                                               }}
+                                               placeholder="0.00"
+                                             />
+                                           </div>
 
-                                          <div>
-                                            <label style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: 4 }}>SELLING PRICE NOS</label>
-                                            <input
-                                              type="number"
-                                              step="any"
-                                              min="0"
-                                              className="il-input"
-                                              style={{ height: 34, fontSize: 13, fontWeight: 700, color: '#16a34a', background: '#ffffff', border: '1px solid #cbd5e1', borderRadius: 6 }}
-                                              value={vRow.selling_price !== undefined ? vRow.selling_price : (form.selling_price || '')}
-                                              onChange={e => {
-                                                const updatedVariants = [...variantForm.initial_variants];
-                                                updatedVariants[vIdx] = { ...vRow, selling_price: e.target.value };
-                                                setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
-                                              }}
-                                              placeholder="0.00"
-                                            />
-                                          </div>
+                                           <div>
+                                             <label style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: 4 }}>SELLING PRICE NOS</label>
+                                             <input
+                                               type="number"
+                                               step="any"
+                                               min="0"
+                                               className="il-input"
+                                               style={{ height: 34, fontSize: 13, fontWeight: 700, color: '#16a34a', background: '#ffffff', border: '1px solid #cbd5e1', borderRadius: 6 }}
+                                               value={vRow.selling_price !== undefined ? vRow.selling_price : (form.selling_price || '')}
+                                               onChange={e => {
+                                                 const updatedVariants = [...variantForm.initial_variants];
+                                                 updatedVariants[vIdx] = { ...vRow, selling_price: e.target.value };
+                                                 setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
+                                               }}
+                                               placeholder="0.00"
+                                             />
+                                           </div>
 
-                                          <div>
-                                            <label style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: 4 }}>BARCODE NOS</label>
-                                            <div style={{ position: 'relative' }}>
-                                              <input
-                                                type="text"
-                                                className="il-input"
-                                                style={{ height: 34, fontSize: 12, fontWeight: 600, fontFamily: "'DM Mono', monospace", background: '#ffffff', border: '1px solid #cbd5e1', borderRadius: 6, paddingRight: 28 }}
-                                                value={vRow.nos_barcode !== undefined ? vRow.nos_barcode : (vRow.variant_barcode || '')}
-                                                onChange={e => {
-                                                  const updatedVariants = [...variantForm.initial_variants];
-                                                  updatedVariants[vIdx] = { ...vRow, nos_barcode: e.target.value, variant_barcode: e.target.value };
-                                                  setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
-                                                }}
-                                                placeholder="Scan / Type Nos Barcode"
-                                              />
-                                              <Scan size={14} style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', pointerEvents: 'none' }} />
-                                            </div>
-                                          </div>
-                                        </div>
-                                      </div>
+                                           <div>
+                                             <label style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: 4 }}>BARCODE NOS</label>
+                                             <div style={{ position: 'relative' }}>
+                                               <input
+                                                 type="text"
+                                                 className="il-input"
+                                                 style={{ height: 34, fontSize: 12, fontWeight: 600, fontFamily: "'DM Mono', monospace", background: '#ffffff', border: '1px solid #cbd5e1', borderRadius: 6, paddingRight: 28 }}
+                                                 value={vRow.nos_barcode !== undefined ? vRow.nos_barcode : (vRow.variant_barcode || '')}
+                                                 onChange={e => {
+                                                   const updatedVariants = [...variantForm.initial_variants];
+                                                   updatedVariants[vIdx] = { ...vRow, nos_barcode: e.target.value, variant_barcode: e.target.value };
+                                                   setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
+                                                 }}
+                                                 placeholder="Scan / Type Nos Barcode"
+                                               />
+                                               <Scan size={14} style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', pointerEvents: 'none' }} />
+                                             </div>
+                                           </div>
+                                         </div>
+                                       </div>
 
-                                      {/* Column 2: Box Package */}
-                                      <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderLeft: '3.5px solid #d97706', borderRadius: 10, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                                          <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b' }}>
-                                            Box Package <span style={{ fontSize: 11, color: '#64748b', fontWeight: 500 }}>(Box)</span>
-                                          </div>
-                                          <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', background: '#fffbeb', color: '#b45309', borderRadius: 4, border: '1px solid #fde68a' }}>Box Unit</span>
-                                        </div>
+                                       {/* Column 2: Box Package */}
+                                       <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderLeft: '3.5px solid #d97706', borderRadius: 10, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                           <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b' }}>
+                                             Box Package <span style={{ fontSize: 11, color: '#64748b', fontWeight: 500 }}>(Box)</span>
+                                           </div>
+                                           <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', background: '#fffbeb', color: '#b45309', borderRadius: 4, border: '1px solid #fde68a' }}>Box Unit</span>
+                                         </div>
 
-                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1.3fr 0.9fr', gap: 8, alignItems: 'flex-end' }}>
-                                          <div>
-                                            <label style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: 4 }}>BUYING PRICE BOX</label>
-                                            <input
-                                              type="number"
-                                              step="any"
-                                              min="0"
-                                              className="il-input"
-                                              style={{ height: 34, fontSize: 13, fontWeight: 700, color: '#1e293b', background: '#ffffff', border: '1px solid #cbd5e1', borderRadius: 6 }}
-                                              value={vRow.box_buying_price !== undefined ? vRow.box_buying_price : (form.box_buying_price || '')}
-                                              onChange={e => {
-                                                const updatedVariants = [...variantForm.initial_variants];
-                                                updatedVariants[vIdx] = { ...vRow, box_buying_price: e.target.value };
-                                                setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
-                                              }}
-                                              placeholder="0.00"
-                                            />
-                                          </div>
+                                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1.3fr 0.9fr', gap: 8, alignItems: 'flex-end' }}>
+                                           <div>
+                                             <label style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: 4 }}>BUYING PRICE BOX</label>
+                                             <input
+                                               type="number"
+                                               step="any"
+                                               min="0"
+                                               className="il-input"
+                                               style={{ height: 34, fontSize: 13, fontWeight: 700, color: '#1e293b', background: '#ffffff', border: '1px solid #cbd5e1', borderRadius: 6 }}
+                                               value={vRow.box_buying_price !== undefined ? vRow.box_buying_price : (form.box_buying_price || '')}
+                                               onChange={e => {
+                                                 const updatedVariants = [...variantForm.initial_variants];
+                                                 updatedVariants[vIdx] = { ...vRow, box_buying_price: e.target.value };
+                                                 setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
+                                               }}
+                                               placeholder="0.00"
+                                             />
+                                           </div>
 
-                                          <div>
-                                            <label style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: 4 }}>SELLING PRICE BOX</label>
-                                            <input
-                                              type="number"
-                                              step="any"
-                                              min="0"
-                                              className="il-input"
-                                              style={{ height: 34, fontSize: 13, fontWeight: 700, color: '#d97706', background: '#ffffff', border: '1px solid #cbd5e1', borderRadius: 6 }}
-                                              value={vRow.box_selling_price !== undefined ? vRow.box_selling_price : (form.box_selling_price || '')}
-                                              onChange={e => {
-                                                const updatedVariants = [...variantForm.initial_variants];
-                                                updatedVariants[vIdx] = { ...vRow, box_selling_price: e.target.value };
-                                                setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
-                                              }}
-                                              placeholder="0.00"
-                                            />
-                                          </div>
+                                           <div>
+                                             <label style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: 4 }}>SELLING PRICE BOX</label>
+                                             <input
+                                               type="number"
+                                               step="any"
+                                               min="0"
+                                               className="il-input"
+                                               style={{ height: 34, fontSize: 13, fontWeight: 700, color: '#d97706', background: '#ffffff', border: '1px solid #cbd5e1', borderRadius: 6 }}
+                                               value={vRow.box_selling_price !== undefined ? vRow.box_selling_price : (form.box_selling_price || '')}
+                                               onChange={e => {
+                                                 const updatedVariants = [...variantForm.initial_variants];
+                                                 updatedVariants[vIdx] = { ...vRow, box_selling_price: e.target.value };
+                                                 setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
+                                               }}
+                                               placeholder="0.00"
+                                             />
+                                           </div>
 
-                                          <div>
-                                            <label style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: 4 }}>BARCODE BOX</label>
-                                            <div style={{ position: 'relative' }}>
-                                              <input
-                                                type="text"
-                                                className="il-input"
-                                                style={{ height: 34, fontSize: 12, fontWeight: 600, fontFamily: "'DM Mono', monospace", background: '#ffffff', border: '1px solid #cbd5e1', borderRadius: 6, paddingRight: 28 }}
-                                                value={vRow.box_barcode || ''}
-                                                onChange={e => {
-                                                  const updatedVariants = [...variantForm.initial_variants];
-                                                  updatedVariants[vIdx] = { ...vRow, box_barcode: e.target.value };
-                                                  setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
-                                                }}
-                                                placeholder="Scan / Type Box Barcode"
-                                              />
-                                              <Scan size={14} style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', pointerEvents: 'none' }} />
-                                            </div>
-                                          </div>
+                                           <div>
+                                             <label style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: 4 }}>BARCODE BOX</label>
+                                             <div style={{ position: 'relative' }}>
+                                               <input
+                                                 type="text"
+                                                 className="il-input"
+                                                 style={{ height: 34, fontSize: 12, fontWeight: 600, fontFamily: "'DM Mono', monospace", background: '#ffffff', border: '1px solid #cbd5e1', borderRadius: 6, paddingRight: 28 }}
+                                                 value={vRow.box_barcode || ''}
+                                                 onChange={e => {
+                                                   const updatedVariants = [...variantForm.initial_variants];
+                                                   updatedVariants[vIdx] = { ...vRow, box_barcode: e.target.value };
+                                                   setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
+                                                 }}
+                                                 placeholder="Scan / Type Box Barcode"
+                                               />
+                                               <Scan size={14} style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', pointerEvents: 'none' }} />
+                                             </div>
+                                           </div>
 
-                                          <div>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                                              <label style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', margin: 0 }}>NOS IN BOX</label>
-                                              <span style={{ fontSize: 9, color: '#94a3b8', fontWeight: 600 }}>Pcs / Box</span>
-                                            </div>
-                                            <input
-                                              type="number"
-                                              step="1"
-                                              min="0"
-                                              className="il-input"
-                                              style={{ height: 34, fontSize: 13, fontWeight: 700, color: '#1e293b', background: '#ffffff', border: '1px solid #cbd5e1', borderRadius: 6 }}
-                                              value={vRow.custom_pieces_per_box !== undefined ? vRow.custom_pieces_per_box : (form.custom_pieces_per_box || '')}
-                                              onChange={e => {
-                                                const updatedVariants = [...variantForm.initial_variants];
-                                                updatedVariants[vIdx] = { ...vRow, custom_pieces_per_box: e.target.value };
-                                                setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
-                                              }}
-                                              placeholder="e.g. 12"
-                                            />
-                                          </div>
-                                        </div>
-                                      </div>
-                                    </div>
+                                           <div>
+                                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                                               <label style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', margin: 0 }}>NOS IN BOX</label>
+                                               <span style={{ fontSize: 9, color: '#94a3b8', fontWeight: 600 }}>Pcs/Box</span>
+                                             </div>
+                                             <input
+                                               type="number"
+                                               step="1"
+                                               min="0"
+                                               className="il-input"
+                                               style={{ height: 34, fontSize: 13, fontWeight: 700, color: '#1e293b', background: '#ffffff', border: '1px solid #cbd5e1', borderRadius: 6 }}
+                                               value={vRow.custom_pieces_per_box !== undefined ? vRow.custom_pieces_per_box : (form.custom_pieces_per_box || '')}
+                                               onChange={e => {
+                                                 const updatedVariants = [...variantForm.initial_variants];
+                                                 updatedVariants[vIdx] = { ...vRow, custom_pieces_per_box: e.target.value };
+                                                 setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
+                                               }}
+                                               placeholder="e.g. 12"
+                                             />
+                                           </div>
+                                         </div>
+                                       </div>
+
+                                       {/* Column 3: Master Box Package */}
+                                       <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderLeft: '3.5px solid #7c3aed', borderRadius: 10, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                           <div style={{ fontSize: 13, fontWeight: 800, color: '#1e293b' }}>
+                                             Master Box <span style={{ fontSize: 11, color: '#64748b', fontWeight: 500 }}>(Master Box)</span>
+                                           </div>
+                                           <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', background: '#f5f3ff', color: '#7c3aed', borderRadius: 4, border: '1px solid #ddd6fe' }}>Master Box</span>
+                                         </div>
+
+                                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1.3fr 0.9fr', gap: 8, alignItems: 'flex-end' }}>
+                                           <div>
+                                             <label style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: 4 }}>BUYING PRICE MASTER</label>
+                                             <input
+                                               type="number"
+                                               step="any"
+                                               min="0"
+                                               className="il-input"
+                                               style={{ height: 34, fontSize: 13, fontWeight: 700, color: '#1e293b', background: '#ffffff', border: '1px solid #cbd5e1', borderRadius: 6 }}
+                                               value={vRow.master_box_buying_price !== undefined ? vRow.master_box_buying_price : (form.master_box_buying_price || '')}
+                                               onChange={e => {
+                                                 const updatedVariants = [...variantForm.initial_variants];
+                                                 updatedVariants[vIdx] = { ...vRow, master_box_buying_price: e.target.value };
+                                                 setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
+                                               }}
+                                               placeholder="0.00"
+                                             />
+                                           </div>
+
+                                           <div>
+                                             <label style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: 4 }}>SELLING PRICE MASTER</label>
+                                             <input
+                                               type="number"
+                                               step="any"
+                                               min="0"
+                                               className="il-input"
+                                               style={{ height: 34, fontSize: 13, fontWeight: 700, color: '#7c3aed', background: '#ffffff', border: '1px solid #cbd5e1', borderRadius: 6 }}
+                                               value={vRow.master_box_selling_price !== undefined ? vRow.master_box_selling_price : (form.master_box_selling_price || '')}
+                                               onChange={e => {
+                                                 const updatedVariants = [...variantForm.initial_variants];
+                                                 updatedVariants[vIdx] = { ...vRow, master_box_selling_price: e.target.value };
+                                                 setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
+                                               }}
+                                               placeholder="0.00"
+                                             />
+                                           </div>
+
+                                           <div>
+                                             <label style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', display: 'block', marginBottom: 4 }}>BARCODE MASTER BOX</label>
+                                             <div style={{ position: 'relative' }}>
+                                               <input
+                                                 type="text"
+                                                 className="il-input"
+                                                 style={{ height: 34, fontSize: 12, fontWeight: 600, fontFamily: "'DM Mono', monospace", background: '#ffffff', border: '1px solid #cbd5e1', borderRadius: 6, paddingRight: 28 }}
+                                                 value={vRow.master_box_barcode || ''}
+                                                 onChange={e => {
+                                                   const updatedVariants = [...variantForm.initial_variants];
+                                                   updatedVariants[vIdx] = { ...vRow, master_box_barcode: e.target.value };
+                                                   setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
+                                                 }}
+                                                 placeholder="Scan / Type Master Box Barcode"
+                                               />
+                                               <Scan size={14} style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', pointerEvents: 'none' }} />
+                                             </div>
+                                           </div>
+
+                                           <div>
+                                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                                               <label style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', margin: 0 }}>BOXES IN MASTER</label>
+                                               <span style={{ fontSize: 9, color: '#94a3b8', fontWeight: 600 }}>Box/Master</span>
+                                             </div>
+                                             <input
+                                               type="number"
+                                               step="1"
+                                               min="0"
+                                               className="il-input"
+                                               style={{ height: 34, fontSize: 13, fontWeight: 700, color: '#1e293b', background: '#ffffff', border: '1px solid #cbd5e1', borderRadius: 6 }}
+                                               value={vRow.custom_boxes_per_master_box !== undefined ? vRow.custom_boxes_per_master_box : (form.custom_boxes_per_master_box || '')}
+                                               onChange={e => {
+                                                 const updatedVariants = [...variantForm.initial_variants];
+                                                 updatedVariants[vIdx] = { ...vRow, custom_boxes_per_master_box: e.target.value };
+                                                 setVariantForm(vf => ({ ...vf, initial_variants: updatedVariants }));
+                                               }}
+                                               placeholder="e.g. 10"
+                                             />
+                                           </div>
+                                         </div>
+                                       </div>
+                                     </div>
 
                                     {/* Full Specifications Section: Classification, UOM, Toggles & Supplier */}
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: 14, paddingTop: 6 }}>

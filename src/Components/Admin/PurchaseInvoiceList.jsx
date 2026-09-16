@@ -1130,12 +1130,83 @@ function PurchaseInvoiceList() {
 
   const fetchItems = async (query = '') => {
     try {
+      const searchValue = String(query || '').trim();
+
       const res = await axios.get(`${LEGACY_API}.get_items_for_pi`, {
-        params: { query: query || undefined, warehouse: !isAdmin ? warehouse : undefined },
+        params: {
+          query: searchValue || undefined,
+          warehouse: !isAdmin ? warehouse : undefined
+        },
         withCredentials: true
       });
-      const data = Array.isArray(res.data.message) ? res.data.message : [];
-      console.log('[PurchaseInvoice fetchItems API] Query:', query, 'Returned items sample:', data.slice(0, 3));
+
+      let data = Array.isArray(res.data.message) ? res.data.message : [];
+
+      /*
+       * IMPORTANT:
+       * If the user entered/scanned a barcode, verify it using
+       * the barcode-specific API and attach the scanned barcode
+       * to the returned item.
+       */
+      if (/^\d+$/.test(searchValue)) {
+        try {
+          const warehouseParam =
+            !isAdmin && warehouse
+              ? `&warehouse=${encodeURIComponent(warehouse)}`
+              : '';
+
+          const barcodeRes = await axios.get(
+            `${API_PATH}.get_item_by_barcode_pi?${warehouseParam}`,
+            {
+              params: { barcode: searchValue },
+              withCredentials: true
+            }
+          );
+
+          const barcodeItem = Array.isArray(barcodeRes.data.message)
+            ? barcodeRes.data.message[0]
+            : barcodeRes.data.message;
+
+          if (barcodeItem?.item_code) {
+            const barcodeItemCode = barcodeItem.item_code;
+
+            data = data.map(item =>
+              item.item_code === barcodeItemCode
+                ? {
+                    ...item,
+                    barcode: searchValue,
+                    scanned_barcode: searchValue
+                  }
+                : item
+            );
+
+            /*
+             * If get_items_for_pi didn't return the item,
+             * add the barcode API result directly.
+             */
+            if (!data.some(item => item.item_code === barcodeItemCode)) {
+              data.unshift({
+                ...barcodeItem,
+                barcode: searchValue,
+                scanned_barcode: searchValue
+              });
+            }
+          }
+        } catch (barcodeErr) {
+          console.log(
+            '[PurchaseInvoice] Barcode verification failed:',
+            barcodeErr
+          );
+        }
+      }
+
+      console.log(
+        '[PurchaseInvoice fetchItems API] Query:',
+        query,
+        'Returned items sample:',
+        data.slice(0, 3)
+      );
+
       setItemsList(data);
       return data;
     } catch (err) {
@@ -2059,6 +2130,21 @@ function PurchaseInvoiceList() {
       if (existingIdx !== -1) {
         // Merge with existing item!
         const existingItem = { ...items[existingIdx] };
+        const scannedBarcode =
+          item.scanned_barcode ||
+          item.barcode ||
+          (item.barcodes?.[0]
+            ? (typeof item.barcodes[0] === 'object'
+                ? item.barcodes[0].barcode
+                : item.barcodes[0])
+            : '') ||
+          '';
+
+        existingItem.scanned_barcode =
+          scannedBarcode || existingItem.scanned_barcode || '';
+        existingItem.barcode =
+          scannedBarcode || existingItem.barcode || '';
+
         if (isBoxScan || existingItem.use_box_entry) {
           existingItem.use_box_entry = true;
           existingItem.uom = 'Box';
@@ -2099,6 +2185,7 @@ function PurchaseInvoiceList() {
           item_code: item.item_code,
           item_name: item.item_name,
           barcode: barcodeVal,
+          scanned_barcode: barcodeVal,
           uom: isBoxUom ? 'Box' : (item.stock_uom || 'Nos'),
           qty: itemQty,
           rate: rate,
@@ -2146,10 +2233,21 @@ function PurchaseInvoiceList() {
             const items = [...currentForm.items];
             const targetIdx = items.findIndex(it => it && it.item_code === item.item_code);
             if (targetIdx !== -1) {
-              const currentBarcode = items[targetIdx].barcode || item.barcode || (item.barcodes && item.barcodes[0]) || '';
+              const currentBarcode =
+                items[targetIdx].scanned_barcode ||
+                item.scanned_barcode ||
+                items[targetIdx].barcode ||
+                item.barcode ||
+                (item.barcodes?.[0]
+                  ? (typeof item.barcodes[0] === 'object'
+                      ? item.barcodes[0].barcode
+                      : item.barcodes[0])
+                  : '') ||
+                '';
               items[targetIdx] = {
                 ...items[targetIdx],
                 barcode: currentBarcode,
+                scanned_barcode: currentBarcode,
                 rate: buyingRate,
                 custom_box_price: boxBuyingPrice,
                 amount: (parseFloat(items[targetIdx].qty || 1) * buyingRate).toFixed(2)
@@ -2162,6 +2260,35 @@ function PurchaseInvoiceList() {
     } catch (err) {
       console.log("No buying rate found");
     }
+
+    // Secondary fallback: If barcode is still missing, fetch item details to get barcode
+    try {
+      setFormData(currentForm => {
+        const row = currentForm.items.find(it => it && it.item_code === item.item_code);
+        if (row && (!row.barcode || !row.scanned_barcode)) {
+          axios.get(`${LEGACY_API}.get_item_details`, {
+            params: { item_code: item.item_code, warehouse: formData.accepted_warehouse || warehouse || undefined },
+            withCredentials: true
+          }).then(res => {
+            if (res.data && res.data.message) {
+              const d = res.data.message;
+              const foundBc = d.barcode || (d.barcodes && d.barcodes[0] ? (typeof d.barcodes[0] === 'object' ? d.barcodes[0].barcode : d.barcodes[0]) : '');
+              if (foundBc) {
+                setFormData(f => ({
+                  ...f,
+                  items: f.items.map(it => it.item_code === item.item_code ? {
+                    ...it,
+                    barcode: it.barcode || String(foundBc),
+                    scanned_barcode: it.scanned_barcode || String(foundBc)
+                  } : it)
+                }));
+              }
+            }
+          }).catch(() => {});
+        }
+        return currentForm;
+      });
+    } catch (err) {}
 
     // Auto-focus the UOM / custom_box_qty field of the selected item row on barcode scan
     setTimeout(() => {
@@ -3951,10 +4078,19 @@ function PurchaseInvoiceList() {
                                 placeholder="SCAN BARCODE OR TYPE ITEM NAME HERE TO ADD..."
                                 value={null}
                                 clearOnSelect={true}
-                                onSelect={(selectedItem) => {
+                                onSelect={(selectedItem, searchQuery) => {
                                   if (selectedItem) {
-                                    console.log('[PurchaseInvoice inline search] Selected Item:', selectedItem);
-                                    selectItem(formData.items.length, selectedItem);
+                                    const code = String(searchQuery || '').trim();
+                                    const itemWithBarcode =
+                                      /^\d{4,}$/.test(code)
+                                        ? {
+                                            ...selectedItem,
+                                            barcode: selectedItem.barcode || code,
+                                            scanned_barcode: selectedItem.scanned_barcode || code
+                                          }
+                                        : selectedItem;
+                                    console.log('[PurchaseInvoice inline search] Selected Item:', itemWithBarcode);
+                                    selectItem(formData.items.length, itemWithBarcode);
                                   }
                                 }}
                                 fetchData={fetchItemsAPI}
@@ -5626,7 +5762,19 @@ function PurchaseInvoiceList() {
                                                 <CustomSearchDropdown
                                                  placeholder="Search item..."
                                                  value={item.item_code ? { name: item.item_code, item_name: item.item_name } : null}
-                                                 onSelect={it => selectItem(i, it)}
+                                                 onSelect={(it, searchQuery) => {
+                                                   if (!it) return;
+                                                   const code = String(searchQuery || '').trim();
+                                                   const itemWithBarcode =
+                                                     /^\d{4,}$/.test(code)
+                                                       ? {
+                                                           ...it,
+                                                           barcode: it.barcode || code,
+                                                           scanned_barcode: it.scanned_barcode || code
+                                                         }
+                                                       : it;
+                                                   selectItem(i, itemWithBarcode);
+                                                 }}
                                                  fetchData={fetchItemsAPI}
                                                  createOption={(query) => {
                                                    setQuickItemInitialCode(query || '');

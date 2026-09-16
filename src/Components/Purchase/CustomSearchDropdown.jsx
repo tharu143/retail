@@ -219,7 +219,8 @@ const CustomSearchDropdown = ({
   }, [results, optionsLabel]);
 
   const handleItemClick = (item) => {
-    onSelect(item);
+    const currentQuery = (query || '').trim();
+    onSelect(item, currentQuery);
     const shouldClear = clearOnSelect || value === null;
     const label = shouldClear ? '' : (item[optionsLabel] || item.item_name || item.name || item.item_code || '');
     setQuery(label);
