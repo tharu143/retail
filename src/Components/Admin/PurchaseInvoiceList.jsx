@@ -2138,8 +2138,19 @@ function PurchaseInvoiceList() {
         const buyingRate = parseFloat(res.data.message.rate) || 0;
         const boxBuyingPrice = parseFloat(res.data.message.box_price) || (buyingRate * pcsPerBox);
         if (buyingRate > 0 || boxBuyingPrice > 0) {
-          updateItem(rowIndex, 'rate', buyingRate);
-          updateItem(rowIndex, 'custom_box_price', boxBuyingPrice);
+          setFormData(currentForm => {
+            const items = [...currentForm.items];
+            const targetIdx = items.findIndex(it => it && it.item_code === item.item_code);
+            if (targetIdx !== -1) {
+              items[targetIdx] = {
+                ...items[targetIdx],
+                rate: buyingRate,
+                custom_box_price: boxBuyingPrice,
+                amount: (parseFloat(items[targetIdx].qty || 1) * buyingRate).toFixed(2)
+              };
+            }
+            return { ...currentForm, items };
+          });
         }
       }
     } catch (err) {
