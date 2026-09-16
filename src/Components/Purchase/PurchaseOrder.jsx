@@ -1060,7 +1060,7 @@ function PurchaseOrder() {
             use_box_entry: isBox,
             custom_supplier_sl_num: item.custom_supplier_sl_num || item.supplier_part_no || '',
             supplier_part_no: item.supplier_part_no || item.custom_supplier_sl_num || '',
-            temp_barcode: ''
+            temp_barcode: barcode
           };
         }
         // Add new empty row if all existing rows are filled
@@ -1071,19 +1071,15 @@ function PurchaseOrder() {
         return { ...prev, items, ...totals };
       });
 
-      // Clear the barcode input field
-      e.target.value = '';
-      // Focus back to the current barcode input or the next one if a new row was added
+      // Auto-focus the UOM / box_qty field of the scanned item row
       setTimeout(() => {
-        const nextInput = document.querySelector(`tr:nth-child(${rowIndex + 1}) input[placeholder="Barcode"]`);
-        if (nextInput) {
-          nextInput.focus();
-        } else {
-          // If no next input, focus on the last one (which might be the newly added row)
-          const lastInput = document.querySelector(`tr:last-child input[placeholder="Barcode"]`);
-          lastInput?.focus();
+        const uomSelect = document.querySelector(`tr:nth-child(${rowIndex + 1}) select`) ||
+          document.querySelector(`tr:nth-child(${rowIndex + 1}) input[name="custom_ref_sl_no"]`) ||
+          document.querySelector(`tr:nth-child(${rowIndex + 1}) input[name="custom_box_qty"]`);
+        if (uomSelect) {
+          uomSelect.focus();
         }
-      }, 10);
+      }, 100);
 
     } catch (err) {
       Swal.fire({

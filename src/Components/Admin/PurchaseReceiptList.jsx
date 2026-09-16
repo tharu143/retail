@@ -1172,12 +1172,13 @@ function PurchaseReceiptList() {
         const itemQty = isBoxUom ? Math.round(pcsPerBox) : 1;
 
         // First find if there is an existing empty row (without item_code)
-        const emptyRowIdx = items.findIndex(it => !it.item_code);
-        const actualTarget = emptyRowIdx !== -1 ? emptyRowIdx : items.length;
+        const rawBarcode = item.barcode || (item.barcodes && item.barcodes[0] ? (typeof item.barcodes[0] === 'object' ? item.barcodes[0].barcode : item.barcodes[0]) : '') || item.item_code || '';
+        const barcodeVal = typeof rawBarcode === 'object' && rawBarcode !== null ? (rawBarcode.barcode || rawBarcode.name || '') : String(rawBarcode || '');
 
         const newRow = {
           item_code: item.item_code,
           item_name: item.item_name,
+          barcode: barcodeVal,
           uom: isBoxUom ? 'Box' : (item.stock_uom || 'Nos'),
           accepted_qty: itemQty,
           received_qty: itemQty,
@@ -1237,13 +1238,19 @@ function PurchaseReceiptList() {
       });
     }
 
-    // Auto-focus the custom_ref_sl_no field of the selected item row
+    // Auto-focus the UOM / custom_box_qty field of the selected item row on scan
     setTimeout(() => {
       const rowNum = rowIndex + 1;
-      const targetInput = document.querySelector(`table.purchase-table tbody tr:nth-child(${rowNum}) input[name="custom_ref_sl_no"]`);
-      if (targetInput) {
-        targetInput.focus();
-        targetInput.select?.();
+      const uomSelect = document.querySelector(`table.purchase-table tbody tr:nth-child(${rowNum}) select`) ||
+        document.querySelector(`table.classic-table tbody tr:nth-child(${rowNum}) select`) ||
+        document.querySelector(`table tbody tr:nth-child(${rowNum}) select`);
+      if (uomSelect) {
+        uomSelect.focus();
+      } else {
+        const qtyInput = document.querySelector(`table.purchase-table tbody tr:nth-child(${rowNum}) input[type="number"]`) ||
+          document.querySelector(`table tbody tr:nth-child(${rowNum}) input`);
+        qtyInput?.focus();
+        qtyInput?.select?.();
       }
     }, 150);
   };

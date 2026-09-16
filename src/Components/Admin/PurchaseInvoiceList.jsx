@@ -2088,10 +2088,13 @@ function PurchaseInvoiceList() {
         const sellNos = parseFloat(item.custom_selling_price || 0);
         const sellBox = parseFloat(item.custom_box_selling_price || item.custom_selling_price_box || (sellNos * pcsPerBox) || 0);
         const itemQty = isBoxUom ? Math.round(pcsPerBox) : 1;
+        const rawBarcode = item.barcode || (item.barcodes && item.barcodes[0] ? (typeof item.barcodes[0] === 'object' ? item.barcodes[0].barcode : item.barcodes[0]) : '') || item.item_code || '';
+        const barcodeVal = typeof rawBarcode === 'object' && rawBarcode !== null ? (rawBarcode.barcode || rawBarcode.name || '') : String(rawBarcode || '');
 
         items[targetIndex] = {
           item_code: item.item_code,
           item_name: item.item_name,
+          barcode: barcodeVal,
           uom: isBoxUom ? 'Box' : (item.stock_uom || 'Nos'),
           qty: itemQty,
           rate: rate,
@@ -2143,20 +2146,22 @@ function PurchaseInvoiceList() {
       console.log("No buying rate found");
     }
 
-    // Auto-focus the item search / item name field of the selected item row
+    // Auto-focus the UOM / custom_box_qty field of the selected item row on barcode scan
     setTimeout(() => {
       setFormData(currentForm => {
         const targetIdx = currentForm.items.findIndex(it => it && it.item_code === item.item_code);
         if (targetIdx !== -1) {
           const rowNum = targetIdx + 1;
-          const targetInput = document.querySelector(`table.purchase-table tbody tr:nth-child(${rowNum}) input[placeholder*="Search item"]`) ||
-            document.querySelector(`table.classic-table tbody tr:nth-child(${rowNum}) input[placeholder*="Search item"]`) ||
-            document.querySelector(`table tbody tr:nth-child(${rowNum}) input[placeholder*="Search item"]`) ||
-            document.querySelector(`table tbody tr:nth-child(${rowNum}) td:nth-child(2) input`) ||
-            document.querySelector(`table tbody tr:nth-child(${rowNum}) input`);
-          if (targetInput) {
-            targetInput.focus();
-            targetInput.select?.();
+          const uomSelect = document.querySelector(`table.purchase-table tbody tr:nth-child(${rowNum}) select`) ||
+            document.querySelector(`table.classic-table tbody tr:nth-child(${rowNum}) select`) ||
+            document.querySelector(`table tbody tr:nth-child(${rowNum}) select`);
+          if (uomSelect) {
+            uomSelect.focus();
+          } else {
+            const qtyInput = document.querySelector(`table tbody tr:nth-child(${rowNum}) input[type="text"][inputmode="decimal"]`) ||
+              document.querySelector(`table tbody tr:nth-child(${rowNum}) input`);
+            qtyInput?.focus();
+            qtyInput?.select?.();
           }
         }
         return currentForm;
