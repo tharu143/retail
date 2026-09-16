@@ -2142,8 +2142,10 @@ function PurchaseInvoiceList() {
             const items = [...currentForm.items];
             const targetIdx = items.findIndex(it => it && it.item_code === item.item_code);
             if (targetIdx !== -1) {
+              const currentBarcode = items[targetIdx].barcode || item.barcode || (item.barcodes && item.barcodes[0]) || '';
               items[targetIdx] = {
                 ...items[targetIdx],
+                barcode: currentBarcode,
                 rate: buyingRate,
                 custom_box_price: boxBuyingPrice,
                 amount: (parseFloat(items[targetIdx].qty || 1) * buyingRate).toFixed(2)
