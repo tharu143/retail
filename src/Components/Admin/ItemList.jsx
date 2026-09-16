@@ -4643,59 +4643,7 @@ export default function ItemList() {
                             <span className="il-chip" style={{ fontSize: 10, padding: '1px 7px', background: '#eff6ff', color: T.blue, border: '1px solid #bfdbfe', fontWeight: 700 }}>Base UOM</span>
                           </div>
 
-                          {/* Nos Buying Price */}
-                          <div style={{ background: '#fffbeb', border: '1px solid #FDE68A', borderRadius: 8, padding: '10px 12px' }}>
-                            <div style={{ fontSize: 10, fontWeight: 800, color: T.amber, textTransform: 'uppercase', marginBottom: 6 }}>
-                              ● Buying Price
-                            </div>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                              <div>
-                                <label style={{ fontSize: 10, fontWeight: 600, color: '#78350f', display: 'block', marginBottom: 2 }}>Price List</label>
-                                <SearchableSelectCompact
-                                  value={form.buying_price_list || 'Standard Buying'}
-                                  options={buyingPriceListOptions}
-                                  placeholder="Select Buying Price List"
-                                  onChange={pl => {
-                                    setForm(p => ({ ...p, buying_price_list: pl }));
-                                    if (isEditMode && editingItemCode) {
-                                      const found = (priceData.prices || []).find(p => p.price_list === pl && p.buying === 1 && p.uom === (form.default_uom || 'Nos'));
-                                      if (found) setForm(prev => ({ ...prev, buying_price_list: pl, buying_price: found.price_list_rate }));
-                                    }
-                                  }}
-                                />
-                              </div>
-                              <div>
-                                <label style={{ fontSize: 10, fontWeight: 600, color: '#78350f', display: 'block', marginBottom: 2 }}>Rate (AED)</label>
-                                <input
-                                  type="number"
-                                  className="il-input"
-                                  style={{ fontWeight: 800, fontSize: 14, color: T.amber, background: '#fff', height: 32 }}
-                                  value={
-                                    form.buying_price !== undefined && form.buying_price !== null && form.buying_price !== 0
-                                      ? form.buying_price
-                                      : ((priceData.prices || []).find(p => p.price_list === (form.buying_price_list || 'Standard Buying') && p.buying === 1 && p.uom === (form.default_uom || 'Nos'))?.price_list_rate ?? form.buying_price ?? 0)
-                                  }
-                                  onChange={e => setForm(p => ({ ...p, buying_price: Number(e.target.value) }))}
-                                  onBlur={async () => {
-                                    if (!isEditMode || !editingItemCode) return;
-                                    try {
-                                      const pl = form.buying_price_list || 'Standard Buying';
-                                      const existing = (priceData.prices || []).find(p => p.price_list === pl && p.buying === 1 && p.uom === (form.default_uom || 'Nos'));
-                                      await axios.post('/api/method/kyle_retail.retail_api.api.update_item_price', {
-                                        item_code: editingItemCode,
-                                        data: { price_list: pl, uom: form.default_uom || 'Nos', price_list_rate: form.buying_price || 0, buying: 1, selling: 0, name: existing?.name || '' }
-                                      }, { withCredentials: true });
-                                      fetchPriceList(editingItemCode);
-                                    } catch (err) { console.warn('Price save err:', err); }
-                                  }}
-                                  placeholder="0.00"
-                                  onFocus={e => e.target.select()}
-                                />
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Nos Selling Price */}
+                          {/* Nos Selling Price (Top) */}
                           <div style={{ background: '#f0fdf4', border: '1px solid #BBF7D0', borderRadius: 8, padding: '10px 12px' }}>
                             <div style={{ fontSize: 10, fontWeight: 800, color: T.green, textTransform: 'uppercase', marginBottom: 6 }}>
                               ● Selling Price
@@ -4746,6 +4694,58 @@ export default function ItemList() {
                               </div>
                             </div>
                           </div>
+
+                          {/* Nos Buying Price (Bottom) */}
+                          <div style={{ background: '#fffbeb', border: '1px solid #FDE68A', borderRadius: 8, padding: '10px 12px' }}>
+                            <div style={{ fontSize: 10, fontWeight: 800, color: T.amber, textTransform: 'uppercase', marginBottom: 6 }}>
+                              ● Buying Price
+                            </div>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                              <div>
+                                <label style={{ fontSize: 10, fontWeight: 600, color: '#78350f', display: 'block', marginBottom: 2 }}>Price List</label>
+                                <SearchableSelectCompact
+                                  value={form.buying_price_list || 'Standard Buying'}
+                                  options={buyingPriceListOptions}
+                                  placeholder="Select Buying Price List"
+                                  onChange={pl => {
+                                    setForm(p => ({ ...p, buying_price_list: pl }));
+                                    if (isEditMode && editingItemCode) {
+                                      const found = (priceData.prices || []).find(p => p.price_list === pl && p.buying === 1 && p.uom === (form.default_uom || 'Nos'));
+                                      if (found) setForm(prev => ({ ...prev, buying_price_list: pl, buying_price: found.price_list_rate }));
+                                    }
+                                  }}
+                                />
+                              </div>
+                              <div>
+                                <label style={{ fontSize: 10, fontWeight: 600, color: '#78350f', display: 'block', marginBottom: 2 }}>Rate (AED)</label>
+                                <input
+                                  type="number"
+                                  className="il-input"
+                                  style={{ fontWeight: 800, fontSize: 14, color: T.amber, background: '#fff', height: 32 }}
+                                  value={
+                                    form.buying_price !== undefined && form.buying_price !== null && form.buying_price !== 0
+                                      ? form.buying_price
+                                      : ((priceData.prices || []).find(p => p.price_list === (form.buying_price_list || 'Standard Buying') && p.buying === 1 && p.uom === (form.default_uom || 'Nos'))?.price_list_rate ?? form.buying_price ?? 0)
+                                  }
+                                  onChange={e => setForm(p => ({ ...p, buying_price: Number(e.target.value) }))}
+                                  onBlur={async () => {
+                                    if (!isEditMode || !editingItemCode) return;
+                                    try {
+                                      const pl = form.buying_price_list || 'Standard Buying';
+                                      const existing = (priceData.prices || []).find(p => p.price_list === pl && p.buying === 1 && p.uom === (form.default_uom || 'Nos'));
+                                      await axios.post('/api/method/kyle_retail.retail_api.api.update_item_price', {
+                                        item_code: editingItemCode,
+                                        data: { price_list: pl, uom: form.default_uom || 'Nos', price_list_rate: form.buying_price || 0, buying: 1, selling: 0, name: existing?.name || '' }
+                                      }, { withCredentials: true });
+                                      fetchPriceList(editingItemCode);
+                                    } catch (err) { console.warn('Price save err:', err); }
+                                  }}
+                                  placeholder="0.00"
+                                  onFocus={e => e.target.select()}
+                                />
+                              </div>
+                            </div>
+                          </div>
                         </div>
 
                         {/* 2. BOX PRICE */}
@@ -4758,59 +4758,7 @@ export default function ItemList() {
                             <span className="il-chip" style={{ fontSize: 10, padding: '1px 7px', background: '#fef3c7', color: '#b45309', border: '1px solid #fde68a', fontWeight: 700 }}>Box UOM</span>
                           </div>
 
-                          {/* Box Buying Price */}
-                          <div style={{ background: '#fffbeb', border: '1px solid #FDE68A', borderRadius: 8, padding: '10px 12px' }}>
-                            <div style={{ fontSize: 10, fontWeight: 800, color: T.amber, textTransform: 'uppercase', marginBottom: 6 }}>
-                              ● Buying Price
-                            </div>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                              <div>
-                                <label style={{ fontSize: 10, fontWeight: 600, color: '#78350f', display: 'block', marginBottom: 2 }}>Price List</label>
-                                <SearchableSelectCompact
-                                  value={form.box_buying_price_list || 'Standard Buying'}
-                                  options={buyingPriceListOptions}
-                                  placeholder="Select Buying Price List"
-                                  onChange={pl => {
-                                    setForm(p => ({ ...p, box_buying_price_list: pl }));
-                                    if (isEditMode && editingItemCode) {
-                                      const found = (priceData.prices || []).find(p => p.price_list === pl && p.buying === 1 && p.uom === 'Box');
-                                      if (found) setForm(prev => ({ ...prev, box_buying_price_list: pl, box_buying_price: found.price_list_rate }));
-                                    }
-                                  }}
-                                />
-                              </div>
-                              <div>
-                                <label style={{ fontSize: 10, fontWeight: 600, color: '#78350f', display: 'block', marginBottom: 2 }}>Rate (AED)</label>
-                                <input
-                                  type="number"
-                                  className="il-input"
-                                  style={{ fontWeight: 800, fontSize: 14, color: T.amber, background: '#fff', height: 32 }}
-                                  value={
-                                    form.box_buying_price !== undefined && form.box_buying_price !== null && form.box_buying_price !== 0
-                                      ? form.box_buying_price
-                                      : ((priceData.prices || []).find(p => p.price_list === (form.box_buying_price_list || 'Standard Buying') && p.buying === 1 && p.uom === 'Box')?.price_list_rate ?? form.box_buying_price ?? 0)
-                                  }
-                                  onChange={e => setForm(p => ({ ...p, box_buying_price: Number(e.target.value) }))}
-                                  onBlur={async () => {
-                                    if (!isEditMode || !editingItemCode) return;
-                                    try {
-                                      const pl = form.box_buying_price_list || 'Standard Buying';
-                                      const existing = (priceData.prices || []).find(p => p.price_list === pl && p.buying === 1 && p.uom === 'Box');
-                                      await axios.post('/api/method/kyle_retail.retail_api.api.update_item_price', {
-                                        item_code: editingItemCode,
-                                        data: { price_list: pl, uom: 'Box', price_list_rate: form.box_buying_price || 0, buying: 1, selling: 0, name: existing?.name || '' }
-                                      }, { withCredentials: true });
-                                      fetchPriceList(editingItemCode);
-                                    } catch (err) { console.warn('Price save err:', err); }
-                                  }}
-                                  placeholder="0.00"
-                                  onFocus={e => e.target.select()}
-                                />
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Box Selling Price */}
+                          {/* Box Selling Price (Top) */}
                           <div style={{ background: '#f0fdf4', border: '1px solid #BBF7D0', borderRadius: 8, padding: '10px 12px' }}>
                             <div style={{ fontSize: 10, fontWeight: 800, color: T.green, textTransform: 'uppercase', marginBottom: 6 }}>
                               ● Selling Price
@@ -4861,6 +4809,58 @@ export default function ItemList() {
                               </div>
                             </div>
                           </div>
+
+                          {/* Box Buying Price (Bottom) */}
+                          <div style={{ background: '#fffbeb', border: '1px solid #FDE68A', borderRadius: 8, padding: '10px 12px' }}>
+                            <div style={{ fontSize: 10, fontWeight: 800, color: T.amber, textTransform: 'uppercase', marginBottom: 6 }}>
+                              ● Buying Price
+                            </div>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                              <div>
+                                <label style={{ fontSize: 10, fontWeight: 600, color: '#78350f', display: 'block', marginBottom: 2 }}>Price List</label>
+                                <SearchableSelectCompact
+                                  value={form.box_buying_price_list || 'Standard Buying'}
+                                  options={buyingPriceListOptions}
+                                  placeholder="Select Buying Price List"
+                                  onChange={pl => {
+                                    setForm(p => ({ ...p, box_buying_price_list: pl }));
+                                    if (isEditMode && editingItemCode) {
+                                      const found = (priceData.prices || []).find(p => p.price_list === pl && p.buying === 1 && p.uom === 'Box');
+                                      if (found) setForm(prev => ({ ...prev, box_buying_price_list: pl, box_buying_price: found.price_list_rate }));
+                                    }
+                                  }}
+                                />
+                              </div>
+                              <div>
+                                <label style={{ fontSize: 10, fontWeight: 600, color: '#78350f', display: 'block', marginBottom: 2 }}>Rate (AED)</label>
+                                <input
+                                  type="number"
+                                  className="il-input"
+                                  style={{ fontWeight: 800, fontSize: 14, color: T.amber, background: '#fff', height: 32 }}
+                                  value={
+                                    form.box_buying_price !== undefined && form.box_buying_price !== null && form.box_buying_price !== 0
+                                      ? form.box_buying_price
+                                      : ((priceData.prices || []).find(p => p.price_list === (form.box_buying_price_list || 'Standard Buying') && p.buying === 1 && p.uom === 'Box')?.price_list_rate ?? form.box_buying_price ?? 0)
+                                  }
+                                  onChange={e => setForm(p => ({ ...p, box_buying_price: Number(e.target.value) }))}
+                                  onBlur={async () => {
+                                    if (!isEditMode || !editingItemCode) return;
+                                    try {
+                                      const pl = form.box_buying_price_list || 'Standard Buying';
+                                      const existing = (priceData.prices || []).find(p => p.price_list === pl && p.buying === 1 && p.uom === 'Box');
+                                      await axios.post('/api/method/kyle_retail.retail_api.api.update_item_price', {
+                                        item_code: editingItemCode,
+                                        data: { price_list: pl, uom: 'Box', price_list_rate: form.box_buying_price || 0, buying: 1, selling: 0, name: existing?.name || '' }
+                                      }, { withCredentials: true });
+                                      fetchPriceList(editingItemCode);
+                                    } catch (err) { console.warn('Price save err:', err); }
+                                  }}
+                                  placeholder="0.00"
+                                  onFocus={e => e.target.select()}
+                                />
+                              </div>
+                            </div>
+                          </div>
                         </div>
 
                         {/* 3. MASTER BOX PRICE */}
@@ -4873,59 +4873,7 @@ export default function ItemList() {
                             <span className="il-chip" style={{ fontSize: 10, padding: '1px 7px', background: '#f5f3ff', color: '#7c3aed', border: '1px solid #ddd6fe', fontWeight: 700 }}>Master Box</span>
                           </div>
 
-                          {/* Master Box Buying Price */}
-                          <div style={{ background: '#fffbeb', border: '1px solid #FDE68A', borderRadius: 8, padding: '10px 12px' }}>
-                            <div style={{ fontSize: 10, fontWeight: 800, color: T.amber, textTransform: 'uppercase', marginBottom: 6 }}>
-                              ● Buying Price
-                            </div>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                              <div>
-                                <label style={{ fontSize: 10, fontWeight: 600, color: '#78350f', display: 'block', marginBottom: 2 }}>Price List</label>
-                                <SearchableSelectCompact
-                                  value={form.master_box_buying_price_list || 'Standard Buying'}
-                                  options={buyingPriceListOptions}
-                                  placeholder="Select Buying Price List"
-                                  onChange={pl => {
-                                    setForm(p => ({ ...p, master_box_buying_price_list: pl }));
-                                    if (isEditMode && editingItemCode) {
-                                      const found = (priceData.prices || []).find(p => p.price_list === pl && p.buying === 1 && p.uom === 'Master Box');
-                                      if (found) setForm(prev => ({ ...prev, master_box_buying_price_list: pl, master_box_buying_price: found.price_list_rate }));
-                                    }
-                                  }}
-                                />
-                              </div>
-                              <div>
-                                <label style={{ fontSize: 10, fontWeight: 600, color: '#78350f', display: 'block', marginBottom: 2 }}>Rate (AED)</label>
-                                <input
-                                  type="number"
-                                  className="il-input"
-                                  style={{ fontWeight: 800, fontSize: 14, color: T.amber, background: '#fff', height: 32 }}
-                                  value={
-                                    form.master_box_buying_price !== undefined && form.master_box_buying_price !== null && form.master_box_buying_price !== 0
-                                      ? form.master_box_buying_price
-                                      : ((priceData.prices || []).find(p => p.price_list === (form.master_box_buying_price_list || 'Standard Buying') && p.buying === 1 && p.uom === 'Master Box')?.price_list_rate ?? form.master_box_buying_price ?? 0)
-                                  }
-                                  onChange={e => setForm(p => ({ ...p, master_box_buying_price: Number(e.target.value) }))}
-                                  onBlur={async () => {
-                                    if (!isEditMode || !editingItemCode) return;
-                                    try {
-                                      const pl = form.master_box_buying_price_list || 'Standard Buying';
-                                      const existing = (priceData.prices || []).find(p => p.price_list === pl && p.buying === 1 && p.uom === 'Master Box');
-                                      await axios.post('/api/method/kyle_retail.retail_api.api.update_item_price', {
-                                        item_code: editingItemCode,
-                                        data: { price_list: pl, uom: 'Master Box', price_list_rate: form.master_box_buying_price || 0, buying: 1, selling: 0, name: existing?.name || '' }
-                                      }, { withCredentials: true });
-                                      fetchPriceList(editingItemCode);
-                                    } catch (err) { console.warn('Price save err:', err); }
-                                  }}
-                                  placeholder="0.00"
-                                  onFocus={e => e.target.select()}
-                                />
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Master Box Selling Price */}
+                          {/* Master Box Selling Price (Top) */}
                           <div style={{ background: '#f0fdf4', border: '1px solid #BBF7D0', borderRadius: 8, padding: '10px 12px' }}>
                             <div style={{ fontSize: 10, fontWeight: 800, color: T.green, textTransform: 'uppercase', marginBottom: 6 }}>
                               ● Selling Price
@@ -4966,6 +4914,58 @@ export default function ItemList() {
                                       await axios.post('/api/method/kyle_retail.retail_api.api.update_item_price', {
                                         item_code: editingItemCode,
                                         data: { price_list: pl, uom: 'Master Box', price_list_rate: form.master_box_selling_price || 0, buying: 0, selling: 1, name: existing?.name || '' }
+                                      }, { withCredentials: true });
+                                      fetchPriceList(editingItemCode);
+                                    } catch (err) { console.warn('Price save err:', err); }
+                                  }}
+                                  placeholder="0.00"
+                                  onFocus={e => e.target.select()}
+                                />
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Master Box Buying Price (Bottom) */}
+                          <div style={{ background: '#fffbeb', border: '1px solid #FDE68A', borderRadius: 8, padding: '10px 12px' }}>
+                            <div style={{ fontSize: 10, fontWeight: 800, color: T.amber, textTransform: 'uppercase', marginBottom: 6 }}>
+                              ● Buying Price
+                            </div>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                              <div>
+                                <label style={{ fontSize: 10, fontWeight: 600, color: '#78350f', display: 'block', marginBottom: 2 }}>Price List</label>
+                                <SearchableSelectCompact
+                                  value={form.master_box_buying_price_list || 'Standard Buying'}
+                                  options={buyingPriceListOptions}
+                                  placeholder="Select Buying Price List"
+                                  onChange={pl => {
+                                    setForm(p => ({ ...p, master_box_buying_price_list: pl }));
+                                    if (isEditMode && editingItemCode) {
+                                      const found = (priceData.prices || []).find(p => p.price_list === pl && p.buying === 1 && p.uom === 'Master Box');
+                                      if (found) setForm(prev => ({ ...prev, master_box_buying_price_list: pl, master_box_buying_price: found.price_list_rate }));
+                                    }
+                                  }}
+                                />
+                              </div>
+                              <div>
+                                <label style={{ fontSize: 10, fontWeight: 600, color: '#78350f', display: 'block', marginBottom: 2 }}>Rate (AED)</label>
+                                <input
+                                  type="number"
+                                  className="il-input"
+                                  style={{ fontWeight: 800, fontSize: 14, color: T.amber, background: '#fff', height: 32 }}
+                                  value={
+                                    form.master_box_buying_price !== undefined && form.master_box_buying_price !== null && form.master_box_buying_price !== 0
+                                      ? form.master_box_buying_price
+                                      : ((priceData.prices || []).find(p => p.price_list === (form.master_box_buying_price_list || 'Standard Buying') && p.buying === 1 && p.uom === 'Master Box')?.price_list_rate ?? form.master_box_buying_price ?? 0)
+                                  }
+                                  onChange={e => setForm(p => ({ ...p, master_box_buying_price: Number(e.target.value) }))}
+                                  onBlur={async () => {
+                                    if (!isEditMode || !editingItemCode) return;
+                                    try {
+                                      const pl = form.master_box_buying_price_list || 'Standard Buying';
+                                      const existing = (priceData.prices || []).find(p => p.price_list === pl && p.buying === 1 && p.uom === 'Master Box');
+                                      await axios.post('/api/method/kyle_retail.retail_api.api.update_item_price', {
+                                        item_code: editingItemCode,
+                                        data: { price_list: pl, uom: 'Master Box', price_list_rate: form.master_box_buying_price || 0, buying: 1, selling: 0, name: existing?.name || '' }
                                       }, { withCredentials: true });
                                       fetchPriceList(editingItemCode);
                                     } catch (err) { console.warn('Price save err:', err); }
