@@ -1172,7 +1172,7 @@ function PurchaseReceiptList() {
         const itemQty = isBoxUom ? Math.round(pcsPerBox) : 1;
 
         // First find if there is an existing empty row (without item_code)
-        const rawBarcode = item.barcode || (item.barcodes && item.barcodes[0] ? (typeof item.barcodes[0] === 'object' ? item.barcodes[0].barcode : item.barcodes[0]) : '') || item.item_code || '';
+        const rawBarcode = item.barcode || (item.barcodes && item.barcodes[0] ? (typeof item.barcodes[0] === 'object' ? item.barcodes[0].barcode : item.barcodes[0]) : '') || '';
         const barcodeVal = typeof rawBarcode === 'object' && rawBarcode !== null ? (rawBarcode.barcode || rawBarcode.name || '') : String(rawBarcode || '');
 
         const newRow = {

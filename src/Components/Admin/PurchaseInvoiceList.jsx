@@ -2088,7 +2088,7 @@ function PurchaseInvoiceList() {
         const sellNos = parseFloat(item.custom_selling_price || 0);
         const sellBox = parseFloat(item.custom_box_selling_price || item.custom_selling_price_box || (sellNos * pcsPerBox) || 0);
         const itemQty = isBoxUom ? Math.round(pcsPerBox) : 1;
-        const rawBarcode = item.barcode || (item.barcodes && item.barcodes[0] ? (typeof item.barcodes[0] === 'object' ? item.barcodes[0].barcode : item.barcodes[0]) : '') || item.item_code || '';
+        const rawBarcode = item.barcode || (item.barcodes && item.barcodes[0] ? (typeof item.barcodes[0] === 'object' ? item.barcodes[0].barcode : item.barcodes[0]) : '') || '';
         const barcodeVal = typeof rawBarcode === 'object' && rawBarcode !== null ? (rawBarcode.barcode || rawBarcode.name || '') : String(rawBarcode || '');
 
         items[targetIndex] = {
