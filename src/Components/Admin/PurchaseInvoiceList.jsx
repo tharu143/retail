@@ -1135,9 +1135,11 @@ function PurchaseInvoiceList() {
         withCredentials: true
       });
       const data = Array.isArray(res.data.message) ? res.data.message : [];
+      console.log('[PurchaseInvoice fetchItems API] Query:', query, 'Returned items sample:', data.slice(0, 3));
       setItemsList(data);
       return data;
     } catch (err) {
+      console.error('[PurchaseInvoice fetchItems API Error]:', err);
       setItemsList([]);
       return [];
     }
@@ -2042,6 +2044,7 @@ function PurchaseInvoiceList() {
   };
 
   const selectItem = async (rowIndex, item) => {
+    console.log('[PurchaseInvoice selectItem] Incoming item data:', item);
     let existingIdx = -1;
     setFormData(prev => {
       let items = [...prev.items];
@@ -2090,6 +2093,7 @@ function PurchaseInvoiceList() {
         const itemQty = isBoxUom ? Math.round(pcsPerBox) : 1;
         const rawBarcode = item.barcode || (item.barcodes && item.barcodes[0] ? (typeof item.barcodes[0] === 'object' ? item.barcodes[0].barcode : item.barcodes[0]) : '') || '';
         const barcodeVal = typeof rawBarcode === 'object' && rawBarcode !== null ? (rawBarcode.barcode || rawBarcode.name || '') : String(rawBarcode || '');
+        console.log('[PurchaseInvoice selectItem] Extracted barcodeVal:', barcodeVal, 'from rawBarcode:', rawBarcode);
 
         items[targetIndex] = {
           item_code: item.item_code,
