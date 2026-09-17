@@ -34,8 +34,8 @@ const DEFAULT_PI_COLUMNS = [
   { id: 'uom', label: 'UOM', visible: true, width: 90 },
   { id: 'custom_box_qty', label: 'QTY', visible: true, width: 90 },
   { id: 'custom_ref_sl_no', label: 'Ref / Supplier SL #', visible: true, width: 120 },
-  { id: 'custom_pieces_per_box', label: 'Pcs/Box', visible: true, width: 90 },
-  { id: 'custom_box_price', label: 'Box Price', visible: true, width: 90 },
+  { id: 'custom_pieces_per_box', label: 'UOM/Unit', visible: true, width: 90 },
+  { id: 'custom_box_price', label: 'UOM Price', visible: true, width: 90 },
   { id: 'rate', label: 'Rate (Nos)', visible: true, width: 90 },
   { id: 'discount_amount', label: 'Disc Amt (%)', visible: true, width: 90 },
   { id: 'custom_selling_price', label: 'Selling Price (Nos)', visible: true, width: 100 },
@@ -784,7 +784,7 @@ function PurchaseInvoiceList() {
             Swal.fire('Selling Price Required', `Row #${i + 1} (${item.item_name || item.item_code}): Selling Price (Box) is MANDATORY for Box UOM!`, 'error');
             return;
           }
-        } else {
+        } else if (currentUom === 'nos') {
           if (!sellPriceNos || sellPriceNos <= 0) {
             Swal.fire('Selling Price Required', `Row #${i + 1} (${item.item_name || item.item_code}): Selling Price (NOS) is MANDATORY!`, 'error');
             return;
@@ -1920,17 +1920,25 @@ function PurchaseInvoiceList() {
       const items = [...prev.items];
       items[index] = { ...items[index] }; // important: clone
 
-      if (field === 'custom_box_qty' || field === 'custom_pieces_per_box') {
+      const uom = (items[index].uom || '').toLowerCase();
+      const isMasterBox = uom === 'master box';
+      const isBox = uom === 'box';
+
+      if (field === 'custom_box_qty' || field === 'custom_pieces_per_box' || field === 'custom_boxes_per_master_box') {
         const box_qty = parseFloat(field === 'custom_box_qty' ? value : items[index].custom_box_qty) || 0;
         const pcs_per_box = parseFloat(field === 'custom_pieces_per_box' ? value : items[index].custom_pieces_per_box) || 1;
-        const total_qty = Math.round(box_qty * pcs_per_box);
-        items[index].qty = total_qty;
-        items[index][field] = value;
+        const boxes_per_mb = parseFloat(field === 'custom_boxes_per_master_box' ? value : items[index].custom_boxes_per_master_box) || 1;
 
-        // Auto update Box Selling Price if Pieces per box changes
-        if (field === 'custom_pieces_per_box') {
-          // Keep custom_box_selling_price independent
+        if (isMasterBox) {
+          const total_qty = Math.round(box_qty * boxes_per_mb * pcs_per_box);
+          items[index].qty = total_qty;
+        } else if (isBox) {
+          const total_qty = Math.round(box_qty * pcs_per_box);
+          items[index].qty = total_qty;
+        } else {
+          items[index].qty = Math.round(box_qty);
         }
+        items[index][field] = value;
       } else if (field === 'custom_selling_price') {
         items[index].custom_selling_price = value;
       } else if (field === 'custom_box_selling_price') {
@@ -1942,6 +1950,7 @@ function PurchaseInvoiceList() {
       const qty = parseFloat(items[index].qty) || 0;
       const rate = parseFloat(items[index].rate) || 0;
       const pPerBox = parseFloat(items[index].custom_pieces_per_box) || 1;
+      const boxesPerMB = parseFloat(items[index].custom_boxes_per_master_box) || 1;
       const baseTotal = qty * rate;
 
       if (field === 'discount_percentage') {
@@ -1963,16 +1972,31 @@ function PurchaseInvoiceList() {
       const discAmt = parseFloat(items[index].discount_amount) || 0;
       items[index].amount = Math.max(0, baseTotal - discAmt).toFixed(2);
 
-      if (field === 'custom_box_price') {
+      if (field === 'custom_master_box_price') {
+        const mbPrice = parseFloat(value) || 0;
+        const totalPcsInMB = boxesPerMB * pPerBox;
+        const newRate = totalPcsInMB > 0 ? mbPrice / totalPcsInMB : 0;
+        items[index].rate = newRate.toFixed(2);
+        items[index].custom_box_price = (newRate * pPerBox).toFixed(2);
+        items[index].amount = Math.max(0, (qty * newRate) - discAmt).toFixed(2);
+      } else if (field === 'custom_box_price') {
         const bp = parseFloat(value) || 0;
         const newRate = pPerBox > 0 ? bp / pPerBox : 0;
         items[index].rate = newRate.toFixed(2);
+        items[index].custom_master_box_price = (bp * boxesPerMB).toFixed(2);
         items[index].amount = Math.max(0, (qty * newRate) - discAmt).toFixed(2);
       } else if (field === 'rate') {
         items[index].custom_box_price = (rate * pPerBox).toFixed(2);
+        items[index].custom_master_box_price = (rate * pPerBox * boxesPerMB).toFixed(2);
       }
 
-      if (field === 'qty' && pPerBox > 0) items[index].custom_box_qty = Math.round(qty / pPerBox);
+      if (field === 'qty') {
+        if (isMasterBox && boxesPerMB * pPerBox > 0) {
+          items[index].custom_box_qty = Math.round(qty / (boxesPerMB * pPerBox));
+        } else if (isBox && pPerBox > 0) {
+          items[index].custom_box_qty = Math.round(qty / pPerBox);
+        }
+      }
 
       return { ...prev, items };
     });
@@ -1992,9 +2016,11 @@ function PurchaseInvoiceList() {
         const index = rowInputs.indexOf(e.target);
         if (index > -1 && index < rowInputs.length - 1) {
           const next = rowInputs[index + 1];
-          next.focus();
-          if (next.tagName === 'INPUT' && next.select) next.select();
-          next.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+          if (next) {
+            next.focus();
+            if (next.tagName === 'INPUT' && next.select) next.select();
+            next.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+          }
         } else {
           const nextRow = row.nextElementSibling;
           if (nextRow) {
@@ -2012,7 +2038,7 @@ function PurchaseInvoiceList() {
 
   const addItemRow = () => setFormData(prev => ({
     ...prev,
-    items: [...prev.items, { item_code: '', item_name: '', qty: 1, uom: '', rate: 0, amount: 0, custom_box_qty: 0, custom_pieces_per_box: 1, custom_selling_price: 0, custom_supplier_sl_num: '', custom_ref_sl_no: '' }]
+    items: [...prev.items, { item_code: '', item_name: '', qty: 1, uom: '', rate: 0, amount: 0, custom_box_qty: 0, custom_pieces_per_box: 1, custom_boxes_per_master_box: 1, custom_box_price: 0, custom_master_box_price: 0, custom_selling_price: 0, custom_supplier_sl_num: '', custom_ref_sl_no: '' }]
   }));
 
   const removeItemRow = (index) => setFormData(prev => ({
@@ -2022,43 +2048,23 @@ function PurchaseInvoiceList() {
 
   const parseCreditDays = (paymentTerms) => {
     if (!paymentTerms) return 0;
-    const match = String(paymentTerms).match(/\d+/);
-    return match ? parseInt(match[0]) : 0;
+    const match = paymentTerms.match(/\d+/);
+    return match ? parseInt(match[0], 10) : 0;
   };
 
-  const calcDueDate = (postingDate, isCash, creditDays = 0) => {
-    if (!postingDate) postingDate = getLocalISODate();
-    if (isCash) return postingDate;
-    const days = parseInt(creditDays) || 0;
-    if (days <= 0) return postingDate;
-    const d = new Date(postingDate);
-    d.setDate(d.getDate() + days);
+  const calcDueDate = (postingDate, isCashPurchase, creditDays) => {
+    if (isCashPurchase || !creditDays || creditDays <= 0) {
+      return postingDate || getLocalISODate();
+    }
+    const d = new Date(postingDate || getLocalISODate());
+    d.setDate(d.getDate() + parseInt(creditDays));
     return d.toISOString().split('T')[0];
   };
 
-  const selectSupplier = async (supplier) => {
-    if (!supplier) return;
-    const sName = supplier.name || supplier.supplier_name;
-    let paymentTerms = supplier.payment_terms || supplier.payment_terms_template || '';
-    let creditDays = supplier.credit_days || parseCreditDays(paymentTerms);
-
-    if (sName) {
-      try {
-        const res = await axios.get(`${LEGACY_API}.get_supplier_details`, {
-          params: { supplier_name: sName },
-          withCredentials: true
-        });
-        if (res.data.message) {
-          if (res.data.message.payment_terms) {
-            paymentTerms = res.data.message.payment_terms;
-          }
-          if (res.data.message.credit_days) {
-            creditDays = res.data.message.credit_days;
-          }
-        }
-      } catch (err) { }
-    }
-
+  const selectSupplier = (supplier) => {
+    const sName = typeof supplier === 'object' ? (supplier.name || supplier.supplier_name) : supplier;
+    const paymentTerms = supplier?.payment_terms || '';
+    let creditDays = supplier?.credit_days || 0;
     if (!creditDays && paymentTerms) {
       creditDays = parseCreditDays(paymentTerms);
     }
@@ -2080,9 +2086,10 @@ function PurchaseInvoiceList() {
         payment_schedule: schedule
       };
     });
-    setSearchSupplier(supplier.supplier_name || sName);
+    setSearchSupplier(typeof supplier === 'object' ? (supplier.supplier_name || sName) : sName);
     setShowSupplierDropdown(false);
   };
+  const handleSupplierSelect = selectSupplier;
 
   const handleUOMChange = (uomValue, rowIndex) => {
     setFormData(prev => {
@@ -2090,19 +2097,26 @@ function PurchaseInvoiceList() {
       if (rowIndex < 0 || rowIndex >= items.length) return prev;
       const item = { ...items[rowIndex] };
       const safeUom = String(uomValue || 'Nos');
-      const isBox = safeUom.toLowerCase() === 'box';
+      const normUom = safeUom.toLowerCase();
+      const isMasterBox = normUom === 'master box';
+      const isBox = normUom === 'box';
 
-      item.uom = isBox ? 'Box' : 'Nos';
-      item.use_box_entry = isBox;
+      item.uom = isMasterBox ? 'Master Box' : (isBox ? 'Box' : 'Nos');
+      item.use_box_entry = isBox || isMasterBox;
 
       const pPerBox = parseFloat(item.default_pieces_per_box || item.custom_pieces_per_box) || 12;
+      const bPerMB = parseFloat(item.default_boxes_per_master_box || item.custom_boxes_per_master_box) || 1;
 
-      if (isBox) {
-        item.custom_pieces_per_box = pPerBox;
+      item.custom_pieces_per_box = pPerBox;
+      item.custom_boxes_per_master_box = bPerMB;
+
+      if (isMasterBox) {
+        item.custom_box_qty = 1;
+        item.qty = Math.round(1 * bPerMB * pPerBox);
+      } else if (isBox) {
         item.custom_box_qty = 1;
         item.qty = pPerBox; // 1 Box = pPerBox Nos
       } else {
-        item.custom_pieces_per_box = 1;
         item.qty = 1; // 1 Nos
         item.custom_box_qty = 1;
       }
@@ -2404,11 +2418,14 @@ function PurchaseInvoiceList() {
             price_list_rate: grossRate,
             discount_percentage: parseFloat(i.discount_percentage || 0),
             discount_amount: totalDiscAmt,
-            custom_box_qty: isBox ? parseFloat(i.custom_box_qty || 0) : parseFloat(i.qty),
-            custom_pieces_per_box: isBox ? pcsPerBox : 1,
+            custom_box_qty: (isBox || selectedUom.toLowerCase() === 'master box') ? parseFloat(i.custom_box_qty || 0) : parseFloat(i.qty),
+            custom_pieces_per_box: (isBox || selectedUom.toLowerCase() === 'master box') ? pcsPerBox : 1,
+            custom_boxes_per_master_box: selectedUom.toLowerCase() === 'master box' ? parseFloat(i.custom_boxes_per_master_box || 1) : undefined,
             custom_box_price: parseFloat(i.custom_box_price || 0),
+            custom_master_box_price: parseFloat(i.custom_master_box_price || 0),
             custom_selling_price: parseFloat(i.custom_selling_price || 0),
             custom_box_selling_price: parseFloat(i.custom_box_selling_price || 0),
+            custom_master_box_selling_price: parseFloat(i.custom_master_box_selling_price || 0),
             custom_supplier_sl_num: i.custom_ref_sl_no || i.custom_supplier_sl_num || '',
             custom_ref_sl_no: i.custom_ref_sl_no || i.custom_supplier_sl_num || '',
             purchase_order: i.purchase_order || undefined,
@@ -2551,7 +2568,7 @@ function PurchaseInvoiceList() {
           Swal.fire('Selling Price Required', `Row #${i + 1} (${item.item_name || item.item_code}): Selling Price (Box) is MANDATORY for Box UOM!`, 'error');
           return;
         }
-      } else {
+      } else if (currentUom === 'nos') {
         if (!sellPriceNos || sellPriceNos <= 0) {
           Swal.fire('Selling Price Required', `Row #${i + 1} (${item.item_name || item.item_code}): Selling Price (NOS) is MANDATORY!`, 'error');
           return;
@@ -3799,7 +3816,7 @@ function PurchaseInvoiceList() {
                           width: colW,
                           minWidth: colW,
                           maxWidth: colW,
-                          textAlign: col.align || (['rate', 'custom_box_price', 'custom_selling_price', 'custom_box_selling_price', 'discount_amount', 'discount_percentage', 'amount', 'last_purchase_rate'].includes(col.id) ? 'right' : (['uom', 'custom_box_qty', 'custom_pieces_per_box', 'qty'].includes(col.id) ? 'center' : 'left')),
+                          textAlign: col.align || (['rate', 'custom_master_box_price', 'custom_box_price', 'custom_selling_price', 'custom_box_selling_price', 'custom_master_box_selling_price', 'discount_amount', 'discount_percentage', 'amount', 'last_purchase_rate'].includes(col.id) ? 'right' : (['uom', 'custom_box_qty', 'custom_boxes_per_master_box', 'custom_pieces_per_box', 'qty'].includes(col.id) ? 'center' : 'left')),
                           padding: '8px 8px',
                           fontSize: '11px',
                           fontWeight: 900,
@@ -3888,6 +3905,7 @@ function PurchaseInvoiceList() {
                                 >
                                   <option value="Nos">Nos</option>
                                   <option value="Box">Box</option>
+                                  <option value="Master Box">Master Box</option>
                                 </select>
                               </td>
                             );
@@ -3905,6 +3923,22 @@ function PurchaseInvoiceList() {
                                 </div>
                               </td>
                             );
+                          case 'custom_boxes_per_master_box':
+                            return (
+                              <td key={col.id} className="px-2 py-1 text-center font-bold text-xs text-slate-700 border-r border-slate-100 align-middle">
+                                {(item.uom || '').toLowerCase() === 'master box' ? (
+                                  <input
+                                    type="text" inputMode="decimal"
+                                    value={item.custom_boxes_per_master_box || ''}
+                                    onChange={(e) => updateItem(idx, "custom_boxes_per_master_box", e.target.value)} onBlur={(e) => updateItem(idx, "custom_boxes_per_master_box", e.target.value ? Number(e.target.value).toFixed(2) : "")}
+                                    disabled={isViewMode || formData.docstatus !== 0}
+                                    className="w-full h-8 text-center font-black text-xs text-slate-800 bg-transparent border-none outline-none focus:bg-emerald-50/40 disabled:bg-slate-100 disabled:text-slate-500"
+                                  />
+                                ) : (
+                                  <span className="text-slate-300">—</span>
+                                )}
+                              </td>
+                            );
                           case 'custom_pieces_per_box':
                             return (
                               <td key={col.id} className="px-2 py-1 text-center font-bold text-xs text-slate-700 border-r border-slate-100 align-middle">
@@ -3915,6 +3949,22 @@ function PurchaseInvoiceList() {
                                     onChange={(e) => updateItem(idx, "custom_pieces_per_box", e.target.value)} onBlur={(e) => updateItem(idx, "custom_pieces_per_box", e.target.value ? Number(e.target.value).toFixed(2) : "")}
                                     disabled={isViewMode || formData.docstatus !== 0}
                                     className="w-full h-8 text-center font-black text-xs text-slate-800 bg-transparent border-none outline-none focus:bg-emerald-50/40 disabled:bg-slate-100 disabled:text-slate-500"
+                                  />
+                                ) : (
+                                  <span className="text-slate-300">—</span>
+                                )}
+                              </td>
+                            );
+                          case 'custom_master_box_price':
+                            return (
+                              <td key={col.id} className="px-2 py-1 text-right font-bold text-xs text-slate-700 border-r border-slate-100 align-middle">
+                                {(item.uom || '').toLowerCase() === 'master box' ? (
+                                  <input
+                                    type="text" inputMode="decimal"
+                                    value={item.custom_master_box_price || ''}
+                                    onChange={(e) => updateItem(idx, "custom_master_box_price", e.target.value)} onBlur={(e) => updateItem(idx, "custom_master_box_price", e.target.value ? Number(e.target.value).toFixed(2) : "")}
+                                    disabled={isViewMode || formData.docstatus !== 0}
+                                    className="w-full h-8 px-2 text-right font-black text-xs text-slate-800 bg-transparent border-none outline-none focus:bg-emerald-50/40 disabled:bg-slate-100 disabled:text-slate-500"
                                   />
                                 ) : (
                                   <span className="text-slate-300">—</span>
@@ -3997,6 +4047,34 @@ function PurchaseInvoiceList() {
                                   }}
                                   disabled={isViewMode || formData.docstatus !== 0}
                                   className="w-full h-8 px-2 text-right font-black text-xs text-sky-700 bg-transparent border-none outline-none focus:bg-emerald-50/40 disabled:bg-slate-100 disabled:text-slate-500"
+                                />
+                              </td>
+                            );
+                          case 'custom_master_box_selling_price':
+                            return (
+                              <td key={col.id} className="px-2 py-1 text-right border-r border-slate-100 align-middle">
+                                <input
+                                  type="text" inputMode="decimal"
+                                  value={item.custom_master_box_selling_price || ''}
+                                  onChange={(e) => updateItem(idx, "custom_master_box_selling_price", e.target.value)}
+                                  onBlur={(e) => {
+                                    const sellVal = parseFloat(e.target.value) || 0;
+                                    const pPerBox = parseFloat(item.custom_pieces_per_box) || 1;
+                                    const bPerMB = parseFloat(item.custom_boxes_per_master_box) || 1;
+                                    const totalPcs = (bPerMB * pPerBox) || 1;
+                                    const buyPriceMB = parseFloat(item.custom_master_box_price) || ((parseFloat(item.rate) || 0) * totalPcs);
+                                    if (sellVal > 0 && buyPriceMB > 0 && sellVal < buyPriceMB) {
+                                      updateItem(idx, "custom_master_box_selling_price", '');
+                                      Swal.fire({
+                                        icon: 'error',
+                                        title: 'Master Box Price Restriction Warning',
+                                        html: `Row #${idx + 1} (${item.item_name || item.item_code}):<br/>Master Box Selling Price (<b>AED ${sellVal.toFixed(2)}</b>) cannot be LESS than Master Box Buying Rate (<b>AED ${buyPriceMB.toFixed(2)}</b>)!<br/><br/><i>Entered value has been cleared.</i>`,
+                                        confirmButtonColor: '#ef4444'
+                                      });
+                                    }
+                                  }}
+                                  disabled={isViewMode || formData.docstatus !== 0}
+                                  className="w-full h-8 px-2 text-right font-black text-xs text-purple-700 bg-transparent border-none outline-none focus:bg-emerald-50/40 disabled:bg-slate-100 disabled:text-slate-500"
                                 />
                               </td>
                             );

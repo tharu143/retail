@@ -29,8 +29,8 @@ const DEFAULT_PO_COLUMNS = [
   { id: 'custom_ref_sl_no', label: 'Ref / Supplier SL #', visible: true, width: 120 },
   { id: 'custom_box_qty', label: 'QTY', visible: true, width: 90 },
   { id: 'uom', label: 'UOM', visible: true, width: 90 },
-  { id: 'custom_pieces_per_box', label: 'Pcs/Box', visible: true, width: 90 },
-  { id: 'custom_box_price', label: 'Box Price', visible: true, width: 90 },
+  { id: 'custom_pieces_per_box', label: 'UOM/Unit', visible: true, width: 90 },
+  { id: 'custom_box_price', label: 'UOM Price', visible: true, width: 90 },
   { id: 'rate', label: 'Rate (Nos)', visible: true, width: 90 },
   { id: 'discount_amount', label: 'Disc Amt', visible: true, width: 90 },
   { id: 'custom_selling_price_box', label: 'Selling Price (Box)', visible: true, width: 100 },
@@ -1877,7 +1877,7 @@ function PurchaseOrder() {
           setError(`Row #${i + 1} (${item.item_name || item.item_code}): Selling Price (Box) is MANDATORY for Box UOM!`);
           return false;
         }
-      } else {
+      } else if (currentUom === 'nos') {
         if (!sellPriceNos || sellPriceNos <= 0) {
           setError(`Row #${i + 1} (${item.item_name || item.item_code}): Selling Price (NOS) is MANDATORY!`);
           return false;
