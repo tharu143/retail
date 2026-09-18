@@ -7,7 +7,8 @@ import {
     Package, Plus, X, Search, Filter, ChevronDown, FileText,
     Loader2, ChevronLeft, ChevronRight, ArrowLeft, FileMinus, Palette,
     Save, CheckCircle2, Trash2, Edit3, AlertCircle, Printer, Send,
-    Settings, Link as LinkIcon, Info, CreditCard, Percent
+    Settings, Link as LinkIcon, Info, CreditCard, Percent, Eye,
+    ArrowUp, ArrowDown, ArrowUpDown
 } from 'lucide-react';
 import { frappeCall } from '../../utils/frappe';
 import Swal from 'sweetalert2';
@@ -172,14 +173,46 @@ const DeliveryNoteList = () => {
     const customerInputRef = useRef(null);
     const itemInputRefs = useRef({});
 
-    const [customColumns, setCustomColumns] = useState(() => {
-        const saved = localStorage.getItem('custom_columns_Delivery Note');
+    const DEFAULT_DN_LIST_COLUMNS = [
+        { key: 'title', label: 'TITLE' },
+        { key: 'docstatus', label: 'STATUS' },
+        { key: 'customer_name', label: 'CUSTOMER' },
+        { key: 'grand_total', label: 'GRAND TOTAL' },
+        { key: 'name', label: 'ID' }
+    ];
+
+    const [hiddenDefaults, setHiddenDefaults] = useState(() => {
         try {
+            const u = localStorage.getItem('user_id') || localStorage.getItem('user_email') || 'default';
+            const configKey = `custom_columns_config_${u}_Delivery Note`;
+            const saved = localStorage.getItem(configKey) || localStorage.getItem('custom_columns_config_Delivery Note');
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                if (Array.isArray(parsed.hiddenDefaults)) return parsed.hiddenDefaults;
+            }
+        } catch (e) {}
+        return [];
+    });
+
+    const [customColumns, setCustomColumns] = useState(() => {
+        try {
+            const u = localStorage.getItem('user_id') || localStorage.getItem('user_email') || 'default';
+            const configKey = `custom_columns_config_${u}_Delivery Note`;
+            const savedConfig = localStorage.getItem(configKey) || localStorage.getItem('custom_columns_config_Delivery Note');
+            if (savedConfig) {
+                const parsed = JSON.parse(savedConfig);
+                if (Array.isArray(parsed.customColumns)) return parsed.customColumns;
+            }
+            const saved = localStorage.getItem(`custom_columns_${u}_Delivery Note`) || localStorage.getItem('custom_columns_Delivery Note');
             return saved ? JSON.parse(saved) : [];
         } catch (e) {
             return [];
         }
     });
+
+    // Sorting
+    const [sortField, setSortField] = useState('modified');
+    const [sortDirection, setSortDirection] = useState('desc');
     const [deliveryNotes, setDeliveryNotes] = useState([]);
     const [filteredNotes, setFilteredNotes] = useState([]);
     const [showModal, setShowModal] = useState(false);
@@ -767,8 +800,52 @@ const DeliveryNoteList = () => {
     // ─── Derived ─────────────────────────────────────────────────────────────────
 
 
-    const paginatedNotes = filteredNotes.slice((currentPage - 1) * pageSize, currentPage * pageSize);
-    const totalPages = Math.ceil(filteredNotes.length / pageSize);
+    // ─── Derived ─────────────────────────────────────────────────────────────────
+
+    const handleSort = (field) => {
+        if (sortField === field) {
+            setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+        } else {
+            setSortField(field);
+            setSortDirection('asc');
+        }
+    };
+
+    const sortedNotes = useMemo(() => {
+        if (!sortField) return filteredNotes;
+        return [...filteredNotes].sort((a, b) => {
+            let valA = a[sortField];
+            let valB = b[sortField];
+            if (valA === undefined || valA === null) valA = '';
+            if (valB === undefined || valB === null) valB = '';
+
+            if (sortField === 'posting_date' || sortField === 'modified' || sortField === 'creation') {
+                const dateA = new Date(valA || 0).getTime();
+                const dateB = new Date(valB || 0).getTime();
+                return sortDirection === 'asc' ? dateA - dateB : dateB - dateA;
+            }
+            if (sortField === 'grand_total' || sortField === 'total_qty') {
+                const numA = parseFloat(valA) || 0;
+                const numB = parseFloat(valB) || 0;
+                return sortDirection === 'asc' ? numA - numB : numB - numA;
+            }
+            return sortDirection === 'asc'
+                ? String(valA).localeCompare(String(valB))
+                : String(valB).localeCompare(String(valA));
+        });
+    }, [filteredNotes, sortField, sortDirection]);
+
+    const paginatedNotes = sortedNotes.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+    const totalPages = Math.ceil(sortedNotes.length / pageSize);
+
+    const renderSortIcon = (field) => {
+        if (sortField !== field) {
+            return <ArrowUpDown size={11} style={{ opacity: 0.3, marginLeft: '4px' }} />;
+        }
+        return sortDirection === 'asc' 
+            ? <ArrowUp size={12} style={{ color: themeColor || '#0082f6', marginLeft: '4px' }} />
+            : <ArrowDown size={12} style={{ color: themeColor || '#0082f6', marginLeft: '4px' }} />;
+    };
 
     // ─── Status color ────────────────────────────────────────────────────────────
 
@@ -842,31 +919,6 @@ const DeliveryNoteList = () => {
                                 <Palette size={14} />
                                 <span>{dnTheme.toUpperCase()}</span>
                             </button>
-                            <ListCustomizer
-                                doctype="Delivery Note"
-                                onSave={cols => setCustomColumns(cols)}
-                                themeColor={themeColor || '#0082f6'}
-                                btnStyle={{
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    gap: '8px',
-                                    height: '38px',
-                                    padding: '0 16px',
-                                    background: '#ffffff',
-                                    color: themeColor || '#0082f6',
-                                    border: `1.5px solid ${themeColor || '#0082f6'}`,
-                                    borderRadius: '8px',
-                                    fontSize: '12px',
-                                    fontWeight: 800,
-                                    textTransform: 'uppercase',
-                                    letterSpacing: '0.04em',
-                                    cursor: 'pointer',
-                                    boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
-                                    transition: 'all 0.15s ease-in-out',
-                                    boxSizing: 'border-box'
-                                }}
-                            />
                             <button
                                 type="button"
                                 style={{
@@ -944,37 +996,154 @@ const DeliveryNoteList = () => {
                     </div>
 
                     <div className="so-content" style={{ padding: 0 }}>
-                        <p className="so-list-meta" style={{ marginBottom: '0.75rem', fontWeight: 600, color: '#64748b', fontSize: '13px' }}>{filteredNotes.length} record(s) found</p>
+                        <p className="so-list-meta" style={{ marginBottom: '0.75rem', fontWeight: 600, color: '#64748b', fontSize: '13px' }}>{sortedNotes.length} record(s) found</p>
                         <div className="so-table-card" style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)' }}>
                             <div className="so-table-wrapper">
                                 <table className="so-table">
                                     <thead>
                                         <tr>
-                                            <th>TITLE</th>
-                                            <th>STATUS</th>
-                                            <th>CUSTOMER</th>
-                                            <th style={{ textAlign: 'right' }}>GRAND TOTAL</th>
+                                            {!hiddenDefaults.includes('title') && (
+                                                <th onClick={() => handleSort('title')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                                                    <div style={{ display: 'inline-flex', alignItems: 'center' }}>
+                                                        <span>TITLE</span>
+                                                        {renderSortIcon('title')}
+                                                    </div>
+                                                </th>
+                                            )}
+                                            {!hiddenDefaults.includes('docstatus') && (
+                                                <th onClick={() => handleSort('docstatus')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                                                    <div style={{ display: 'inline-flex', alignItems: 'center' }}>
+                                                        <span>STATUS</span>
+                                                        {renderSortIcon('docstatus')}
+                                                    </div>
+                                                </th>
+                                            )}
+                                            {!hiddenDefaults.includes('customer_name') && (
+                                                <th onClick={() => handleSort('customer_name')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                                                    <div style={{ display: 'inline-flex', alignItems: 'center' }}>
+                                                        <span>CUSTOMER</span>
+                                                        {renderSortIcon('customer_name')}
+                                                    </div>
+                                                </th>
+                                            )}
+                                            {!hiddenDefaults.includes('grand_total') && (
+                                                <th onClick={() => handleSort('grand_total')} style={{ textAlign: 'right', cursor: 'pointer', userSelect: 'none' }}>
+                                                    <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end', width: '100%' }}>
+                                                        <span>GRAND TOTAL</span>
+                                                        {renderSortIcon('grand_total')}
+                                                    </div>
+                                                </th>
+                                            )}
                                             {customColumns.map(col => (
-                                                <th key={col}>{col.replace(/_/g, ' ').toUpperCase()}</th>
+                                                <th key={col} onClick={() => handleSort(col)} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                                                    <div style={{ display: 'inline-flex', alignItems: 'center' }}>
+                                                        <span>{col.replace(/_/g, ' ').toUpperCase()}</span>
+                                                        {renderSortIcon(col)}
+                                                    </div>
+                                                </th>
                                             ))}
-                                            <th>ID</th>
+                                            {!hiddenDefaults.includes('name') && (
+                                                <th onClick={() => handleSort('name')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                                                    <div style={{ display: 'inline-flex', alignItems: 'center' }}>
+                                                        <span>ID</span>
+                                                        {renderSortIcon('name')}
+                                                    </div>
+                                                </th>
+                                            )}
+                                            <th style={{ width: '48px', textAlign: 'center', verticalAlign: 'middle', padding: '0 4px' }}>
+                                                <ListCustomizer
+                                                    doctype="Delivery Note"
+                                                    defaultColumns={DEFAULT_DN_LIST_COLUMNS}
+                                                    iconOnly
+                                                    onSave={(cols, hidden) => {
+                                                        setCustomColumns(cols);
+                                                        setHiddenDefaults(hidden);
+                                                    }}
+                                                    themeColor={themeColor || '#0082f6'}
+                                                    title="Configure Columns"
+                                                />
+                                            </th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {loading ? (
-                                            <tr><td colSpan={5 + customColumns.length} className="so-empty"><Loader2 size={28} className="so-spinner" style={{ margin: '0 auto' }} /></td></tr>
+                                            <tr><td colSpan={DEFAULT_DN_LIST_COLUMNS.length - hiddenDefaults.length + customColumns.length + 1} className="so-empty"><Loader2 size={28} className="so-spinner" style={{ margin: '0 auto' }} /></td></tr>
                                         ) : paginatedNotes.map(dn => (
                                             <tr key={dn.name} onClick={() => navigate(`/deliverynote-details/${encodeURIComponent(dn.name)}`)} style={{ cursor: 'pointer' }}>
-                                                <td style={{ fontWeight: 600 }}>{dn.title || 'Cash'}</td>
-                                                <td><span style={{ display: 'inline-block', padding: '0.2rem 0.6rem', borderRadius: '9999px', fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', ...getStatusStyle(dn.docstatus) }}>{dn.docstatus === 0 ? 'Draft' : dn.docstatus === 1 ? 'Submitted' : 'Cancelled'}</span></td>
-                                                <td>{dn.customer_name}</td>
-                                                <td style={{ textAlign: 'right', fontWeight: 700 }}><span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', justifyContent: 'flex-end' }}><DirhamIcon size={12} /> {Number(dn.grand_total).toLocaleString()}</span></td>
+                                                {!hiddenDefaults.includes('title') && (
+                                                    <td style={{ fontWeight: 600 }}>
+                                                        <span 
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                if (dn.title) setSearchTerm(dn.title);
+                                                            }}
+                                                            title="Click to filter by title"
+                                                            style={{ cursor: 'pointer' }}
+                                                            onMouseEnter={e => e.currentTarget.style.color = themeColor || '#0082f6'}
+                                                            onMouseLeave={e => e.currentTarget.style.color = ''}
+                                                        >
+                                                            {dn.title || 'Cash'}
+                                                        </span>
+                                                    </td>
+                                                )}
+                                                {!hiddenDefaults.includes('docstatus') && (
+                                                    <td>
+                                                        <span 
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setStatusFilter(dn.docstatus === 0 ? 'Draft' : dn.docstatus === 1 ? 'Submitted' : 'Cancelled');
+                                                            }}
+                                                            title="Click to filter by status"
+                                                            style={{ display: 'inline-block', padding: '0.2rem 0.6rem', borderRadius: '9999px', fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', cursor: 'pointer', ...getStatusStyle(dn.docstatus) }}
+                                                        >
+                                                            {dn.docstatus === 0 ? 'Draft' : dn.docstatus === 1 ? 'Submitted' : 'Cancelled'}
+                                                        </span>
+                                                    </td>
+                                                )}
+                                                {!hiddenDefaults.includes('customer_name') && (
+                                                    <td>
+                                                        <span 
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setSearchTerm(dn.customer_name || dn.customer || '');
+                                                            }}
+                                                            title="Click to filter by customer"
+                                                            style={{ cursor: 'pointer', fontWeight: 600 }}
+                                                            onMouseEnter={e => e.currentTarget.style.color = themeColor || '#0082f6'}
+                                                            onMouseLeave={e => e.currentTarget.style.color = ''}
+                                                        >
+                                                            {dn.customer_name}
+                                                        </span>
+                                                    </td>
+                                                )}
+                                                {!hiddenDefaults.includes('grand_total') && (
+                                                    <td style={{ textAlign: 'right', fontWeight: 700 }}>
+                                                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', justifyContent: 'flex-end' }}>
+                                                            <DirhamIcon size={12} /> {Number(dn.grand_total).toLocaleString()}
+                                                        </span>
+                                                    </td>
+                                                )}
                                                 {customColumns.map(col => (
                                                     <td key={col} style={{ fontSize: '0.8rem', fontWeight: 600 }}>
                                                         {dn[col] !== undefined && dn[col] !== null ? String(dn[col]) : '-'}
                                                     </td>
                                                 ))}
-                                                <td style={{ fontFamily: 'monospace', fontSize: '0.7rem' }}>{dn.name}</td>
+                                                {!hiddenDefaults.includes('name') && (
+                                                    <td style={{ fontFamily: 'monospace', fontSize: '0.7rem' }}>{dn.name}</td>
+                                                )}
+                                                <td style={{ textAlign: 'center', padding: '0.5rem' }}>
+                                                    <button
+                                                        type="button"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            navigate(`/deliverynote-details/${encodeURIComponent(dn.name)}`);
+                                                        }}
+                                                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: themeColor || '#0082f6', padding: '4px', display: 'inline-flex' }}
+                                                        title="Open Details"
+                                                    >
+                                                        <Eye size={16} />
+                                                    </button>
+                                                </td>
                                             </tr>
                                         ))}
                                     </tbody>

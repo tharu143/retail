@@ -2,7 +2,8 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Plus, Search, X, ShoppingCart, Receipt, Calendar, User, Layers,
   CheckCircle2, Clock, CreditCard, Palette, Loader2, ChevronLeft, ChevronRight,
-  ArrowRight, FileText, Filter, Save, ScanLine, Camera, Package, Eye
+  ArrowRight, FileText, Filter, Save, ScanLine, Camera, Package, Eye,
+  ArrowUpDown, ArrowUp, ArrowDown
 } from 'lucide-react';
 import axios from 'axios';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -76,13 +77,45 @@ export default function QuotationList() {
   const [filterStatus, setFilterStatus] = useState('');
   const [filterDateRange, setFilterDateRange] = useState('');
 
+  // Sorting
+  const [sortField, setSortField] = useState('modified');
+  const [sortDirection, setSortDirection] = useState('desc');
+
   // Pagination states
   const [pageSize, setPageSize] = useState(20);
   const [currentPage, setCurrentPage] = useState(1);
 
-  const [customColumns, setCustomColumns] = useState(() => {
-    const saved = localStorage.getItem('custom_columns_Quotation');
+  const DEFAULT_QTN_LIST_COLUMNS = [
+    { key: 'name', label: 'ORDER ID' },
+    { key: 'customer_name', label: 'CUSTOMER' },
+    { key: 'transaction_date', label: 'DATE' },
+    { key: 'grand_total', label: 'GRAND TOTAL' },
+    { key: 'status', label: 'STATUS' }
+  ];
+
+  const [hiddenDefaults, setHiddenDefaults] = useState(() => {
     try {
+      const user = localStorage.getItem('user_id') || localStorage.getItem('user_email') || 'default';
+      const configKey = `custom_columns_config_${user}_Quotation`;
+      const saved = localStorage.getItem(configKey) || localStorage.getItem('custom_columns_config_Quotation');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed.hiddenDefaults)) return parsed.hiddenDefaults;
+      }
+    } catch (e) {}
+    return [];
+  });
+
+  const [customColumns, setCustomColumns] = useState(() => {
+    try {
+      const user = localStorage.getItem('user_id') || localStorage.getItem('user_email') || 'default';
+      const configKey = `custom_columns_config_${user}_Quotation`;
+      const savedConfig = localStorage.getItem(configKey) || localStorage.getItem('custom_columns_config_Quotation');
+      if (savedConfig) {
+        const parsed = JSON.parse(savedConfig);
+        if (Array.isArray(parsed.customColumns)) return parsed.customColumns;
+      }
+      const saved = localStorage.getItem(`custom_columns_${user}_Quotation`) || localStorage.getItem('custom_columns_Quotation');
       return saved ? JSON.parse(saved) : [];
     } catch (e) {
       return [];
@@ -96,7 +129,8 @@ export default function QuotationList() {
         params: {
           search_term: searchTerm || null,
           limit_start: 0,
-          limit_page_length: 500
+          limit_page_length: 500,
+          extra_fields: JSON.stringify(customColumns)
         },
         withCredentials: true
       });
@@ -107,7 +141,7 @@ export default function QuotationList() {
       try {
         const fallbackRes = await axios.get('/api/resource/Quotation', {
           params: {
-            fields: '["name","party_name","customer_name","transaction_date","valid_till","grand_total","status","docstatus","currency","company"]',
+            fields: '["name","party_name","customer_name","transaction_date","valid_till","grand_total","status","docstatus","currency","company","modified"]',
             order_by: 'creation desc',
             limit_page_length: 500
           },
@@ -124,7 +158,16 @@ export default function QuotationList() {
 
   useEffect(() => {
     fetchQuotations();
-  }, []);
+  }, [customColumns]);
+
+  const handleSort = (field) => {
+    if (sortField === field) {
+      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
 
   const filteredQuotations = useMemo(() => {
     return quotations.filter((q) => {
@@ -137,17 +180,43 @@ export default function QuotationList() {
 
       const matchStatus = !filterStatus || q.status === filterStatus || (filterStatus === 'Submitted' && q.docstatus === 1) || (filterStatus === 'Draft' && q.docstatus === 0);
 
-      return matchSearch && matchStatus;
+      const matchDate = !filterDateRange || (q.transaction_date && q.transaction_date.includes(filterDateRange));
+
+      return matchSearch && matchStatus && matchDate;
     });
-  }, [quotations, searchTerm, filterStatus]);
+  }, [quotations, searchTerm, filterStatus, filterDateRange]);
+
+  const sortedQuotations = useMemo(() => {
+    if (!sortField) return filteredQuotations;
+    return [...filteredQuotations].sort((a, b) => {
+      let valA = a[sortField];
+      let valB = b[sortField];
+      if (valA === undefined || valA === null) valA = '';
+      if (valB === undefined || valB === null) valB = '';
+
+      if (sortField === 'transaction_date' || sortField === 'valid_till' || sortField === 'modified' || sortField === 'creation') {
+        const dateA = new Date(valA || 0).getTime();
+        const dateB = new Date(valB || 0).getTime();
+        return sortDirection === 'asc' ? dateA - dateB : dateB - dateA;
+      }
+      if (sortField === 'grand_total') {
+        const numA = parseFloat(valA) || 0;
+        const numB = parseFloat(valB) || 0;
+        return sortDirection === 'asc' ? numA - numB : numB - numA;
+      }
+      return sortDirection === 'asc'
+        ? String(valA).localeCompare(String(valB))
+        : String(valB).localeCompare(String(valA));
+    });
+  }, [filteredQuotations, sortField, sortDirection]);
 
   // Pagination calculations
-  const totalRecords = filteredQuotations.length;
+  const totalRecords = sortedQuotations.length;
   const totalPages = Math.ceil(totalRecords / pageSize) || 1;
   const paginatedQuotations = useMemo(() => {
     const start = (currentPage - 1) * pageSize;
-    return filteredQuotations.slice(start, start + pageSize);
-  }, [filteredQuotations, currentPage, pageSize]);
+    return sortedQuotations.slice(start, start + pageSize);
+  }, [sortedQuotations, currentPage, pageSize]);
 
   // Executive Stats
   const stats = useMemo(() => {
@@ -157,6 +226,15 @@ export default function QuotationList() {
     const totalValue = quotations.reduce((acc, q) => acc + (parseFloat(q.grand_total) || 0), 0);
     return { total, submitted, drafts, totalValue };
   }, [quotations]);
+
+  const renderSortIcon = (field) => {
+    if (sortField !== field) {
+      return <ArrowUpDown size={11} style={{ opacity: 0.3, marginLeft: '4px' }} />;
+    }
+    return sortDirection === 'asc' 
+      ? <ArrowUp size={12} style={{ color: themeColor || '#0082f6', marginLeft: '4px' }} />
+      : <ArrowDown size={12} style={{ color: themeColor || '#0082f6', marginLeft: '4px' }} />;
+  };
 
   return (
     <div className="so-container" style={{ background: '#f8fafc', minHeight: '100vh' }}>
@@ -294,31 +372,6 @@ export default function QuotationList() {
               <span>{isGreen ? 'BLUE' : 'GREEN'}</span>
             </button>
 
-            <ListCustomizer
-              doctype="Quotation"
-              onSave={(cols) => setCustomColumns(cols)}
-              themeColor={themeColor || '#0082f6'}
-              btnStyle={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-                height: '38px',
-                padding: '0 16px',
-                background: '#ffffff',
-                color: themeColor || '#0082f6',
-                border: `1.5px solid ${themeColor || '#0082f6'}`,
-                borderRadius: '8px',
-                fontSize: '12px',
-                fontWeight: 800,
-                textTransform: 'uppercase',
-                letterSpacing: '0.04em',
-                cursor: 'pointer',
-                boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
-                transition: 'all 0.15s ease-in-out'
-              }}
-            />
-
             <button
               type="button"
               onClick={() => navigate('/quotation/create')}
@@ -361,16 +414,16 @@ export default function QuotationList() {
             display: 'flex',
             alignItems: 'flex-end',
             gap: '1.25rem',
-            marginBottom: '0.25rem',
+            marginBottom: '0.5rem',
             boxShadow: 'none'
           }}
         >
           <div style={{ flex: 1 }}>
             <label style={{ fontSize: '12px', fontWeight: 800, color: '#334155', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: '6px' }}>
-              Search Order Matrix
+              Search Quotation Matrix
             </label>
             <div style={{ position: 'relative' }}>
-              <Search size={15} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', zIndex: 2 }} />
+              <Search size={14} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', zIndex: 2 }} />
               <input
                 className="so-filter-input so-filter-input-icon"
                 type="text"
@@ -379,20 +432,53 @@ export default function QuotationList() {
                   setSearchTerm(e.target.value);
                   setCurrentPage(1);
                 }}
-                placeholder="Search by Order ID or Customer..."
-                style={{
-                  width: '100%',
-                  height: '38px',
-                  borderRadius: '8px',
-                  border: '1px solid #cbd5e1',
-                  fontSize: '13px',
-                  outline: 'none',
-                  background: '#fff',
-                  paddingLeft: '2.5rem'
-                }}
+                placeholder="Search by Quotation ID or Customer Name..."
+                style={{ width: '100%', height: '38px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none', background: '#fff', paddingLeft: '2.5rem' }}
               />
             </div>
           </div>
+
+          <div style={{ width: '180px' }}>
+            <label style={{ fontSize: '12px', fontWeight: 800, color: '#334155', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: '6px' }}>
+              Status Filter
+            </label>
+            <select
+              className="so-filter-input"
+              value={filterStatus}
+              onChange={(e) => {
+                setFilterStatus(e.target.value);
+                setCurrentPage(1);
+              }}
+              style={{ width: '100%', height: '38px', padding: '0 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none', background: '#fff', fontWeight: 600, color: '#0f172a' }}
+            >
+              <option value="">All Statuses</option>
+              <option value="Draft">Draft</option>
+              <option value="Submitted">Submitted / Open</option>
+              <option value="Ordered">Ordered</option>
+              <option value="Lost">Lost</option>
+              <option value="Cancelled">Cancelled</option>
+              <option value="Expired">Expired</option>
+            </select>
+          </div>
+
+          <div style={{ width: '160px' }}>
+            <label style={{ fontSize: '12px', fontWeight: 800, color: '#334155', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: '6px' }}>
+              Date Filter
+            </label>
+            <input
+              type="date"
+              className="so-filter-input"
+              value={filterDateRange}
+              onChange={(e) => {
+                setFilterDateRange(e.target.value);
+                setCurrentPage(1);
+              }}
+              style={{ width: '100%', height: '38px', padding: '0 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none', background: '#fff', color: filterDateRange ? '#0f172a' : '#64748b', fontWeight: 500 }}
+              onFocus={(e) => { try { e.target.showPicker(); } catch (err) {} }}
+              onClick={(e) => { try { e.target.showPicker(); } catch (err) {} }}
+            />
+          </div>
+
           <div>
             <button
               type="button"
@@ -401,6 +487,7 @@ export default function QuotationList() {
                 setSearchTerm('');
                 setFilterStatus('');
                 setFilterDateRange('');
+                setCurrentPage(1);
               }}
               style={{
                 height: '38px',
@@ -408,7 +495,7 @@ export default function QuotationList() {
                 borderRadius: '8px',
                 background: '#ffffff',
                 color: searchTerm || filterStatus || filterDateRange ? '#ef4444' : '#64748b',
-                border: `1px solid ${searchTerm || filterStatus || filterDateRange ? '#fecaca' : '#cbd5e1'}`,
+                border: `1.5px solid ${searchTerm || filterStatus || filterDateRange ? '#fecaca' : '#cbd5e1'}`,
                 fontSize: '13px',
                 fontWeight: 600,
                 cursor: 'pointer',
@@ -465,7 +552,7 @@ export default function QuotationList() {
         {/* Main Directory Table */}
         <div className="so-content" style={{ padding: 0 }}>
           <div className="so-list-meta" style={{ marginBottom: '0.75rem', fontWeight: 600, color: '#64748b', fontSize: '13px' }}>
-            {filteredQuotations.length} record(s) found
+            {totalRecords} record(s) found
           </div>
 
           <div className="so-card" style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
@@ -473,18 +560,73 @@ export default function QuotationList() {
               <table className="so-table" style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
                 <thead>
                   <tr style={{ background: '#ffffff', borderBottom: '1px solid #e2e8f0', fontSize: '11px', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                    <th style={{ padding: '14px 16px' }}>ORDER ID</th>
-                    <th style={{ padding: '14px 16px' }}>CUSTOMER</th>
-                    <th style={{ padding: '14px 16px' }}>DATE</th>
-                    <th style={{ padding: '14px 16px', textAlign: 'right' }}>GRAND TOTAL</th>
-                    <th style={{ padding: '14px 16px', textAlign: 'center' }}>STATUS</th>
-                    <th style={{ padding: '14px 16px', textAlign: 'center' }}>DETAILS</th>
+                    {!hiddenDefaults.includes('name') && (
+                      <th onClick={() => handleSort('name')} style={{ padding: '14px 16px', cursor: 'pointer', userSelect: 'none' }}>
+                        <div style={{ display: 'inline-flex', alignItems: 'center' }}>
+                          <span>ORDER ID</span>
+                          {renderSortIcon('name')}
+                        </div>
+                      </th>
+                    )}
+                    {!hiddenDefaults.includes('customer_name') && (
+                      <th onClick={() => handleSort('customer_name')} style={{ padding: '14px 16px', cursor: 'pointer', userSelect: 'none' }}>
+                        <div style={{ display: 'inline-flex', alignItems: 'center' }}>
+                          <span>CUSTOMER</span>
+                          {renderSortIcon('customer_name')}
+                        </div>
+                      </th>
+                    )}
+                    {!hiddenDefaults.includes('transaction_date') && (
+                      <th onClick={() => handleSort('transaction_date')} style={{ padding: '14px 16px', cursor: 'pointer', userSelect: 'none' }}>
+                        <div style={{ display: 'inline-flex', alignItems: 'center' }}>
+                          <span>DATE</span>
+                          {renderSortIcon('transaction_date')}
+                        </div>
+                      </th>
+                    )}
+                    {!hiddenDefaults.includes('grand_total') && (
+                      <th onClick={() => handleSort('grand_total')} style={{ padding: '14px 16px', textAlign: 'right', cursor: 'pointer', userSelect: 'none' }}>
+                        <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end', width: '100%' }}>
+                          <span>GRAND TOTAL</span>
+                          {renderSortIcon('grand_total')}
+                        </div>
+                      </th>
+                    )}
+                    {!hiddenDefaults.includes('status') && (
+                      <th onClick={() => handleSort('status')} style={{ padding: '14px 16px', textAlign: 'center', cursor: 'pointer', userSelect: 'none' }}>
+                        <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '100%' }}>
+                          <span>STATUS</span>
+                          {renderSortIcon('status')}
+                        </div>
+                      </th>
+                    )}
+                    {customColumns.map(col => (
+                      <th key={col} onClick={() => handleSort(col)} style={{ padding: '14px 16px', cursor: 'pointer', userSelect: 'none' }}>
+                        <div style={{ display: 'inline-flex', alignItems: 'center' }}>
+                          <span>{col.replace(/_/g, ' ').toUpperCase()}</span>
+                          {renderSortIcon(col)}
+                        </div>
+                      </th>
+                    ))}
+                    <th style={{ width: '48px', padding: '14px 8px', textAlign: 'center', verticalAlign: 'middle' }}>
+                      <ListCustomizer
+                        doctype="Quotation"
+                        defaultColumns={DEFAULT_QTN_LIST_COLUMNS}
+                        iconOnly
+                        onSave={(cols, hidden) => {
+                          setCustomColumns(cols);
+                          setHiddenDefaults(hidden);
+                        }}
+                        themeColor={themeColor || '#0082f6'}
+                        title="Configure Columns"
+                      />
+                    </th>
                   </tr>
                 </thead>
                 <tbody style={{ fontSize: '13px', color: '#1e293b' }}>
                   {loading ? (
                     <tr>
-                      <td colSpan="6" style={{ padding: '40px', textAlign: 'center', color: '#94a3b8' }}>
+                      <td colSpan={DEFAULT_QTN_LIST_COLUMNS.length - hiddenDefaults.length + customColumns.length + 1} style={{ padding: '40px', textAlign: 'center', color: '#94a3b8' }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
                           <Loader2 className="animate-spin" size={18} color={themeColor || '#0082f6'} />
                           <span>Loading Quotations...</span>
@@ -493,7 +635,7 @@ export default function QuotationList() {
                     </tr>
                   ) : paginatedQuotations.length === 0 ? (
                     <tr>
-                      <td colSpan="6" style={{ padding: '50px', textAlign: 'center', color: '#94a3b8' }}>
+                      <td colSpan={DEFAULT_QTN_LIST_COLUMNS.length - hiddenDefaults.length + customColumns.length + 1} style={{ padding: '50px', textAlign: 'center', color: '#94a3b8' }}>
                         <FileText size={36} style={{ margin: '0 auto 8px', color: '#cbd5e1' }} />
                         <div style={{ fontWeight: 800, fontSize: '14px', color: '#64748b' }}>No Quotations Found</div>
                         <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '2px' }}>Create a new quotation to get started</div>
@@ -509,64 +651,113 @@ export default function QuotationList() {
                           cursor: 'pointer',
                           transition: 'background 0.15s ease'
                         }}
-                        onMouseEnter={(e) => (e.currentTarget.style.background = '#f8fafc')}
+                        onMouseEnter={(e) => (e.currentTarget.style.background = `${themeColor || '#0082f6'}08`)}
                         onMouseLeave={(e) => (e.currentTarget.style.background = '#ffffff')}
                       >
                         {/* ORDER ID */}
-                        <td style={{ padding: '14px 16px' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                            <div
-                              style={{
-                                width: '32px',
-                                height: '32px',
-                                borderRadius: '8px',
-                                background: `${themeColor || '#0082f6'}10`,
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                color: themeColor || '#0082f6'
-                              }}
-                            >
-                              <ShoppingCart size={15} />
+                        {!hiddenDefaults.includes('name') && (
+                          <td style={{ padding: '14px 16px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                              <div
+                                style={{
+                                  width: '32px',
+                                  height: '32px',
+                                  borderRadius: '8px',
+                                  background: `${themeColor || '#0082f6'}10`,
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  color: themeColor || '#0082f6'
+                                }}
+                              >
+                                <ShoppingCart size={15} />
+                              </div>
+                              <div>
+                                <div style={{ fontWeight: 800, color: themeColor || '#0082f6' }}>{q.name}</div>
+                                <div style={{ fontSize: '11px', color: '#94a3b8' }}>SAL-QTN-.YYYY.-</div>
+                              </div>
                             </div>
-                            <div>
-                              <div style={{ fontWeight: 800, color: themeColor || '#0082f6' }}>{q.name}</div>
-                              <div style={{ fontSize: '11px', color: '#94a3b8' }}>SAL-QTN-.YYYY.-</div>
-                            </div>
-                          </div>
-                        </td>
+                          </td>
+                        )}
 
                         {/* CUSTOMER */}
-                        <td style={{ padding: '14px 16px' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 700, color: '#334155' }}>
-                            <User size={13} color="#94a3b8" />
-                            <span>{q.customer_name || q.party_name || 'Cash'}</span>
-                          </div>
-                        </td>
+                        {!hiddenDefaults.includes('customer_name') && (
+                          <td style={{ padding: '14px 16px' }}>
+                            <div
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSearchTerm(q.customer_name || q.party_name || '');
+                                setCurrentPage(1);
+                              }}
+                              title="Click to filter by customer"
+                              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontWeight: 700, color: '#334155', cursor: 'pointer' }}
+                              onMouseEnter={e => e.currentTarget.style.color = themeColor || '#0082f6'}
+                              onMouseLeave={e => e.currentTarget.style.color = '#334155'}
+                            >
+                              <User size={13} color="#94a3b8" />
+                              <span>{q.customer_name || q.party_name || 'Cash'}</span>
+                            </div>
+                          </td>
+                        )}
 
                         {/* DATE */}
-                        <td style={{ padding: '14px 16px' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#64748b', fontSize: '12px', fontWeight: 600 }}>
-                            <Calendar size={13} color="#94a3b8" />
-                            <span>{q.transaction_date || '-'}</span>
-                          </div>
-                        </td>
+                        {!hiddenDefaults.includes('transaction_date') && (
+                          <td style={{ padding: '14px 16px' }}>
+                            <div
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (q.transaction_date) {
+                                  setSearchTerm(q.transaction_date);
+                                  setCurrentPage(1);
+                                }
+                              }}
+                              title="Click to filter by date"
+                              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', color: '#64748b', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}
+                              onMouseEnter={e => e.currentTarget.style.color = themeColor || '#0082f6'}
+                              onMouseLeave={e => e.currentTarget.style.color = '#64748b'}
+                            >
+                              <Calendar size={13} color="#94a3b8" />
+                              <span>{q.transaction_date || '-'}</span>
+                            </div>
+                          </td>
+                        )}
 
                         {/* GRAND TOTAL */}
-                        <td style={{ padding: '14px 16px', textAlign: 'right' }}>
-                          <div style={{ fontWeight: 900, color: '#0f172a', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '3px' }}>
-                            <DirhamIcon size={13} />
-                            <span>{parseFloat(q.grand_total || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                          </div>
-                        </td>
+                        {!hiddenDefaults.includes('grand_total') && (
+                          <td style={{ padding: '14px 16px', textAlign: 'right' }}>
+                            <div style={{ fontWeight: 900, color: '#0f172a', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '3px' }}>
+                              <DirhamIcon size={13} />
+                              <span>{parseFloat(q.grand_total || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                            </div>
+                          </td>
+                        )}
 
                         {/* STATUS */}
-                        <td style={{ padding: '14px 16px', textAlign: 'center' }}>
-                          <StatusBadge status={q.status} docstatus={q.docstatus} />
-                        </td>
+                        {!hiddenDefaults.includes('status') && (
+                          <td style={{ padding: '14px 16px', textAlign: 'center' }}>
+                            <span
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setFilterStatus(q.status || (q.docstatus === 1 ? 'Submitted' : 'Draft'));
+                                setCurrentPage(1);
+                              }}
+                              title="Click to filter by status"
+                              style={{ cursor: 'pointer', display: 'inline-block' }}
+                            >
+                              <StatusBadge status={q.status} docstatus={q.docstatus} />
+                            </span>
+                          </td>
+                        )}
 
-                        {/* DETAILS ARROW */}
-                        <td style={{ padding: '14px 16px', textAlign: 'center' }}>
+                        {/* CUSTOM COLUMNS */}
+                        {customColumns.map(col => (
+                          <td key={col} style={{ padding: '14px 16px', fontSize: '12px', fontWeight: 600, color: '#334155' }}>
+                            {q[col] !== undefined && q[col] !== null ? String(q[col]) : '-'}
+                          </td>
+                        ))}
+
+                        {/* DETAILS BUTTON / ICON */}
+                        <td style={{ padding: '14px 8px', textAlign: 'center' }}>
                           <button
                             type="button"
                             onClick={(e) => {
@@ -578,11 +769,15 @@ export default function QuotationList() {
                               border: 'none',
                               color: themeColor || '#0082f6',
                               cursor: 'pointer',
-                              padding: '4px 8px',
-                              borderRadius: '6px'
+                              padding: '6px',
+                              borderRadius: '6px',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center'
                             }}
+                            title="Open Quotation Details"
                           >
-                            <ArrowRight size={16} />
+                            <Eye size={16} />
                           </button>
                         </td>
                       </tr>

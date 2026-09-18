@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
   Plus, X, Trash2, Building2, Search, Calendar, Filter, MoreVertical, Package,
-  Warehouse as WarehouseIcon, Percent, DollarSign, Loader2, Barcode, Palette, ChevronLeft, ChevronRight, Zap, CheckCircle2, CheckCircle, AlertTriangle, ExternalLink, Link, Edit2, Settings, Copy, ChevronDown, Printer, Save, Send, FileText, Box, CalendarDays, Hash, Receipt, LayoutGrid
+  Warehouse as WarehouseIcon, Percent, DollarSign, Loader2, Barcode, Palette, ChevronLeft, ChevronRight, Zap, CheckCircle2, CheckCircle, AlertTriangle, ExternalLink, Link, Edit2, Settings, Copy, ChevronDown, Printer, Save, Send, FileText, Box, CalendarDays, Hash, Receipt, LayoutGrid,
+  ArrowUp, ArrowDown, ArrowUpDown
 } from 'lucide-react';
 import { useSelector, useDispatch } from 'react-redux';
 import { toggleTheme } from '../../Redux/Slices/userSlice';
@@ -81,12 +82,40 @@ const getDefaultTaxTemplate = (templates, activeWarehouse) => {
   return templates[0]?.name || '';
 };
 
+const DEFAULT_PI_LIST_COLUMNS = [
+  { key: 'name', label: 'INVOICE NUMBER' },
+  { key: 'supplier_name', label: 'SUPPLIER' },
+  { key: 'set_warehouse', label: 'BRANCH / WAREHOUSE' },
+  { key: 'posting_date', label: 'DATE' },
+  { key: 'status', label: 'STATUS' },
+  { key: 'grand_total', label: 'AMOUNT' }
+];
+
 function PurchaseInvoiceList() {
   const dispatch = useDispatch();
   const { getShortcut, isShortcutPressed } = useCustomShortcuts();
-  const [customColumns, setCustomColumns] = useState(() => {
-    const saved = localStorage.getItem('custom_columns_Purchase Invoice');
+  const [hiddenDefaults, setHiddenDefaults] = useState(() => {
     try {
+      const user = localStorage.getItem('user_id') || localStorage.getItem('user_email') || 'default';
+      const configKey = `custom_columns_config_${user}_Purchase Invoice`;
+      const saved = localStorage.getItem(configKey) || localStorage.getItem('custom_columns_config_Purchase Invoice');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed.hiddenDefaults)) return parsed.hiddenDefaults;
+      }
+    } catch (e) {}
+    return [];
+  });
+  const [customColumns, setCustomColumns] = useState(() => {
+    try {
+      const user = localStorage.getItem('user_id') || localStorage.getItem('user_email') || 'default';
+      const configKey = `custom_columns_config_${user}_Purchase Invoice`;
+      const savedConfig = localStorage.getItem(configKey) || localStorage.getItem('custom_columns_config_Purchase Invoice');
+      if (savedConfig) {
+        const parsed = JSON.parse(savedConfig);
+        if (Array.isArray(parsed.customColumns)) return parsed.customColumns;
+      }
+      const saved = localStorage.getItem(`custom_columns_${user}_Purchase Invoice`) || localStorage.getItem('custom_columns_Purchase Invoice');
       return saved ? JSON.parse(saved) : [];
     } catch (e) {
       return [];
@@ -2929,6 +2958,28 @@ function PurchaseInvoiceList() {
     setSearchParams({}); // Added to clear URL and prevent re-opening
   };
 
+  // Sorting
+  const [sortField, setSortField] = useState('posting_date');
+  const [sortDirection, setSortDirection] = useState('desc');
+
+  const handleSort = (field) => {
+    if (sortField === field) {
+      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  const renderSortIcon = (field) => {
+    if (sortField !== field) {
+      return <ArrowUpDown size={13} style={{ opacity: 0.4, marginLeft: '4px', verticalAlign: 'middle' }} />;
+    }
+    return sortDirection === 'asc'
+      ? <ArrowUp size={13} style={{ color: themeColor || '#0082f6', marginLeft: '4px', verticalAlign: 'middle' }} />
+      : <ArrowDown size={13} style={{ color: themeColor || '#0082f6', marginLeft: '4px', verticalAlign: 'middle' }} />;
+  };
+
   const filteredInvoices = useMemo(() => invoices.filter(inv => {
     const matchesName = !filterName || (inv.name || '').toLowerCase().includes(filterName.toLowerCase());
     const matchesSupplier = !filterSupplier || (inv.supplier_name || inv.supplier || '').toLowerCase().includes(filterSupplier.toLowerCase());
@@ -2939,8 +2990,27 @@ function PurchaseInvoiceList() {
     return matchesName && matchesSupplier && matchesStatus && matchesFrom && matchesTo;
   }), [invoices, filterName, filterSupplier, filterStatus, filterDateFrom, filterDateTo]);
 
-  const total = filteredInvoices.length;
-  const paginated = filteredInvoices.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const sortedInvoices = useMemo(() => {
+    let list = [...filteredInvoices];
+    if (sortField) {
+      list.sort((a, b) => {
+        let valA = a[sortField];
+        let valB = b[sortField];
+        if (valA === undefined || valA === null) valA = '';
+        if (valB === undefined || valB === null) valB = '';
+        if (typeof valA === 'number' && typeof valB === 'number') {
+          return sortDirection === 'asc' ? valA - valB : valB - valA;
+        }
+        return sortDirection === 'asc'
+          ? String(valA).localeCompare(String(valB))
+          : String(valB).localeCompare(String(valA));
+      });
+    }
+    return list;
+  }, [filteredInvoices, sortField, sortDirection]);
+
+  const total = sortedInvoices.length;
+  const paginated = sortedInvoices.slice((currentPage - 1) * pageSize, currentPage * pageSize);
   const totalPages = Math.ceil(total / pageSize);
 
   const getStatusColor = (status) => {
@@ -6644,32 +6714,6 @@ function PurchaseInvoiceList() {
                 <span>{piTheme.toUpperCase()}</span>
               </button>
 
-              <ListCustomizer
-                doctype="Purchase Invoice"
-                onSave={cols => setCustomColumns(cols)}
-                themeColor={themeColor || '#0082f6'}
-                btnStyle={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px',
-                  height: '38px',
-                  padding: '0 16px',
-                  background: '#ffffff',
-                  color: themeColor || '#0082f6',
-                  border: `1.5px solid ${themeColor || '#0082f6'}`,
-                  borderRadius: '8px',
-                  fontSize: '12px',
-                  fontWeight: 800,
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.04em',
-                  cursor: 'pointer',
-                  boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
-                  transition: 'all 0.15s ease-in-out',
-                  boxSizing: 'border-box'
-                }}
-              />
-
               <button
                 type="button"
                 onClick={() => setSearchParams({ name: 'new' })}
@@ -6827,22 +6871,81 @@ function PurchaseInvoiceList() {
                     <table className="so-table">
                       <thead>
                         <tr>
-                          <th>INVOICE NUMBER</th>
-                          <th>SUPPLIER</th>
-                          <th>BRANCH / WAREHOUSE</th>
-                          <th>DATE</th>
-                          <th>STATUS</th>
-                          <th style={{ textAlign: 'right' }}>AMOUNT</th>
+                          {!hiddenDefaults.includes('name') && (
+                            <th onClick={() => handleSort('name')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                              <div style={{ display: 'inline-flex', alignItems: 'center' }}>
+                                <span>INVOICE NUMBER</span>
+                                {renderSortIcon('name')}
+                              </div>
+                            </th>
+                          )}
+                          {!hiddenDefaults.includes('supplier_name') && (
+                            <th onClick={() => handleSort('supplier_name')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                              <div style={{ display: 'inline-flex', alignItems: 'center' }}>
+                                <span>SUPPLIER</span>
+                                {renderSortIcon('supplier_name')}
+                              </div>
+                            </th>
+                          )}
+                          {!hiddenDefaults.includes('set_warehouse') && (
+                            <th onClick={() => handleSort('set_warehouse')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                              <div style={{ display: 'inline-flex', alignItems: 'center' }}>
+                                <span>BRANCH / WAREHOUSE</span>
+                                {renderSortIcon('set_warehouse')}
+                              </div>
+                            </th>
+                          )}
+                          {!hiddenDefaults.includes('posting_date') && (
+                            <th onClick={() => handleSort('posting_date')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                              <div style={{ display: 'inline-flex', alignItems: 'center' }}>
+                                <span>DATE</span>
+                                {renderSortIcon('posting_date')}
+                              </div>
+                            </th>
+                          )}
+                          {!hiddenDefaults.includes('status') && (
+                            <th onClick={() => handleSort('status')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                              <div style={{ display: 'inline-flex', alignItems: 'center' }}>
+                                <span>STATUS</span>
+                                {renderSortIcon('status')}
+                              </div>
+                            </th>
+                          )}
+                          {!hiddenDefaults.includes('grand_total') && (
+                            <th onClick={() => handleSort('grand_total')} style={{ textAlign: 'right', cursor: 'pointer', userSelect: 'none' }}>
+                              <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end', width: '100%' }}>
+                                <span>AMOUNT</span>
+                                {renderSortIcon('grand_total')}
+                              </div>
+                            </th>
+                          )}
                           {customColumns.map(col => (
-                            <th key={col}>{col.replace(/_/g, ' ').toUpperCase()}</th>
+                            <th key={col} onClick={() => handleSort(col)} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                              <div style={{ display: 'inline-flex', alignItems: 'center' }}>
+                                <span>{col.replace(/_/g, ' ').toUpperCase()}</span>
+                                {renderSortIcon(col)}
+                              </div>
+                            </th>
                           ))}
-                          <th style={{ width: '50px' }}></th>
+                          <th style={{ width: '48px', textAlign: 'center', verticalAlign: 'middle', padding: '0 4px' }}>
+                            <ListCustomizer
+                              doctype="Purchase Invoice"
+                              defaultColumns={DEFAULT_PI_LIST_COLUMNS}
+                              iconOnly
+                              onSave={(cols, hidden) => {
+                                setCustomColumns(cols);
+                                setHiddenDefaults(hidden);
+                              }}
+                              themeColor={themeColor || '#0082f6'}
+                              title="Configure Columns"
+                            />
+                          </th>
                         </tr>
                       </thead>
                       <tbody>
                         {paginated.length === 0 ? (
                           <tr>
-                            <td colSpan={7 + customColumns.length} className="so-empty">
+                            <td colSpan={DEFAULT_PI_LIST_COLUMNS.length - hiddenDefaults.length + customColumns.length + 1} className="so-empty">
                               <Package size={48} style={{ margin: '0 auto 1rem', opacity: 0.2 }} />
                               <p>No invoices found</p>
                               <button onClick={openCreateModal} style={{ color: themeColor, fontWeight: 700, background: 'none', border: 'none', cursor: 'pointer' }}>
@@ -6853,66 +6956,122 @@ function PurchaseInvoiceList() {
                         ) : (
                           paginated.map(inv => (
                             <tr key={inv.name} onClick={() => setSearchParams({ name: inv.name })} style={{ cursor: 'pointer' }}>
-                              <td>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                                  <a
-                                    href={`/#/purchaseinvoicelist?name=${inv.name}`}
-                                    target={window.location.protocol === 'file:' ? '_self' : '_blank'}
-                                    rel="noopener noreferrer"
-                                    onClick={(e) => e.stopPropagation()}
-                                    title="Open in new tab"
-                                    style={{ color: themeColor, textDecoration: 'none' }}
+                              {!hiddenDefaults.includes('name') && (
+                                <td>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                    <a
+                                      href={`/#/purchaseinvoicelist?name=${inv.name}`}
+                                      target={window.location.protocol === 'file:' ? '_self' : '_blank'}
+                                      rel="noopener noreferrer"
+                                      onClick={(e) => e.stopPropagation()}
+                                      title="Open in new tab"
+                                      style={{ color: themeColor, textDecoration: 'none' }}
+                                    >
+                                      <ExternalLink size={12} style={{ opacity: 0.6 }} />
+                                    </a>
+                                    <span style={{ fontWeight: 700, color: themeColor }}>{inv.name}</span>
+                                    {inv.is_return === 1 && (
+                                      <span style={{
+                                        fontSize: '0.65rem',
+                                        backgroundColor: '#fee2e2',
+                                        color: '#ef4444',
+                                        padding: '0.1rem 0.4rem',
+                                        borderRadius: '0.25rem',
+                                        fontWeight: 700,
+                                        marginLeft: '0.4rem'
+                                      }}>
+                                        DEBIT NOTE
+                                      </span>
+                                    )}
+                                  </div>
+                                </td>
+                              )}
+                              {!hiddenDefaults.includes('supplier_name') && (
+                                <td>
+                                  <div 
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setFilterSupplier(inv.supplier_name || inv.supplier || '');
+                                      setCurrentPage(1);
+                                    }}
+                                    title="Click to filter by supplier"
+                                    style={{ cursor: 'pointer' }}
                                   >
-                                    <ExternalLink size={12} style={{ opacity: 0.6 }} />
-                                  </a>
-                                  <span style={{ fontWeight: 700, color: themeColor }}>{inv.name}</span>
-                                  {inv.is_return === 1 && (
-                                    <span style={{
-                                      fontSize: '0.65rem',
-                                      backgroundColor: '#fee2e2',
-                                      color: '#ef4444',
-                                      padding: '0.1rem 0.4rem',
-                                      borderRadius: '0.25rem',
+                                    <div style={{ fontWeight: 600 }}>{inv.supplier_name}</div>
+                                    <div style={{ fontSize: '0.7rem', color: 'var(--so-text-muted)' }}>{inv.supplier}</div>
+                                  </div>
+                                </td>
+                              )}
+                              {!hiddenDefaults.includes('set_warehouse') && (
+                                <td>
+                                  <span 
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      if (inv.custom_branch || inv.set_warehouse) {
+                                        setFilterName(inv.custom_branch || inv.set_warehouse);
+                                        setCurrentPage(1);
+                                      }
+                                    }}
+                                    title="Click to filter by branch/warehouse"
+                                    style={{
+                                      fontSize: '0.75rem',
                                       fontWeight: 700,
-                                      marginLeft: '0.4rem'
-                                    }}>
-                                      DEBIT NOTE
-                                    </span>
-                                  )}
-                                </div>
-                              </td>
-                              <td>
-                                <div style={{ fontWeight: 600 }}>{inv.supplier_name}</div>
-                                <div style={{ fontSize: '0.7rem', color: 'var(--so-text-muted)' }}>{inv.supplier}</div>
-                              </td>
-                              <td>
-                                <span style={{
-                                  fontSize: '0.75rem',
-                                  fontWeight: 700,
-                                  color: '#334155',
-                                  backgroundColor: '#f1f5f9',
-                                  padding: '0.2rem 0.5rem',
-                                  borderRadius: '0.375rem',
-                                  border: '1px solid #e2e8f0'
-                                }}>
-                                  {inv.custom_branch || inv.set_warehouse || '—'}
-                                </span>
-                              </td>
-                              <td>
-                                <span style={{ color: '#475569', fontSize: '0.85rem' }}>{format(new Date(inv.posting_date), 'dd-MM-yyyy')}</span>
-                              </td>
-                              <td>
-                                <span className="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider" style={{
-                                  backgroundColor: inv.status === 'Paid' ? `${themeColor}20` : (inv.status === 'Unpaid' ? '#fef9c3' : (inv.status === 'Draft' ? '#f1f5f9' : '#fee2e2')),
-                                  color: inv.status === 'Paid' ? themeColor : (inv.status === 'Unpaid' ? '#854d0e' : (inv.status === 'Draft' ? '#64748b' : '#ef4444')),
-                                  border: `1px solid ${inv.status === 'Paid' ? `${themeColor}40` : (inv.status === 'Unpaid' ? '#fde047' : (inv.status === 'Draft' ? '#e2e8f0' : '#fecaca'))}`
-                                }}>
-                                  {inv.status}
-                                </span>
-                              </td>
-                              <td style={{ textAlign: 'right', fontWeight: 800 }}>
-                                <span className="flex items-center justify-end gap-1"><DirhamIcon size={12} /> {inv.is_return === 1 ? '-' : ''}{Math.abs(inv.grand_total || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                              </td>
+                                      color: '#334155',
+                                      backgroundColor: '#f1f5f9',
+                                      padding: '0.2rem 0.5rem',
+                                      borderRadius: '0.375rem',
+                                      border: '1px solid #e2e8f0',
+                                      cursor: 'pointer'
+                                    }}
+                                  >
+                                    {inv.custom_branch || inv.set_warehouse || '—'}
+                                  </span>
+                                </td>
+                              )}
+                              {!hiddenDefaults.includes('posting_date') && (
+                                <td>
+                                  <span 
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      if (inv.posting_date) {
+                                        setFilterDateFrom(inv.posting_date);
+                                        setFilterDateTo(inv.posting_date);
+                                        setCurrentPage(1);
+                                      }
+                                    }}
+                                    title="Click to filter by date"
+                                    style={{ color: '#475569', fontSize: '0.85rem', cursor: 'pointer' }}
+                                  >
+                                    {inv.posting_date ? format(new Date(inv.posting_date), 'dd-MM-yyyy') : '—'}
+                                  </span>
+                                </td>
+                              )}
+                              {!hiddenDefaults.includes('status') && (
+                                <td>
+                                  <span 
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setFilterStatus(inv.status || '');
+                                      setCurrentPage(1);
+                                    }}
+                                    title="Click to filter by status"
+                                    className="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider" 
+                                    style={{
+                                      backgroundColor: inv.status === 'Paid' ? `${themeColor}20` : (inv.status === 'Unpaid' ? '#fef9c3' : (inv.status === 'Draft' ? '#f1f5f9' : '#fee2e2')),
+                                      color: inv.status === 'Paid' ? themeColor : (inv.status === 'Unpaid' ? '#854d0e' : (inv.status === 'Draft' ? '#64748b' : '#ef4444')),
+                                      border: `1px solid ${inv.status === 'Paid' ? `${themeColor}40` : (inv.status === 'Unpaid' ? '#fde047' : (inv.status === 'Draft' ? '#e2e8f0' : '#fecaca'))}`,
+                                      cursor: 'pointer'
+                                    }}
+                                  >
+                                    {inv.status}
+                                  </span>
+                                </td>
+                              )}
+                              {!hiddenDefaults.includes('grand_total') && (
+                                <td style={{ textAlign: 'right', fontWeight: 800 }}>
+                                  <span className="flex items-center justify-end gap-1"><DirhamIcon size={12} /> {inv.is_return === 1 ? '-' : ''}{Math.abs(inv.grand_total || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                </td>
+                              )}
                               {customColumns.map(col => (
                                 <td key={col} style={{ fontSize: '0.8rem', fontWeight: 600 }}>
                                   {inv[col] !== undefined && inv[col] !== null ? String(inv[col]) : '-'}

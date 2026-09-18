@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   Plus, X, Building2, Search, Calendar, CalendarDays, Hash, Filter, Download, MoreVertical, Package, Warehouse as WarehouseIcon, Barcode, Edit3,
-  Trash2, Palette, Loader2, ChevronLeft, ChevronRight, Zap, CheckCircle2, ExternalLink, Link, Settings, FileText, Copy, Printer, Save, Send, LayoutGrid
+  Trash2, Palette, Loader2, ChevronLeft, ChevronRight, Zap, CheckCircle2, ExternalLink, Link, Settings, FileText, Copy, Printer, Save, Send, LayoutGrid,
+  ArrowUp, ArrowDown, ArrowUpDown
 } from 'lucide-react';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
@@ -54,14 +55,42 @@ const getLocalISOTime = () => {
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 };
 
+const DEFAULT_PR_LIST_COLUMNS = [
+  { key: 'name', label: 'RECEIPT NUMBER' },
+  { key: 'supplier_name', label: 'SUPPLIER' },
+  { key: 'set_warehouse', label: 'BRANCH / WAREHOUSE' },
+  { key: 'posting_date', label: 'DATE' },
+  { key: 'status', label: 'STATUS' },
+  { key: 'grand_total', label: 'AMOUNT' }
+];
+
 function PurchaseReceiptList() {
   const dispatch = useDispatch();
   const { getShortcut, isShortcutPressed } = useCustomShortcuts();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [customColumns, setCustomColumns] = useState(() => {
-    const saved = localStorage.getItem('custom_columns_Purchase Receipt');
+  const [hiddenDefaults, setHiddenDefaults] = useState(() => {
     try {
+      const user = localStorage.getItem('user_id') || localStorage.getItem('user_email') || 'default';
+      const configKey = `custom_columns_config_${user}_Purchase Receipt`;
+      const saved = localStorage.getItem(configKey) || localStorage.getItem('custom_columns_config_Purchase Receipt');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed.hiddenDefaults)) return parsed.hiddenDefaults;
+      }
+    } catch (e) {}
+    return [];
+  });
+  const [customColumns, setCustomColumns] = useState(() => {
+    try {
+      const user = localStorage.getItem('user_id') || localStorage.getItem('user_email') || 'default';
+      const configKey = `custom_columns_config_${user}_Purchase Receipt`;
+      const savedConfig = localStorage.getItem(configKey) || localStorage.getItem('custom_columns_config_Purchase Receipt');
+      if (savedConfig) {
+        const parsed = JSON.parse(savedConfig);
+        if (Array.isArray(parsed.customColumns)) return parsed.customColumns;
+      }
+      const saved = localStorage.getItem(`custom_columns_${user}_Purchase Receipt`) || localStorage.getItem('custom_columns_Purchase Receipt');
       return saved ? JSON.parse(saved) : [];
     } catch (e) {
       return [];
@@ -2251,6 +2280,28 @@ function PurchaseReceiptList() {
       setSaving(false);
     }
   };
+  // Sorting
+  const [sortField, setSortField] = useState('posting_date');
+  const [sortDirection, setSortDirection] = useState('desc');
+
+  const handleSort = (field) => {
+    if (sortField === field) {
+      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  const renderSortIcon = (field) => {
+    if (sortField !== field) {
+      return <ArrowUpDown size={13} style={{ opacity: 0.4, marginLeft: '4px', verticalAlign: 'middle' }} />;
+    }
+    return sortDirection === 'asc'
+      ? <ArrowUp size={13} style={{ color: themeColor || '#0082f6', marginLeft: '4px', verticalAlign: 'middle' }} />
+      : <ArrowDown size={13} style={{ color: themeColor || '#0082f6', marginLeft: '4px', verticalAlign: 'middle' }} />;
+  };
+
   const filteredReceipts = useMemo(() => {
     return receipts.filter(rec => {
       const matchesName = !filterName || (rec.name || '').toLowerCase().includes(filterName.toLowerCase());
@@ -2262,8 +2313,28 @@ function PurchaseReceiptList() {
       return matchesName && matchesSupplier && matchesStatus && matchesFrom && matchesTo;
     });
   }, [receipts, filterName, filterSupplier, filterStatus, filterDateFrom, filterDateTo]);
-  const total = filteredReceipts.length;
-  const paginated = filteredReceipts.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+  const sortedReceipts = useMemo(() => {
+    let list = [...filteredReceipts];
+    if (sortField) {
+      list.sort((a, b) => {
+        let valA = a[sortField];
+        let valB = b[sortField];
+        if (valA === undefined || valA === null) valA = '';
+        if (valB === undefined || valB === null) valB = '';
+        if (typeof valA === 'number' && typeof valB === 'number') {
+          return sortDirection === 'asc' ? valA - valB : valB - valA;
+        }
+        return sortDirection === 'asc'
+          ? String(valA).localeCompare(String(valB))
+          : String(valB).localeCompare(String(valA));
+      });
+    }
+    return list;
+  }, [filteredReceipts, sortField, sortDirection]);
+
+  const total = sortedReceipts.length;
+  const paginated = sortedReceipts.slice((currentPage - 1) * pageSize, currentPage * pageSize);
   const totalPages = Math.ceil(total / pageSize);
   const getStatusColor = (status) => {
     const map = {
@@ -5284,32 +5355,6 @@ function PurchaseReceiptList() {
                 <span>{prTheme.toUpperCase()}</span>
               </button>
 
-              <ListCustomizer
-                doctype="Purchase Receipt"
-                onSave={cols => setCustomColumns(cols)}
-                themeColor={themeColor || '#0082f6'}
-                btnStyle={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px',
-                  height: '38px',
-                  padding: '0 16px',
-                  background: '#ffffff',
-                  color: themeColor || '#0082f6',
-                  border: `1.5px solid ${themeColor || '#0082f6'}`,
-                  borderRadius: '8px',
-                  fontSize: '12px',
-                  fontWeight: 800,
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.04em',
-                  cursor: 'pointer',
-                  boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
-                  transition: 'all 0.15s ease-in-out',
-                  boxSizing: 'border-box'
-                }}
-              />
-
               <button
                 type="button"
                 onClick={() => setSearchParams({ name: 'new' })}
@@ -5460,22 +5505,81 @@ function PurchaseReceiptList() {
                     <table className="so-table">
                       <thead>
                         <tr>
-                          <th>RECEIPT NUMBER</th>
-                          <th>SUPPLIER</th>
-                          <th>BRANCH / WAREHOUSE</th>
-                          <th>DATE</th>
-                          <th>STATUS</th>
-                          <th style={{ textAlign: 'right' }}>AMOUNT</th>
+                          {!hiddenDefaults.includes('name') && (
+                            <th onClick={() => handleSort('name')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                              <div style={{ display: 'inline-flex', alignItems: 'center' }}>
+                                <span>RECEIPT NUMBER</span>
+                                {renderSortIcon('name')}
+                              </div>
+                            </th>
+                          )}
+                          {!hiddenDefaults.includes('supplier_name') && (
+                            <th onClick={() => handleSort('supplier_name')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                              <div style={{ display: 'inline-flex', alignItems: 'center' }}>
+                                <span>SUPPLIER</span>
+                                {renderSortIcon('supplier_name')}
+                              </div>
+                            </th>
+                          )}
+                          {!hiddenDefaults.includes('set_warehouse') && (
+                            <th onClick={() => handleSort('set_warehouse')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                              <div style={{ display: 'inline-flex', alignItems: 'center' }}>
+                                <span>BRANCH / WAREHOUSE</span>
+                                {renderSortIcon('set_warehouse')}
+                              </div>
+                            </th>
+                          )}
+                          {!hiddenDefaults.includes('posting_date') && (
+                            <th onClick={() => handleSort('posting_date')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                              <div style={{ display: 'inline-flex', alignItems: 'center' }}>
+                                <span>DATE</span>
+                                {renderSortIcon('posting_date')}
+                              </div>
+                            </th>
+                          )}
+                          {!hiddenDefaults.includes('status') && (
+                            <th onClick={() => handleSort('status')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                              <div style={{ display: 'inline-flex', alignItems: 'center' }}>
+                                <span>STATUS</span>
+                                {renderSortIcon('status')}
+                              </div>
+                            </th>
+                          )}
+                          {!hiddenDefaults.includes('grand_total') && (
+                            <th onClick={() => handleSort('grand_total')} style={{ textAlign: 'right', cursor: 'pointer', userSelect: 'none' }}>
+                              <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end', width: '100%' }}>
+                                <span>AMOUNT</span>
+                                {renderSortIcon('grand_total')}
+                              </div>
+                            </th>
+                          )}
                           {customColumns.map(col => (
-                            <th key={col}>{col.replace(/_/g, ' ').toUpperCase()}</th>
+                            <th key={col} onClick={() => handleSort(col)} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                              <div style={{ display: 'inline-flex', alignItems: 'center' }}>
+                                <span>{col.replace(/_/g, ' ').toUpperCase()}</span>
+                                {renderSortIcon(col)}
+                              </div>
+                            </th>
                           ))}
-                          <th style={{ width: '50px' }}></th>
+                          <th style={{ width: '48px', textAlign: 'center', verticalAlign: 'middle', padding: '0 4px' }}>
+                            <ListCustomizer
+                              doctype="Purchase Receipt"
+                              defaultColumns={DEFAULT_PR_LIST_COLUMNS}
+                              iconOnly
+                              onSave={(cols, hidden) => {
+                                setCustomColumns(cols);
+                                setHiddenDefaults(hidden);
+                              }}
+                              themeColor={themeColor || '#0082f6'}
+                              title="Configure Columns"
+                            />
+                          </th>
                         </tr>
                       </thead>
                       <tbody>
                         {paginated.length === 0 ? (
                           <tr>
-                            <td colSpan={7 + customColumns.length} className="so-empty">
+                            <td colSpan={DEFAULT_PR_LIST_COLUMNS.length - hiddenDefaults.length + customColumns.length + 1} className="so-empty">
                               <Package size={48} style={{ margin: '0 auto 1rem', opacity: 0.2, color: '#0082f6' }} />
                               <p>No receipts found</p>
                               <button onClick={openCreateModal} style={{ color: '#0082f6', fontWeight: 700, background: 'none', border: 'none', cursor: 'pointer' }}>
@@ -5486,69 +5590,125 @@ function PurchaseReceiptList() {
                         ) : (
                           paginated.map(rec => (
                             <tr key={rec.name} className="cursor-pointer hover:bg-slate-50 transition-colors" onClick={() => setSearchParams({ name: rec.name })}>
-                              <td>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                                  <a
-                                    href={`/#/purchasereceiptlist?name=${rec.name}`}
-                                    target={window.location.protocol === 'file:' ? '_self' : '_blank'}
-                                    rel="noopener noreferrer"
-                                    onClick={(e) => e.stopPropagation()}
-                                    title="Open in new tab"
-                                    style={{ color: themeColor, textDecoration: 'none' }}
+                              {!hiddenDefaults.includes('name') && (
+                                <td>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                    <a
+                                      href={`/#/purchasereceiptlist?name=${rec.name}`}
+                                      target={window.location.protocol === 'file:' ? '_self' : '_blank'}
+                                      rel="noopener noreferrer"
+                                      onClick={(e) => e.stopPropagation()}
+                                      title="Open in new tab"
+                                      style={{ color: themeColor, textDecoration: 'none' }}
+                                    >
+                                      <ExternalLink size={12} style={{ opacity: 0.6 }} />
+                                    </a>
+                                    <span style={{ fontWeight: 700, color: themeColor }}>{rec.name}</span>
+                                    {rec.is_return === 1 && (
+                                      <span style={{
+                                        fontSize: '0.65rem',
+                                        backgroundColor: '#fee2e2',
+                                        color: '#ef4444',
+                                        padding: '0.1rem 0.4rem',
+                                        borderRadius: '0.25rem',
+                                        fontWeight: 700,
+                                        marginLeft: '0.4rem'
+                                      }}>
+                                        PURCHASE RETURN
+                                      </span>
+                                    )}
+                                  </div>
+                                </td>
+                              )}
+                              {!hiddenDefaults.includes('supplier_name') && (
+                                <td>
+                                  <div 
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setFilterSupplier(rec.supplier_name || rec.supplier || '');
+                                      setCurrentPage(1);
+                                    }}
+                                    title="Click to filter by supplier"
+                                    style={{ cursor: 'pointer' }}
                                   >
-                                    <ExternalLink size={12} style={{ opacity: 0.6 }} />
-                                  </a>
-                                  <span style={{ fontWeight: 700, color: themeColor }}>{rec.name}</span>
-                                  {rec.is_return === 1 && (
-                                    <span style={{
-                                      fontSize: '0.65rem',
-                                      backgroundColor: '#fee2e2',
-                                      color: '#ef4444',
-                                      padding: '0.1rem 0.4rem',
-                                      borderRadius: '0.25rem',
+                                    <div style={{ fontWeight: 600 }}>{rec.supplier_name || rec.supplier}</div>
+                                    <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>{rec.supplier}</div>
+                                  </div>
+                                </td>
+                              )}
+                              {!hiddenDefaults.includes('set_warehouse') && (
+                                <td>
+                                  <span 
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      if (rec.set_warehouse || rec.custom_branch) {
+                                        setFilterName(rec.set_warehouse || rec.custom_branch);
+                                        setCurrentPage(1);
+                                      }
+                                    }}
+                                    title="Click to filter by branch/warehouse"
+                                    style={{
+                                      fontSize: '0.75rem',
                                       fontWeight: 700,
-                                      marginLeft: '0.4rem'
-                                    }}>
-                                      PURCHASE RETURN
-                                    </span>
-                                  )}
-                                </div>
-                              </td>
-                              <td>
-                                <div style={{ fontWeight: 600 }}>{rec.supplier_name || rec.supplier}</div>
-                                <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>{rec.supplier}</div>
-                              </td>
-                              <td>
-                                <span style={{
-                                  fontSize: '0.75rem',
-                                  fontWeight: 700,
-                                  color: '#334155',
-                                  backgroundColor: '#f1f5f9',
-                                  padding: '0.2rem 0.5rem',
-                                  borderRadius: '0.375rem',
-                                  border: '1px solid #e2e8f0'
-                                }}>
-                                  {rec.set_warehouse || rec.custom_branch || '—'}
-                                </span>
-                              </td>
-                              <td>
-                                <span style={{ color: '#475569', fontSize: '0.85rem' }}>{rec.posting_date ? format(new Date(rec.posting_date), 'dd-MM-yyyy') : '—'}</span>
-                              </td>
-                              <td>
-                                <span className="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider" style={{
-                                  backgroundColor: (rec.status === 'Completed' || rec.status === 'To Bill') ? `${themeColor}20` : (rec.status === 'Draft' ? '#f1f5f9' : '#fee2e2'),
-                                  color: (rec.status === 'Completed' || rec.status === 'To Bill') ? themeColor : (rec.status === 'Draft' ? '#64748b' : '#ef4444'),
-                                  border: `1px solid ${(rec.status === 'Completed' || rec.status === 'To Bill') ? `${themeColor}40` : (rec.status === 'Draft' ? '#e2e8f0' : '#fecaca')}`
-                                }}>
-                                  {rec.status}
-                                </span>
-                              </td>
-                              <td style={{ textAlign: 'right', fontWeight: 800 }}>
-                                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', justifyContent: 'flex-end', width: '100%' }}>
-                                  <DirhamIcon size={12} />
-                                  <span>{rec.is_return === 1 ? '-' : ''}{parseFloat(rec.rounded_total || rec.grand_total || rec.total || rec.base_net_total || rec.net_total || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",")}</span>
-                                </div>
-                              </td>
+                                      color: '#334155',
+                                      backgroundColor: '#f1f5f9',
+                                      padding: '0.2rem 0.5rem',
+                                      borderRadius: '0.375rem',
+                                      border: '1px solid #e2e8f0',
+                                      cursor: 'pointer'
+                                    }}
+                                  >
+                                    {rec.set_warehouse || rec.custom_branch || '—'}
+                                  </span>
+                                </td>
+                              )}
+                              {!hiddenDefaults.includes('posting_date') && (
+                                <td>
+                                  <span 
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      if (rec.posting_date) {
+                                        setFilterDateFrom(rec.posting_date);
+                                        setFilterDateTo(rec.posting_date);
+                                        setCurrentPage(1);
+                                      }
+                                    }}
+                                    title="Click to filter by date"
+                                    style={{ color: '#475569', fontSize: '0.85rem', cursor: 'pointer' }}
+                                  >
+                                    {rec.posting_date ? format(new Date(rec.posting_date), 'dd-MM-yyyy') : '—'}
+                                  </span>
+                                </td>
+                              )}
+                              {!hiddenDefaults.includes('status') && (
+                                <td>
+                                  <span 
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setFilterStatus(rec.status || '');
+                                      setCurrentPage(1);
+                                    }}
+                                    title="Click to filter by status"
+                                    className="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider" 
+                                    style={{
+                                      backgroundColor: (rec.status === 'Completed' || rec.status === 'To Bill') ? `${themeColor}20` : (rec.status === 'Draft' ? '#f1f5f9' : '#fee2e2'),
+                                      color: (rec.status === 'Completed' || rec.status === 'To Bill') ? themeColor : (rec.status === 'Draft' ? '#64748b' : '#ef4444'),
+                                      border: `1px solid ${(rec.status === 'Completed' || rec.status === 'To Bill') ? `${themeColor}40` : (rec.status === 'Draft' ? '#e2e8f0' : '#fecaca')}`,
+                                      cursor: 'pointer'
+                                    }}
+                                  >
+                                    {rec.status}
+                                  </span>
+                                </td>
+                              )}
+                              {!hiddenDefaults.includes('grand_total') && (
+                                <td style={{ textAlign: 'right', fontWeight: 800 }}>
+                                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', justifyContent: 'flex-end', width: '100%' }}>
+                                    <DirhamIcon size={12} />
+                                    <span>{rec.is_return === 1 ? '-' : ''}{parseFloat(rec.rounded_total || rec.grand_total || rec.total || rec.base_net_total || rec.net_total || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",")}</span>
+                                  </div>
+                                </td>
+                              )}
                               {customColumns.map(col => (
                                 <td key={col} style={{ fontSize: '0.8rem', fontWeight: 600 }}>
                                   {rec[col] !== undefined && rec[col] !== null ? String(rec[col]) : '-'}

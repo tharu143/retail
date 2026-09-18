@@ -2,7 +2,8 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useSelector } from 'react-redux';
 import {
   Plus, Search, Save, X, Phone, Mail, Users, ChevronLeft, Palette, Loader2, ShoppingCart, Receipt, Calendar, AlertCircle, Activity, Settings,
-  Edit, ArrowLeft, Trash2, Edit2, Package, ChevronDown, ChevronRight as ChevronRightIcon, MapPin, User, Layers, Shield, CheckCircle2, Hash, TrendingUp, CreditCard, Clock, Globe, ShieldCheck, UserPlus, FileText, CheckCircle, AlertTriangle, Building2, UserCircle2, Briefcase, Award, Percent, DollarSign, Image as ImageIcon, HeartPulse, HardDrive, Smartphone, Zap, RotateCw, Filter, ArrowRight, Check
+  Edit, ArrowLeft, Trash2, Edit2, Package, ChevronDown, ChevronRight as ChevronRightIcon, MapPin, User, Layers, Shield, CheckCircle2, Hash, TrendingUp, CreditCard, Clock, Globe, ShieldCheck, UserPlus, FileText, CheckCircle, AlertTriangle, Building2, UserCircle2, Briefcase, Award, Percent, DollarSign, Image as ImageIcon, HeartPulse, HardDrive, Smartphone, Zap, RotateCw, Filter, ArrowRight, Check,
+  ArrowUp, ArrowDown, ArrowUpDown
 } from 'lucide-react';
 import axios from 'axios';
 import Swal from 'sweetalert2';
@@ -32,10 +33,38 @@ function PurchaseReturnList() {
   // View States
   const [view, setView] = useState('list'); // 'list', 'create', 'detail'
 
+  const DEFAULT_PRTN_LIST_COLUMNS = [
+    { key: 'supplier_name', label: 'Supplier Node' },
+    { key: 'status', label: 'Status' },
+    { key: 'return_against', label: 'Original Invoice' },
+    { key: 'grand_total', label: 'Debit Value' },
+    { key: 'name', label: 'Key' }
+  ];
+
+  const [hiddenDefaults, setHiddenDefaults] = useState(() => {
+    try {
+      const user = localStorage.getItem('user_id') || localStorage.getItem('user_email') || 'default';
+      const configKey = `custom_columns_config_${user}_Purchase Return`;
+      const saved = localStorage.getItem(configKey) || localStorage.getItem('custom_columns_config_Purchase Return');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed.hiddenDefaults)) return parsed.hiddenDefaults;
+      }
+    } catch (e) {}
+    return [];
+  });
+
   // Data States (List View)
   const [customColumns, setCustomColumns] = useState(() => {
-    const saved = localStorage.getItem('custom_columns_Purchase Return');
     try {
+      const user = localStorage.getItem('user_id') || localStorage.getItem('user_email') || 'default';
+      const configKey = `custom_columns_config_${user}_Purchase Return`;
+      const savedConfig = localStorage.getItem(configKey) || localStorage.getItem('custom_columns_config_Purchase Return');
+      if (savedConfig) {
+        const parsed = JSON.parse(savedConfig);
+        if (Array.isArray(parsed.customColumns)) return parsed.customColumns;
+      }
+      const saved = localStorage.getItem(`custom_columns_${user}_Purchase Return`) || localStorage.getItem('custom_columns_Purchase Return');
       return saved ? JSON.parse(saved) : [];
     } catch (e) {
       return [];
@@ -597,18 +626,58 @@ function PurchaseReturnList() {
     });
   };
 
-  const filtered = useMemo(() => {
-    if (!Array.isArray(returns)) return [];
-    return returns.filter(r => {
-      const q = searchTerm.toLowerCase();
-      return (r.name?.toLowerCase().includes(q) ||
-        r.supplier_name?.toLowerCase().includes(q) ||
-        r.return_against?.toLowerCase().includes(q));
-    });
-  }, [returns, searchTerm]);
+  // Sorting
+  const [sortField, setSortField] = useState('posting_date');
+  const [sortDirection, setSortDirection] = useState('desc');
 
-  const paginated = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize);
-  const totalPages = Math.ceil(filtered.length / pageSize);
+  const handleSort = (field) => {
+    if (sortField === field) {
+      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  const renderSortIcon = (field) => {
+    if (sortField !== field) {
+      return <ArrowUpDown size={13} style={{ opacity: 0.6, marginLeft: '4px', verticalAlign: 'middle' }} />;
+    }
+    return sortDirection === 'asc'
+      ? <ArrowUp size={13} style={{ color: '#ffffff', marginLeft: '4px', verticalAlign: 'middle' }} />
+      : <ArrowDown size={13} style={{ color: '#ffffff', marginLeft: '4px', verticalAlign: 'middle' }} />;
+  };
+
+  const sortedReturns = useMemo(() => {
+    let list = [...returns];
+    if (searchTerm) {
+      const q = searchTerm.toLowerCase();
+      list = list.filter(r => (
+        r.name?.toLowerCase().includes(q) ||
+        r.supplier_name?.toLowerCase().includes(q) ||
+        r.return_against?.toLowerCase().includes(q) ||
+        r.status?.toLowerCase().includes(q)
+      ));
+    }
+    if (sortField) {
+      list.sort((a, b) => {
+        let valA = a[sortField];
+        let valB = b[sortField];
+        if (valA === undefined || valA === null) valA = '';
+        if (valB === undefined || valB === null) valB = '';
+        if (typeof valA === 'number' && typeof valB === 'number') {
+          return sortDirection === 'asc' ? valA - valB : valB - valA;
+        }
+        return sortDirection === 'asc'
+          ? String(valA).localeCompare(String(valB))
+          : String(valB).localeCompare(String(valA));
+      });
+    }
+    return list;
+  }, [returns, searchTerm, sortField, sortDirection]);
+
+  const paginated = sortedReturns.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const totalPages = Math.ceil(sortedReturns.length / pageSize);
 
   /* ────────────────────── RENDER ────────────────────── */
   return (
@@ -1068,28 +1137,6 @@ function PurchaseReturnList() {
               <p className="so-page-subtitle">{returns.length} DEBIT VOUCHERS INDEXED</p>
             </div>
             <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-              <ListCustomizer
-                doctype="Purchase Invoice"
-                saveKey="Purchase Return"
-                onSave={cols => setCustomColumns(cols)}
-                themeColor={themeColor}
-                btnStyle={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '0.5rem',
-                  height: '40px',
-                  padding: '0 1.25rem',
-                  background: '#ffffff',
-                  color: '#751010',
-                  border: '1.5px solid #ffffff',
-                  borderRadius: '8px',
-                  fontSize: '0.8rem',
-                  fontWeight: 900,
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.04em',
-                  cursor: 'pointer'
-                }}
-              />
               <button
                 className="so-btn-primary"
                 onClick={() => setView('create')}
@@ -1132,65 +1179,175 @@ function PurchaseReturnList() {
                 <table className="so-table">
                   <thead>
                     <tr>
-                      <th>Supplier Node</th>
-                      <th>Status</th>
-                      <th>Original Invoice</th>
-                      <th style={{ textAlign: 'right' }}>Debit Value</th>
+                      {!hiddenDefaults.includes('supplier_name') && (
+                        <th onClick={() => handleSort('supplier_name')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                          <div style={{ display: 'inline-flex', alignItems: 'center' }}>
+                            <span>Supplier Node</span>
+                            {renderSortIcon('supplier_name')}
+                          </div>
+                        </th>
+                      )}
+                      {!hiddenDefaults.includes('status') && (
+                        <th onClick={() => handleSort('status')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                          <div style={{ display: 'inline-flex', alignItems: 'center' }}>
+                            <span>Status</span>
+                            {renderSortIcon('status')}
+                          </div>
+                        </th>
+                      )}
+                      {!hiddenDefaults.includes('return_against') && (
+                        <th onClick={() => handleSort('return_against')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                          <div style={{ display: 'inline-flex', alignItems: 'center' }}>
+                            <span>Original Invoice</span>
+                            {renderSortIcon('return_against')}
+                          </div>
+                        </th>
+                      )}
+                      {!hiddenDefaults.includes('grand_total') && (
+                        <th onClick={() => handleSort('grand_total')} style={{ textAlign: 'right', cursor: 'pointer', userSelect: 'none' }}>
+                          <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end', width: '100%' }}>
+                            <span>Debit Value</span>
+                            {renderSortIcon('grand_total')}
+                          </div>
+                        </th>
+                      )}
                       {customColumns.map(col => (
-                        <th key={col}>{col.replace(/_/g, ' ').toUpperCase()}</th>
+                        <th key={col} onClick={() => handleSort(col)} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                          <div style={{ display: 'inline-flex', alignItems: 'center' }}>
+                            <span>{col.replace(/_/g, ' ').toUpperCase()}</span>
+                            {renderSortIcon(col)}
+                          </div>
+                        </th>
                       ))}
-                      <th style={{ textAlign: 'right' }}>Key</th>
+                      {!hiddenDefaults.includes('name') && (
+                        <th onClick={() => handleSort('name')} style={{ textAlign: 'right', cursor: 'pointer', userSelect: 'none' }}>
+                          <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end' }}>
+                            <span>Key</span>
+                            {renderSortIcon('name')}
+                          </div>
+                        </th>
+                      )}
+                      <th style={{ width: '48px', textAlign: 'center', verticalAlign: 'middle', padding: '0 4px' }}>
+                        <ListCustomizer
+                          doctype="Purchase Invoice"
+                          saveKey="Purchase Return"
+                          defaultColumns={DEFAULT_PRTN_LIST_COLUMNS}
+                          iconOnly
+                          onSave={(cols, hidden) => {
+                            setCustomColumns(cols);
+                            setHiddenDefaults(hidden);
+                          }}
+                          themeColor={themeColor}
+                          title="Configure Columns"
+                        />
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
                     {loading ? (
                       <tr>
-                        <td colSpan={5 + customColumns.length} style={{ textAlign: 'center', padding: '3rem' }}>
+                        <td colSpan={DEFAULT_PRTN_LIST_COLUMNS.length - hiddenDefaults.length + customColumns.length + 1} style={{ textAlign: 'center', padding: '3rem' }}>
                           <Loader2 size={32} className="animate-spin" style={{ color: themeColor, margin: '0 auto' }} />
                         </td>
                       </tr>
                     ) : paginated.length === 0 ? (
                       <tr>
-                        <td colSpan={5 + customColumns.length} style={{ textAlign: 'center', padding: '4rem', color: '#94a3b8', fontWeight: 700 }}>
+                        <td colSpan={DEFAULT_PRTN_LIST_COLUMNS.length - hiddenDefaults.length + customColumns.length + 1} style={{ textAlign: 'center', padding: '4rem', color: '#94a3b8', fontWeight: 700 }}>
                           NO DEBIT SHARDS DETECTED
                         </td>
                       </tr>
                     ) : (
                       paginated.map(r => (
-                        <tr key={r.name} onClick={() => loadReturnDetails(r.name)}>
-                          <td>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                              <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: themeLight, color: themeColor, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                <Building2 size={18} />
+                        <tr key={r.name} onClick={() => loadReturnDetails(r.name)} style={{ cursor: 'pointer' }}>
+                          {!hiddenDefaults.includes('supplier_name') && (
+                            <td>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                                <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: themeLight, color: themeColor, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                  <Building2 size={18} />
+                                </div>
+                                <div>
+                                  <p 
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setSearchTerm(r.supplier_name || '');
+                                      setCurrentPage(1);
+                                    }}
+                                    title="Click to filter by supplier"
+                                    style={{ fontWeight: 800, color: '#0f172a', fontSize: '13px', margin: 0, cursor: 'pointer' }}
+                                  >
+                                    {r.supplier_name}
+                                  </p>
+                                  <span 
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      if (r.posting_date) {
+                                        setSearchTerm(r.posting_date);
+                                        setCurrentPage(1);
+                                      }
+                                    }}
+                                    title="Click to filter by date"
+                                    style={{ fontSize: '11px', fontWeight: 800, color: '#94a3b8', cursor: 'pointer' }}
+                                  >
+                                    {r.posting_date}
+                                  </span>
+                                </div>
                               </div>
-                              <div>
-                                <p style={{ fontWeight: 800, color: '#0f172a', fontSize: '13px', margin: 0 }}>{r.supplier_name}</p>
-                                <span style={{ fontSize: '11px', fontWeight: 800, color: '#94a3b8' }}>{r.posting_date}</span>
-                              </div>
-                            </div>
-                          </td>
-                          <td>
-                            <span className={`so-badge ${r.status === 'Submitted' ? 'so-badge-submitted' : 'so-badge-draft'}`}>
-                              {r.status}
-                            </span>
-                          </td>
-                          <td style={{ fontWeight: 700, color: '#475569', fontSize: '13px' }}>{r.return_against}</td>
-                          <td style={{ textAlign: 'right', fontWeight: 800, color: '#334155', fontSize: '13px' }}>
-                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
-                              {renderCurrency(r.currency, 12)}
-                              <span>{Math.abs(parseFloat(r.rounded_total || r.grand_total || r.total || 0)).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                            </span>
-                          </td>
+                            </td>
+                          )}
+                          {!hiddenDefaults.includes('status') && (
+                            <td>
+                              <span 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSearchTerm(r.status || '');
+                                  setCurrentPage(1);
+                                }}
+                                title="Click to filter by status"
+                                className={`so-badge ${r.status === 'Submitted' ? 'so-badge-submitted' : 'so-badge-draft'}`}
+                                style={{ cursor: 'pointer' }}
+                              >
+                                {r.status}
+                              </span>
+                            </td>
+                          )}
+                          {!hiddenDefaults.includes('return_against') && (
+                            <td style={{ fontWeight: 700, color: '#475569', fontSize: '13px' }}>
+                              <span 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (r.return_against) {
+                                    setSearchTerm(r.return_against);
+                                    setCurrentPage(1);
+                                  }
+                                }}
+                                title="Click to filter by invoice"
+                                style={{ cursor: 'pointer' }}
+                              >
+                                {r.return_against}
+                              </span>
+                            </td>
+                          )}
+                          {!hiddenDefaults.includes('grand_total') && (
+                            <td style={{ textAlign: 'right', fontWeight: 800, color: '#334155', fontSize: '13px' }}>
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                                {renderCurrency(r.currency, 12)}
+                                <span>{Math.abs(parseFloat(r.rounded_total || r.grand_total || r.total || 0)).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                              </span>
+                            </td>
+                          )}
                           {customColumns.map(col => (
                             <td key={col} style={{ fontSize: '0.8rem', fontWeight: 600 }}>
                               {r[col] !== undefined && r[col] !== null ? String(r[col]) : '-'}
                             </td>
                           ))}
-                          <td style={{ textAlign: 'right' }}>
-                            <span style={{ fontWeight: 800, fontFamily: 'monospace', color: themeColor, background: themeLight, padding: '4px 10px', borderRadius: '6px', fontSize: '11px' }}>
-                              {r.name}
-                            </span>
-                          </td>
+                          {!hiddenDefaults.includes('name') && (
+                            <td style={{ textAlign: 'right' }}>
+                              <span style={{ fontWeight: 800, fontFamily: 'monospace', color: themeColor, background: themeLight, padding: '4px 10px', borderRadius: '6px', fontSize: '11px' }}>
+                                {r.name}
+                              </span>
+                            </td>
+                          )}
+                          <td></td>
                         </tr>
                       ))
                     )}

@@ -5,7 +5,8 @@ import Swal from 'sweetalert2';
 import {
   Plus, X, Search, Filter, ChevronDown, ChevronUp, FileText,
   Loader2, ChevronLeft, ChevronRight, ArrowLeft, Palette, Truck,
-  Zap, Link as LinkIcon, Edit2, CheckCircle2, Save, Printer, Settings, Package
+  Zap, Link as LinkIcon, Edit2, CheckCircle2, Save, Printer, Settings, Package, Eye,
+  ArrowUp, ArrowDown, ArrowUpDown
 } from 'lucide-react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useSelector } from 'react-redux';
@@ -16,7 +17,7 @@ import { useCustomShortcuts } from '../../hooks/useCustomShortcuts';
 import { frappeCall } from '../../utils/frappe';
 import CustomSearchDropdown from '../Purchase/CustomSearchDropdown';
 import ColumnConfigModal from '../Purchase/ColumnConfigModal';
-import { loadLocalMatrixConfig, fetchUserMatrixConfig, saveUserMatrixConfig } from '../../utils/tableMatrixHelper';
+import { loadLocalMatrixConfig, fetchUserMatrixConfig, saveUserMatrixConfig, fetchUserListConfig, saveUserListConfig } from '../../utils/tableMatrixHelper';
 
 export const DEFAULT_SI_COLUMNS = [
   { id: 'barcode', label: 'BARCODE', visible: true, width: 140 },
@@ -51,6 +52,16 @@ const loadSIColumnConfig = () => {
   return DEFAULT_SI_COLUMNS;
 };
 
+const DEFAULT_SI_LIST_COLUMNS = [
+  { key: 'title', label: 'TITLE' },
+  { key: 'status', label: 'STATUS' },
+  { key: 'branch', label: 'BRANCH' },
+  { key: 'posting_date', label: 'DATE' },
+  { key: 'customer_name', label: 'CUSTOMER' },
+  { key: 'grand_total', label: 'GRAND TOTAL' },
+  { key: 'name', label: 'ID' }
+];
+
 const SalesInvoiceList = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -58,14 +69,25 @@ const SalesInvoiceList = () => {
   const { company: loggedCompany, warehouse, user_roles, user, theme } = useSelector(state => state.user || {});
   const isAdmin = (user_roles || []).includes("Administrator") || (user_roles || []).includes("System Manager");
 
-  const [customColumns, setCustomColumns] = useState(() => {
-    const saved = localStorage.getItem('custom_columns_Sales Invoice');
-    try {
-      return saved ? JSON.parse(saved) : [];
-    } catch (e) {
-      return [];
-    }
-  });
+  const [hiddenDefaults, setHiddenDefaults] = useState([]);
+  const [customColumns, setCustomColumns] = useState([]);
+  const [orderedColumns, setOrderedColumns] = useState(() => DEFAULT_SI_LIST_COLUMNS.map(c => c.key));
+
+  useEffect(() => {
+    fetchUserListConfig('Sales Invoice', DEFAULT_SI_LIST_COLUMNS).then(cfg => {
+      if (cfg) {
+        if (Array.isArray(cfg.hiddenDefaults)) setHiddenDefaults(cfg.hiddenDefaults);
+        if (Array.isArray(cfg.customColumns)) setCustomColumns(cfg.customColumns);
+        if (Array.isArray(cfg.orderedColumns) && cfg.orderedColumns.length > 0) {
+          setOrderedColumns(cfg.orderedColumns);
+        }
+      }
+    });
+  }, []);
+
+  // Sorting
+  const [sortField, setSortField] = useState('modified');
+  const [sortDirection, setSortDirection] = useState('desc');
 
   const [siColumns, setSiColumns] = useState(() => loadLocalMatrixConfig('si_modal_matrix_config', DEFAULT_SI_COLUMNS));
   const [showColConfig, setShowColConfig] = useState(false);
@@ -1529,9 +1551,51 @@ const SalesInvoiceList = () => {
     c.name?.toLowerCase().includes(searchCustomer.toLowerCase())
   ).slice(0, 10), [searchCustomer, customers]);
 
-  const paginated = filteredInvoices.slice((currentPage - 1) * pageSize, currentPage * pageSize);
-  const totalPages = Math.ceil(filteredInvoices.length / pageSize);
+  const handleSort = (field) => {
+    if (sortField === field) {
+      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  const sortedInvoices = useMemo(() => {
+    if (!sortField) return filteredInvoices;
+    return [...filteredInvoices].sort((a, b) => {
+      let valA = a[sortField];
+      let valB = b[sortField];
+      if (valA === undefined || valA === null) valA = '';
+      if (valB === undefined || valB === null) valB = '';
+
+      if (sortField === 'posting_date' || sortField === 'modified' || sortField === 'creation') {
+        const dateA = new Date(valA || 0).getTime();
+        const dateB = new Date(valB || 0).getTime();
+        return sortDirection === 'asc' ? dateA - dateB : dateB - dateA;
+      }
+      if (sortField === 'grand_total' || sortField === 'total_qty') {
+        const numA = parseFloat(valA) || 0;
+        const numB = parseFloat(valB) || 0;
+        return sortDirection === 'asc' ? numA - numB : numB - numA;
+      }
+      return sortDirection === 'asc'
+        ? String(valA).localeCompare(String(valB))
+        : String(valB).localeCompare(String(valA));
+    });
+  }, [filteredInvoices, sortField, sortDirection]);
+
+  const paginated = sortedInvoices.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const totalPages = Math.ceil(sortedInvoices.length / pageSize);
   const canSubmit = !form.name || form.status !== 'Submitted';
+
+  const renderSortIcon = (field) => {
+    if (sortField !== field) {
+      return <ArrowUpDown size={11} style={{ opacity: 0.3, marginLeft: '4px' }} />;
+    }
+    return sortDirection === 'asc' 
+      ? <ArrowUp size={12} style={{ color: themeColor || '#0082f6', marginLeft: '4px' }} />
+      : <ArrowDown size={12} style={{ color: themeColor || '#0082f6', marginLeft: '4px' }} />;
+  };
 
   // Global Keyboard Shortcuts hook for Edit Modal
   useEffect(() => {
@@ -1939,6 +2003,219 @@ const SalesInvoiceList = () => {
     return () => window.removeEventListener('keydown', handleGlobalShortcuts);
   }, [showModal, form, saving, isViewOnly]);
 
+  const renderHeaderCol = (colKey) => {
+    switch (colKey) {
+      case 'title':
+        return (
+          <th key="title" onClick={() => handleSort('title')} style={{ padding: '0.95rem 1.25rem', cursor: 'pointer', userSelect: 'none' }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center' }}>
+              <span>TITLE</span>
+              {renderSortIcon('title')}
+            </div>
+          </th>
+        );
+      case 'status':
+        return (
+          <th key="status" onClick={() => handleSort('status')} style={{ padding: '0.95rem 1.25rem', cursor: 'pointer', userSelect: 'none' }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center' }}>
+              <span>STATUS</span>
+              {renderSortIcon('status')}
+            </div>
+          </th>
+        );
+      case 'branch':
+        return (
+          <th key="branch" onClick={() => handleSort('branch')} style={{ padding: '0.95rem 1.25rem', cursor: 'pointer', userSelect: 'none' }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center' }}>
+              <span>BRANCH</span>
+              {renderSortIcon('branch')}
+            </div>
+          </th>
+        );
+      case 'posting_date':
+        return (
+          <th key="posting_date" onClick={() => handleSort('posting_date')} style={{ padding: '0.95rem 1.25rem', cursor: 'pointer', userSelect: 'none' }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center' }}>
+              <span>DATE</span>
+              {renderSortIcon('posting_date')}
+            </div>
+          </th>
+        );
+      case 'customer_name':
+        return (
+          <th key="customer_name" onClick={() => handleSort('customer_name')} style={{ padding: '0.95rem 1.25rem', cursor: 'pointer', userSelect: 'none' }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center' }}>
+              <span>CUSTOMER</span>
+              {renderSortIcon('customer_name')}
+            </div>
+          </th>
+        );
+      case 'grand_total':
+        return (
+          <th key="grand_total" onClick={() => handleSort('grand_total')} style={{ textAlign: 'right', padding: '0.95rem 1.25rem', cursor: 'pointer', userSelect: 'none' }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end', width: '100%' }}>
+              <span>GRAND TOTAL</span>
+              {renderSortIcon('grand_total')}
+            </div>
+          </th>
+        );
+      case 'name':
+        return (
+          <th key="name" onClick={() => handleSort('name')} style={{ padding: '0.95rem 1.25rem', cursor: 'pointer', userSelect: 'none' }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center' }}>
+              <span>ID</span>
+              {renderSortIcon('name')}
+            </div>
+          </th>
+        );
+      default:
+        return (
+          <th key={colKey} onClick={() => handleSort(colKey)} style={{ padding: '0.95rem 1.25rem', cursor: 'pointer', userSelect: 'none' }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center' }}>
+              <span>{colKey.replace(/_/g, ' ').toUpperCase()}</span>
+              {renderSortIcon(colKey)}
+            </div>
+          </th>
+        );
+    }
+  };
+
+  const renderCellCol = (inv, colKey) => {
+    switch (colKey) {
+      case 'title':
+        return (
+          <td key="title" style={{ padding: '0.95rem 1.25rem', fontWeight: 600 }}>
+            <span 
+              onClick={(e) => {
+                e.stopPropagation();
+                if (inv.title) setTitleFilter(inv.title);
+              }}
+              title="Click to filter by title"
+              style={{ cursor: 'pointer' }}
+              onMouseEnter={e => e.currentTarget.style.color = themeColor || '#0082f6'}
+              onMouseLeave={e => e.currentTarget.style.color = ''}
+            >
+              {inv.title || 'Invoice'}
+            </span>
+          </td>
+        );
+      case 'status':
+        return (
+          <td key="status" style={{ padding: '0.95rem 1.25rem' }}>
+            <span 
+              onClick={(e) => {
+                e.stopPropagation();
+                setStatusFilter(inv.status || 'Draft');
+              }}
+              title="Click to filter by status"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                height: '24px',
+                padding: '0 12px',
+                borderRadius: '9999px',
+                fontSize: '11px',
+                fontWeight: 800,
+                textTransform: 'uppercase',
+                letterSpacing: '0.04em',
+                boxSizing: 'border-box',
+                backgroundColor: (inv.status === 'Paid' || inv.status === 'Submitted') ? `${themeColor}20` : (inv.status === 'Draft' ? '#f1f5f9' : (inv.status === 'Unpaid' ? '#fef9c3' : '#fee2e2')),
+                color: (inv.status === 'Paid' || inv.status === 'Submitted') ? themeColor : (inv.status === 'Draft' ? '#64748b' : (inv.status === 'Unpaid' ? '#854d0e' : '#ef4444')),
+                border: `1px solid ${(inv.status === 'Paid' || inv.status === 'Submitted') ? `${themeColor}40` : (inv.status === 'Draft' ? '#e2e8f0' : (inv.status === 'Unpaid' ? '#fde047' : '#fecaca'))}`,
+                cursor: 'pointer'
+              }}
+            >
+              {inv.status || 'Draft'} {inv.is_return ? '(CN)' : ''}
+            </span>
+          </td>
+        );
+      case 'branch':
+        return (
+          <td key="branch" style={{ padding: '0.95rem 1.25rem' }}>
+            <span 
+              onClick={(e) => {
+                e.stopPropagation();
+                if (inv.branch || inv.set_warehouse) setBranchFilter(inv.branch || inv.set_warehouse);
+              }}
+              title="Click to filter by branch"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                height: '24px',
+                padding: '0 10px',
+                borderRadius: '6px',
+                fontSize: '0.75rem',
+                fontWeight: 700,
+                color: '#334155',
+                backgroundColor: '#f1f5f9',
+                border: '1px solid #e2e8f0',
+                boxSizing: 'border-box',
+                cursor: 'pointer'
+              }}
+            >
+              {inv.branch || inv.set_warehouse || '—'}
+            </span>
+          </td>
+        );
+      case 'posting_date':
+        return (
+          <td key="posting_date" style={{ padding: '0.95rem 1.25rem', fontSize: '0.825rem', fontWeight: 600, color: '#475569' }}>
+            <span
+              onClick={(e) => {
+                e.stopPropagation();
+                if (inv.posting_date) {
+                  setDateStart(inv.posting_date);
+                  setDateEnd(inv.posting_date);
+                }
+              }}
+              title="Click to filter by date"
+              style={{ cursor: 'pointer' }}
+              onMouseEnter={e => e.currentTarget.style.color = themeColor || '#0082f6'}
+              onMouseLeave={e => e.currentTarget.style.color = '#475569'}
+            >
+              {inv.posting_date ? new Date(inv.posting_date).toLocaleDateString('en-GB') : '-'}
+            </span>
+          </td>
+        );
+      case 'customer_name':
+        return (
+          <td key="customer_name" style={{ padding: '0.95rem 1.25rem', fontSize: '0.825rem' }}>
+            <span
+              onClick={(e) => {
+                e.stopPropagation();
+                setCustomerFilter(inv.customer_name || inv.customer || '');
+              }}
+              title="Click to filter by customer"
+              style={{ cursor: 'pointer', fontWeight: 600 }}
+              onMouseEnter={e => e.currentTarget.style.color = themeColor || '#0082f6'}
+              onMouseLeave={e => e.currentTarget.style.color = ''}
+            >
+              {inv.customer_name || 'Customer'}
+            </span>
+          </td>
+        );
+      case 'grand_total':
+        return (
+          <td key="grand_total" style={{ padding: '0.95rem 1.25rem', textAlign: 'right', fontWeight: 700, fontSize: '0.875rem' }}>
+            {getCurrencySymbol(inv.currency || 'AED')}{inv.is_return ? '-' : ''}{Math.abs(Number(inv.grand_total || 0)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+          </td>
+        );
+      case 'name':
+        return (
+          <td key="name" style={{ padding: '0.95rem 1.25rem', fontFamily: 'monospace', fontSize: '0.725rem', color: 'var(--so-text-muted)' }}>
+            {inv.name}
+          </td>
+        );
+      default:
+        return (
+          <td key={colKey} style={{ padding: '0.95rem 1.25rem', fontSize: '0.825rem', fontWeight: 600 }}>
+            {inv[colKey] !== undefined && inv[colKey] !== null ? String(inv[colKey]) : '-'}
+          </td>
+        );
+    }
+  };
+
   return (
     <>
       {!showModal && (
@@ -1994,32 +2271,6 @@ const SalesInvoiceList = () => {
                 <Palette size={14} />
                 <span>{siTheme.toUpperCase()}</span>
               </button>
-
-              <ListCustomizer
-                doctype="Sales Invoice"
-                onSave={cols => setCustomColumns(cols)}
-                themeColor={themeColor || '#0082f6'}
-                btnStyle={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px',
-                  height: '38px',
-                  padding: '0 16px',
-                  background: '#ffffff',
-                  color: themeColor || '#0082f6',
-                  border: `1.5px solid ${themeColor || '#0082f6'}`,
-                  borderRadius: '8px',
-                  fontSize: '12px',
-                  fontWeight: 800,
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.04em',
-                  cursor: 'pointer',
-                  boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
-                  transition: 'all 0.15s ease-in-out',
-                  boxSizing: 'border-box'
-                }}
-              />
 
               <button
                 type="button"
@@ -2156,83 +2407,51 @@ const SalesInvoiceList = () => {
           </div>
 
           <div className="so-content" style={{ padding: 0 }}>
-            <p className="so-list-meta" style={{ marginBottom: '1rem', fontWeight: 600, color: '#64748b', fontSize: '13px' }}>{filteredInvoices.length} record(s) found</p>
+            <p className="so-list-meta" style={{ marginBottom: '1rem', fontWeight: 600, color: '#64748b', fontSize: '13px' }}>{sortedInvoices.length} record(s) found</p>
             <div className="so-table-card" style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)' }}>
               <div className="so-table-wrapper">
                 <table className="so-table">
                   <thead>
                     <tr>
-                      <th style={{ padding: '0.95rem 1.25rem' }}>TITLE</th>
-                      <th style={{ padding: '0.95rem 1.25rem' }}>STATUS</th>
-                      <th style={{ padding: '0.95rem 1.25rem' }}>BRANCH</th>
-                      <th style={{ padding: '0.95rem 1.25rem' }}>DATE</th>
-                      <th style={{ padding: '0.95rem 1.25rem' }}>CUSTOMER</th>
-                      <th style={{ textAlign: 'right', padding: '0.95rem 1.25rem' }}>GRAND TOTAL</th>
-                      {customColumns.map(col => (
-                        <th key={col} style={{ padding: '0.95rem 1.25rem' }}>{col.replace(/_/g, ' ').toUpperCase()}</th>
-                      ))}
-                      <th style={{ padding: '0.95rem 1.25rem' }}>ID</th>
+                      {orderedColumns.map(colKey => renderHeaderCol(colKey))}
+                      <th style={{ width: '48px', textAlign: 'center', verticalAlign: 'middle', padding: '0 4px' }}>
+                        <ListCustomizer
+                          doctype="Sales Invoice"
+                          defaultColumns={DEFAULT_SI_LIST_COLUMNS}
+                          iconOnly
+                          onSave={(cols, hidden, ordered) => {
+                            setCustomColumns(cols);
+                            setHiddenDefaults(hidden);
+                            setOrderedColumns(ordered);
+                          }}
+                          themeColor={themeColor || '#0082f6'}
+                          title="Configure Columns"
+                        />
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
                     {loading ? (
-                      <tr><td colSpan={7 + customColumns.length} className="so-empty" style={{ padding: '3rem' }}><Loader2 size={28} className="so-spinner" style={{ margin: '0 auto' }} /></td></tr>
+                      <tr><td colSpan={orderedColumns.length + 1} className="so-empty" style={{ padding: '3rem' }}><Loader2 size={28} className="so-spinner" style={{ margin: '0 auto' }} /></td></tr>
                     ) : paginated.length === 0 ? (
-                      <tr><td colSpan={7 + customColumns.length} className="so-empty" style={{ padding: '3rem' }}>No invoices found</td></tr>
+                      <tr><td colSpan={orderedColumns.length + 1} className="so-empty" style={{ padding: '3rem' }}>No invoices found</td></tr>
                     ) : (
                       paginated.map(inv => (
                         <tr key={inv.name} onClick={() => loadInvoiceForEdit(inv.name)} style={{ cursor: 'pointer', transition: 'all 0.15s ease' }}>
-                          <td style={{ padding: '0.95rem 1.25rem', fontWeight: 600 }}>{inv.title || 'Invoice'}</td>
-                          <td style={{ padding: '0.95rem 1.25rem' }}>
-                            <span style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              height: '24px',
-                              padding: '0 12px',
-                              borderRadius: '9999px',
-                              fontSize: '11px',
-                              fontWeight: 800,
-                              textTransform: 'uppercase',
-                              letterSpacing: '0.04em',
-                              boxSizing: 'border-box',
-                              backgroundColor: (inv.status === 'Paid' || inv.status === 'Submitted') ? `${themeColor}20` : (inv.status === 'Draft' ? '#f1f5f9' : (inv.status === 'Unpaid' ? '#fef9c3' : '#fee2e2')),
-                              color: (inv.status === 'Paid' || inv.status === 'Submitted') ? themeColor : (inv.status === 'Draft' ? '#64748b' : (inv.status === 'Unpaid' ? '#854d0e' : '#ef4444')),
-                              border: `1px solid ${(inv.status === 'Paid' || inv.status === 'Submitted') ? `${themeColor}40` : (inv.status === 'Draft' ? '#e2e8f0' : (inv.status === 'Unpaid' ? '#fde047' : '#fecaca'))}`
-                            }}>
-                              {inv.status || 'Draft'} {inv.is_return ? '(CN)' : ''}
-                            </span>
+                          {orderedColumns.map(colKey => renderCellCol(inv, colKey))}
+                          <td style={{ textAlign: 'center', padding: '0.95rem 0.5rem' }}>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                loadInvoiceForEdit(inv.name);
+                              }}
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', color: themeColor || '#0082f6', padding: '4px', display: 'inline-flex' }}
+                              title="Open Details"
+                            >
+                              <Eye size={16} />
+                            </button>
                           </td>
-                          <td style={{ padding: '0.95rem 1.25rem' }}>
-                            <span style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              height: '24px',
-                              padding: '0 10px',
-                              borderRadius: '6px',
-                              fontSize: '0.75rem',
-                              fontWeight: 700,
-                              color: '#334155',
-                              backgroundColor: '#f1f5f9',
-                              border: '1px solid #e2e8f0',
-                              boxSizing: 'border-box'
-                            }}>
-                              {inv.branch || inv.set_warehouse || '—'}
-                            </span>
-                          </td>
-                          <td style={{ padding: '0.95rem 1.25rem', fontSize: '0.825rem', fontWeight: 600, color: '#475569' }}>
-                            {inv.posting_date ? new Date(inv.posting_date).toLocaleDateString('en-GB') : '-'}
-                          </td>
-                          <td style={{ padding: '0.95rem 1.25rem', fontSize: '0.825rem' }}>{inv.customer_name || 'Customer'}</td>
-                          <td style={{ padding: '0.95rem 1.25rem', textAlign: 'right', fontWeight: 700, fontSize: '0.875rem' }}>
-                            {getCurrencySymbol(inv.currency || 'AED')}{inv.is_return ? '-' : ''}{Math.abs(Number(inv.grand_total || 0)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                          </td>
-                          {customColumns.map(col => (
-                            <td key={col} style={{ padding: '0.95rem 1.25rem', fontSize: '0.825rem', fontWeight: 600 }}>
-                              {inv[col] !== undefined && inv[col] !== null ? String(inv[col]) : '-'}
-                            </td>
-                          ))}
-                          <td style={{ padding: '0.95rem 1.25rem', fontFamily: 'monospace', fontSize: '0.725rem', color: 'var(--so-text-muted)' }}>{inv.name}</td>
                         </tr>
                       ))
                     )}

@@ -117,3 +117,75 @@ export const saveUserMatrixConfig = async (storageKey, config, defaultColumns = 
   }
   return config;
 };
+
+/**
+ * Fetches user list view column configuration directly from backend API.
+ */
+export const fetchUserListConfig = async (doctype, defaultColumns = []) => {
+  const actualKey = (doctype || '').replace(/\s+/g, '_');
+  const storageKey = `list_config_${actualKey}`;
+  const defaultKeys = defaultColumns.map(c => c.key || c.id);
+
+  try {
+    const res = await axios.get('/api/method/kyle_retail.retail_api.api.get_user_table_config', {
+      params: { key: storageKey },
+      withCredentials: true
+    });
+    const backendConfig = res.data?.message?.config || res.data?.config;
+    if (backendConfig) {
+      const parsed = typeof backendConfig === 'string' ? JSON.parse(backendConfig) : backendConfig;
+      if (parsed && typeof parsed === 'object') {
+        const hidden = Array.isArray(parsed.hiddenDefaults) ? parsed.hiddenDefaults : [];
+        const custom = Array.isArray(parsed.customColumns) ? parsed.customColumns : [];
+        let ordered = Array.isArray(parsed.orderedColumns) ? parsed.orderedColumns : [];
+        if (ordered.length === 0) {
+          ordered = [...defaultColumns.map(c => c.key || c.id).filter(k => !hidden.includes(k)), ...custom];
+        }
+        return {
+          orderedColumns: ordered,
+          hiddenDefaults: hidden,
+          customColumns: custom
+        };
+      }
+    }
+  } catch (err) {
+    console.warn(`[List Config API] Error fetching user config for ${storageKey}:`, err);
+  }
+
+  return {
+    orderedColumns: defaultKeys,
+    hiddenDefaults: [],
+    customColumns: []
+  };
+};
+
+/**
+ * Saves list view column configuration directly to backend API per user in database.
+ */
+export const saveUserListConfig = async (doctype, config, defaultColumns = []) => {
+  const actualKey = (doctype || '').replace(/\s+/g, '_');
+  const storageKey = `list_config_${actualKey}`;
+  const defOrdered = defaultColumns.map(c => c.key || c.id);
+
+  try {
+    if (config === null) {
+      const resetConfig = { orderedColumns: defOrdered, hiddenDefaults: [], customColumns: [] };
+      await axios.post('/api/method/kyle_retail.retail_api.api.save_user_table_config', {
+        key: storageKey,
+        config: JSON.stringify(resetConfig)
+      }, { withCredentials: true });
+      return resetConfig;
+    }
+
+    await axios.post('/api/method/kyle_retail.retail_api.api.save_user_table_config', {
+      key: storageKey,
+      config: JSON.stringify(config)
+    }, { withCredentials: true });
+    return config;
+  } catch (err) {
+    console.warn(`[List Config API] Error saving user config for ${storageKey}:`, err);
+  }
+  return config || { orderedColumns: defOrdered, hiddenDefaults: [], customColumns: [] };
+};
+
+

@@ -4,7 +4,8 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import {
   Plus, Filter, MoreVertical, Search, Calendar, Building2,
-  Package, DollarSign, Loader2, Edit2, Trash2, Eye, Palette, ChevronDown, ChevronRight, X, ChevronLeft, ExternalLink
+  Package, DollarSign, Loader2, Edit2, Trash2, Eye, Palette, ChevronDown, ChevronRight, X, ChevronLeft, ExternalLink,
+  ArrowUp, ArrowDown, ArrowUpDown
 } from 'lucide-react';
 import { format } from 'date-fns';
 import './SalesOrder.css';
@@ -16,10 +17,40 @@ import ListCustomizer from './ListCustomizer';
 const API_PATH = '/api/method/kyle_retail.retail_api.api';
 const RESOURCE_API = '/api/resource/Purchase Order';
 
+const DEFAULT_PO_LIST_COLUMNS = [
+  { key: 'name', label: 'ID' },
+  { key: 'supplier', label: 'SUPPLIER' },
+  { key: 'status', label: 'STATUS' },
+  { key: 'transaction_date', label: 'DATE' },
+  { key: 'grand_total', label: 'GRAND TOTAL' },
+  { key: 'per_billed', label: 'BILLED %' },
+  { key: 'per_received', label: 'RECEIVED %' },
+  { key: 'modified', label: 'LAST UPDATED' }
+];
+
 function PurchaseOrderLists() {
-  const [customColumns, setCustomColumns] = useState(() => {
-    const saved = localStorage.getItem('custom_columns_Purchase Order');
+  const [hiddenDefaults, setHiddenDefaults] = useState(() => {
     try {
+      const user = localStorage.getItem('user_id') || localStorage.getItem('user_email') || 'default';
+      const configKey = `custom_columns_config_${user}_Purchase Order`;
+      const saved = localStorage.getItem(configKey) || localStorage.getItem('custom_columns_config_Purchase Order');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed.hiddenDefaults)) return parsed.hiddenDefaults;
+      }
+    } catch (e) {}
+    return [];
+  });
+  const [customColumns, setCustomColumns] = useState(() => {
+    try {
+      const user = localStorage.getItem('user_id') || localStorage.getItem('user_email') || 'default';
+      const configKey = `custom_columns_config_${user}_Purchase Order`;
+      const savedConfig = localStorage.getItem(configKey) || localStorage.getItem('custom_columns_config_Purchase Order');
+      if (savedConfig) {
+        const parsed = JSON.parse(savedConfig);
+        if (Array.isArray(parsed.customColumns)) return parsed.customColumns;
+      }
+      const saved = localStorage.getItem(`custom_columns_${user}_Purchase Order`) || localStorage.getItem('custom_columns_Purchase Order');
       return saved ? JSON.parse(saved) : [];
     } catch (e) {
       return [];
@@ -31,6 +62,10 @@ function PurchaseOrderLists() {
   const [currentPage, setCurrentPage] = useState(1);
   const [showFilters, setShowFilters] = useState(true);
   const [showActions, setShowActions] = useState(null);
+
+  // Sorting
+  const [sortField, setSortField] = useState('modified');
+  const [sortDirection, setSortDirection] = useState('desc');
 
   // Filters
   const location = useLocation();
@@ -76,7 +111,6 @@ function PurchaseOrderLists() {
         headers: { 'X-Frappe-SID': getSession() }
       });
       const msg = res.data?.message;
-      // Handle new API response structure: { message: { status: "success", data: [...] } }
       if (msg?.status === "success" && Array.isArray(msg?.data)) {
         setOrders(msg.data);
       } else if (Array.isArray(msg)) {
@@ -92,6 +126,15 @@ function PurchaseOrderLists() {
     }
   };
 
+  const handleSort = (field) => {
+    if (sortField === field) {
+      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
   const filteredOrders = useMemo(() => {
     return orders.filter(po => {
       const matchesSupplier = !filterSupplier ||
@@ -104,8 +147,32 @@ function PurchaseOrderLists() {
     });
   }, [orders, filterSupplier, filterStatus, filterDateFrom, filterDateTo]);
 
-  const total = filteredOrders.length;
-  const paginated = filteredOrders.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const sortedOrders = useMemo(() => {
+    if (!sortField) return filteredOrders;
+    return [...filteredOrders].sort((a, b) => {
+      let valA = a[sortField];
+      let valB = b[sortField];
+      if (valA === undefined || valA === null) valA = '';
+      if (valB === undefined || valB === null) valB = '';
+
+      if (sortField === 'transaction_date' || sortField === 'modified' || sortField === 'creation') {
+        const dateA = new Date(valA || 0).getTime();
+        const dateB = new Date(valB || 0).getTime();
+        return sortDirection === 'asc' ? dateA - dateB : dateB - dateA;
+      }
+      if (sortField === 'grand_total' || sortField === 'per_billed' || sortField === 'per_received') {
+        const numA = parseFloat(valA) || 0;
+        const numB = parseFloat(valB) || 0;
+        return sortDirection === 'asc' ? numA - numB : numB - numA;
+      }
+      return sortDirection === 'asc'
+        ? String(valA).localeCompare(String(valB))
+        : String(valB).localeCompare(String(valA));
+    });
+  }, [filteredOrders, sortField, sortDirection]);
+
+  const total = sortedOrders.length;
+  const paginated = sortedOrders.slice((currentPage - 1) * pageSize, currentPage * pageSize);
   const totalPages = Math.ceil(total / pageSize);
 
   const getStatusColor = (status) => {
@@ -156,6 +223,15 @@ function PurchaseOrderLists() {
   };
 
   const hasFilters = filterSupplier || filterStatus || filterDateFrom || filterDateTo;
+
+  const renderSortIcon = (field) => {
+    if (sortField !== field) {
+      return <ArrowUpDown size={11} style={{ opacity: 0.3, marginLeft: '4px' }} />;
+    }
+    return sortDirection === 'asc' 
+      ? <ArrowUp size={12} style={{ color: themeColor || '#0082f6', marginLeft: '4px' }} />
+      : <ArrowDown size={12} style={{ color: themeColor || '#0082f6', marginLeft: '4px' }} />;
+  };
 
   return (
     <>
@@ -233,33 +309,6 @@ function PurchaseOrderLists() {
               <span>FILTERS</span>
               {hasFilters && <span style={{ width: 6, height: 6, borderRadius: '50%', background: themeColor || '#0082f6' }} />}
             </button>
-
-            {/* ListCustomizer / COLUMNS */}
-            <ListCustomizer
-              doctype="Purchase Order"
-              onSave={cols => setCustomColumns(cols)}
-              themeColor={themeColor || '#0082f6'}
-              btnStyle={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-                height: '38px',
-                padding: '0 16px',
-                background: '#ffffff',
-                color: themeColor || '#0082f6',
-                border: `1.5px solid ${themeColor || '#0082f6'}`,
-                borderRadius: '8px',
-                fontSize: '12px',
-                fontWeight: 800,
-                textTransform: 'uppercase',
-                letterSpacing: '0.04em',
-                cursor: 'pointer',
-                boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
-                transition: 'all 0.15s ease-in-out',
-                boxSizing: 'border-box'
-              }}
-            />
 
             {/* ADD PURCHASE ORDER */}
             <button
@@ -396,30 +445,103 @@ function PurchaseOrderLists() {
               <table className="so-table">
                 <thead>
                   <tr>
-                    <th>ID</th>
-                    <th>SUPPLIER</th>
-                    <th>STATUS</th>
-                    <th>DATE</th>
-                    <th className="text-right" style={{ textAlign: 'right' }}>GRAND TOTAL</th>
-                    <th>BILLED %</th>
-                    <th>RECEIVED %</th>
-                    <th>LAST UPDATED</th>
+                    {!hiddenDefaults.includes('name') && (
+                      <th onClick={() => handleSort('name')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                        <div style={{ display: 'inline-flex', alignItems: 'center' }}>
+                          <span>ID</span>
+                          {renderSortIcon('name')}
+                        </div>
+                      </th>
+                    )}
+                    {!hiddenDefaults.includes('supplier') && (
+                      <th onClick={() => handleSort('supplier')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                        <div style={{ display: 'inline-flex', alignItems: 'center' }}>
+                          <span>SUPPLIER</span>
+                          {renderSortIcon('supplier')}
+                        </div>
+                      </th>
+                    )}
+                    {!hiddenDefaults.includes('status') && (
+                      <th onClick={() => handleSort('status')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                        <div style={{ display: 'inline-flex', alignItems: 'center' }}>
+                          <span>STATUS</span>
+                          {renderSortIcon('status')}
+                        </div>
+                      </th>
+                    )}
+                    {!hiddenDefaults.includes('transaction_date') && (
+                      <th onClick={() => handleSort('transaction_date')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                        <div style={{ display: 'inline-flex', alignItems: 'center' }}>
+                          <span>DATE</span>
+                          {renderSortIcon('transaction_date')}
+                        </div>
+                      </th>
+                    )}
+                    {!hiddenDefaults.includes('grand_total') && (
+                      <th onClick={() => handleSort('grand_total')} className="text-right" style={{ textAlign: 'right', cursor: 'pointer', userSelect: 'none' }}>
+                        <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end', width: '100%' }}>
+                          <span>GRAND TOTAL</span>
+                          {renderSortIcon('grand_total')}
+                        </div>
+                      </th>
+                    )}
+                    {!hiddenDefaults.includes('per_billed') && (
+                      <th onClick={() => handleSort('per_billed')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                        <div style={{ display: 'inline-flex', alignItems: 'center' }}>
+                          <span>BILLED %</span>
+                          {renderSortIcon('per_billed')}
+                        </div>
+                      </th>
+                    )}
+                    {!hiddenDefaults.includes('per_received') && (
+                      <th onClick={() => handleSort('per_received')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                        <div style={{ display: 'inline-flex', alignItems: 'center' }}>
+                          <span>RECEIVED %</span>
+                          {renderSortIcon('per_received')}
+                        </div>
+                      </th>
+                    )}
+                    {!hiddenDefaults.includes('modified') && (
+                      <th onClick={() => handleSort('modified')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                        <div style={{ display: 'inline-flex', alignItems: 'center' }}>
+                          <span>LAST UPDATED</span>
+                          {renderSortIcon('modified')}
+                        </div>
+                      </th>
+                    )}
                     {customColumns.map(col => (
-                      <th key={col}>{col.replace(/_/g, ' ').toUpperCase()}</th>
+                      <th key={col} onClick={() => handleSort(col)} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                        <div style={{ display: 'inline-flex', alignItems: 'center' }}>
+                          <span>{col.replace(/_/g, ' ').toUpperCase()}</span>
+                          {renderSortIcon(col)}
+                        </div>
+                      </th>
                     ))}
-                    <th style={{ width: '48px' }}></th>
+                    <th style={{ width: '48px', textAlign: 'center', verticalAlign: 'middle', padding: '0 4px' }}>
+                      <ListCustomizer
+                        doctype="Purchase Order"
+                        defaultColumns={DEFAULT_PO_LIST_COLUMNS}
+                        iconOnly
+                        onSave={(cols, hidden) => {
+                          setCustomColumns(cols);
+                          setHiddenDefaults(hidden);
+                        }}
+                        themeColor={themeColor || '#0082f6'}
+                        title="Configure Columns"
+                      />
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {loading ? (
                     <tr>
-                      <td colSpan={9 + customColumns.length} className="so-empty">
+                      <td colSpan={DEFAULT_PO_LIST_COLUMNS.length - hiddenDefaults.length + customColumns.length + 1} className="so-empty">
                         <Loader2 size={28} className="so-spinner" style={{ margin: '0 auto' }} />
                       </td>
                     </tr>
                   ) : paginated.length === 0 ? (
                     <tr>
-                      <td colSpan={9 + customColumns.length} className="so-empty">
+                      <td colSpan={DEFAULT_PO_LIST_COLUMNS.length - hiddenDefaults.length + customColumns.length + 1} className="so-empty">
                         <Package size={36} style={{ margin: '0 auto 0.75rem', color: '#cbd5e1' }} />
                         No purchase orders found
                       </td>
@@ -433,61 +555,126 @@ function PurchaseOrderLists() {
                         onMouseEnter={e => e.currentTarget.style.background = `${themeColor}08`}
                         onMouseLeave={e => e.currentTarget.style.background = ''}
                       >
-                        <td>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                            <button 
-                              onClick={(e) => { e.stopPropagation(); navigate(`/purchaseorder?name=${po.name}`); }}
-                              title="Open Record"
-                              style={{ color: themeColor, textDecoration: 'none', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                        {!hiddenDefaults.includes('name') && (
+                          <td>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                              <button 
+                                onClick={(e) => { e.stopPropagation(); navigate(`/purchaseorder?name=${po.name}`); }}
+                                title="Open Record"
+                                style={{ color: themeColor, textDecoration: 'none', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                              >
+                                <ExternalLink size={12} style={{ opacity: 0.6 }} />
+                              </button>
+                              <span style={{ color: themeColor, fontWeight: 700, fontFamily: 'monospace', fontSize: '0.8rem' }}>
+                                {po.name}
+                              </span>
+                            </div>
+                          </td>
+                        )}
+                        {!hiddenDefaults.includes('supplier') && (
+                          <td>
+                            <div 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setFilterSupplier(po.supplier_name || po.supplier || '');
+                                setShowFilters(true);
+                              }}
+                              title="Click to filter by this supplier"
+                              style={{ fontWeight: 600, cursor: 'pointer', display: 'inline-block' }}
+                              onMouseEnter={e => e.currentTarget.style.color = themeColor || '#0082f6'}
+                              onMouseLeave={e => e.currentTarget.style.color = ''}
                             >
-                              <ExternalLink size={12} style={{ opacity: 0.6 }} />
-                            </button>
-                            <span style={{ color: themeColor, fontWeight: 700, fontFamily: 'monospace', fontSize: '0.8rem' }}>
-                              {po.name}
+                              {po.supplier_name || po.supplier}
+                            </div>
+                            {po.supplier_name && (
+                              <div 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setFilterSupplier(po.supplier || '');
+                                  setShowFilters(true);
+                                }}
+                                style={{ fontSize: '0.72rem', color: 'var(--so-text-muted)', cursor: 'pointer' }}
+                                title="Click to filter by ID"
+                              >
+                                {po.supplier}
+                              </div>
+                            )}
+                          </td>
+                        )}
+                        {!hiddenDefaults.includes('status') && (
+                          <td>
+                            <span 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setFilterStatus(po.status);
+                                setShowFilters(true);
+                              }}
+                              title="Click to filter by status"
+                              className="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider" 
+                              style={{
+                                backgroundColor: (po.status === 'Completed' || po.status === 'To Receive' || po.status === 'To Bill' || po.status === 'To Receive and Bill') ? `${themeColor}20` : (po.status === 'Draft' ? '#f1f5f9' : '#fee2e2'),
+                                color: (po.status === 'Completed' || po.status === 'To Receive' || po.status === 'To Bill' || po.status === 'To Receive and Bill') ? themeColor : (po.status === 'Draft' ? '#64748b' : '#ef4444'),
+                                border: `1px solid ${(po.status === 'Completed' || po.status === 'To Receive' || po.status === 'To Bill' || po.status === 'To Receive and Bill') ? `${themeColor}40` : (po.status === 'Draft' ? '#e2e8f0' : '#fecaca')}`,
+                                cursor: 'pointer'
+                              }}
+                            >
+                              {po.status}
                             </span>
-                          </div>
-                        </td>
-                        <td>
-                          <div style={{ fontWeight: 600 }}>{po.supplier_name || po.supplier}</div>
-                          {po.supplier_name && <div style={{ fontSize: '0.72rem', color: 'var(--so-text-muted)' }}>{po.supplier}</div>}
-                        </td>
-                        <td>
-                          <span className="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider" style={{
-                            backgroundColor: (po.status === 'Completed' || po.status === 'To Receive' || po.status === 'To Bill' || po.status === 'To Receive and Bill') ? `${themeColor}20` : (po.status === 'Draft' ? '#f1f5f9' : '#fee2e2'),
-                            color: (po.status === 'Completed' || po.status === 'To Receive' || po.status === 'To Bill' || po.status === 'To Receive and Bill') ? themeColor : (po.status === 'Draft' ? '#64748b' : '#ef4444'),
-                            border: `1px solid ${(po.status === 'Completed' || po.status === 'To Receive' || po.status === 'To Bill' || po.status === 'To Receive and Bill') ? `${themeColor}40` : (po.status === 'Draft' ? '#e2e8f0' : '#fecaca')}`
-                          }}>
-                            {po.status}
-                          </span>
-                        </td>
-                        <td style={{ color: '#475569', fontSize: '0.85rem' }}>
-                          {po.transaction_date && format(new Date(po.transaction_date), 'dd-MM-yyyy')}
-                        </td>
-                        <td style={{ textAlign: 'right', fontWeight: 700 }}>
-                          <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end', gap: '4px', width: '100%' }}>
-                            <DirhamIcon size={12} />
-                            <span>{parseFloat(po.grand_total || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                          </div>
-                        </td>
-                        <td>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', minWidth: '80px' }}>
-                            <div style={{ flex: 1, height: '4px', background: '#e2e8f0', borderRadius: '9999px', overflow: 'hidden' }}>
-                              <div style={{ width: `${po.per_billed || 0}%`, height: '100%', background: themeColor }} />
+                          </td>
+                        )}
+                        {!hiddenDefaults.includes('transaction_date') && (
+                          <td style={{ color: '#475569', fontSize: '0.85rem' }}>
+                            <span
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (po.transaction_date) {
+                                  setFilterDateFrom(po.transaction_date);
+                                  setFilterDateTo(po.transaction_date);
+                                  setShowFilters(true);
+                                }
+                              }}
+                              title="Click to filter by date"
+                              style={{ cursor: 'pointer' }}
+                              onMouseEnter={e => e.currentTarget.style.color = themeColor || '#0082f6'}
+                              onMouseLeave={e => e.currentTarget.style.color = '#475569'}
+                            >
+                              {po.transaction_date && format(new Date(po.transaction_date), 'dd-MM-yyyy')}
+                            </span>
+                          </td>
+                        )}
+                        {!hiddenDefaults.includes('grand_total') && (
+                          <td style={{ textAlign: 'right', fontWeight: 700 }}>
+                            <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end', gap: '4px', width: '100%' }}>
+                              <DirhamIcon size={12} />
+                              <span>{parseFloat(po.grand_total || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                             </div>
-                            <span style={{ fontSize: '0.65rem', color: '#64748b' }}>{Math.round(po.per_billed || 0)}%</span>
-                          </div>
-                        </td>
-                        <td>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', minWidth: '80px' }}>
-                            <div style={{ flex: 1, height: '4px', background: '#e2e8f0', borderRadius: '9999px', overflow: 'hidden' }}>
-                              <div style={{ width: `${po.per_received || 0}%`, height: '100%', background: themeColor }} />
+                          </td>
+                        )}
+                        {!hiddenDefaults.includes('per_billed') && (
+                          <td>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', minWidth: '80px' }}>
+                              <div style={{ flex: 1, height: '4px', background: '#e2e8f0', borderRadius: '9999px', overflow: 'hidden' }}>
+                                <div style={{ width: `${po.per_billed || 0}%`, height: '100%', background: themeColor }} />
+                              </div>
+                              <span style={{ fontSize: '0.65rem', color: '#64748b' }}>{Math.round(po.per_billed || 0)}%</span>
                             </div>
-                            <span style={{ fontSize: '0.65rem', color: '#64748b' }}>{Math.round(po.per_received || 0)}%</span>
-                          </div>
-                        </td>
-                        <td style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
-                          {po.modified && format(new Date(po.modified), 'dd-MM-yyyy')}
-                        </td>
+                          </td>
+                        )}
+                        {!hiddenDefaults.includes('per_received') && (
+                          <td>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', minWidth: '80px' }}>
+                              <div style={{ flex: 1, height: '4px', background: '#e2e8f0', borderRadius: '9999px', overflow: 'hidden' }}>
+                                <div style={{ width: `${po.per_received || 0}%`, height: '100%', background: themeColor }} />
+                              </div>
+                              <span style={{ fontSize: '0.65rem', color: '#64748b' }}>{Math.round(po.per_received || 0)}%</span>
+                            </div>
+                          </td>
+                        )}
+                        {!hiddenDefaults.includes('modified') && (
+                          <td style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
+                            {po.modified && format(new Date(po.modified), 'dd-MM-yyyy')}
+                          </td>
+                        )}
                         {customColumns.map(col => (
                           <td key={col} style={{ fontSize: '0.8rem', fontWeight: 600 }}>
                             {po[col] !== undefined && po[col] !== null ? String(po[col]) : '-'}

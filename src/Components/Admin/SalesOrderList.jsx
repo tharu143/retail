@@ -2,7 +2,8 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Plus, Search, X, ShoppingCart, Receipt, Calendar, User, Layers,
   CheckCircle2, Clock, CreditCard, Palette, Loader2, ChevronLeft, ChevronRight,
-  ArrowRight, FileText, Filter, Save, ScanLine, Camera, Package
+  ArrowRight, FileText, Filter, Save, ScanLine, Camera, Package, Eye,
+  ArrowUp, ArrowDown, ArrowUpDown
 } from 'lucide-react';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import axios from 'axios';
@@ -118,8 +119,29 @@ const GlobalStyles = ({ themeColor, themeLight }) => (
     }
 
     .so-table-input:focus {
-      border-color: ${themeColor} !important;
-      box-shadow: 0 0 0 2px ${themeLight} !important;
+      border-color: ${themeColor || '#0082f6'} !important;
+      box-shadow: 0 0 0 2px ${themeColor || '#0082f6'}20 !important;
+    }
+
+    .so-table thead th {
+      background: #ffffff !important;
+      color: #64748b !important;
+      font-weight: 800 !important;
+      font-size: 11px !important;
+      text-transform: uppercase !important;
+      letter-spacing: 0.04em !important;
+      border-bottom: 1px solid #e2e8f0 !important;
+      padding: 14px 16px !important;
+    }
+
+    .so-table tbody td {
+      padding: 12px 16px !important;
+      border-bottom: 1px solid #f1f5f9 !important;
+      font-size: 13px !important;
+    }
+
+    .so-table tbody tr:hover {
+      background-color: ${themeColor || '#0082f6'}08 !important;
     }
   `}</style>
 );
@@ -151,9 +173,37 @@ export default function SalesOrderList() {
   const { warehouse, user_roles, theme } = useSelector((state) => state.user || {});
   const isAdmin = (user_roles || []).includes("Administrator") || (user_roles || []).includes("System Manager");
   const isAdministrator = (user_roles || []).includes("Administrator");
-  const [customColumns, setCustomColumns] = useState(() => {
-    const saved = localStorage.getItem('custom_columns_Sales Order');
+  const DEFAULT_SO_LIST_COLUMNS = [
+    { key: 'name', label: 'Order ID' },
+    { key: 'customer_name', label: 'Customer' },
+    { key: 'transaction_date', label: 'Date' },
+    { key: 'grand_total', label: 'Grand Total' },
+    { key: 'docstatus', label: 'Status' }
+  ];
+
+  const [hiddenDefaults, setHiddenDefaults] = useState(() => {
     try {
+      const user = localStorage.getItem('user_id') || localStorage.getItem('user_email') || 'default';
+      const configKey = `custom_columns_config_${user}_Sales Order`;
+      const saved = localStorage.getItem(configKey) || localStorage.getItem('custom_columns_config_Sales Order');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed.hiddenDefaults)) return parsed.hiddenDefaults;
+      }
+    } catch (e) {}
+    return [];
+  });
+
+  const [customColumns, setCustomColumns] = useState(() => {
+    try {
+      const user = localStorage.getItem('user_id') || localStorage.getItem('user_email') || 'default';
+      const configKey = `custom_columns_config_${user}_Sales Order`;
+      const savedConfig = localStorage.getItem(configKey) || localStorage.getItem('custom_columns_config_Sales Order');
+      if (savedConfig) {
+        const parsed = JSON.parse(savedConfig);
+        if (Array.isArray(parsed.customColumns)) return parsed.customColumns;
+      }
+      const saved = localStorage.getItem(`custom_columns_${user}_Sales Order`) || localStorage.getItem('custom_columns_Sales Order');
       return saved ? JSON.parse(saved) : [];
     } catch (e) {
       return [];
@@ -163,6 +213,10 @@ export default function SalesOrderList() {
   const [loading, setLoading] = useState(true);
   const location = useLocation();
   const [searchTerm, setSearchTerm] = useState(location.state?.search || '');
+
+  // Sorting
+  const [sortField, setSortField] = useState('modified');
+  const [sortDirection, setSortDirection] = useState('desc');
 
   // Theme logic
   const { themeColor, themeLight, toggleTheme, legacySubTheme, isGreen } = useLegacyTheme();
@@ -421,6 +475,39 @@ export default function SalesOrderList() {
     });
   }, [orders, searchTerm, filterStatus, filterDateRange]);
 
+  const handleSort = (field) => {
+    if (sortField === field) {
+      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  const sortedOrders = useMemo(() => {
+    if (!sortField) return filteredOrders;
+    return [...filteredOrders].sort((a, b) => {
+      let valA = a[sortField];
+      let valB = b[sortField];
+      if (valA === undefined || valA === null) valA = '';
+      if (valB === undefined || valB === null) valB = '';
+
+      if (sortField === 'transaction_date' || sortField === 'delivery_date' || sortField === 'modified' || sortField === 'creation') {
+        const dateA = new Date(valA || 0).getTime();
+        const dateB = new Date(valB || 0).getTime();
+        return sortDirection === 'asc' ? dateA - dateB : dateB - dateA;
+      }
+      if (sortField === 'grand_total' || sortField === 'total_qty') {
+        const numA = parseFloat(valA) || 0;
+        const numB = parseFloat(valB) || 0;
+        return sortDirection === 'asc' ? numA - numB : numB - numA;
+      }
+      return sortDirection === 'asc'
+        ? String(valA).localeCompare(String(valB))
+        : String(valB).localeCompare(String(valA));
+    });
+  }, [filteredOrders, sortField, sortDirection]);
+
   const stats = useMemo(() => {
     const total = orders.length;
     const submitted = orders.filter(o => o.docstatus === 1).length;
@@ -431,10 +518,19 @@ export default function SalesOrderList() {
 
   const paginatedOrders = useMemo(() => {
     const start = (currentPage - 1) * pageSize;
-    return filteredOrders.slice(start, start + pageSize);
-  }, [filteredOrders, currentPage, pageSize]);
+    return sortedOrders.slice(start, start + pageSize);
+  }, [sortedOrders, currentPage, pageSize]);
 
-  const totalPages = Math.ceil(filteredOrders.length / pageSize);
+  const totalPages = Math.ceil(sortedOrders.length / pageSize);
+
+  const renderSortIcon = (field) => {
+    if (sortField !== field) {
+      return <ArrowUpDown size={11} style={{ opacity: 0.3, marginLeft: '4px' }} />;
+    }
+    return sortDirection === 'asc' 
+      ? <ArrowUp size={12} style={{ color: themeColor || '#0082f6', marginLeft: '4px' }} />
+      : <ArrowDown size={12} style={{ color: themeColor || '#0082f6', marginLeft: '4px' }} />;
+  };
 
   const handleRowClick = (name) => {
     navigate(`/salesorder-details/${name}`);
@@ -1747,35 +1843,87 @@ export default function SalesOrderList() {
 
           {/* 4. Main Directory Table */}
           <div className="so-content" style={{ padding: 0 }}>
-            <div className="so-list-meta" style={{ marginBottom: '0.75rem', fontWeight: 600, color: '#64748b', fontSize: '13px' }}>{filteredOrders.length} record(s) found</div>
+            <div className="so-list-meta" style={{ marginBottom: '0.75rem', fontWeight: 600, color: '#64748b', fontSize: '13px' }}>{sortedOrders.length} record(s) found</div>
 
             <div className="so-table-card" style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)' }}>
               <div className="so-table-wrapper">
                 <table className="so-table">
                   <thead>
                     <tr>
-                      <th>Order ID</th>
-                      <th>Customer</th>
-                      <th>Date</th>
-                      <th style={{ textAlign: 'right' }}>Grand Total</th>
-                      <th>Status</th>
+                      {!hiddenDefaults.includes('name') && (
+                        <th onClick={() => handleSort('name')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                          <div style={{ display: 'inline-flex', alignItems: 'center' }}>
+                            <span>Order ID</span>
+                            {renderSortIcon('name')}
+                          </div>
+                        </th>
+                      )}
+                      {!hiddenDefaults.includes('customer_name') && (
+                        <th onClick={() => handleSort('customer_name')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                          <div style={{ display: 'inline-flex', alignItems: 'center' }}>
+                            <span>Customer</span>
+                            {renderSortIcon('customer_name')}
+                          </div>
+                        </th>
+                      )}
+                      {!hiddenDefaults.includes('transaction_date') && (
+                        <th onClick={() => handleSort('transaction_date')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                          <div style={{ display: 'inline-flex', alignItems: 'center' }}>
+                            <span>Date</span>
+                            {renderSortIcon('transaction_date')}
+                          </div>
+                        </th>
+                      )}
+                      {!hiddenDefaults.includes('grand_total') && (
+                        <th onClick={() => handleSort('grand_total')} style={{ textAlign: 'right', cursor: 'pointer', userSelect: 'none' }}>
+                          <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end', width: '100%' }}>
+                            <span>Grand Total</span>
+                            {renderSortIcon('grand_total')}
+                          </div>
+                        </th>
+                      )}
+                      {!hiddenDefaults.includes('docstatus') && (
+                        <th onClick={() => handleSort('docstatus')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                          <div style={{ display: 'inline-flex', alignItems: 'center' }}>
+                            <span>Status</span>
+                            {renderSortIcon('docstatus')}
+                          </div>
+                        </th>
+                      )}
                       {customColumns.map(col => (
-                        <th key={col}>{col.replace(/_/g, ' ').toUpperCase()}</th>
+                        <th key={col} onClick={() => handleSort(col)} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                          <div style={{ display: 'inline-flex', alignItems: 'center' }}>
+                            <span>{col.replace(/_/g, ' ').toUpperCase()}</span>
+                            {renderSortIcon(col)}
+                          </div>
+                        </th>
                       ))}
-                      <th style={{ width: '80px', textAlign: 'center' }}>Details</th>
+                      <th style={{ width: '48px', textAlign: 'center', verticalAlign: 'middle', padding: '0 4px' }}>
+                        <ListCustomizer
+                          doctype="Sales Order"
+                          defaultColumns={DEFAULT_SO_LIST_COLUMNS}
+                          iconOnly
+                          onSave={(cols, hidden) => {
+                            setCustomColumns(cols);
+                            setHiddenDefaults(hidden);
+                          }}
+                          themeColor={themeColor || '#0082f6'}
+                          title="Configure Columns"
+                        />
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
                     {loading ? (
                       <tr>
-                        <td colSpan={6 + customColumns.length} className="so-empty" style={{ padding: '3rem 1rem', textAlign: 'center' }}>
+                        <td colSpan={DEFAULT_SO_LIST_COLUMNS.length - hiddenDefaults.length + customColumns.length + 1} className="so-empty" style={{ padding: '3rem 1rem', textAlign: 'center' }}>
                           <Loader2 size={32} className="so-spinner" style={{ margin: '0 auto', color: themeColor || '#0082f6' }} />
                           <p style={{ marginTop: '0.75rem', fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', color: '#64748b' }}>Loading Orders...</p>
                         </td>
                       </tr>
                     ) : paginatedOrders.length === 0 ? (
                       <tr>
-                        <td colSpan={6 + customColumns.length} className="so-empty" style={{ padding: '3.5rem 1rem', textAlign: 'center' }}>
+                        <td colSpan={DEFAULT_SO_LIST_COLUMNS.length - hiddenDefaults.length + customColumns.length + 1} className="so-empty" style={{ padding: '3.5rem 1rem', textAlign: 'center' }}>
                           <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: '#ebf4fe', color: themeColor || '#0082f6', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem' }}>
                             <Package size={28} />
                           </div>
@@ -1790,46 +1938,88 @@ export default function SalesOrderList() {
                           onClick={() => handleRowClick(order.name)}
                           style={{ cursor: 'pointer' }}
                         >
-                          <td>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                              <div style={{
-                                width: '36px', height: '36px', borderRadius: '8px',
-                                background: `${themeColor || '#0082f6'}12`, color: themeColor || '#0082f6',
-                                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                flexShrink: 0
-                              }}>
-                                <ShoppingCart size={16} />
+                          {!hiddenDefaults.includes('name') && (
+                            <td>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                                <div style={{
+                                  width: '36px', height: '36px', borderRadius: '8px',
+                                  background: `${themeColor || '#0082f6'}12`, color: themeColor || '#0082f6',
+                                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                  flexShrink: 0
+                                }}>
+                                  <ShoppingCart size={16} />
+                                </div>
+                                <div>
+                                  <div style={{ fontWeight: 800, color: themeColor || '#0082f6', fontSize: '0.85rem' }}>{order.name}</div>
+                                  <div style={{ fontSize: '0.68rem', color: '#64748b', fontFamily: 'monospace', fontWeight: 600 }}>{order.naming_series || 'SAL-ORD'}</div>
+                                </div>
                               </div>
-                              <div>
-                                <div style={{ fontWeight: 800, color: themeColor || '#0082f6', fontSize: '0.85rem' }}>{order.name}</div>
-                                <div style={{ fontSize: '0.68rem', color: '#64748b', fontFamily: 'monospace', fontWeight: 600 }}>{order.naming_series || 'SAL-ORD'}</div>
+                            </td>
+                          )}
+                          {!hiddenDefaults.includes('customer_name') && (
+                            <td>
+                              <div 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSearchTerm(order.customer_name || order.customer || '');
+                                  setCurrentPage(1);
+                                }}
+                                title="Click to filter by customer"
+                                style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}
+                                onMouseEnter={e => e.currentTarget.style.color = themeColor || '#0082f6'}
+                                onMouseLeave={e => e.currentTarget.style.color = ''}
+                              >
+                                <User size={14} className="text-slate-400" />
+                                <span style={{ fontWeight: 600, color: '#1e293b' }}>{order.customer_name || order.customer}</span>
                               </div>
-                            </div>
-                          </td>
-                          <td>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                              <User size={14} className="text-slate-400" />
-                              <span style={{ fontWeight: 600, color: '#1e293b' }}>{order.customer_name || order.customer}</span>
-                            </div>
-                          </td>
-                          <td>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                              <Calendar size={14} className="text-slate-400" />
-                              <span style={{ fontWeight: 600, color: '#475569' }}>{order.transaction_date}</span>
-                            </div>
-                          </td>
-                          <td style={{ textAlign: 'right' }}>
-                            <div style={{ fontWeight: 800, display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#0f172a' }}>
-                              <DirhamIcon size={12} />
-                              <span>{parseFloat(order.grand_total || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                            </div>
-                            <div style={{ fontSize: '0.68rem', color: '#64748b', fontWeight: 600 }}>
-                              Items: {order.total_qty || 0}
-                            </div>
-                          </td>
-                          <td>
-                            <StatusBadge docstatus={order.docstatus} />
-                          </td>
+                            </td>
+                          )}
+                          {!hiddenDefaults.includes('transaction_date') && (
+                            <td>
+                              <div 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (order.transaction_date) {
+                                    setSearchTerm(order.transaction_date);
+                                    setCurrentPage(1);
+                                  }
+                                }}
+                                title="Click to filter by date"
+                                style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}
+                                onMouseEnter={e => e.currentTarget.style.color = themeColor || '#0082f6'}
+                                onMouseLeave={e => e.currentTarget.style.color = ''}
+                              >
+                                <Calendar size={14} className="text-slate-400" />
+                                <span style={{ fontWeight: 600, color: '#475569' }}>{order.transaction_date}</span>
+                              </div>
+                            </td>
+                          )}
+                          {!hiddenDefaults.includes('grand_total') && (
+                            <td style={{ textAlign: 'right' }}>
+                              <div style={{ fontWeight: 800, display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#0f172a' }}>
+                                <DirhamIcon size={12} />
+                                <span>{parseFloat(order.grand_total || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                              </div>
+                              <div style={{ fontSize: '0.68rem', color: '#64748b', fontWeight: 600 }}>
+                                Items: {order.total_qty || 0}
+                              </div>
+                            </td>
+                          )}
+                          {!hiddenDefaults.includes('docstatus') && (
+                            <td>
+                              <span 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setFilterStatus(order.docstatus === 1 ? 'Submitted' : (order.docstatus === 2 ? 'Cancelled' : 'Draft'));
+                                  setCurrentPage(1);
+                                }}
+                                title="Click to filter by status"
+                                style={{ cursor: 'pointer', display: 'inline-block' }}
+                              >
+                                <StatusBadge docstatus={order.docstatus} />
+                              </span>
+                            </td>
+                          )}
                           {customColumns.map(col => (
                             <td key={col} style={{ fontSize: '0.8rem', fontWeight: 600 }}>
                               {order[col] !== undefined && order[col] !== null ? String(order[col]) : '-'}
@@ -1837,9 +2027,17 @@ export default function SalesOrderList() {
                           ))}
                           <td>
                             <div style={{ display: 'flex', justifyContent: 'center' }}>
-                              <div style={{ color: themeColor || '#0082f6' }}>
-                                <ArrowRight size={18} />
-                              </div>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleRowClick(order.name);
+                                }}
+                                style={{ background: 'none', border: 'none', cursor: 'pointer', color: themeColor || '#0082f6', padding: '4px', display: 'flex' }}
+                                title="Open Details"
+                              >
+                                <Eye size={16} />
+                              </button>
                             </div>
                           </td>
                         </tr>
