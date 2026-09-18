@@ -373,16 +373,26 @@ function Home() {
             const saved = localStorage.getItem('pos_popup_dimensions');
             if (saved) {
                 const parsed = JSON.parse(saved);
-                if (typeof window !== 'undefined' && parsed) {
-                    parsed.height = Math.min(parsed.height || 660, Math.max(400, window.innerHeight - 64));
-                    parsed.width = Math.min(parsed.width || 1280, Math.max(760, window.innerWidth - 20));
+                if (parsed) {
+                    const winH = typeof window !== 'undefined' ? window.innerHeight : 768;
+                    const winW = typeof window !== 'undefined' ? window.innerWidth : 1280;
+                    return {
+                        width: Math.min(Math.min(1280, winW - 24), Math.max(760, parsed.width || 1200)),
+                        height: Math.min(Math.min(580, winH - 64), Math.max(380, parsed.height || 560)),
+                        scale: 100,
+                        isMax: !!parsed.isMax
+                    };
                 }
-                return parsed;
             }
         } catch (e) {}
-        const defaultH = typeof window !== 'undefined' ? Math.min(660, window.innerHeight - 64) : 660;
-        const defaultW = typeof window !== 'undefined' ? Math.min(1320, window.innerWidth - 20) : 1320;
-        return { width: defaultW, height: defaultH, scale: 100, isMax: false };
+        const winH = typeof window !== 'undefined' ? window.innerHeight : 768;
+        const winW = typeof window !== 'undefined' ? window.innerWidth : 1280;
+        return {
+            width: Math.min(1200, winW - 24),
+            height: Math.min(560, winH - 64),
+            scale: 100,
+            isMax: false
+        };
     });
 
     const isResizingRef = useRef(null);
@@ -403,8 +413,8 @@ function Home() {
         e.stopPropagation();
         const startX = e.clientX;
         const startY = e.clientY;
-        const startW = popupDimensions.width || 1440;
-        const startH = popupDimensions.height || 860;
+        const startW = popupDimensions.width || 1200;
+        const startH = popupDimensions.height || 560;
 
         isResizingRef.current = { direction, startX, startY, startW, startH };
         setIsResizing(true);
@@ -430,11 +440,11 @@ function Home() {
                 nextH = sh - dy * 2;
             }
 
-            const maxW = Math.max(800, window.innerWidth - 30);
-            const maxH = Math.max(520, window.innerHeight - 60);
+            const maxW = Math.max(760, window.innerWidth - 30);
+            const maxH = Math.max(400, window.innerHeight - 60);
 
-            nextW = Math.round(Math.min(maxW, Math.max(780, nextW)));
-            nextH = Math.round(Math.min(maxH, Math.max(500, nextH)));
+            nextW = Math.round(Math.min(maxW, Math.max(760, nextW)));
+            nextH = Math.round(Math.min(maxH, Math.max(380, nextH)));
 
             setPopupDimensions(prev => ({
                 ...prev,
@@ -487,14 +497,17 @@ function Home() {
             );
         }
 
-        const maxModalH = Math.max(400, (typeof window !== 'undefined' ? window.innerHeight : 800) - 64);
-        const maxModalW = Math.max(760, (typeof window !== 'undefined' ? window.innerWidth : 1200) - 20);
+        const winH = typeof window !== 'undefined' ? window.innerHeight : 768;
+        const winW = typeof window !== 'undefined' ? window.innerWidth : 1280;
 
-        const rawW = popupDimensions.isMax ? maxModalW : (popupDimensions.width || 1280);
-        const rawH = popupDimensions.isMax ? maxModalH : (popupDimensions.height || 680);
+        const maxModalH = Math.max(380, winH - 56);
+        const maxModalW = Math.max(740, winW - 20);
 
-        const effectiveWidth = `${Math.min(maxModalW, Math.max(760, rawW))}px`;
-        const effectiveHeight = `${Math.min(maxModalH, Math.max(400, rawH))}px`;
+        const rawW = popupDimensions.isMax ? maxModalW : (popupDimensions.width || 1200);
+        const rawH = popupDimensions.isMax ? maxModalH : (popupDimensions.height || 560);
+
+        const effectiveWidth = `${Math.min(maxModalW, Math.max(740, rawW))}px`;
+        const effectiveHeight = `${Math.min(maxModalH, Math.max(380, rawH))}px`;
         const zoomScale = (popupDimensions.scale || 100) / 100;
 
         return (
@@ -528,11 +541,11 @@ function Home() {
                         gap: '6px',
                         background: 'rgba(15, 23, 42, 0.9)',
                         backdropFilter: 'blur(12px)',
-                        padding: '4px 12px',
+                        padding: '3px 12px',
                         borderRadius: '30px',
                         border: '1px solid rgba(255, 255, 255, 0.18)',
                         boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.5)',
-                        marginBottom: '8px',
+                        marginBottom: '6px',
                         zIndex: 110,
                         flexShrink: 0
                     }}
@@ -576,21 +589,21 @@ function Home() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: '3px', borderLeft: '1px solid rgba(255, 255, 255, 0.15)', paddingLeft: '8px' }}>
                         <button
                             type="button"
-                            onClick={() => updateDimensions({ width: 1024, height: Math.min(600, window.innerHeight - 64), isMax: false })}
+                            onClick={() => updateDimensions({ width: 1000, height: Math.min(520, winH - 56), isMax: false })}
                             style={{ background: 'rgba(255, 255, 255, 0.08)', border: 'none', color: '#e2e8f0', borderRadius: '6px', padding: '3px 7px', fontSize: '10px', fontWeight: 800, cursor: 'pointer' }}
                         >
                             Compact
                         </button>
                         <button
                             type="button"
-                            onClick={() => updateDimensions({ width: 1240, height: Math.min(660, window.innerHeight - 64), isMax: false })}
+                            onClick={() => updateDimensions({ width: 1200, height: Math.min(580, winH - 56), isMax: false })}
                             style={{ background: 'rgba(255, 255, 255, 0.08)', border: 'none', color: '#e2e8f0', borderRadius: '6px', padding: '3px 7px', fontSize: '10px', fontWeight: 800, cursor: 'pointer' }}
                         >
                             Medium
                         </button>
                         <button
                             type="button"
-                            onClick={() => updateDimensions({ width: 1420, height: Math.min(720, window.innerHeight - 64), isMax: false })}
+                            onClick={() => updateDimensions({ width: 1380, height: Math.min(640, winH - 56), isMax: false })}
                             style={{ background: 'rgba(255, 255, 255, 0.08)', border: 'none', color: '#e2e8f0', borderRadius: '6px', padding: '3px 7px', fontSize: '10px', fontWeight: 800, cursor: 'pointer' }}
                         >
                             Large
@@ -607,7 +620,7 @@ function Home() {
                     {/* Reset Button */}
                     <button
                         type="button"
-                        onClick={() => updateDimensions({ width: 1280, height: Math.min(660, window.innerHeight - 64), scale: 100, isMax: false })}
+                        onClick={() => updateDimensions({ width: 1200, height: Math.min(560, winH - 56), scale: 100, isMax: false })}
                         style={{ background: 'transparent', border: 'none', color: '#94a3b8', borderRadius: '6px', padding: '3px 6px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '3px', fontSize: '10px', fontWeight: 800 }}
                         title="Reset Dimensions & Scale"
                     >
@@ -636,17 +649,14 @@ function Home() {
                         width: effectiveWidth,
                         height: effectiveHeight,
                         maxWidth: 'calc(100vw - 20px)',
-                        maxHeight: zoomScale !== 1 ? `calc((100vh - 64px) / ${zoomScale})` : 'calc(100vh - 64px)',
+                        maxHeight: 'calc(100vh - 54px)',
                         borderRadius: '16px',
                         boxShadow: '0 25px 60px -15px rgba(0, 0, 0, 0.6), 0 0 0 2px rgba(56, 189, 248, 0.45)',
                         background: '#ffffff',
                         overflow: 'hidden',
                         display: 'flex',
                         flexDirection: 'column',
-                        position: 'relative',
-                        transform: zoomScale !== 1 ? `scale(${zoomScale})` : 'none',
-                        transformOrigin: 'top center',
-                        transition: isResizing ? 'none' : 'width 0.15s ease, height 0.15s ease, transform 0.15s ease'
+                        position: 'relative'
                     }}
                 >
                     {/* CROP CORNER HANDLES */}
@@ -661,7 +671,21 @@ function Home() {
                     <div className="pos-crop-edge-handle pos-crop-left" onMouseDown={(e) => handleResizeStart('l', e)} title="Drag to Resize Width" />
                     <div className="pos-crop-edge-handle pos-crop-right" onMouseDown={(e) => handleResizeStart('r', e)} title="Drag to Resize Width" />
 
-                    {content}
+                    <div
+                        style={{
+                            transform: zoomScale !== 1 ? `scale(${zoomScale})` : 'none',
+                            transformOrigin: 'top left',
+                            width: zoomScale !== 1 ? `${(100 / zoomScale).toFixed(2)}%` : '100%',
+                            height: zoomScale !== 1 ? `${(100 / zoomScale).toFixed(2)}%` : '100%',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            flex: 1,
+                            minHeight: 0,
+                            overflow: 'hidden'
+                        }}
+                    >
+                        {content}
+                    </div>
                 </div>
             </div>
         );
