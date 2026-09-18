@@ -10802,8 +10802,8 @@ function Home() {
 
                 {!hideAllShortcuts && shortcutsPosition === 'top' && renderShortcutsHorizontal()}
 
-                <div style={{ display: 'flex', flex: 1, minHeight: 0, width: '100%', overflow: 'hidden' }}>
-                    <main className="so-main-layout">
+                <div style={{ display: 'flex', flex: 1, minHeight: 0, width: '100%', overflow: 'hidden', height: '100%' }}>
+                    <main className="so-main-layout" style={{ display: 'grid', gridTemplateColumns: '1fr var(--so-bill-width, 460px)', height: '100%', width: '100%', minHeight: 0, overflow: 'hidden' }}>
                         <div style={{ display: 'flex', flex: 1, minWidth: 0, overflow: 'hidden', height: '100%' }}>
                             {!hideAllShortcuts && shortcutsPosition === 'left' && renderShortcutsVertical('left')}
                             <div className="so-item-side">
@@ -11088,10 +11088,10 @@ function Home() {
                         </div>
 
                         {/* ==================== MODERN CART SECTION ==================== */}
-                        <div className="so-bill-side">
+                        <div className="so-bill-side" style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, maxHeight: '100%', overflow: 'hidden', width: '100%' }}>
 
                             {/* CUSTOMER */}
-                            <div className="so-bill-header">
+                            <div className="so-bill-header" style={{ flexShrink: 0 }}>
 
                                 <div className="so-customer-wrapper">
                                     <div className="so-customer-field">
@@ -11234,7 +11234,7 @@ function Home() {
                             </div>
 
                             {/* CART ITEMS */}
-                            <div className="so-bill-items">
+                            <div className="so-bill-items" style={{ flex: '1 1 0%', minHeight: 0, overflowY: 'auto', width: '100%' }}>
 
                                 {billItems.length === 0 ? (
                                     <div className="so-cart-empty">
@@ -11592,7 +11592,7 @@ function Home() {
                             </div>
 
                             {/* FOOTER */}
-                            <div className="so-bill-footer">
+                            <div className="so-bill-footer" style={{ flexShrink: 0, marginTop: 'auto', width: '100%' }}>
 
                                 <div className="so-cart-footer-top">
 
