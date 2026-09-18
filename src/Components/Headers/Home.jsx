@@ -453,10 +453,39 @@ function Home() {
     };
 
     const wrapWindowMode = (content) => {
-        if (posWindowMode !== 'popup') return content;
+        if (posWindowMode !== 'popup') {
+            return (
+                <div
+                    className="pos-fullscreen-viewport"
+                    style={{
+                        position: 'fixed',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        width: '100vw',
+                        height: '100vh',
+                        maxHeight: '100vh',
+                        maxWidth: '100vw',
+                        overflow: 'hidden',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        zIndex: 1
+                    }}
+                >
+                    {content}
+                </div>
+            );
+        }
 
-        const effectiveWidth = popupDimensions.isMax ? '98vw' : `${Math.min(window.innerWidth - 20, Math.max(780, popupDimensions.width || 1440))}px`;
-        const effectiveHeight = popupDimensions.isMax ? 'calc(100vh - 56px)' : `${Math.min(window.innerHeight - 56, Math.max(500, popupDimensions.height || 860))}px`;
+        const maxModalH = Math.max(440, (typeof window !== 'undefined' ? window.innerHeight : 800) - 54);
+        const maxModalW = Math.max(760, (typeof window !== 'undefined' ? window.innerWidth : 1200) - 16);
+
+        const rawW = popupDimensions.isMax ? maxModalW : (popupDimensions.width || 1280);
+        const rawH = popupDimensions.isMax ? maxModalH : (popupDimensions.height || 740);
+
+        const effectiveWidth = `${Math.min(maxModalW, Math.max(760, rawW))}px`;
+        const effectiveHeight = `${Math.min(maxModalH, Math.max(440, rawH))}px`;
         const zoomScale = (popupDimensions.scale || 100) / 100;
 
         return (
@@ -475,7 +504,7 @@ function Home() {
                     flexDirection: 'column',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    padding: '8px',
+                    padding: '6px',
                     boxSizing: 'border-box',
                     overflow: 'hidden',
                     userSelect: isResizing ? 'none' : 'auto'
@@ -10800,9 +10829,13 @@ function Home() {
                     </div>
                 </div>
 
-                {!hideAllShortcuts && shortcutsPosition === 'top' && renderShortcutsHorizontal()}
+                {!hideAllShortcuts && shortcutsPosition === 'top' && (
+                    <div style={{ flexShrink: 0, width: '100%' }}>
+                        {renderShortcutsHorizontal()}
+                    </div>
+                )}
 
-                <div style={{ display: 'flex', flex: 1, minHeight: 0, width: '100%', overflow: 'hidden', height: '100%' }}>
+                <div style={{ display: 'flex', flex: '1 1 0%', minHeight: 0, width: '100%', overflow: 'hidden' }}>
                     <main className="so-main-layout" style={{ display: 'grid', gridTemplateColumns: '1fr var(--so-bill-width, 460px)', height: '100%', width: '100%', minHeight: 0, overflow: 'hidden' }}>
                         <div style={{ display: 'flex', flex: 1, minWidth: 0, overflow: 'hidden', height: '100%' }}>
                             {!hideAllShortcuts && shortcutsPosition === 'left' && renderShortcutsVertical('left')}
@@ -11592,7 +11625,7 @@ function Home() {
                             </div>
 
                             {/* FOOTER */}
-                            <div className="so-bill-footer" style={{ flexShrink: 0, marginTop: 'auto', width: '100%' }}>
+                            <div className="so-bill-footer" style={{ flexShrink: 0, marginTop: 'auto', width: '100%', position: 'sticky', bottom: 0, zIndex: 30, background: '#ffffff' }}>
 
                                 <div className="so-cart-footer-top">
 
@@ -11892,7 +11925,11 @@ function Home() {
                     </main>
                 </div>
 
-                {!hideAllShortcuts && shortcutsPosition === 'bottom' && renderShortcutsHorizontal()}
+                {!hideAllShortcuts && shortcutsPosition === 'bottom' && (
+                    <div style={{ flexShrink: 0, width: '100%' }}>
+                        {renderShortcutsHorizontal()}
+                    </div>
+                )}
 
                 {isDraggingShortcuts && renderDropZones()}
 
