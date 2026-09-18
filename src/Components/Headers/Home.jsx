@@ -371,9 +371,18 @@ function Home() {
     const [popupDimensions, setPopupDimensions] = useState(() => {
         try {
             const saved = localStorage.getItem('pos_popup_dimensions');
-            if (saved) return JSON.parse(saved);
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                if (typeof window !== 'undefined' && parsed) {
+                    parsed.height = Math.min(parsed.height || 660, Math.max(400, window.innerHeight - 64));
+                    parsed.width = Math.min(parsed.width || 1280, Math.max(760, window.innerWidth - 20));
+                }
+                return parsed;
+            }
         } catch (e) {}
-        return { width: 1440, height: 860, scale: 100, isMax: false };
+        const defaultH = typeof window !== 'undefined' ? Math.min(660, window.innerHeight - 64) : 660;
+        const defaultW = typeof window !== 'undefined' ? Math.min(1320, window.innerWidth - 20) : 1320;
+        return { width: defaultW, height: defaultH, scale: 100, isMax: false };
     });
 
     const isResizingRef = useRef(null);
@@ -478,14 +487,14 @@ function Home() {
             );
         }
 
-        const maxModalH = Math.max(440, (typeof window !== 'undefined' ? window.innerHeight : 800) - 54);
-        const maxModalW = Math.max(760, (typeof window !== 'undefined' ? window.innerWidth : 1200) - 16);
+        const maxModalH = Math.max(400, (typeof window !== 'undefined' ? window.innerHeight : 800) - 64);
+        const maxModalW = Math.max(760, (typeof window !== 'undefined' ? window.innerWidth : 1200) - 20);
 
         const rawW = popupDimensions.isMax ? maxModalW : (popupDimensions.width || 1280);
-        const rawH = popupDimensions.isMax ? maxModalH : (popupDimensions.height || 740);
+        const rawH = popupDimensions.isMax ? maxModalH : (popupDimensions.height || 680);
 
         const effectiveWidth = `${Math.min(maxModalW, Math.max(760, rawW))}px`;
-        const effectiveHeight = `${Math.min(maxModalH, Math.max(440, rawH))}px`;
+        const effectiveHeight = `${Math.min(maxModalH, Math.max(400, rawH))}px`;
         const zoomScale = (popupDimensions.scale || 100) / 100;
 
         return (
@@ -503,8 +512,8 @@ function Home() {
                     display: 'flex',
                     flexDirection: 'column',
                     alignItems: 'center',
-                    justifyContent: 'center',
-                    padding: '6px',
+                    justifyContent: 'flex-start',
+                    padding: '8px 12px 10px 12px',
                     boxSizing: 'border-box',
                     overflow: 'hidden',
                     userSelect: isResizing ? 'none' : 'auto'
@@ -567,21 +576,21 @@ function Home() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: '3px', borderLeft: '1px solid rgba(255, 255, 255, 0.15)', paddingLeft: '8px' }}>
                         <button
                             type="button"
-                            onClick={() => updateDimensions({ width: 1024, height: 680, isMax: false })}
+                            onClick={() => updateDimensions({ width: 1024, height: Math.min(600, window.innerHeight - 64), isMax: false })}
                             style={{ background: 'rgba(255, 255, 255, 0.08)', border: 'none', color: '#e2e8f0', borderRadius: '6px', padding: '3px 7px', fontSize: '10px', fontWeight: 800, cursor: 'pointer' }}
                         >
                             Compact
                         </button>
                         <button
                             type="button"
-                            onClick={() => updateDimensions({ width: 1280, height: 780, isMax: false })}
+                            onClick={() => updateDimensions({ width: 1240, height: Math.min(660, window.innerHeight - 64), isMax: false })}
                             style={{ background: 'rgba(255, 255, 255, 0.08)', border: 'none', color: '#e2e8f0', borderRadius: '6px', padding: '3px 7px', fontSize: '10px', fontWeight: 800, cursor: 'pointer' }}
                         >
                             Medium
                         </button>
                         <button
                             type="button"
-                            onClick={() => updateDimensions({ width: 1520, height: 880, isMax: false })}
+                            onClick={() => updateDimensions({ width: 1420, height: Math.min(720, window.innerHeight - 64), isMax: false })}
                             style={{ background: 'rgba(255, 255, 255, 0.08)', border: 'none', color: '#e2e8f0', borderRadius: '6px', padding: '3px 7px', fontSize: '10px', fontWeight: 800, cursor: 'pointer' }}
                         >
                             Large
@@ -598,7 +607,7 @@ function Home() {
                     {/* Reset Button */}
                     <button
                         type="button"
-                        onClick={() => updateDimensions({ width: 1440, height: 860, scale: 100, isMax: false })}
+                        onClick={() => updateDimensions({ width: 1280, height: Math.min(660, window.innerHeight - 64), scale: 100, isMax: false })}
                         style={{ background: 'transparent', border: 'none', color: '#94a3b8', borderRadius: '6px', padding: '3px 6px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '3px', fontSize: '10px', fontWeight: 800 }}
                         title="Reset Dimensions & Scale"
                     >
@@ -626,8 +635,8 @@ function Home() {
                     style={{
                         width: effectiveWidth,
                         height: effectiveHeight,
-                        maxWidth: '100%',
-                        maxHeight: 'calc(100vh - 54px)',
+                        maxWidth: 'calc(100vw - 20px)',
+                        maxHeight: zoomScale !== 1 ? `calc((100vh - 64px) / ${zoomScale})` : 'calc(100vh - 64px)',
                         borderRadius: '16px',
                         boxShadow: '0 25px 60px -15px rgba(0, 0, 0, 0.6), 0 0 0 2px rgba(56, 189, 248, 0.45)',
                         background: '#ffffff',
@@ -636,7 +645,7 @@ function Home() {
                         flexDirection: 'column',
                         position: 'relative',
                         transform: zoomScale !== 1 ? `scale(${zoomScale})` : 'none',
-                        transformOrigin: 'center center',
+                        transformOrigin: 'top center',
                         transition: isResizing ? 'none' : 'width 0.15s ease, height 0.15s ease, transform 0.15s ease'
                     }}
                 >
