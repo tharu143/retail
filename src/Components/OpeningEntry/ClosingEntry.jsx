@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import {
   AlertCircle, CheckCircle2, Loader2, Receipt, Calendar, CreditCard,
   TrendingUp, DollarSign, Palette, RefreshCw, FileText, ChevronDown, User, Building2, X, Printer, LogOut,
-  ArrowRightLeft, Truck, AlertTriangle, HandCoins, Wallet
+  ArrowRightLeft, Truck, AlertTriangle, HandCoins, Wallet, Store, Banknote, Coins, ArrowLeft
 } from 'lucide-react';
 import DirhamIcon from '../../assets/Currency/DirhamIcon';
 import { useSelector } from 'react-redux';
@@ -12,6 +12,7 @@ import { frappeCall } from '../../utils/frappe';
 import '../Admin/SalesOrder.css';
 import '../Reports/DailySalesReport.css';
 import './ClosingEntry.css';
+import './OpeningEntryDetail.css';
 
 const UAE_DENOMINATIONS = [
   { value: 1000, label: '1000 AED (Note)' },
@@ -680,136 +681,215 @@ function ClosingEntry() {
     );
   }
 
+  const formatDisplayDate = (dateStr) => {
+    if (!dateStr) return 'N/A';
+    try {
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return dateStr;
+      const day = d.getDate();
+      const month = d.toLocaleString('en-US', { month: 'short' });
+      const year = d.getFullYear();
+      let hours = d.getHours();
+      const minutes = d.getMinutes().toString().padStart(2, '0');
+      const ampm = hours >= 12 ? 'pm' : 'am';
+      hours = hours % 12 || 12;
+      const paddedHours = hours.toString().padStart(2, '0');
+      return `${day} ${month} ${year}, ${paddedHours}:${minutes} ${ampm}`;
+    } catch (e) {
+      return dateStr;
+    }
+  };
+
   if (isReadOnly || routeId) {
     const detail = closingDetailData || {};
     const reconciliations = detail.payment_reconciliation || [];
+    const isSubmitted = detail.docstatus === 1;
+
     return (
-      <div className="pos-opening-detail-container">
-        <div className="pos-opening-detail-card">
-          <div className="pos-opening-detail-header">
-            <div>
-              <h1 className="pos-opening-detail-title">
-                <Receipt size={24} className="text-emerald-400" />
-                {routeId || 'POS Closing Entry'}
-              </h1>
-              <p className="pos-opening-detail-subtitle">Point of Sale Shift Closing & Settlement Record</p>
+      <div className="pos-ope-page-wrapper">
+        {/* 1. TOP HEADER BAR */}
+        <div className="pos-ope-header-bar">
+          <div className="pos-ope-header-left">
+            <button className="pos-ope-back-btn" onClick={() => navigate('/posclosingentrylist')} title="Back to List">
+              <ArrowLeft size={18} />
+            </button>
+            <div className="pos-ope-title-group">
+              <div className="pos-ope-title-row">
+                <h1 className="pos-ope-title">{routeId || 'POS CLOSING ENTRY'}</h1>
+                <span className="pos-ope-badge" style={!isSubmitted ? { background: '#fef3c7', color: '#d97706', borderColor: '#fde68a' } : {}}>
+                  <span className="pos-ope-badge-dot" style={!isSubmitted ? { backgroundColor: '#d97706' } : {}}></span>
+                  {isSubmitted ? 'SUBMITTED' : 'DRAFT'}
+                </span>
+              </div>
+              <p className="pos-ope-subtitle">Point of Sale Shift Closing & Settlement Record</p>
             </div>
-            <span className="pos-opening-badge">
-              ● {detail.docstatus === 1 ? 'Submitted' : 'Draft'}
-            </span>
           </div>
 
-          <div className="pos-opening-detail-body">
-            <div className="pos-opening-grid">
-              <div className="pos-opening-field-card">
-                <div className="pos-opening-field-label">
-                  <User className="w-3.5 h-3.5" />
-                  Closing Cashier / User
-                </div>
-                <div className="pos-opening-field-value">{detail.user || 'N/A'}</div>
-              </div>
+          <div className="pos-ope-header-right">
+            <button className="pos-ope-btn-secondary" onClick={() => window.print()}>
+              <Printer size={14} /> Print
+            </button>
+            <button className="pos-ope-btn-secondary" onClick={() => navigate('/posclosingentrylist')}>
+              <ArrowLeft size={14} /> Back to List
+            </button>
+          </div>
+        </div>
 
-              <div className="pos-opening-field-card">
-                <div className="pos-opening-field-label">
-                  <Building2 className="w-3.5 h-3.5" />
-                  Company
-                </div>
-                <div className="pos-opening-field-value">{detail.company || 'N/A'}</div>
-              </div>
+        {/* 2. PAGE CONTAINER */}
+        <div className="pos-ope-container">
+          <div className="pos-ope-content-grid">
 
-              <div className="pos-opening-field-card">
-                <div className="pos-opening-field-label">
-                  <CreditCard className="w-3.5 h-3.5" />
-                  POS Profile
-                </div>
-                <div className="pos-opening-field-value">{detail.pos_profile || 'N/A'}</div>
-              </div>
-
-              <div className="pos-opening-field-card">
-                <div className="pos-opening-field-label">
-                  <Calendar className="w-3.5 h-3.5" />
-                  Shift Start Date
-                </div>
-                <div className="pos-opening-field-value">
-                  {detail.period_start_date ? new Date(detail.period_start_date).toLocaleString('en-IN', {
-                    day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
-                  }) : 'N/A'}
+            {/* CARD 1: CLOSING ENTRY INFORMATION */}
+            <div className="pos-ope-card">
+              <div className="pos-ope-card-header">
+                <div className="pos-ope-card-title">
+                  <FileText className="pos-ope-card-icon" size={18} /> CLOSING ENTRY INFORMATION
                 </div>
               </div>
+              <div className="pos-ope-card-body">
+                <div className="pos-ope-meta-grid">
+                  <div className="pos-ope-info-item">
+                    <div className="pos-ope-info-icon">
+                      <User size={18} />
+                    </div>
+                    <div className="pos-ope-info-details">
+                      <span className="pos-ope-info-label">CLOSING CASHIER / USER</span>
+                      <span className="pos-ope-info-value">{detail.user || currentUser || 'N/A'}</span>
+                    </div>
+                  </div>
 
-              <div className="pos-opening-field-card">
-                <div className="pos-opening-field-label">
-                  <Calendar className="w-3.5 h-3.5" />
-                  Shift End Date
-                </div>
-                <div className="pos-opening-field-value">
-                  {detail.period_end_date ? new Date(detail.period_end_date).toLocaleString('en-IN', {
-                    day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
-                  }) : 'N/A'}
+                  <div className="pos-ope-info-item">
+                    <div className="pos-ope-info-icon">
+                      <Building2 size={18} />
+                    </div>
+                    <div className="pos-ope-info-details">
+                      <span className="pos-ope-info-label">COMPANY</span>
+                      <span className="pos-ope-info-value">{detail.company || company || 'N/A'}</span>
+                    </div>
+                  </div>
+
+                  <div className="pos-ope-info-item">
+                    <div className="pos-ope-info-icon">
+                      <Store size={18} />
+                    </div>
+                    <div className="pos-ope-info-details">
+                      <span className="pos-ope-info-label">POS PROFILE</span>
+                      <span className="pos-ope-info-value">{detail.pos_profile || currentPosProfile || 'N/A'}</span>
+                    </div>
+                  </div>
+
+                  <div className="pos-ope-info-item">
+                    <div className="pos-ope-info-icon">
+                      <Calendar size={18} />
+                    </div>
+                    <div className="pos-ope-info-details">
+                      <span className="pos-ope-info-label">SHIFT START DATE</span>
+                      <span className="pos-ope-info-value">{formatDisplayDate(detail.period_start_date || detail.posting_date)}</span>
+                    </div>
+                  </div>
+
+                  <div className="pos-ope-info-item">
+                    <div className="pos-ope-info-icon">
+                      <Calendar size={18} />
+                    </div>
+                    <div className="pos-ope-info-details">
+                      <span className="pos-ope-info-label">SHIFT END DATE</span>
+                      <span className="pos-ope-info-value">{formatDisplayDate(detail.period_end_date || detail.posting_date)}</span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
 
-            <h3 className="pos-opening-section-title">
-              <DirhamIcon size={18} className="text-emerald-600" />
-              Payment Reconciliation Summary
-            </h3>
+            {/* CARD 2: PAYMENT RECONCILIATION SUMMARY */}
+            <div className="pos-ope-card">
+              <div className="pos-ope-card-header">
+                <div className="pos-ope-card-title">
+                  <Wallet className="pos-ope-card-icon" size={18} /> PAYMENT RECONCILIATION SUMMARY
+                </div>
+              </div>
+              <div className="pos-ope-card-body">
+                <div className="pos-ope-table-container">
+                  <table className="pos-ope-table">
+                    <thead>
+                      <tr>
+                        <th>MODE OF PAYMENT</th>
+                        <th style={{ textAlign: 'right' }}>OPENING</th>
+                        <th style={{ textAlign: 'right' }}>EXPECTED</th>
+                        <th style={{ textAlign: 'right' }}>CLOSING</th>
+                        <th style={{ textAlign: 'right' }}>DIFFERENCE</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {reconciliations.length === 0 ? (
+                        <tr>
+                          <td colSpan={5} style={{ textAlign: 'center', color: '#94a3b8', padding: '2rem' }}>
+                            No payment reconciliations recorded
+                          </td>
+                        </tr>
+                      ) : (
+                        reconciliations.map((r, idx) => {
+                          const diff = parseFloat(r.difference || 0);
+                          return (
+                            <tr key={idx}>
+                              <td>
+                                <div className="pos-ope-payment-cell">
+                                  <div className="pos-ope-payment-icon">
+                                    <Banknote size={16} />
+                                  </div>
+                                  <span>{r.mode_of_payment}</span>
+                                </div>
+                              </td>
+                              <td style={{ textAlign: 'right', fontWeight: 600, color: '#475569' }}>
+                                AED {parseFloat(r.opening_amount || 0).toFixed(2)}
+                              </td>
+                              <td style={{ textAlign: 'right', fontWeight: 600, color: '#475569' }}>
+                                AED {parseFloat(r.expected_amount || 0).toFixed(2)}
+                              </td>
+                              <td className="pos-ope-amount-cell" style={{ textAlign: 'right' }}>
+                                AED {parseFloat(r.closing_amount || 0).toFixed(2)}
+                              </td>
+                              <td style={{ textAlign: 'right', fontWeight: 800, color: diff < 0 ? '#ef4444' : '#16a34a' }}>
+                                AED {diff.toFixed(2)}
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
 
-            <table className="pos-opening-table">
-              <thead>
-                <tr>
-                  <th>Mode of Payment</th>
-                  <th style={{ textAlign: 'right' }}>Opening</th>
-                  <th style={{ textAlign: 'right' }}>Expected</th>
-                  <th style={{ textAlign: 'right' }}>Closing</th>
-                  <th style={{ textAlign: 'right' }}>Difference</th>
-                </tr>
-              </thead>
-              <tbody>
-                {reconciliations.length === 0 ? (
-                  <tr>
-                    <td colSpan="5" style={{ textAlign: 'center', color: '#94a3b8' }}>No payment reconciliations recorded</td>
-                  </tr>
-                ) : (
-                  reconciliations.map((r, idx) => (
-                    <tr key={idx}>
-                      <td className="font-semibold text-slate-800">{r.mode_of_payment}</td>
-                      <td style={{ textAlign: 'right' }}>AED {parseFloat(r.opening_amount || 0).toFixed(2)}</td>
-                      <td style={{ textAlign: 'right' }}>AED {parseFloat(r.expected_amount || 0).toFixed(2)}</td>
-                      <td style={{ textAlign: 'right' }} className="font-bold text-slate-900">AED {parseFloat(r.closing_amount || 0).toFixed(2)}</td>
-                      <td style={{ textAlign: 'right', color: parseFloat(r.difference || 0) < 0 ? '#ef4444' : '#10b981', fontWeight: 700 }}>
-                        AED {parseFloat(r.difference || 0).toFixed(2)}
-                      </td>
-                    </tr>
-                  ))
+                {/* Discrepancy Reason */}
+                {detail.discrepancy_reason && (
+                  <div style={{ marginTop: '1.25rem', padding: '1rem 1.25rem', background: '#fff1f2', border: '1px solid #fecdd3', borderRadius: '10px' }}>
+                    <div style={{ fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', color: '#9f1239', letterSpacing: '0.04em' }}>
+                      Discrepancy Reason
+                    </div>
+                    <div style={{ fontSize: '13.5px', fontWeight: 600, color: '#be123c', marginTop: '4px' }}>
+                      {detail.discrepancy_reason}
+                    </div>
+                  </div>
                 )}
-              </tbody>
-            </table>
-
-            {detail.discrepancy_reason && (
-              <div style={{ background: '#fff1f2', border: '1px solid #fecdd3', borderRadius: '0.75rem', padding: '1rem 1.25rem', marginBottom: '1.5rem', color: '#9f1239' }}>
-                <div style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', marginBottom: '0.25rem' }}>Discrepancy Reason</div>
-                <div style={{ fontSize: '0.9rem', fontWeight: 600 }}>{detail.discrepancy_reason}</div>
-              </div>
-            )}
-
-            <div className="pos-opening-hero-summary">
-              <div className="pos-opening-hero-label">Total Settled Grand Amount</div>
-              <div className="pos-opening-hero-amount">
-                <DirhamIcon size={26} /> {parseFloat(detail.grand_total || 0).toFixed(2)}
               </div>
             </div>
 
-            <div className="pos-opening-detail-footer">
-              <button
-                type="button"
-                onClick={() => navigate('/posclosingentrylist')}
-                className="pos-opening-back-btn"
-              >
-                <X className="w-4 h-4" />
-                <span>Back to Settlement List</span>
-              </button>
+            {/* CARD 3: TOTAL SETTLED SHIFT AMOUNT */}
+            <div className="pos-ope-total-card">
+              <div className="pos-ope-total-left">
+                <div className="pos-ope-total-icon">
+                  <Coins size={22} />
+                </div>
+                <div>
+                  <div className="pos-ope-total-title">TOTAL SETTLED SHIFT AMOUNT</div>
+                  <div className="pos-ope-total-sub">United Arab Emirates Dirham</div>
+                </div>
+              </div>
+              <div className="pos-ope-total-amount">
+                AED {parseFloat(detail.grand_total || 0).toFixed(2)}
+              </div>
             </div>
+
           </div>
         </div>
       </div>
@@ -1007,10 +1087,10 @@ function ClosingEntry() {
               <div className="pce-kpi-grid">
                 <div className="pce-kpi-card sales">
                   <div className="pce-kpi-top">
-                    <span className="pce-kpi-label">Total Sales Turnover</span>
                     <div className="pce-kpi-pill">
                       <DollarSign size={20} />
                     </div>
+                    <span className="pce-kpi-label">Total Sales Turnover</span>
                   </div>
                   <div className="pce-kpi-value-box">
                     <div className="pce-kpi-value">
@@ -1025,10 +1105,10 @@ function ClosingEntry() {
 
                 <div className="pce-kpi-card invoices">
                   <div className="pce-kpi-top">
-                    <span className="pce-kpi-label">Invoices Billed</span>
                     <div className="pce-kpi-pill">
                       <Receipt size={20} />
                     </div>
+                    <span className="pce-kpi-label">Invoices Billed</span>
                   </div>
                   <div className="pce-kpi-value-box">
                     <div className="pce-kpi-value">
@@ -1042,10 +1122,10 @@ function ClosingEntry() {
 
                 <div className="pce-kpi-card quantity">
                   <div className="pce-kpi-top">
-                    <span className="pce-kpi-label">Items Quantity Sold</span>
                     <div className="pce-kpi-pill">
                       <FileText size={20} />
                     </div>
+                    <span className="pce-kpi-label">Items Quantity Sold</span>
                   </div>
                   <div className="pce-kpi-value-box">
                     <div className="pce-kpi-value">
@@ -1060,10 +1140,10 @@ function ClosingEntry() {
                 {flt(invoicesData.total_collections_collected) > 0 && (
                   <div className="pce-kpi-card handover">
                     <div className="pce-kpi-top">
-                      <span className="pce-kpi-label">Cash Handovers (Collections)</span>
                       <div className="pce-kpi-pill">
                         <HandCoins size={20} />
                       </div>
+                      <span className="pce-kpi-label">Cash Handovers (Collections)</span>
                     </div>
                     <div className="pce-kpi-value-box">
                       <div className="pce-kpi-value">

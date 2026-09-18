@@ -35,6 +35,7 @@ import CameraSettings from '../Components/Admin/CameraSettings'
 import CashDrawerAuditList from '../Components/Admin/CashDrawerAuditList'
 import PosOpeningentryList from '../Components/Admin/PosOpeningentryList'
 import PosProfileList from '../Components/Admin/PosProfileList'
+import PosProfileEditPage from '../Pages/PosProfileEditPage'
 import PurchaseInvoiceList from '../Components/Admin/PurchaseInvoiceList'
 import PurchaseReceiptList from '../Components/Admin/PurchaseReceiptList'
 import SupplierList from '../Components/Admin/SupplierList'
@@ -383,6 +384,8 @@ function UserRouter() {
             <Route path='posopeningentrylist' element={<PosOpeningentryList />} />
             <Route path='pos-opening/:id' element={<OpeningEntryPage />} />
             <Route path='posprofilelist' element={<PosProfileList />} />
+            <Route path='pos-profile/new' element={<PosProfileEditPage />} />
+            <Route path='pos-profile/:id' element={<PosProfileEditPage />} />
             <Route path='purchaseinvoicelist' element={<PurchaseInvoiceList />} />
             <Route path='purchasereceiptlist' element={<PurchaseReceiptList />} />
             <Route path='supplierlist' element={<SupplierList />} />

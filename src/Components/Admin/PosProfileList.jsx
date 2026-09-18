@@ -1,19 +1,19 @@
-// src/pages/PosProfileList.jsx
 import React, { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
 import {
   Plus, Building, Warehouse, Users, CreditCard,
-  ChevronLeft, ChevronRight, X, Check, AlertCircle, Trash2, Search, Filter,
+  ChevronLeft, ChevronRight, Search, Filter,
   Palette, Loader2
 } from 'lucide-react';
-import '../Admin/SalesOrder.css';
+import './SalesOrder.css';
 
 const API_PATH = '/api/method/custom_retailpos.custom_retailpos.retail_api.retail';
 const getSession = () => localStorage.getItem('session') || '';
 
 export default function PosProfileList() {
   const { user, user_roles } = useSelector(state => state.user || {});
-  const isAdmin = (user_roles || []).includes("Administrator") || (user_roles || []).includes("System Manager");
+  const navigate = useNavigate();
 
   const [profiles, setProfiles] = useState([]);
   const [filteredProfiles, setFilteredProfiles] = useState([]);
@@ -26,18 +26,13 @@ export default function PosProfileList() {
   const [searchTerm, setSearchTerm] = useState('');
   const [companyFilter, setCompanyFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [companiesList, setCompaniesList] = useState([]);
 
-  // Modal & Edit State
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingProfile, setEditingProfile] = useState(null);
-  const [saving, setSaving] = useState(false);
-  const [formErrors, setFormErrors] = useState({});
-
-  // Theme support (synced)
-  const [polTheme, setPolTheme] = useState(localStorage.getItem('legacySubTheme') || 'green');
+  // Theme support
+  const [polTheme, setPolTheme] = useState(localStorage.getItem('legacySubTheme') || 'blue');
   const isGreen = polTheme === 'green';
-  const themeColor = isGreen ? '#10b981' : '#0ea5e9';
-  const themeColorHover = isGreen ? '#059669' : '#0284c7';
+  const themeColor = isGreen ? '#10b981' : '#0082f6';
+  const themeColorHover = isGreen ? '#059669' : '#006cd4';
   const themeLight = isGreen ? '#f0fdf4' : '#f0f9ff';
 
   useEffect(() => {
@@ -47,30 +42,7 @@ export default function PosProfileList() {
     document.documentElement.style.setProperty('--so-primary-light', themeLight);
   }, [polTheme, themeColor, themeColorHover, themeLight]);
 
-  // Form Data
-  const [formData, setFormData] = useState({
-    name: '',
-    company: '',
-    warehouse: '',
-    currency: '',
-    write_off_account: '',
-    write_off_cost_center: '',
-    write_off_limit: 1,
-    users: [{ user: '', default: false }],
-    payment_methods: [{ mode_of_payment: '', default: false, allow_in_returns: false }]
-  });
-
-  // Dropdowns
-  const [companiesList, setCompaniesList] = useState([]);
-  const [warehouses, setWarehouses] = useState([]);
-  const [usersList, setUsersList] = useState([]);
-  const [modesList, setModesList] = useState([]);
-  const [accountsList, setAccountsList] = useState([]);
-  const [costCentersList, setCostCentersList] = useState([]);
-  const [currenciesList, setCurrenciesList] = useState([]);
-  const [defaultCompany, setDefaultCompany] = useState('');
-
-  // Fetch Profiles
+  /* ────────────────────── FETCH PROFILES ────────────────────── */
   const fetchProfiles = async () => {
     try {
       setLoading(true);
@@ -92,12 +64,26 @@ export default function PosProfileList() {
     }
   };
 
+  const fetchCompanies = async () => {
+    try {
+      const res = await fetch(`${API_PATH}.get_companies`, {
+        headers: { 'X-Frappe-SID': getSession() },
+        credentials: 'include'
+      });
+      const data = await res.json();
+      const list = data.message?.data || data.message || [];
+      if (Array.isArray(list)) setCompaniesList(list);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   useEffect(() => {
     fetchProfiles();
-    fetchDropdowns();
+    fetchCompanies();
   }, []);
 
-  // Filtering
+  /* ────────────────────── FILTERING ────────────────────── */
   useEffect(() => {
     let filtered = profiles;
 
@@ -125,546 +111,190 @@ export default function PosProfileList() {
     setCurrentPage(1);
   }, [searchTerm, companyFilter, statusFilter, profiles, user]);
 
-  const extractArray = (res) => {
-    if (!res) return [];
-    if (Array.isArray(res)) return res;
-    if (Array.isArray(res.data)) return res.data;
-    if (Array.isArray(res.message)) return res.message;
-    if (res.message && Array.isArray(res.message.data)) return res.message.data;
-    return [];
-  };
-
-  const fetchDropdowns = async () => {
-    try {
-      const endpoints = [
-        `${API_PATH}.get_default_company`,
-        `${API_PATH}.get_companies`,
-        `${API_PATH}.get_warehouses`,
-        `${API_PATH}.get_users`,
-        `${API_PATH}.get_modes_of_payment`,
-        `${API_PATH}.get_currencies`
-      ];
-
-      const responses = await Promise.all(endpoints.map(url =>
-        fetch(url, { headers: { 'X-Frappe-SID': getSession() }, credentials: 'include' })
-      ));
-
-      const [def, comp, wh, usr, mod, cur] = await Promise.all(responses.map(r => r.json()));
-
-      setDefaultCompany(def.message?.company || '');
-      setCompaniesList(extractArray(comp));
-      setWarehouses(extractArray(wh));
-      setUsersList(extractArray(usr));
-      setModesList(extractArray(mod));
-      setCurrenciesList(extractArray(cur));
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  // Load accounts & cost centers
-  useEffect(() => {
-    if (formData.company) {
-      const params = new URLSearchParams({ company: formData.company });
-      Promise.all([
-        fetch(`${API_PATH}.get_accounts?${params}`, { headers: { 'X-Frappe-SID': getSession() }, credentials: 'include' }),
-        fetch(`${API_PATH}.get_cost_centers?${params}`, { headers: { 'X-Frappe-SID': getSession() }, credentials: 'include' }),
-        fetch(`${API_PATH}.get_company_default_currency?${params}`, { headers: { 'X-Frappe-SID': getSession() }, credentials: 'include' })
-      ]).then(async ([accRes, ccRes, curRes]) => {
-        const [acc, cc, cur] = await Promise.all([accRes.json(), ccRes.json(), curRes.json()]);
-        setAccountsList(extractArray(acc));
-        setCostCentersList(extractArray(cc));
-        if (cur.message?.currency && !formData.currency) {
-          setFormData(prev => ({ ...prev, currency: cur.message.currency }));
-        }
-      });
-    } else {
-      setAccountsList([]);
-      setCostCentersList([]);
-    }
-  }, [formData.company]);
-
-  const resetForm = () => {
-    setFormData({
-      name: '',
-      company: defaultCompany || '',
-      warehouse: '',
-      currency: '',
-      write_off_account: '',
-      write_off_cost_center: '',
-      write_off_limit: 1,
-      users: [{ user: '', default: false }],
-      payment_methods: [{ mode_of_payment: '', default: false, allow_in_returns: false }]
-    });
-    setFormErrors({});
-    setEditingProfile(null);
-  };
-
-  const openCreateModal = () => {
-    resetForm();
-    setIsModalOpen(true);
-  };
-
-  const openEditModal = async (profile) => {
-    setEditingProfile(profile);
-    try {
-      const res = await fetch(`${API_PATH}.get_pos_profile_detail?name=${profile.name}`, {
-        headers: { 'X-Frappe-SID': getSession() },
-        credentials: 'include'
-      });
-      const data = await res.json();
-      if (data.message?.success) {
-        const doc = data.message.data;
-        setFormData({
-          name: doc.name,
-          company: doc.company || '',
-          warehouse: doc.warehouse || '',
-          currency: doc.currency || '',
-          write_off_account: doc.write_off_account || '',
-          write_off_cost_center: doc.write_off_cost_center || '',
-          write_off_limit: doc.write_off_limit || 1,
-          users: doc.applicable_for_users?.length > 0
-            ? doc.applicable_for_users.map(u => ({ user: u.user, default: !!u.default }))
-            : [{ user: '', default: false }],
-          payment_methods: doc.payments?.length > 0
-            ? doc.payments.map(p => ({
-              mode_of_payment: p.mode_of_payment,
-              default: !!p.default,
-              allow_in_returns: !!p.allow_in_returns
-            }))
-            : [{ mode_of_payment: '', default: false, allow_in_returns: false }]
-        });
-      }
-    } catch (err) {
-      alert("Failed to load profile");
-    }
-    setIsModalOpen(true);
-  };
-
-  const validateForm = () => {
-    const errors = {};
-    if (!editingProfile && !formData.name?.trim()) errors.name = 'Name is required';
-    if (!formData.company) errors.company = 'Company required';
-    if (!formData.warehouse) errors.warehouse = 'Warehouse required';
-    if (!formData.currency) errors.currency = 'Currency required';
-    if (!formData.write_off_account) errors.write_off_account = 'Write Off Account required';
-    if (!formData.write_off_cost_center) errors.write_off_cost_center = 'Cost Center required';
-    if (formData.users.filter(u => u.user).length === 0) errors.users = 'At least one user required';
-    if (formData.payment_methods.filter(p => p.mode_of_payment).length === 0) errors.payments = 'At least one payment method required';
-
-    setFormErrors(errors);
-    return Object.keys(errors).length === 0;
-  };
-
-  const handleSave = async () => {
-    if (!validateForm()) return;
-    setSaving(true);
-
-    const payload = {
-      doctype: "POS Profile",
-      name: formData.name.trim() || undefined,
-      company: formData.company,
-      warehouse: formData.warehouse,
-      currency: formData.currency,
-      write_off_account: formData.write_off_account,
-      write_off_cost_center: formData.write_off_cost_center,
-      write_off_limit: formData.write_off_limit,
-      applicable_for_users: formData.users.filter(u => u.user).map(u => ({ user: u.user, default: u.default ? 1 : 0 })),
-      payments: formData.payment_methods.filter(p => p.mode_of_payment).map(p => ({
-        mode_of_payment: p.mode_of_payment,
-        default: p.default ? 1 : 0,
-        allow_in_returns: p.allow_in_returns ? 1 : 0
-      }))
-    };
-
-    try {
-      const endpoint = editingProfile ? 'update_pos_profile' : 'create_pos_profile';
-      const res = await fetch(`${API_PATH}.${endpoint}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Frappe-SID': getSession() },
-        credentials: 'include',
-        body: JSON.stringify({ doc: payload })
-      });
-      const data = await res.json();
-
-      if (data.message?.success) {
-        alert(editingProfile ? 'Updated!' : 'Created!');
-        setIsModalOpen(false);
-        resetForm();
-        fetchProfiles();
-      } else {
-        alert(data.message?.message || 'Failed');
-      }
-    } catch (err) {
-      alert('Network error');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const updateField = (field, value) => setFormData(prev => ({ ...prev, [field]: value }));
-  const updateTable = (table, idx, field, value) => {
-    setFormData(prev => {
-      const updated = { ...prev };
-      updated[table][idx][field] = value;
-      return updated;
-    });
-  };
-  const addRow = (table) => {
-    const newRow = table === 'users'
-      ? { user: '', default: false }
-      : { mode_of_payment: '', default: false, allow_in_returns: false };
-    setFormData(prev => ({ ...prev, [table]: [...prev[table], newRow] }));
-  };
-  const removeRow = (table, idx) => {
-    setFormData(prev => ({ ...prev, [table]: prev[table].filter((_, i) => i !== idx) }));
-  };
-
+  /* ────────────────────── PAGINATION ────────────────────── */
+  const totalPages = Math.max(1, Math.ceil(filteredProfiles.length / pageSize));
   const paginated = filteredProfiles.slice((currentPage - 1) * pageSize, currentPage * pageSize);
-  const totalPages = Math.ceil(filteredProfiles.length / pageSize);
 
   return (
-    <>
-      <div className="so-page">
-        {/* Header (Matching Customer List) */}
-        <div className="so-page-header" style={{ padding: '1.25rem 2rem', background: '#ffffff', borderBottom: '1px solid #e2e8f0' }}>
-          <div>
-            <h1 className="so-page-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
-              <CreditCard size={22} style={{ color: themeColor }} />
-              <span style={{ fontSize: '1.25rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '-0.01em' }}>POS PROFILES</span>
-            </h1>
-            <p className="so-page-subtitle" style={{ margin: '4px 0 0 0', fontSize: '0.75rem', color: '#64748b' }}>{total} profile(s) found</p>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <button
-              onClick={() => setPolTheme(isGreen ? 'blue' : 'green')}
-              style={{
-                display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem',
-                height: '38px', padding: '0 1rem', background: '#ffffff',
-                border: `1.5px solid ${themeColor}`, borderRadius: '8px',
-                fontSize: '12px', fontWeight: 800, color: themeColor,
-                cursor: 'pointer', transition: 'all 0.15s ease-in-out',
-                textTransform: 'uppercase', letterSpacing: '0.04em', boxSizing: 'border-box'
-              }}
-            >
-              <Palette size={14} /> {polTheme.toUpperCase()}
-            </button>
-            <button
-              className="so-btn-primary"
-              onClick={openCreateModal}
-              style={{
-                display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem',
-                height: '38px', padding: '0 1rem', background: themeColor,
-                color: '#ffffff', border: 'none', borderRadius: '8px',
-                fontSize: '12px', fontWeight: 800, textTransform: 'uppercase',
-                letterSpacing: '0.04em', cursor: 'pointer', transition: 'all 0.15s ease-in-out',
-                boxSizing: 'border-box'
-              }}
-            >
-              <Plus size={16} /> CREATE PROFILE
-            </button>
-          </div>
+    <div className="so-page">
+
+      {/* 1. HEADER */}
+      <div className="so-page-header" style={{ padding: '1.25rem 2rem', background: '#ffffff', borderBottom: '1px solid #e2e8f0' }}>
+        <div>
+          <h1 className="so-page-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
+            <CreditCard size={22} style={{ color: themeColor }} />
+            <span style={{ fontSize: '1.25rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '-0.01em' }}>POS PROFILES</span>
+          </h1>
+          <p className="so-page-subtitle" style={{ margin: '4px 0 0 0', fontSize: '0.75rem', color: '#64748b' }}>Configure store registers, payment methods & user access</p>
         </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <button
+            onClick={() => setPolTheme(isGreen ? 'blue' : 'green')}
+            style={{
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem',
+              height: '38px', padding: '0 1rem', background: '#ffffff',
+              border: `1.5px solid ${themeColor}`, borderRadius: '8px',
+              fontSize: '12px', fontWeight: 800, color: themeColor,
+              cursor: 'pointer', transition: 'all 0.15s ease-in-out',
+              textTransform: 'uppercase', letterSpacing: '0.04em', boxSizing: 'border-box'
+            }}
+          >
+            <Palette size={14} /> {polTheme.toUpperCase()}
+          </button>
 
-        {/* Layout: Full Width Column (No Sidebar) */}
-        <div className="so-layout" style={{ flexDirection: 'column', background: '#f8fafc', padding: '1.5rem 2rem' }}>
-
-          {/* Top Filter Bar (Transparent, Aligned with Content Card) */}
-          <div className="so-filter-bar" style={{ padding: '0 0 1.25rem 0', background: 'transparent', border: 'none', boxShadow: 'none', display: 'flex', flexWrap: 'wrap', gap: '1.25rem', alignItems: 'flex-end', marginBottom: '0.5rem' }}>
-            <div style={{ flex: '1 1 250px' }}>
-              <label className="so-filter-label" style={{ fontSize: '11px', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: '6px' }}>SEARCH PROFILE</label>
-              <div style={{ position: 'relative' }}>
-                <Search size={14} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', zIndex: 2 }} />
-                <input
-                  type="text"
-                  placeholder="Name or company..."
-                  value={searchTerm}
-                  onChange={e => setSearchTerm(e.target.value)}
-                  className="so-filter-input"
-                  style={{ width: '100%', height: '38px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none', background: '#fff', paddingLeft: '2.25rem' }}
-                />
-              </div>
-            </div>
-
-            <div style={{ flex: '0 0 200px' }}>
-              <label className="so-filter-label" style={{ fontSize: '11px', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: '6px' }}>COMPANY</label>
-              <select value={companyFilter} onChange={e => setCompanyFilter(e.target.value)} className="so-filter-input" style={{ width: '100%', height: '38px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none', background: '#fff', padding: '0 0.75rem' }}>
-                <option value="">ALL COMPANIES</option>
-                {(Array.isArray(companiesList) ? companiesList : []).map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
-              </select>
-            </div>
-
-            <div style={{ flex: '0 0 150px' }}>
-              <label className="so-filter-label" style={{ fontSize: '11px', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: '6px' }}>STATUS</label>
-              <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="so-filter-input" style={{ width: '100%', height: '38px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none', background: '#fff', padding: '0 0.75rem' }}>
-                <option value="all">ALL STATUS</option>
-                <option value="enabled">ENABLED</option>
-                <option value="disabled">DISABLED</option>
-              </select>
-            </div>
-
-            <button
-              onClick={() => { setSearchTerm(''); setCompanyFilter(''); setStatusFilter('all'); }}
-              className="so-clear-btn"
-              style={{ margin: 0, height: '38px', width: 'auto', padding: '0 1.5rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', fontWeight: 600, color: '#64748b', background: '#ffffff', cursor: 'pointer', textTransform: 'uppercase' }}
-            >
-              RESET
-            </button>
-          </div>
-
-          {/* Main List Area */}
-          <div className="so-content" style={{ padding: 0, flex: 1, background: 'transparent' }}>
-            <p className="so-list-meta" style={{ marginBottom: '0.75rem', fontWeight: 600, color: '#64748b', fontSize: '13px' }}>{filteredProfiles.length} record(s) found</p>
-
-            <div className="so-table-card" style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)' }}>
-              <div className="so-table-wrapper">
-                <table className="so-table">
-                  <thead>
-                    <tr>
-                      <th className="w-12"><input type="checkbox" className="w-4 h-4 rounded border-slate-300 accent-blue-600 cursor-pointer" style={{ verticalAlign: 'middle' }} /></th>
-                      <th>PROFILE NAME</th>
-                      <th>COMPANY</th>
-                      <th>BRANCH</th>
-                      <th>USERS</th>
-                      <th className="text-center">STATUS</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {loading ? (
-                      <tr><td colSpan="6" className="so-empty">
-                        <Loader2 size={24} className="so-spinner" style={{ margin: '0 auto' }} />
-                      </td></tr>
-                    ) : paginated.length === 0 ? (
-                      <tr><td colSpan="6" className="so-empty">No POS profiles found</td></tr>
-                    ) : (
-                      paginated.map(p => (
-                        <tr key={p.name} className="cursor-pointer hover:bg-slate-50" onClick={() => openEditModal(p)}>
-                          <td className="w-12" onClick={e => e.stopPropagation()}><input type="checkbox" className="w-4 h-4 rounded border-slate-300 accent-blue-600 cursor-pointer" style={{ verticalAlign: 'middle' }} /></td>
-                          <td className="font-semibold" style={{ color: themeColor }}>{p.name}</td>
-                          <td>{p.company}</td>
-                          <td>{p.warehouse}</td>
-                          <td>
-                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem' }}>
-                              {p.users?.slice(0, 3).map(u => (
-                                <span key={u.user} style={{
-                                  fontSize: '0.65rem', padding: '0.15rem 0.5rem', borderRadius: '1rem',
-                                  background: u.default ? 'var(--so-primary-light)' : '#f1f5f9',
-                                  color: u.default ? 'var(--so-primary)' : '#64748b',
-                                  fontWeight: 700
-                                }}>
-                                  {u.user.split('@')[0]}
-                                </span>
-                              ))}
-                              {p.users?.length > 3 && <span style={{ fontSize: '0.65rem', color: '#94a3b8' }}>+{p.users.length - 3}</span>}
-                            </div>
-                          </td>
-                          <td className="text-center">
-                            <span style={{
-                              fontSize: '0.65rem', padding: '0.2rem 0.75rem', borderRadius: '1rem', fontWeight: 800, textTransform: 'uppercase',
-                              background: p.disabled ? '#fee2e2' : 'var(--so-primary-light)',
-                              color: p.disabled ? '#ef4444' : 'var(--so-primary)'
-                            }}>
-                              {p.disabled ? 'Disabled' : 'Enabled'}
-                            </span>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Pagination */}
-              {!loading && filteredProfiles.length > 0 && (
-                <div className="so-pagination" style={{ padding: '1rem 1.25rem', borderTop: '1px solid var(--so-border)', marginTop: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span style={{ color: 'var(--so-text-muted)', fontSize: '0.75rem' }}>
-                    Showing {(currentPage - 1) * pageSize + 1}–{Math.min(currentPage * pageSize, filteredProfiles.length)} of {filteredProfiles.length}
-                  </span>
-
-                  <div className="so-pagination-btns" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                    <button className="so-page-btn" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}><ChevronLeft size={14} /></button>
-                    <span style={{ fontWeight: 700, color: 'var(--so-primary)', padding: '0 0.5rem', fontSize: '0.75rem' }}>{currentPage} / {totalPages}</span>
-                    <button className="so-page-btn" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}><ChevronLeft size={14} style={{ transform: 'rotate(180deg)' }} /></button>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
+          <button
+            className="so-btn-primary"
+            onClick={() => navigate('/pos-profile/new')}
+            style={{
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem',
+              height: '38px', padding: '0 1rem', background: themeColor,
+              color: '#ffffff', border: 'none', borderRadius: '8px',
+              fontSize: '12px', fontWeight: 800, textTransform: 'uppercase',
+              letterSpacing: '0.04em', cursor: 'pointer', transition: 'all 0.15s ease-in-out',
+              boxSizing: 'border-box'
+            }}
+          >
+            <Plus size={16} /> CREATE PROFILE
+          </button>
         </div>
-
-        {/* Modal (Matching Customer List Modal Style) */}
-        {isModalOpen && (
-          <div className="so-modal-overlay" style={{ zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={e => e.target === e.currentTarget && setIsModalOpen(false)}>
-            <div className="so-modal" style={{ maxWidth: '800px', margin: 'auto' }}>
-              <div className="so-modal-header">
-                <h2 className="so-modal-title">
-                  <CreditCard size={16} style={{ display: 'inline', marginRight: '0.4rem' }} />
-                  {editingProfile ? `Edit: ${editingProfile.name}` : 'New POS Profile'}
-                </h2>
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
-                  <button className="so-btn-primary" onClick={handleSave} disabled={saving}>
-                    {saving ? 'Saving...' : 'Save Profile'}
-                  </button>
-                  <button className="so-modal-close" onClick={() => setIsModalOpen(false)}>
-                    <X size={20} />
-                  </button>
-                </div>
-              </div>
-
-              <div className="so-modal-body" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                    <h3 style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', color: '#94a3b8' }}>Basic Identity</h3>
-
-                    <div>
-                      <label className="so-filter-label" style={{ textTransform: 'uppercase' }}>PROFILE NAME *</label>
-                      <input
-                        type="text"
-                        value={formData.name}
-                        onChange={e => updateField('name', e.target.value)}
-                        disabled={!!editingProfile}
-                        placeholder="Main Counter"
-                        className="so-filter-input"
-                        style={editingProfile ? { background: '#f8fafc' } : {}}
-                      />
-                    </div>
-
-                    <div>
-                      <label className="so-filter-label" style={{ textTransform: 'uppercase' }}>COMPANY *</label>
-                      <select value={formData.company} onChange={e => updateField('company', e.target.value)} className="so-filter-input">
-                        <option value="">SELECT...</option>
-                        {(Array.isArray(companiesList) ? companiesList : []).map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="so-filter-label" style={{ textTransform: 'uppercase' }}>DEFAULT BRANCH *</label>
-                      <select value={formData.warehouse} onChange={e => updateField('warehouse', e.target.value)} className="so-filter-input">
-                        <option value="">SELECT...</option>
-                        {(Array.isArray(warehouses) ? warehouses : []).map(w => <option key={w.name || w} value={w.name || w}>{w.warehouse_name || w.name || w}</option>)}
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="so-filter-label" style={{ textTransform: 'uppercase' }}>CURRENCY *</label>
-                      <select value={formData.currency} onChange={e => updateField('currency', e.target.value)} className="so-filter-input">
-                        <option value="">SELECT...</option>
-                        {(Array.isArray(currenciesList) ? currenciesList : []).map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
-                      </select>
-                    </div>
-                  </div>
-
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                    <h3 style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', color: '#94a3b8' }}>ACCOUNT & LIMITS</h3>
-
-                    <div>
-                      <label className="so-filter-label" style={{ textTransform: 'uppercase' }}>WRITE OFF ACCOUNT *</label>
-                      <select value={formData.write_off_account} onChange={e => updateField('write_off_account', e.target.value)} className="so-filter-input">
-                        <option value="">SELECT...</option>
-                        {(Array.isArray(accountsList) ? accountsList : []).map(a => <option key={a.name} value={a.name}>{a.account_name}</option>)}
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="so-filter-label" style={{ textTransform: 'uppercase' }}>COST CENTER *</label>
-                      <select value={formData.write_off_cost_center} onChange={e => updateField('write_off_cost_center', e.target.value)} className="so-filter-input">
-                        <option value="">SELECT...</option>
-                        {(Array.isArray(costCentersList) ? costCentersList : []).map(cc => <option key={cc.name} value={cc.name}>{cc.cost_center_name || cc.name}</option>)}
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="so-filter-label" style={{ textTransform: 'uppercase' }}>WRITE OFF LIMIT</label>
-                      <input
-                        type="number"
-                        value={formData.write_off_limit}
-                        onChange={e => updateField('write_off_limit', parseFloat(e.target.value) || 0)}
-                        className="so-filter-input"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div style={{ marginTop: '2rem' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                    <h3 style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', color: '#94a3b8' }}>ASSIGNED OPERATORS</h3>
-                    <button className="so-clear-btn" style={{ margin: 0, padding: '0.2rem 1rem', textTransform: 'uppercase' }} onClick={() => addRow('users')}>+ USER</button>
-                  </div>
-                  <div className="so-table-wrapper" style={{ maxHeight: '150px', border: '1px solid #f1f5f9', borderRadius: '0.5rem' }}>
-                    <table className="so-table text-xs">
-                      <thead className="bg-[#f8fafc]">
-                        <tr>
-                          <th style={{ width: '80px', textTransform: 'uppercase' }}>DEFAULT</th>
-                          <th style={{ textTransform: 'uppercase' }}>USER EMAIL</th>
-                          <th style={{ width: '50px' }}></th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {formData.users.map((u, i) => (
-                          <tr key={i}>
-                            <td className="text-center">
-                              <input type="checkbox" checked={u.default} onChange={e => updateTable('users', i, 'default', e.target.checked)} />
-                            </td>
-                            <td>
-                              <select value={u.user} onChange={e => updateTable('users', i, 'user', e.target.value)} className="so-filter-input" style={{ padding: '0.25rem' }}>
-                                <option value="">Select User...</option>
-                                {(Array.isArray(usersList) ? usersList : []).map(usr => <option key={usr.name} value={usr.name}>{usr.email || usr.name}</option>)}
-                              </select>
-                            </td>
-                            <td className="text-center">
-                              <button onClick={() => removeRow('users', i)} style={{ color: '#ef4444' }}><Trash2 size={12} /></button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-
-                <div style={{ marginTop: '2rem' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                    <h3 style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', color: '#94a3b8' }}>PAYMENT GATEWAYS</h3>
-                    <button className="so-clear-btn" style={{ margin: 0, padding: '0.2rem 1rem', textTransform: 'uppercase' }} onClick={() => addRow('payment_methods')}>+ METHOD</button>
-                  </div>
-                  <div className="so-table-wrapper" style={{ maxHeight: '200px', border: '1px solid #f1f5f9', borderRadius: '0.5rem' }}>
-                    <table className="so-table text-xs">
-                      <thead className="bg-[#f8fafc]">
-                        <tr>
-                          <th style={{ width: '80px', textTransform: 'uppercase' }}>DEFAULT</th>
-                          <th style={{ width: '80px', textTransform: 'uppercase' }}>RETURN</th>
-                          <th style={{ textTransform: 'uppercase' }}>MODE OF PAYMENT</th>
-                          <th style={{ width: '50px' }}></th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {formData.payment_methods.map((p, i) => (
-                          <tr key={i}>
-                            <td className="text-center">
-                              <input type="checkbox" checked={p.default} onChange={e => updateTable('payment_methods', i, 'default', e.target.checked)} />
-                            </td>
-                            <td className="text-center">
-                              <input type="checkbox" checked={p.allow_in_returns} onChange={e => updateTable('payment_methods', i, 'allow_in_returns', e.target.checked)} />
-                            </td>
-                            <td>
-                              <select value={p.mode_of_payment} onChange={e => updateTable('payment_methods', i, 'mode_of_payment', e.target.value)} className="so-filter-input" style={{ padding: '0.25rem' }}>
-                                <option value="">Select Gateway...</option>
-                                {(Array.isArray(modesList) ? modesList : []).map(m => <option key={m.name} value={m.name}>{m.name}</option>)}
-                              </select>
-                            </td>
-                            <td className="text-center">
-                              <button onClick={() => removeRow('payment_methods', i)} style={{ color: '#ef4444' }}><Trash2 size={12} /></button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
-    </>
+
+      {/* 2. LAYOUT & FILTER BAR */}
+      <div className="so-layout" style={{ flexDirection: 'column', background: '#f8fafc', padding: '1.5rem 2rem' }}>
+
+        <div className="so-filter-bar" style={{ padding: '0 0 1.25rem 0', background: 'transparent', border: 'none', boxShadow: 'none', display: 'flex', flexWrap: 'wrap', gap: '1.25rem', alignItems: 'flex-end', marginBottom: '0.5rem' }}>
+          <div style={{ flex: '1 1 250px' }}>
+            <label className="so-filter-label" style={{ fontSize: '11px', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: '6px' }}>SEARCH PROFILE</label>
+            <div style={{ position: 'relative' }}>
+              <Search size={14} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', zIndex: 2 }} />
+              <input
+                type="text"
+                placeholder="Name or company..."
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+                className="so-filter-input"
+                style={{ width: '100%', height: '38px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none', background: '#fff', paddingLeft: '2.25rem' }}
+              />
+            </div>
+          </div>
+
+          <div style={{ flex: '0 0 200px' }}>
+            <label className="so-filter-label" style={{ fontSize: '11px', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: '6px' }}>COMPANY</label>
+            <select value={companyFilter} onChange={e => setCompanyFilter(e.target.value)} className="so-filter-input" style={{ width: '100%', height: '38px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none', background: '#fff', padding: '0 0.75rem' }}>
+              <option value="">ALL COMPANIES</option>
+              {companiesList.map(c => <option key={c.name || c} value={c.name || c}>{c.name || c}</option>)}
+            </select>
+          </div>
+
+          <div style={{ flex: '0 0 150px' }}>
+            <label className="so-filter-label" style={{ fontSize: '11px', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: '6px' }}>STATUS</label>
+            <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="so-filter-input" style={{ width: '100%', height: '38px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none', background: '#fff', padding: '0 0.75rem' }}>
+              <option value="all">ALL STATUS</option>
+              <option value="enabled">ENABLED</option>
+              <option value="disabled">DISABLED</option>
+            </select>
+          </div>
+
+          <button
+            onClick={() => { setSearchTerm(''); setCompanyFilter(''); setStatusFilter('all'); }}
+            className="so-clear-btn"
+            style={{ margin: 0, height: '38px', width: 'auto', padding: '0 1.5rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', fontWeight: 600, color: '#64748b', background: '#ffffff', cursor: 'pointer', textTransform: 'uppercase' }}
+          >
+            RESET
+          </button>
+        </div>
+
+        {/* 3. TABLE */}
+        <div className="so-content" style={{ padding: 0, flex: 1, background: 'transparent' }}>
+          <p className="so-list-meta" style={{ marginBottom: '0.75rem', fontWeight: 600, color: '#64748b', fontSize: '13px' }}>{filteredProfiles.length} record(s) found</p>
+
+          <div className="so-table-card" style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)' }}>
+            <div className="so-table-wrapper">
+              <table className="so-table">
+                <thead>
+                  <tr>
+                    <th className="w-12"><input type="checkbox" className="w-4 h-4 rounded border-slate-300 accent-blue-600 cursor-pointer" style={{ verticalAlign: 'middle' }} /></th>
+                    <th>PROFILE NAME</th>
+                    <th>COMPANY</th>
+                    <th>BRANCH</th>
+                    <th>USERS</th>
+                    <th className="text-center">STATUS</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {loading ? (
+                    <tr><td colSpan="6" className="so-empty">
+                      <Loader2 size={24} className="animate-spin" style={{ margin: '0 auto', color: themeColor }} />
+                    </td></tr>
+                  ) : paginated.length === 0 ? (
+                    <tr><td colSpan="6" className="so-empty">No POS profiles found</td></tr>
+                  ) : (
+                    paginated.map(p => (
+                      <tr 
+                        key={p.name} 
+                        className="cursor-pointer hover:bg-slate-50" 
+                        onClick={() => navigate(`/pos-profile/${encodeURIComponent(p.name)}`)}
+                      >
+                        <td className="w-12" onClick={e => e.stopPropagation()}>
+                          <input type="checkbox" className="w-4 h-4 rounded border-slate-300 accent-blue-600 cursor-pointer" style={{ verticalAlign: 'middle' }} />
+                        </td>
+                        <td className="font-semibold" style={{ color: themeColor }}>{p.name}</td>
+                        <td>{p.company}</td>
+                        <td>{p.warehouse}</td>
+                        <td>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem' }}>
+                            {p.users?.slice(0, 3).map(u => (
+                              <span key={u.user} style={{
+                                fontSize: '0.65rem', padding: '0.15rem 0.5rem', borderRadius: '1rem',
+                                background: u.default ? themeLight : '#f1f5f9',
+                                color: u.default ? themeColor : '#64748b',
+                                fontWeight: 700
+                              }}>
+                                {u.user?.split('@')[0]}
+                              </span>
+                            ))}
+                            {p.users?.length > 3 && <span style={{ fontSize: '0.65rem', color: '#94a3b8' }}>+{p.users.length - 3}</span>}
+                          </div>
+                        </td>
+                        <td className="text-center">
+                          <span style={{
+                            fontSize: '0.65rem', padding: '0.2rem 0.75rem', borderRadius: '1rem', fontWeight: 800, textTransform: 'uppercase',
+                            background: p.disabled ? '#fee2e2' : themeLight,
+                            color: p.disabled ? '#ef4444' : themeColor
+                          }}>
+                            {p.disabled ? 'Disabled' : 'Enabled'}
+                          </span>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Pagination */}
+            {!loading && filteredProfiles.length > 0 && (
+              <div className="so-pagination" style={{ padding: '1rem 1.25rem', borderTop: '1px solid #e2e8f0', marginTop: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ color: '#64748b', fontSize: '0.75rem' }}>
+                  Showing {(currentPage - 1) * pageSize + 1}–{Math.min(currentPage * pageSize, filteredProfiles.length)} of {filteredProfiles.length}
+                </span>
+
+                <div className="so-pagination-btns" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <button className="so-page-btn" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}>
+                    <ChevronLeft size={14} />
+                  </button>
+                  <span style={{ fontWeight: 700, color: themeColor, padding: '0 0.5rem', fontSize: '0.75rem' }}>
+                    {currentPage} / {totalPages}
+                  </span>
+                  <button className="so-page-btn" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}>
+                    <ChevronRight size={14} />
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }

@@ -3,7 +3,7 @@ import {
   Loader2, FileText, AlertCircle, CheckCircle2,
   Calendar, Search, Filter, RefreshCw,
   Download, Printer, ChevronDown, Truck, Package, ExternalLink, Settings,
-  DollarSign, Receipt, Tag, TrendingUp
+  DollarSign, Receipt, Tag, TrendingUp, ChevronLeft, ChevronRight
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import DirhamIcon from '../../assets/Currency/DirhamIcon';
@@ -19,6 +19,8 @@ function PurchaseReport() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [pageSize, setPageSize] = useState(10);
+  const [currentPage, setCurrentPage] = useState(1);
 
   const [filters, setFilters] = useState({
     from_date: new Date(new Date().setDate(1)).toISOString().split('T')[0],
@@ -198,17 +200,15 @@ function PurchaseReport() {
 
       {/* 1. Header */}
       <header className="pr-header no-print">
-        <div className="pr-header-title-box">
-          <div className="pr-icon-badge">
-            <Truck size={24} className="stroke-[2.5]" />
-          </div>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <h1 className="pr-title">PURCHASE SUMMARY REPORT</h1>
-              <span className="pr-tag">Procurement</span>
+        <div className="pr-header-title-box" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '4px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <div className="pr-icon-badge">
+              <Truck size={22} className="stroke-[2.5]" />
             </div>
-            <p className="pr-subtitle">Historical breakdown of stock procurement and vendor payouts</p>
+            <h1 className="pr-title">PURCHASE SUMMARY REPORT</h1>
+            <span className="pr-tag">Procurement</span>
           </div>
+          <p className="pr-subtitle" style={{ margin: '2px 0 0 0' }}>Historical breakdown of stock procurement and vendor payouts</p>
         </div>
 
         <div className="pr-actions">
@@ -342,9 +342,11 @@ function PurchaseReport() {
         <div className="pr-kpi-grid">
           <div className="pr-kpi-card emerald">
             <div className="pr-kpi-header">
-              <span className="pr-kpi-title">Total Procurement Spend</span>
-              <div className="pr-kpi-icon-pill">
-                <Receipt size={16} />
+              <div className="pr-kpi-header-left">
+                <div className="pr-kpi-icon-pill">
+                  <Receipt size={18} />
+                </div>
+                <span className="pr-kpi-title">Total Procurement Spend</span>
               </div>
             </div>
             <div>
@@ -360,9 +362,11 @@ function PurchaseReport() {
 
           <div className="pr-kpi-card blue">
             <div className="pr-kpi-header">
-              <span className="pr-kpi-title">Total Invoices & Lines</span>
-              <div className="pr-kpi-icon-pill">
-                <FileText size={16} />
+              <div className="pr-kpi-header-left">
+                <div className="pr-kpi-icon-pill">
+                  <FileText size={18} />
+                </div>
+                <span className="pr-kpi-title">Total Invoices & Lines</span>
               </div>
             </div>
             <div>
@@ -370,7 +374,7 @@ function PurchaseReport() {
                 <span>{uniqueInvoices}</span>
                 <span style={{ fontSize: '0.9rem', color: '#64748b', fontWeight: 600 }}>inv / {data.length} items</span>
               </div>
-              <div className="pr-kpi-subtext" style={{ color: '#2563eb' }}>
+              <div className="pr-kpi-subtext">
                 Purchase Invoices
               </div>
             </div>
@@ -378,9 +382,11 @@ function PurchaseReport() {
 
           <div className="pr-kpi-card purple">
             <div className="pr-kpi-header">
-              <span className="pr-kpi-title">Total Units Purchased</span>
-              <div className="pr-kpi-icon-pill">
-                <Package size={16} />
+              <div className="pr-kpi-header-left">
+                <div className="pr-kpi-icon-pill">
+                  <Package size={18} />
+                </div>
+                <span className="pr-kpi-title">Total Units Purchased</span>
               </div>
             </div>
             <div>
@@ -388,7 +394,7 @@ function PurchaseReport() {
                 <span>{totalQty.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
                 <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 600 }}>Qty</span>
               </div>
-              <div className="pr-kpi-subtext" style={{ color: '#7c3aed' }}>
+              <div className="pr-kpi-subtext">
                 Total Stock Quantity
               </div>
             </div>
@@ -396,9 +402,11 @@ function PurchaseReport() {
 
           <div className="pr-kpi-card amber">
             <div className="pr-kpi-header">
-              <span className="pr-kpi-title">Total Input VAT / Tax</span>
-              <div className="pr-kpi-icon-pill">
-                <Tag size={16} />
+              <div className="pr-kpi-header-left">
+                <div className="pr-kpi-icon-pill">
+                  <Tag size={18} />
+                </div>
+                <span className="pr-kpi-title">Total Input VAT / Tax</span>
               </div>
             </div>
             <div>
@@ -406,7 +414,7 @@ function PurchaseReport() {
                 <DirhamIcon size={18} />
                 <span>{totalTax.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
               </div>
-              <div className="pr-kpi-subtext" style={{ color: '#d97706' }}>
+              <div className="pr-kpi-subtext">
                 Input Tax Recoverable
               </div>
             </div>
@@ -459,52 +467,55 @@ function PurchaseReport() {
                     </td>
                   </tr>
                 ) : (
-                  data.map((row, idx) => (
-                    <tr key={idx}>
-                      {columnConfig.filter(c => c.visible).map((col) => {
-                        const fieldname = col.original.fieldname;
-                        const cellValue = row[fieldname];
-                        return (
-                          <td
-                            key={col.id}
-                            style={{
-                              textAlign: col.align,
-                              fontFamily: col.original.fieldtype === 'Currency' || col.original.fieldtype === 'Float' ? 'ui-monospace, monospace' : 'inherit',
-                              width: col.width,
-                              minWidth: col.width,
-                              padding: '0.85rem 1rem',
-                              whiteSpace: 'nowrap'
-                            }}
-                            title={String(cellValue ?? '')}
-                          >
-                            {cellValue !== null && cellValue !== undefined ? (
-                              (fieldname === 'name' || fieldname === 'voucher_no') ? (
-                                <span
-                                  onClick={() => navigate('/purchaseinvoicelist', { state: { search: cellValue } })}
-                                  className="pr-doc-link"
-                                  style={{ justifyContent: col.align === 'right' ? 'flex-end' : 'flex-start' }}
-                                >
-                                  {cellValue}
-                                  <ExternalLink size={12} color="#2563eb" />
-                                </span>
-                              ) : fieldname === 'item_code' ? (
-                                <span
-                                  onClick={() => navigate('/itemlist', { state: { search: cellValue } })}
-                                  className="pr-item-pill"
-                                  style={{ marginLeft: col.align === 'right' ? 'auto' : '0' }}
-                                >
-                                  {cellValue}
-                                  <ExternalLink size={11} color="#64748b" />
-                                </span>
-                              ) : typeof cellValue === 'number' && (col.label?.toLowerCase().includes('total') || col.label?.toLowerCase().includes('rate') || col.label?.toLowerCase().includes('amount')) ?
-                                cellValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) :
-                                cellValue
-                            ) : '-'}
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  ))
+                  (() => {
+                    const displayData = pageSize === -1 ? data : data.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+                    return displayData.map((row, idx) => (
+                      <tr key={idx}>
+                        {columnConfig.filter(c => c.visible).map((col) => {
+                          const fieldname = col.original.fieldname;
+                          const cellValue = row[fieldname];
+                          return (
+                            <td
+                              key={col.id}
+                              style={{
+                                textAlign: col.align,
+                                fontFamily: col.original.fieldtype === 'Currency' || col.original.fieldtype === 'Float' ? 'ui-monospace, monospace' : 'inherit',
+                                width: col.width,
+                                minWidth: col.width,
+                                padding: '0.85rem 1rem',
+                                whiteSpace: 'nowrap'
+                              }}
+                              title={String(cellValue ?? '')}
+                            >
+                              {cellValue !== null && cellValue !== undefined ? (
+                                (fieldname === 'name' || fieldname === 'voucher_no') ? (
+                                  <span
+                                    onClick={() => navigate('/purchaseinvoicelist', { state: { search: cellValue } })}
+                                    className="pr-doc-link"
+                                    style={{ justifyContent: col.align === 'right' ? 'flex-end' : 'flex-start' }}
+                                  >
+                                    {cellValue}
+                                    <ExternalLink size={12} color="#2563eb" />
+                                  </span>
+                                ) : fieldname === 'item_code' ? (
+                                  <span
+                                    onClick={() => navigate('/itemlist', { state: { search: cellValue } })}
+                                    className="pr-item-pill"
+                                    style={{ marginLeft: col.align === 'right' ? 'auto' : '0' }}
+                                  >
+                                    {cellValue}
+                                    <ExternalLink size={11} color="#64748b" />
+                                  </span>
+                                ) : typeof cellValue === 'number' && (col.label?.toLowerCase().includes('total') || col.label?.toLowerCase().includes('rate') || col.label?.toLowerCase().includes('amount')) ?
+                                  cellValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) :
+                                  cellValue
+                              ) : '-'}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ));
+                  })()
                 )}
               </tbody>
               {data.length > 0 && (
@@ -534,6 +545,53 @@ function PurchaseReport() {
               )}
             </table>
           </div>
+
+          {/* Table Footer / Pagination */}
+          {data.length > 0 && (() => {
+            const totalPages = pageSize === -1 ? 1 : (Math.ceil(data.length / pageSize) || 1);
+            return (
+              <div className="ssr-table-footer no-print" style={{ background: '#ffffff', borderTop: '1px solid #e2e8f0', padding: '0.85rem 1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
+                <div className="ssr-page-size-selector" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem', fontWeight: 600, color: '#64748b' }}>
+                  <select
+                    className="ssr-select-sm"
+                    value={pageSize}
+                    onChange={(e) => {
+                      setPageSize(Number(e.target.value));
+                      setCurrentPage(1);
+                    }}
+                    style={{ height: '32px', padding: '0 0.65rem', background: '#ffffff', border: '1.5px solid #e2e8f0', borderRadius: '8px', fontSize: '0.78rem', fontWeight: 700, color: '#1e293b', outline: 'none' }}
+                  >
+                    <option value={10}>10</option>
+                    <option value={25}>25</option>
+                    <option value={50}>50</option>
+                    <option value={100}>100</option>
+                    <option value={-1}>All</option>
+                  </select>
+                  <span>per page</span>
+                </div>
+
+                <div className="ssr-pagination" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                  <button
+                    className="ssr-page-btn"
+                    disabled={currentPage <= 1 || pageSize === -1}
+                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                    style={{ height: '32px', minWidth: '32px', padding: '0 0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1.5px solid #e2e8f0', borderRadius: '8px', background: '#ffffff', fontSize: '0.8rem', fontWeight: 700, color: '#475569', cursor: (currentPage <= 1 || pageSize === -1) ? 'not-allowed' : 'pointer', opacity: (currentPage <= 1 || pageSize === -1) ? 0.4 : 1 }}
+                  >
+                    <ChevronLeft size={16} />
+                  </button>
+                  <span className="ssr-page-btn active" style={{ height: '32px', minWidth: '32px', padding: '0 0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '8px', background: '#2563eb', color: '#ffffff', fontSize: '0.8rem', fontWeight: 700 }}>{currentPage}</span>
+                  <button
+                    className="ssr-page-btn"
+                    disabled={currentPage >= totalPages || pageSize === -1}
+                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                    style={{ height: '32px', minWidth: '32px', padding: '0 0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1.5px solid #e2e8f0', borderRadius: '8px', background: '#ffffff', fontSize: '0.8rem', fontWeight: 700, color: '#475569', cursor: (currentPage >= totalPages || pageSize === -1) ? 'not-allowed' : 'pointer', opacity: (currentPage >= totalPages || pageSize === -1) ? 0.4 : 1 }}
+                  >
+                    <ChevronRight size={16} />
+                  </button>
+                </div>
+              </div>
+            );
+          })()}
         </div>
 
       </main>

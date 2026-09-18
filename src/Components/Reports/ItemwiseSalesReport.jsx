@@ -4,7 +4,7 @@ import {
     Loader2, FileText, AlertCircle, CheckCircle2, 
     Calendar, Search, Filter, RefreshCw, 
     Download, Printer, ChevronDown, Package, Tag, ExternalLink, Settings,
-    DollarSign, Receipt, ShoppingCart, Percent, TrendingUp, Sparkles
+    DollarSign, Receipt, ShoppingCart, Percent, TrendingUp, Sparkles, ChevronLeft, ChevronRight
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import DirhamIcon from '../../assets/Currency/DirhamIcon';
@@ -24,6 +24,8 @@ function ItemWiseSalesReport() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [hasGenerated, setHasGenerated] = useState(false);
+  const [pageSize, setPageSize] = useState(10);
+  const [currentPage, setCurrentPage] = useState(1);
   
   // Print Customization State
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
@@ -240,17 +242,15 @@ function ItemWiseSalesReport() {
       
       {/* 1. Header */}
       <header className="iws-header no-print">
-        <div className="iws-header-title-box">
-          <div className="iws-icon-badge">
-            <Package size={24} className="stroke-[2.5]" />
-          </div>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <h1 className="iws-title">ITEM-WISE SALES REPORT</h1>
-              <span className="iws-tag">Products & Profitability</span>
+        <div className="iws-header-title-box" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '4px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <div className="iws-icon-badge">
+              <Package size={22} className="stroke-[2.5]" />
             </div>
-            <p className="iws-subtitle">Granular item-level sales volume, tax breakdown, and discounts</p>
+            <h1 className="iws-title">ITEM-WISE SALES REPORT</h1>
+            <span className="iws-tag">Products & Profitability</span>
           </div>
+          <p className="iws-subtitle" style={{ margin: '2px 0 0 0' }}>Granular item-level sales volume, tax breakdown, and discounts</p>
         </div>
 
         <div className="iws-actions">
@@ -430,9 +430,11 @@ function ItemWiseSalesReport() {
           {/* Total Revenue */}
           <div className="iws-kpi-card emerald">
             <div className="iws-kpi-header">
-              <span className="iws-kpi-title">Gross Item Sales</span>
-              <div className="iws-kpi-icon-pill">
-                <Receipt size={16} />
+              <div className="iws-kpi-header-left">
+                <div className="iws-kpi-icon-pill">
+                  <Receipt size={18} />
+                </div>
+                <span className="iws-kpi-title">Gross Item Sales</span>
               </div>
             </div>
             <div>
@@ -449,9 +451,11 @@ function ItemWiseSalesReport() {
           {/* Units Sold */}
           <div className="iws-kpi-card blue">
             <div className="iws-kpi-header">
-              <span className="iws-kpi-title">Units Sold</span>
-              <div className="iws-kpi-icon-pill">
-                <ShoppingCart size={16} />
+              <div className="iws-kpi-header-left">
+                <div className="iws-kpi-icon-pill">
+                  <ShoppingCart size={18} />
+                </div>
+                <span className="iws-kpi-title">Units Sold</span>
               </div>
             </div>
             <div>
@@ -459,7 +463,7 @@ function ItemWiseSalesReport() {
                 <span>{totalQtySold.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
                 <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 600 }}>Qty</span>
               </div>
-              <div className="iws-kpi-subtext" style={{ color: '#2563eb' }}>
+              <div className="iws-kpi-subtext">
                 {uniqueItemsCount} Unique Products Sold
               </div>
             </div>
@@ -468,9 +472,11 @@ function ItemWiseSalesReport() {
           {/* Discounts Given */}
           <div className="iws-kpi-card pink">
             <div className="iws-kpi-header">
-              <span className="iws-kpi-title">Item Discounts</span>
-              <div className="iws-kpi-icon-pill">
-                <Percent size={16} />
+              <div className="iws-kpi-header-left">
+                <div className="iws-kpi-icon-pill">
+                  <Percent size={18} />
+                </div>
+                <span className="iws-kpi-title">Item Discounts</span>
               </div>
             </div>
             <div>
@@ -478,7 +484,7 @@ function ItemWiseSalesReport() {
                 <DirhamIcon size={18} />
                 <span>{totalDiscounts.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
               </div>
-              <div className="iws-kpi-subtext" style={{ color: '#db2777' }}>
+              <div className="iws-kpi-subtext">
                 Discounts & Promotions
               </div>
             </div>
@@ -487,9 +493,11 @@ function ItemWiseSalesReport() {
           {/* Tax / VAT */}
           <div className="iws-kpi-card amber">
             <div className="iws-kpi-header">
-              <span className="iws-kpi-title">Output VAT / Tax</span>
-              <div className="iws-kpi-icon-pill">
-                <Tag size={16} />
+              <div className="iws-kpi-header-left">
+                <div className="iws-kpi-icon-pill">
+                  <Tag size={18} />
+                </div>
+                <span className="iws-kpi-title">Output VAT / Tax</span>
               </div>
             </div>
             <div>
@@ -497,7 +505,7 @@ function ItemWiseSalesReport() {
                 <DirhamIcon size={18} />
                 <span>{totalTaxAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
               </div>
-              <div className="iws-kpi-subtext" style={{ color: '#d97706' }}>
+              <div className="iws-kpi-subtext">
                 Sales VAT Collected
               </div>
             </div>
@@ -552,69 +560,124 @@ function ItemWiseSalesReport() {
                     </td>
                   </tr>
                 ) : (
-                  data.map((row, idx) => {
-                    const isTotalRow = String(row.posting_date).includes('TOTAL');
-                    return (
-                      <tr 
-                        key={idx}
-                        style={{
-                          backgroundColor: isTotalRow ? '#f8fafc' : 'transparent',
-                          fontWeight: isTotalRow ? 900 : 600
-                        }}
-                      >
-                        {columnConfig.filter(c => c.visible && selectedPrintColumns.includes(c.id)).map((col) => {
-                          const fieldname = col.original.fieldname;
-                          const cellValue = row[fieldname];
-                          return (
-                            <td 
-                              key={col.id} 
-                              style={{ 
-                                textAlign: col.align,
-                                fontFamily: col.original.fieldtype === 'Currency' || col.original.fieldtype === 'Float' ? 'ui-monospace, monospace' : 'inherit',
-                                width: col.width,
-                                minWidth: col.width,
-                                padding: '0.85rem 1rem',
-                                whiteSpace: 'nowrap',
-                                color: isTotalRow && fieldname === 'total' ? '#2563eb' : (isTotalRow ? '#0f172a' : '#334155'),
-                                fontSize: isTotalRow ? '0.85rem' : '0.8rem'
-                              }}
-                              title={String(cellValue ?? '')}
-                            >
-                              {cellValue !== null && cellValue !== undefined ? (
-                                (fieldname === 'name' || fieldname === 'voucher_no' || fieldname === 'parent' || fieldname === 'pos_invoice') && !isTotalRow ? (
-                                  <span 
-                                    onClick={() => navigate('/salesinvoicelist', { state: { search: cellValue } })} 
-                                    className="iws-doc-link"
-                                    style={{ justifyContent: col.align === 'right' ? 'flex-end' : 'flex-start' }}
-                                  >
-                                    {String(cellValue).replace(' - KSPL', '')}
-                                    <ExternalLink size={12} color="#2563eb" />
-                                  </span>
-                                ) : fieldname === 'item_code' && !isTotalRow ? (
-                                  <span 
-                                    onClick={() => navigate('/itemlist', { state: { search: cellValue } })} 
-                                    className="iws-item-pill"
-                                    style={{ marginLeft: col.align === 'right' ? 'auto' : '0' }}
-                                  >
-                                    {String(cellValue).replace(' - KSPL', '')}
-                                    <ExternalLink size={11} color="#64748b" />
-                                  </span>
-                                ) : typeof cellValue === 'number' && (col.label?.toLowerCase().includes('total') || col.label?.toLowerCase().includes('rate') || col.label?.toLowerCase().includes('amount')) ? 
-                                  cellValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : 
-                                  typeof cellValue === 'string' && cellValue.startsWith('<b>') ?
-                                  <span dangerouslySetInnerHTML={{ __html: cellValue }} /> :
-                                  String(cellValue).replace(' - KSPL', '')
-                              ) : '-'}
-                            </td>
-                          );
-                        })}
-                      </tr>
-                    );
-                  })
+                  (() => {
+                    const regularRows = data.filter(r => !String(r.posting_date || '').includes('TOTAL'));
+                    const totalRow = data.find(r => String(r.posting_date || '').includes('TOTAL'));
+                    const paginatedRows = pageSize === -1 ? regularRows : regularRows.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+                    const displayRows = totalRow ? [...paginatedRows, totalRow] : paginatedRows;
+
+                    return displayRows.map((row, idx) => {
+                      const isTotalRow = String(row.posting_date || '').includes('TOTAL');
+                      return (
+                        <tr 
+                          key={idx}
+                          style={{
+                            backgroundColor: isTotalRow ? '#f8fafc' : 'transparent',
+                            fontWeight: isTotalRow ? 900 : 600
+                          }}
+                        >
+                          {columnConfig.filter(c => c.visible && selectedPrintColumns.includes(c.id)).map((col) => {
+                            const fieldname = col.original.fieldname;
+                            const cellValue = row[fieldname];
+                            return (
+                              <td 
+                                key={col.id} 
+                                style={{ 
+                                  textAlign: col.align,
+                                  fontFamily: col.original.fieldtype === 'Currency' || col.original.fieldtype === 'Float' ? 'ui-monospace, monospace' : 'inherit',
+                                  width: col.width,
+                                  minWidth: col.width,
+                                  padding: '0.85rem 1rem',
+                                  whiteSpace: 'nowrap',
+                                  color: isTotalRow && fieldname === 'total' ? '#2563eb' : (isTotalRow ? '#0f172a' : '#334155'),
+                                  fontSize: isTotalRow ? '0.85rem' : '0.8rem'
+                                }}
+                                title={String(cellValue ?? '')}
+                              >
+                                {cellValue !== null && cellValue !== undefined ? (
+                                  (fieldname === 'name' || fieldname === 'voucher_no' || fieldname === 'parent' || fieldname === 'pos_invoice') && !isTotalRow ? (
+                                    <span 
+                                      onClick={() => navigate('/salesinvoicelist', { state: { search: cellValue } })} 
+                                      className="iws-doc-link"
+                                      style={{ justifyContent: col.align === 'right' ? 'flex-end' : 'flex-start' }}
+                                    >
+                                      {String(cellValue).replace(' - KSPL', '')}
+                                      <ExternalLink size={12} color="#2563eb" />
+                                    </span>
+                                  ) : fieldname === 'item_code' && !isTotalRow ? (
+                                    <span 
+                                      onClick={() => navigate('/itemlist', { state: { search: cellValue } })} 
+                                      className="iws-item-pill"
+                                      style={{ marginLeft: col.align === 'right' ? 'auto' : '0' }}
+                                    >
+                                      {String(cellValue).replace(' - KSPL', '')}
+                                      <ExternalLink size={11} color="#64748b" />
+                                    </span>
+                                  ) : typeof cellValue === 'number' && (col.label?.toLowerCase().includes('total') || col.label?.toLowerCase().includes('rate') || col.label?.toLowerCase().includes('amount')) ? 
+                                    cellValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : 
+                                    typeof cellValue === 'string' && cellValue.startsWith('<b>') ?
+                                    <span dangerouslySetInnerHTML={{ __html: cellValue }} /> :
+                                    String(cellValue).replace(' - KSPL', '')
+                                ) : '-'}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      );
+                    });
+                  })()
                 )}
               </tbody>
             </table>
           </div>
+
+          {/* Table Footer / Pagination */}
+          {data.length > 0 && (() => {
+            const regularRows = data.filter(r => !String(r.posting_date || '').includes('TOTAL'));
+            const totalPages = pageSize === -1 ? 1 : (Math.ceil(regularRows.length / pageSize) || 1);
+            return (
+              <div className="ssr-table-footer no-print" style={{ background: '#ffffff', borderTop: '1px solid #e2e8f0', padding: '0.85rem 1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
+                <div className="ssr-page-size-selector" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem', fontWeight: 600, color: '#64748b' }}>
+                  <select
+                    className="ssr-select-sm"
+                    value={pageSize}
+                    onChange={(e) => {
+                      setPageSize(Number(e.target.value));
+                      setCurrentPage(1);
+                    }}
+                    style={{ height: '32px', padding: '0 0.65rem', background: '#ffffff', border: '1.5px solid #e2e8f0', borderRadius: '8px', fontSize: '0.78rem', fontWeight: 700, color: '#1e293b', outline: 'none' }}
+                  >
+                    <option value={10}>10</option>
+                    <option value={25}>25</option>
+                    <option value={50}>50</option>
+                    <option value={100}>100</option>
+                    <option value={-1}>All</option>
+                  </select>
+                  <span>per page</span>
+                </div>
+
+                <div className="ssr-pagination" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                  <button
+                    className="ssr-page-btn"
+                    disabled={currentPage <= 1 || pageSize === -1}
+                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                    style={{ height: '32px', minWidth: '32px', padding: '0 0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1.5px solid #e2e8f0', borderRadius: '8px', background: '#ffffff', fontSize: '0.8rem', fontWeight: 700, color: '#475569', cursor: (currentPage <= 1 || pageSize === -1) ? 'not-allowed' : 'pointer', opacity: (currentPage <= 1 || pageSize === -1) ? 0.4 : 1 }}
+                  >
+                    <ChevronLeft size={16} />
+                  </button>
+                  <span className="ssr-page-btn active" style={{ height: '32px', minWidth: '32px', padding: '0 0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '8px', background: '#2563eb', color: '#ffffff', fontSize: '0.8rem', fontWeight: 700 }}>{currentPage}</span>
+                  <button
+                    className="ssr-page-btn"
+                    disabled={currentPage >= totalPages || pageSize === -1}
+                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                    style={{ height: '32px', minWidth: '32px', padding: '0 0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1.5px solid #e2e8f0', borderRadius: '8px', background: '#ffffff', fontSize: '0.8rem', fontWeight: 700, color: '#475569', cursor: (currentPage >= totalPages || pageSize === -1) ? 'not-allowed' : 'pointer', opacity: (currentPage >= totalPages || pageSize === -1) ? 0.4 : 1 }}
+                  >
+                    <ChevronRight size={16} />
+                  </button>
+                </div>
+              </div>
+            );
+          })()}
         </div>
 
       </main>

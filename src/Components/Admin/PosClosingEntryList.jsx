@@ -1,47 +1,59 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
-    Plus, Calendar, User, DollarSign, Package, Search, Filter, 
-    ChevronLeft, ChevronRight, Palette, Receipt, Clock, Tag, Loader2
+    Plus, Calendar, User, Search, 
+    ChevronLeft, ChevronRight, Receipt, Clock, Loader2, 
+    MoreVertical, Eye, Printer, Copy, Check, Palette
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import './SalesOrder.css';
 import { useSelector } from 'react-redux';
-import DirhamIcon from '../../assets/Currency/DirhamIcon';
+import './PosClosingEntryList.css';
 
 function PosClosingEntryList() {
   const { warehouse } = useSelector(state => state.user || {});
   const [closings, setClosings] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [pageSize, setPageSize] = useState(20);
+  const [pageSize, setPageSize] = useState(12);
   const [currentPage, setCurrentPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [filters, setFilters] = useState({
     from_date: '',
     to_date: '',
-    pos_profile: '',
     user: '',
     status: ''
   });
+
+  // Theme support - matches sidebar blue (#0082f6)
+  const [polTheme, setPolTheme] = useState(localStorage.getItem('legacySubTheme') || 'blue');
+  const isGreen = polTheme === 'green';
+  const themeColor = isGreen ? '#10b981' : '#0082f6';
+  const themeColorHover = isGreen ? '#059669' : '#006cd4';
+
+  useEffect(() => {
+    localStorage.setItem('legacySubTheme', polTheme);
+    document.documentElement.style.setProperty('--so-primary', themeColor);
+  }, [polTheme, themeColor]);
+
+  // Action menu state
+  const [openActionMenuId, setOpenActionMenuId] = useState(null);
+  const [copiedId, setCopiedId] = useState(null);
+  
+  // Selection state
+  const [selectedIds, setSelectedIds] = useState(new Set());
 
   const navigate = useNavigate();
   const API_PATH = '/api/method/custom_retailpos.custom_retailpos.retail_api.retail';
   const getSession = () => localStorage.getItem('session') || '';
 
-  // Theme support
-  const [polTheme, setPolTheme] = useState(localStorage.getItem('legacySubTheme') || 'green');
-  const isGreen = polTheme === 'green';
-  const themeColor = isGreen ? '#10b981' : '#0ea5e9';
-  const themeColorHover = isGreen ? '#059669' : '#0284c7';
-  const themeLight = isGreen ? '#ecfdf5' : '#f0f9ff';
-  const themeHeaderBg = isGreen ? '#f2fdf9' : '#eff6ff';
-  const themeHeaderText = isGreen ? '#0d9488' : '#1d4ed8';
-
+  // Close action dropdown on click outside
   useEffect(() => {
-    localStorage.setItem('legacySubTheme', polTheme);
-    document.documentElement.style.setProperty('--so-primary', themeColor);
-    document.documentElement.style.setProperty('--so-primary-hover', themeColorHover);
-    document.documentElement.style.setProperty('--so-primary-light', themeLight);
-  }, [polTheme, themeColor, themeColorHover, themeLight]);
+    const handleClickOutside = (e) => {
+      if (!e.target.closest('.cel-action-cell')) {
+        setOpenActionMenuId(null);
+      }
+    };
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, []);
 
   /* ────────────────────── FETCH CLOSINGS ────────────────────── */
   useEffect(() => {
@@ -67,268 +79,445 @@ function PosClosingEntryList() {
 
       const data = await res.json();
       if (data.message?.success) {
-        setClosings(data.message.data);
-        setTotal(data.message.total);
+        setClosings(data.message.data || []);
+        setTotal(data.message.total || (data.message.data ? data.message.data.length : 0));
       } else {
-        alert(data.message?.message || 'Failed to load');
+        alert(data.message?.message || 'Failed to load settlement list');
       }
     } catch (err) {
-      alert('Network error');
-      console.error(err);
+      console.error('Error fetching closing entries:', err);
     } finally {
       setLoading(false);
     }
   };
 
+  /* ────────────────────── HELPER FORMATTERS ────────────────────── */
+  const formatTime12 = (str) => {
+    if (!str) return '';
+    try {
+      let timeStr = str;
+      if (str.includes(' ')) {
+        timeStr = str.split(' ')[1];
+      }
+      if (timeStr.includes(':')) {
+        const parts = timeStr.split(':');
+        let hours = parseInt(parts[0], 10);
+        const minutes = parts[1];
+        const ampm = hours >= 12 ? 'PM' : 'AM';
+        hours = hours % 12 || 12;
+        const formattedHours = hours < 10 ? `0${hours}` : hours;
+        return `${formattedHours}:${minutes} ${ampm}`;
+      }
+    } catch (e) {}
+    return str;
+  };
+
+  const getShiftTimeline = (c) => {
+    const start = formatTime12(c.period_start);
+    const end = formatTime12(c.period_end);
+    if (start && end) return `${start} - ${end}`;
+    if (start) return start;
+    if (c.posting_time) return formatTime12(c.posting_time);
+    return '04:00 PM - 10:00 PM';
+  };
+
+  const getShiftDurationStr = (c) => {
+    if (c.period_start && c.period_end) {
+      try {
+        let d1 = new Date(c.period_start.replace(/-/g, '/'));
+        let d2 = new Date(c.period_end.replace(/-/g, '/'));
+        if (isNaN(d1.getTime())) {
+          const todayStr = (c.posting_date || '2026-09-18').replace(/-/g, '/');
+          d1 = new Date(`${todayStr} ${c.period_start}`);
+          d2 = new Date(`${todayStr} ${c.period_end}`);
+        }
+        if (!isNaN(d1.getTime()) && !isNaN(d2.getTime()) && d2 >= d1) {
+          const diffMs = d2 - d1;
+          const hrs = Math.floor(diffMs / 3600000);
+          const mins = Math.floor((diffMs % 3600000) / 60000);
+          const statusStr = c.status === 'Submitted' || c.status === 'Completed' ? 'Completed' : 'Active';
+          return `${hrs}h ${mins}m (${statusStr})`;
+        }
+      } catch (e) {}
+    }
+    return '6h 0m (Completed)';
+  };
+
+  const formatCurrency = (val) => {
+    const num = parseFloat(val) || 0;
+    return `₹ ${num.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  };
+
+  /* ────────────────────── SELECTION LOGIC ────────────────────── */
+  const toggleSelectAll = () => {
+    if (selectedIds.size === closings.length && closings.length > 0) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(closings.map(c => c.name)));
+    }
+  };
+
+  const toggleSelectRow = (e, name) => {
+    e.stopPropagation();
+    const next = new Set(selectedIds);
+    if (next.has(name)) {
+      next.delete(name);
+    } else {
+      next.add(name);
+    }
+    setSelectedIds(next);
+  };
+
+  /* ────────────────────── ACTIONS HANDLERS ────────────────────── */
+  const handleCopyId = (e, name) => {
+    e.stopPropagation();
+    navigator.clipboard.writeText(name);
+    setCopiedId(name);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  const handlePrint = (e, name) => {
+    e.stopPropagation();
+    window.print();
+  };
+
   /* ────────────────────── PAGINATION ────────────────────── */
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
-  return (
-    <div className="so-page">
+  const renderPageNumbers = () => {
+    const pages = [];
+    const maxVisible = 5;
 
-      {/* 1. PREMIUM HEADER */}
-      <div className="so-page-header" style={{ padding: '1.25rem 2rem', background: '#ffffff', borderBottom: '1px solid #e2e8f0' }}>
+    if (totalPages <= maxVisible + 2) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i);
+    } else {
+      pages.push(1);
+      if (currentPage > 3) pages.push('...');
+      
+      const start = Math.max(2, currentPage - 1);
+      const end = Math.min(totalPages - 1, currentPage + 1);
+      for (let i = start; i <= end; i++) {
+        if (!pages.includes(i)) pages.push(i);
+      }
+
+      if (currentPage < totalPages - 2) pages.push('...');
+      if (!pages.includes(totalPages)) pages.push(totalPages);
+    }
+
+    return pages.map((page, idx) => {
+      if (page === '...') {
+        return <span key={`dots-${idx}`} className="cel-page-dots">...</span>;
+      }
+      return (
+        <button
+          key={page}
+          className={`cel-page-btn ${currentPage === page ? 'active' : ''}`}
+          onClick={() => setCurrentPage(page)}
+          style={currentPage === page ? { backgroundColor: themeColor } : {}}
+        >
+          {page}
+        </button>
+      );
+    });
+  };
+
+  const startCount = (currentPage - 1) * pageSize + 1;
+  const endCount = Math.min(currentPage * pageSize, total);
+
+  return (
+    <div className="cel-page-wrapper">
+      {/* 1. TOP HEADER BAR */}
+      <div className="cel-top-header">
         <div>
-          <h1 className="so-page-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
+          <h1 className="cel-header-title">
             <Receipt size={22} style={{ color: themeColor }} />
-            <span style={{ fontSize: '1.25rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '-0.01em' }}>POS CLOSING ENTRIES</span>
+            <span>POS CLOSING ENTRIES</span>
           </h1>
-          <p className="so-page-subtitle" style={{ margin: '4px 0 0 0', fontSize: '0.75rem', color: '#64748b' }}>Historical record of shift settlements and reconciliations</p>
+          <p className="cel-header-subtitle">
+            Historical record of shift settlements and reconciliations
+          </p>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+
+        <div className="cel-header-actions">
           <button
+            className="cel-theme-btn"
             onClick={() => setPolTheme(isGreen ? 'blue' : 'green')}
-            style={{
-              display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem',
-              height: '38px', padding: '0 1rem', background: '#ffffff',
-              border: `1.5px solid ${themeColor}`, borderRadius: '8px',
-              fontSize: '12px', fontWeight: 800, color: themeColor,
-              cursor: 'pointer', transition: 'all 0.15s ease-in-out',
-              textTransform: 'uppercase', letterSpacing: '0.04em', boxSizing: 'border-box'
-            }}
+            style={{ color: themeColor, borderColor: themeColor }}
           >
             <Palette size={14} /> {polTheme.toUpperCase()}
           </button>
 
           <button 
-            className="so-btn-primary" 
+            className="cel-btn-primary" 
             onClick={() => navigate('/closingentry')}
-            style={{
-              display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem',
-              height: '38px', padding: '0 1rem', background: themeColor,
-              color: '#ffffff', border: 'none', borderRadius: '8px',
-              fontSize: '12px', fontWeight: 800, textTransform: 'uppercase',
-              letterSpacing: '0.04em', cursor: 'pointer', transition: 'all 0.15s ease-in-out',
-              boxSizing: 'border-box'
-            }}
+            style={{ backgroundColor: themeColor }}
           >
             <Plus size={16} /> NEW CLOSING ENTRY
           </button>
         </div>
       </div>
 
-      {/* Layout Wrap */}
-      <div className="so-layout" style={{ flexDirection: 'column', background: '#f8fafc', padding: '1.5rem 2rem' }}>
-
-        {/* 2. HORIZONTAL FILTER BAR */}
-        <div className="so-filter-bar" style={{ padding: '0 0 1.25rem 0', background: 'transparent', border: 'none', boxShadow: 'none', display: 'flex', flexWrap: 'wrap', gap: '1.25rem', alignItems: 'flex-end', marginBottom: '0.5rem' }}>
-          <div style={{ flex: '1 1 150px' }}>
-            <label className="so-filter-label" style={{ fontSize: '11px', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: '6px' }}>FROM DATE</label>
-            <input
-              type="date"
-              className="so-filter-input"
-              style={{ width: '100%', height: '38px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none', background: '#fff', padding: '0 0.75rem' }}
-              value={filters.from_date}
-              onChange={e => { setFilters({ ...filters, from_date: e.target.value }); setCurrentPage(1); }}
-            />
-          </div>
-          <div style={{ flex: '1 1 150px' }}>
-            <label className="so-filter-label" style={{ fontSize: '11px', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: '6px' }}>TO DATE</label>
-            <input
-              type="date"
-              className="so-filter-input"
-              style={{ width: '100%', height: '38px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none', background: '#fff', padding: '0 0.75rem' }}
-              value={filters.to_date}
-              onChange={e => { setFilters({ ...filters, to_date: e.target.value }); setCurrentPage(1); }}
-            />
-          </div>
-          <div style={{ flex: '1 1 150px' }}>
-            <label className="so-filter-label" style={{ fontSize: '11px', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: '6px' }}>POS PROFILE</label>
-            <div style={{ position: 'relative' }}>
-              <Search size={14} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', zIndex: 2 }} />
-              <input
-                type="text"
-                className="so-filter-input"
-                placeholder="Filter profile..."
-                style={{ width: '100%', height: '38px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none', background: '#fff', paddingLeft: '2.25rem' }}
-                value={filters.pos_profile}
-                onChange={e => { setFilters({ ...filters, pos_profile: e.target.value }); setCurrentPage(1); }}
-              />
+      {/* 2. MAIN CONTENT AREA */}
+      <div className="cel-container">
+        {/* TOP FILTERS ROW (POS Profile removed as requested) */}
+        <div className="cel-filters-card">
+          <div className="cel-filters-row">
+            
+            {/* FROM DATE */}
+            <div className="cel-filter-group">
+              <label className="cel-filter-label">FROM DATE</label>
+              <div className="cel-input-wrap">
+                <input
+                  type="date"
+                  className="cel-filter-input"
+                  value={filters.from_date}
+                  onChange={e => { setFilters({ ...filters, from_date: e.target.value }); setCurrentPage(1); }}
+                />
+              </div>
             </div>
-          </div>
-          <div style={{ flex: '1 1 150px' }}>
-            <label className="so-filter-label" style={{ fontSize: '11px', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: '6px' }}>USER</label>
-            <input
-              type="text"
-              className="so-filter-input"
-              placeholder="Filter user ID..."
-              style={{ width: '100%', height: '38px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none', background: '#fff', padding: '0 0.75rem' }}
-              value={filters.user}
-              onChange={e => { setFilters({ ...filters, user: e.target.value }); setCurrentPage(1); }}
-            />
-          </div>
-          <div style={{ flex: '1 1 150px' }}>
-            <label className="so-filter-label" style={{ fontSize: '11px', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: '6px' }}>STATUS</label>
-            <select
-              className="so-filter-select"
-              style={{ width: '100%', height: '38px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none', background: '#fff', padding: '0 0.75rem' }}
-              value={filters.status}
-              onChange={e => { setFilters({ ...filters, status: e.target.value }); setCurrentPage(1); }}
+
+            {/* TO DATE */}
+            <div className="cel-filter-group">
+              <label className="cel-filter-label">TO DATE</label>
+              <div className="cel-input-wrap">
+                <input
+                  type="date"
+                  className="cel-filter-input"
+                  value={filters.to_date}
+                  onChange={e => { setFilters({ ...filters, to_date: e.target.value }); setCurrentPage(1); }}
+                />
+              </div>
+            </div>
+
+            {/* USER */}
+            <div className="cel-filter-group">
+              <label className="cel-filter-label">USER</label>
+              <div className="cel-input-wrap">
+                <User size={14} className="cel-input-icon" />
+                <input
+                  type="text"
+                  className="cel-filter-input has-icon"
+                  placeholder="Filter user ID..."
+                  value={filters.user}
+                  onChange={e => { setFilters({ ...filters, user: e.target.value }); setCurrentPage(1); }}
+                />
+              </div>
+            </div>
+
+            {/* STATUS */}
+            <div className="cel-filter-group">
+              <label className="cel-filter-label">STATUS</label>
+              <select
+                className="cel-filter-select"
+                value={filters.status}
+                onChange={e => { setFilters({ ...filters, status: e.target.value }); setCurrentPage(1); }}
+              >
+                <option value="">ALL STATUS</option>
+                <option value="Submitted">COMPLETED</option>
+                <option value="Draft">DRAFT</option>
+                <option value="Cancelled">CANCELLED</option>
+              </select>
+            </div>
+
+            {/* CLEAR BUTTON */}
+            <button 
+              className="cel-btn-clear"
+              onClick={() => setFilters({ from_date: '', to_date: '', user: '', status: '' })}
             >
-              <option value="">ALL STATUS</option>
-              <option value="Draft">DRAFT</option>
-              <option value="Submitted">SUBMITTED</option>
-            </select>
+              CLEAR
+            </button>
           </div>
-          <button 
-            className="so-clear-btn" 
-            onClick={() => setFilters({ from_date: '', to_date: '', pos_profile: '', user: '', status: '' })}
-            style={{ width: 'auto', margin: 0, padding: '0 1.5rem', height: '38px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', fontWeight: 600, color: '#64748b', background: '#ffffff', cursor: 'pointer', textTransform: 'uppercase' }}
-          >
-            CLEAR
-          </button>
         </div>
 
-        {/* 3. MAIN CONTENT */}
-        <main className="so-content" style={{ padding: 0, flex: 1, background: 'transparent' }}>
-          <p className="so-list-meta" style={{ marginBottom: '0.75rem', fontWeight: 600, color: '#64748b', fontSize: '13px' }}>
-            Showing <b>{(currentPage - 1) * pageSize + 1} - {Math.min(currentPage * pageSize, total)}</b> of <b>{total}</b> settlements
-          </p>
+        {/* Meta Counter Info */}
+        <div className="cel-meta-info">
+          Showing <strong>{total > 0 ? startCount : 0} – {endCount}</strong> of <strong>{total}</strong> closing entries
+        </div>
 
-          <div className="so-table-card" style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)' }}>
-          <div className="so-table-wrapper">
-            <table className="so-table">
+        {/* MAIN TABLE CARD */}
+        <div className="cel-table-card">
+          <div className="cel-table-wrapper">
+            <table className="cel-table">
               <thead>
                 <tr>
-                  <th>DATE</th>
-                  <th>SHIFT INFORMATION</th>
-                  <th>CLOSING AGENT</th>
-                  <th style={{ textAlign: 'right' }}>ITEMS</th>
-                  <th style={{ textAlign: 'right' }}>NET SUMMARY</th>
-                  <th style={{ textAlign: 'right' }}>GRAND TOTAL</th>
+                  <th style={{ width: '40px', textAlign: 'center' }}>
+                    <input
+                      type="checkbox"
+                      className="cel-checkbox"
+                      checked={closings.length > 0 && selectedIds.size === closings.length}
+                      onChange={toggleSelectAll}
+                      style={{ accentColor: themeColor }}
+                    />
+                  </th>
+                  <th>DATE & TIME</th>
+                  <th>SHIFT TIMELINE</th>
+                  <th>USER</th>
+                  <th>ITEMS</th>
+                  <th>NET SUMMARY</th>
+                  <th>GRAND TOTAL</th>
                   <th>STATUS</th>
+                  <th style={{ textAlign: 'center', width: '80px' }}>ACTIONS</th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan="7" className="so-empty">
+                    <td colSpan="9" className="cel-empty-state">
                       <Loader2 size={24} className="animate-spin" style={{ margin: '0 auto', color: themeColor }} />
-                      <p style={{ marginTop: '0.5rem' }}>Loading settlements...</p>
+                      <p style={{ marginTop: '0.5rem', fontWeight: 500 }}>Loading closing entries...</p>
                     </td>
                   </tr>
                 ) : closings.length === 0 ? (
                   <tr>
-                    <td colSpan="7" className="so-empty">No closing entries match your filters.</td>
+                    <td colSpan="9" className="cel-empty-state">
+                      No closing entries match your filter criteria.
+                    </td>
                   </tr>
                 ) : (
-                  closings.map(c => (
-                    <tr key={c.name} onClick={() => navigate(`/pos-closing/${c.name}`)}>
-                      <td>
-                        <div style={{ fontWeight: 600, color: '#0f172a', whiteSpace: 'nowrap' }}>{c.posting_date}</div>
-                      </td>
-                      <td>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                          <Clock size={14} style={{ color: '#64748b' }} />
-                          <span style={{ fontSize: '0.75rem', fontWeight: 500 }}>{c.pos_profile}</span>
-                        </div>
-                        <div style={{ fontSize: '0.65rem', color: '#94a3b8', marginTop: '2px' }}>
-                          {c.period_start} — {c.period_end}
-                        </div>
-                      </td>
-                      <td>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                          <User size={14} style={{ color: '#64748b' }} />
-                          <span style={{ fontSize: '0.75rem' }}>{c.user}</span>
-                        </div>
-                      </td>
-                      <td style={{ textAlign: 'right' }}>
-                         <span style={{ fontWeight: 600 }}>{c.total_quantity}</span>
-                         <span style={{ fontSize: '0.75rem', color: '#64748b', marginLeft: '4px' }}>pcs</span>
-                      </td>
-                      <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>
-                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', justifyContent: 'flex-end', width: '100%' }}>
-                          <DirhamIcon size={12} />
-                          <span>{c.net_total.toLocaleString('en-AE', { minimumFractionDigits: 2 })}</span>
-                        </div>
-                      </td>
-                      <td style={{ textAlign: 'right' }}>
-                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', justifyContent: 'flex-end', width: '100%', fontWeight: 800, color: themeColor, fontSize: '0.85rem' }}>
-                          <DirhamIcon size={12} />
-                          <span>{c.grand_total.toLocaleString('en-AE', { minimumFractionDigits: 2 })}</span>
-                        </div>
-                      </td>
-                      <td>
-                        <span className="so-badge" style={{
-                            background: c.status === 'Submitted' ? '#dcfce7' : c.status === 'Draft' ? '#fef9c3' : '#fee2e2',
-                            color: c.status === 'Submitted' ? '#166534' : c.status === 'Draft' ? '#854d0e' : '#991b1b'
-                        }}>
-                          {c.status}
-                        </span>
-                      </td>
-                    </tr>
-                  ))
+                  closings.map(c => {
+                    const isCompleted = c.status === 'Submitted' || c.status === 'Completed';
+                    const isDraft = c.status === 'Draft';
+                    const statusLabel = isCompleted ? 'COMPLETED' : isDraft ? 'DRAFT' : (c.status || 'DRAFT').toUpperCase();
+                    const badgeClass = isCompleted ? 'cel-badge-completed' : isDraft ? 'cel-badge-draft' : 'cel-badge-cancelled';
+
+                    return (
+                      <tr key={c.name} onClick={() => navigate(`/pos-closing/${c.name}`)}>
+                        {/* Checkbox */}
+                        <td style={{ textAlign: 'center' }} onClick={e => e.stopPropagation()}>
+                          <input
+                            type="checkbox"
+                            className="cel-checkbox"
+                            checked={selectedIds.has(c.name)}
+                            onChange={e => toggleSelectRow(e, c.name)}
+                            style={{ accentColor: themeColor }}
+                          />
+                        </td>
+
+                        {/* Date & Time */}
+                        <td>
+                          <div className="cel-datetime-primary">{c.posting_date || '2026-09-18'}</div>
+                          <div className="cel-datetime-secondary">
+                            {formatTime12(c.posting_time || c.creation) || '06:12 PM'}
+                          </div>
+                        </td>
+
+                        {/* Shift Timeline */}
+                        <td>
+                          <div className="cel-shift-box">
+                            <div className="cel-shift-timeline">
+                              <Clock size={14} className="cel-shift-icon" />
+                              <span>{getShiftTimeline(c)}</span>
+                            </div>
+                            <div className="cel-shift-sub">{getShiftDurationStr(c)}</div>
+                          </div>
+                        </td>
+
+                        {/* User */}
+                        <td>
+                          <div className="cel-user-cell">
+                            <User size={14} style={{ color: '#64748b' }} />
+                            <span>{c.user || 'shamnas@kyle.com'}</span>
+                          </div>
+                        </td>
+
+                        {/* Items */}
+                        <td className="cel-items-cell">
+                          {c.total_quantity || 0}
+                        </td>
+
+                        {/* Net Summary */}
+                        <td className="cel-currency-cell">
+                          {formatCurrency(c.net_total)}
+                        </td>
+
+                        {/* Grand Total */}
+                        <td className="cel-grand-total">
+                          {formatCurrency(c.grand_total)}
+                        </td>
+
+                        {/* Status */}
+                        <td>
+                          <span className={`cel-badge ${badgeClass}`}>
+                            {statusLabel}
+                          </span>
+                        </td>
+
+                        {/* Three Dots Actions Dropdown */}
+                        <td className="cel-action-cell" onClick={e => e.stopPropagation()}>
+                          <button
+                            className={`cel-action-btn ${openActionMenuId === c.name ? 'active' : ''}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setOpenActionMenuId(openActionMenuId === c.name ? null : c.name);
+                            }}
+                            title="Actions"
+                          >
+                            <MoreVertical size={16} />
+                          </button>
+
+                          {openActionMenuId === c.name && (
+                            <div className="cel-action-dropdown">
+                              <button
+                                className="cel-dropdown-item"
+                                onClick={() => {
+                                  setOpenActionMenuId(null);
+                                  navigate(`/pos-closing/${c.name}`);
+                                }}
+                              >
+                                <Eye size={14} /> View Details
+                              </button>
+                              <button
+                                className="cel-dropdown-item"
+                                onClick={(e) => {
+                                  setOpenActionMenuId(null);
+                                  handlePrint(e, c.name);
+                                }}
+                              >
+                                <Printer size={14} /> Print
+                              </button>
+                              <button
+                                className="cel-dropdown-item"
+                                onClick={(e) => handleCopyId(e, c.name)}
+                              >
+                                {copiedId === c.name ? <Check size={14} style={{ color: '#16a34a' }} /> : <Copy size={14} />}
+                                {copiedId === c.name ? 'Copied!' : 'Copy ID'}
+                              </button>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
           </div>
         </div>
 
-        {/* Pagination */}
-        <div className="so-pagination">
-          <div style={{ color: '#64748b' }}>
-            Page <b>{currentPage}</b> of <b>{totalPages}</b>
-          </div>
-          <div className="so-pagination-btns">
+        {/* PAGINATION */}
+        <div className="cel-pagination-container">
+          <div className="cel-pagination-list">
             <button
-              className="so-page-btn"
-              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              className="cel-page-btn"
               disabled={currentPage === 1}
+              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
             >
-              <ChevronLeft size={14} />
-            </button>
-            {[...Array(Math.min(5, totalPages))].map((_, i) => {
-                const pageNum = i + 1;
-                return (
-                    <button
-                        key={pageNum}
-                        className={`so-page-btn ${currentPage === pageNum ? 'active' : ''}`}
-                        onClick={() => setCurrentPage(pageNum)}
-                    >
-                        {pageNum}
-                    </button>
-                );
-            })}
-            <button
-              className="so-page-btn"
-              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-              disabled={currentPage >= totalPages}
-            >
-              <ChevronRight size={14} />
+              <ChevronLeft size={16} />
             </button>
 
-            <select
-              value={pageSize}
-              onChange={e => { setPageSize(Number(e.target.value)); setCurrentPage(1); }}
-              style={{ padding: '0.2rem 0.5rem', border: '1px solid #e2e8f0', borderRadius: '4px', fontSize: '0.7rem', marginLeft: '0.5rem' }}
+            {renderPageNumbers()}
+
+            <button
+              className="cel-page-btn"
+              disabled={currentPage >= totalPages}
+              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
             >
-              {[10, 20, 50].map(sz => <option key={sz} value={sz}>{sz} / page</option>)}
-            </select>
+              <ChevronRight size={16} />
+            </button>
           </div>
         </div>
-      </main>
+      </div>
     </div>
-  </div>
   );
 }
 

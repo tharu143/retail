@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useSelector } from 'react-redux';
-import { 
-    Loader2, FileText, AlertCircle, CheckCircle2, 
-    Calendar, Filter, RefreshCw, Printer, ChevronDown, 
+import {
+    Loader2, FileText, AlertCircle, CheckCircle2,
+    Calendar, Filter, RefreshCw, Printer, ChevronDown,
     TrendingUp, DollarSign, Clock, User, Shield, CreditCard, ChevronRight,
     Receipt, Landmark, Smartphone, Tag, Gift, Check,
     ArrowRightLeft, Percent, Edit3, XCircle, RotateCcw, Eye, ExternalLink,
-    ArrowUpRight, ArrowDownLeft, X, Wallet
+    ArrowUpRight, ArrowDownLeft, X, Wallet, BarChart3
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import DirhamIcon from '../../assets/Currency/DirhamIcon';
@@ -26,17 +26,17 @@ function DailySalesReport() {
     const [warehouses, setWarehouses] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
-    const [data, setData] = useState({ 
+    const [data, setData] = useState({
         day_summary: {},
-        openings: [], 
-        closings: [], 
-        invoices: [], 
+        openings: [],
+        closings: [],
+        invoices: [],
         high_discount_invoices: [],
         return_invoices: [],
         modified_invoices: [],
-        receipts: [], 
-        payments: [], 
-        transfers: [] 
+        receipts: [],
+        payments: [],
+        transfers: []
     });
     const [activeTab, setActiveTab] = useState('invoices'); // invoices, receipts_payments, transfers, discounts, modified, shifts
     const [searchTerm, setSearchTerm] = useState('');
@@ -124,7 +124,7 @@ function DailySalesReport() {
     const salesReturnCount = summary.sales_return_count || (data.return_invoices?.length || 0);
     const paymentsTotal = summary.payments !== undefined ? summary.payments : 0;
     const paymentsCount = summary.payments_count || (data.payments?.length || 0);
-    
+
     const totalCount = summary.total_count || (cashSaleCount + cardSaleCount + onlinePaymentCount + instaCashCount + receiptsCount + salesReturnCount + paymentsCount);
     const netTotal = summary.net_total !== undefined ? summary.net_total : (cashSale + cardSale + onlinePayment + instaCash - salesReturn + receiptsTotal - paymentsTotal);
     const cashBalance = summary.cash_balance !== undefined ? summary.cash_balance : (cashSale + instaCash + receiptsTotal - salesReturn - paymentsTotal);
@@ -280,11 +280,11 @@ function DailySalesReport() {
             {/* Top Bar / Header */}
             <header className="dsr-header no-print">
                 <div className="dsr-header-title-box">
-                    <div className="dsr-icon-badge">
-                        <TrendingUp size={24} className="stroke-[2.5]" />
-                    </div>
                     <div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <div className="dsr-icon-badge">
+                                <BarChart3 size={20} className="stroke-[2.5]" />
+                            </div>
                             <h1 className="dsr-title">DAILY SALES & SHIFT SUMMARY</h1>
                             <span className="dsr-live-tag">Live Audit</span>
                         </div>
@@ -293,28 +293,28 @@ function DailySalesReport() {
                 </div>
 
                 <div className="dsr-actions">
-                    <button 
+                    <button
                         onClick={() => setShowThermalPreview(true)}
                         className="dsr-btn-thermal"
                         title="View & Print 80mm POS Thermal Slip"
                     >
-                        <Receipt size={15} /> 
+                        <Receipt size={15} />
                         <span>Thermal Slip</span>
                     </button>
-                    <button 
+                    <button
                         onClick={handlePrintA4}
                         className="dsr-btn-print"
                         title="Print Full A4 Report"
                     >
-                        <Printer size={15} /> 
+                        <Printer size={15} />
                         <span>Print A4</span>
                     </button>
-                    <button 
+                    <button
                         onClick={fetchDailyReport}
                         disabled={loading}
                         className="dsr-btn-refresh"
                     >
-                        <RefreshCw size={15} className={loading ? 'animate-spin' : ''} /> 
+                        <RefreshCw size={15} className={loading ? 'animate-spin' : ''} />
                         <span>Refresh</span>
                     </button>
                 </div>
@@ -345,14 +345,14 @@ function DailySalesReport() {
                                 <Calendar size={12} color="#2563eb" />
                                 Select Date
                             </label>
-                            <input 
+                            <input
                                 ref={dateInputRef}
                                 type="date"
                                 value={selectedDate}
                                 onChange={(e) => setSelectedDate(e.target.value)}
                                 className="dsr-input"
-                                onFocus={(e) => { try { e.target.showPicker(); } catch(err) {} }}
-                                onClick={(e) => { try { e.target.showPicker(); } catch(err) {} }}
+                                onFocus={(e) => { try { e.target.showPicker(); } catch (err) { } }}
+                                onClick={(e) => { try { e.target.showPicker(); } catch (err) { } }}
                             />
                         </div>
 
@@ -436,14 +436,19 @@ function DailySalesReport() {
                     {/* 1. Cash Sale */}
                     <div className="dsr-kpi-card green" onClick={() => setActiveTab('invoices')}>
                         <div className="dsr-kpi-header">
-                            <span className="dsr-kpi-title">1. Cash Sale</span>
-                            <div className="dsr-kpi-icon-pill">
-                                <DollarSign size={14} />
+                            <div className="dsr-kpi-header-left">
+                                <div className="dsr-kpi-icon-pill">
+                                    <div className="dsr-kpi-icon-inner">
+                                        <DollarSign size={14} />
+                                    </div>
+                                </div>
+                                <span className="dsr-kpi-title">1. Cash Sale</span>
                             </div>
+                            <ChevronRight size={14} className="dsr-kpi-arrow" />
                         </div>
                         <div>
                             <div className="dsr-kpi-value">
-                                <DirhamIcon size={16} /> 
+                                <DirhamIcon size={16} />
                                 <span>{cashSale.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                             </div>
                             <div className="dsr-kpi-subtext" style={{ color: '#059669' }}>
@@ -455,14 +460,19 @@ function DailySalesReport() {
                     {/* 2. Card Sale */}
                     <div className="dsr-kpi-card blue" onClick={() => setActiveTab('invoices')}>
                         <div className="dsr-kpi-header">
-                            <span className="dsr-kpi-title">2. Card Sale</span>
-                            <div className="dsr-kpi-icon-pill">
-                                <CreditCard size={14} />
+                            <div className="dsr-kpi-header-left">
+                                <div className="dsr-kpi-icon-pill">
+                                    <div className="dsr-kpi-icon-inner">
+                                        <CreditCard size={14} />
+                                    </div>
+                                </div>
+                                <span className="dsr-kpi-title">2. Card Sale</span>
                             </div>
+                            <ChevronRight size={14} className="dsr-kpi-arrow" />
                         </div>
                         <div>
                             <div className="dsr-kpi-value">
-                                <DirhamIcon size={16} /> 
+                                <DirhamIcon size={16} />
                                 <span>{cardSale.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                             </div>
                             <div className="dsr-kpi-subtext" style={{ color: '#2563eb' }}>
@@ -474,14 +484,19 @@ function DailySalesReport() {
                     {/* 3. Receipts */}
                     <div className="dsr-kpi-card teal" onClick={() => setActiveTab('receipts_payments')}>
                         <div className="dsr-kpi-header">
-                            <span className="dsr-kpi-title">3. Receipts (+)</span>
-                            <div className="dsr-kpi-icon-pill">
-                                <ArrowDownLeft size={14} />
+                            <div className="dsr-kpi-header-left">
+                                <div className="dsr-kpi-icon-pill">
+                                    <div className="dsr-kpi-icon-inner">
+                                        <ArrowDownLeft size={14} />
+                                    </div>
+                                </div>
+                                <span className="dsr-kpi-title">3. Receipts (+)</span>
                             </div>
+                            <ChevronRight size={14} className="dsr-kpi-arrow" />
                         </div>
                         <div>
                             <div className="dsr-kpi-value">
-                                <DirhamIcon size={16} /> 
+                                <DirhamIcon size={16} />
                                 <span>{receiptsTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                             </div>
                             <div className="dsr-kpi-subtext" style={{ color: '#0d9488' }}>
@@ -493,14 +508,19 @@ function DailySalesReport() {
                     {/* 4. Payments */}
                     <div className="dsr-kpi-card red" onClick={() => setActiveTab('receipts_payments')}>
                         <div className="dsr-kpi-header">
-                            <span className="dsr-kpi-title">4. Payments (-)</span>
-                            <div className="dsr-kpi-icon-pill">
-                                <ArrowUpRight size={14} />
+                            <div className="dsr-kpi-header-left">
+                                <div className="dsr-kpi-icon-pill">
+                                    <div className="dsr-kpi-icon-inner">
+                                        <ArrowUpRight size={14} />
+                                    </div>
+                                </div>
+                                <span className="dsr-kpi-title">4. Payments (-)</span>
                             </div>
+                            <ChevronRight size={14} className="dsr-kpi-arrow" />
                         </div>
                         <div>
                             <div className="dsr-kpi-value">
-                                <DirhamIcon size={16} /> 
+                                <DirhamIcon size={16} />
                                 <span>{paymentsTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                             </div>
                             <div className="dsr-kpi-subtext" style={{ color: '#e11d48' }}>
@@ -512,14 +532,19 @@ function DailySalesReport() {
                     {/* 5. Insta Sale */}
                     <div className="dsr-kpi-card cyan" onClick={() => setActiveTab('invoices')}>
                         <div className="dsr-kpi-header">
-                            <span className="dsr-kpi-title">5. Insta Sale</span>
-                            <div className="dsr-kpi-icon-pill">
-                                <Smartphone size={14} />
+                            <div className="dsr-kpi-header-left">
+                                <div className="dsr-kpi-icon-pill">
+                                    <div className="dsr-kpi-icon-inner">
+                                        <Smartphone size={14} />
+                                    </div>
+                                </div>
+                                <span className="dsr-kpi-title">5. Insta Sale</span>
                             </div>
+                            <ChevronRight size={14} className="dsr-kpi-arrow" />
                         </div>
                         <div>
                             <div className="dsr-kpi-value">
-                                <DirhamIcon size={16} /> 
+                                <DirhamIcon size={16} />
                                 <span>{instaSale.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                             </div>
                             <div className="dsr-kpi-subtext" style={{ color: '#0891b2' }}>
@@ -531,14 +556,19 @@ function DailySalesReport() {
                     {/* 6. Credit Sale */}
                     <div className="dsr-kpi-card amber" onClick={() => setActiveTab('invoices')}>
                         <div className="dsr-kpi-header">
-                            <span className="dsr-kpi-title">6. Credit Sale</span>
-                            <div className="dsr-kpi-icon-pill">
-                                <Clock size={14} />
+                            <div className="dsr-kpi-header-left">
+                                <div className="dsr-kpi-icon-pill">
+                                    <div className="dsr-kpi-icon-inner">
+                                        <Clock size={14} />
+                                    </div>
+                                </div>
+                                <span className="dsr-kpi-title">6. Credit Sale</span>
                             </div>
+                            <ChevronRight size={14} className="dsr-kpi-arrow" />
                         </div>
                         <div>
                             <div className="dsr-kpi-value">
-                                <DirhamIcon size={16} /> 
+                                <DirhamIcon size={16} />
                                 <span>{creditSale.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                             </div>
                             <div className="dsr-kpi-subtext" style={{ color: '#d97706' }}>
@@ -550,10 +580,15 @@ function DailySalesReport() {
                     {/* 7. Inter-Branch Transfers */}
                     <div className="dsr-kpi-card indigo" onClick={() => setActiveTab('transfers')}>
                         <div className="dsr-kpi-header">
-                            <span className="dsr-kpi-title">7. Branch Transfers</span>
-                            <div className="dsr-kpi-icon-pill">
-                                <ArrowRightLeft size={14} />
+                            <div className="dsr-kpi-header-left">
+                                <div className="dsr-kpi-icon-pill">
+                                    <div className="dsr-kpi-icon-inner">
+                                        <ArrowRightLeft size={14} />
+                                    </div>
+                                </div>
+                                <span className="dsr-kpi-title">7. Branch Transfers</span>
                             </div>
+                            <ChevronRight size={14} className="dsr-kpi-arrow" />
                         </div>
                         <div>
                             <div className="dsr-kpi-value" style={{ fontSize: '1.25rem' }}>
@@ -568,10 +603,15 @@ function DailySalesReport() {
                     {/* 8. Shift Timing Card */}
                     <div className="dsr-kpi-card slate" onClick={() => setActiveTab('shifts')}>
                         <div className="dsr-kpi-header">
-                            <span className="dsr-kpi-title">8. Shift Hours</span>
-                            <div className="dsr-kpi-icon-pill">
-                                <Clock size={14} />
+                            <div className="dsr-kpi-header-left">
+                                <div className="dsr-kpi-icon-pill">
+                                    <div className="dsr-kpi-icon-inner">
+                                        <Clock size={14} />
+                                    </div>
+                                </div>
+                                <span className="dsr-kpi-title">8. Shift Hours</span>
                             </div>
+                            <ChevronRight size={14} className="dsr-kpi-arrow" />
                         </div>
                         <div>
                             <div className="dsr-kpi-value" style={{ fontSize: '1rem', gap: '4px' }}>
@@ -588,10 +628,15 @@ function DailySalesReport() {
                     {/* 9. >10% Discounts */}
                     <div className="dsr-kpi-card pink" onClick={() => setActiveTab('discounts')}>
                         <div className="dsr-kpi-header">
-                            <span className="dsr-kpi-title">9. &gt;10% Discounts</span>
-                            <div className="dsr-kpi-icon-pill">
-                                <Percent size={14} />
+                            <div className="dsr-kpi-header-left">
+                                <div className="dsr-kpi-icon-pill">
+                                    <div className="dsr-kpi-icon-inner">
+                                        <Percent size={14} />
+                                    </div>
+                                </div>
+                                <span className="dsr-kpi-title">9. &gt;10% Discounts</span>
                             </div>
+                            <ChevronRight size={14} className="dsr-kpi-arrow" />
                         </div>
                         <div>
                             <div className="dsr-kpi-value" style={{ fontSize: '1.25rem' }}>
@@ -606,10 +651,15 @@ function DailySalesReport() {
                     {/* 10. Total Bills Count */}
                     <div className="dsr-kpi-card emerald" onClick={() => setActiveTab('invoices')}>
                         <div className="dsr-kpi-header">
-                            <span className="dsr-kpi-title">10. Daily Bills Count</span>
-                            <div className="dsr-kpi-icon-pill">
-                                <FileText size={14} />
+                            <div className="dsr-kpi-header-left">
+                                <div className="dsr-kpi-icon-pill">
+                                    <div className="dsr-kpi-icon-inner">
+                                        <FileText size={14} />
+                                    </div>
+                                </div>
+                                <span className="dsr-kpi-title">10. Daily Bills Count</span>
                             </div>
+                            <ChevronRight size={14} className="dsr-kpi-arrow" />
                         </div>
                         <div>
                             <div className="dsr-kpi-value" style={{ fontSize: '1.25rem' }}>
@@ -624,10 +674,15 @@ function DailySalesReport() {
                     {/* 11. Modify / Return Bills */}
                     <div className="dsr-kpi-card orange" onClick={() => setActiveTab('modified')}>
                         <div className="dsr-kpi-header">
-                            <span className="dsr-kpi-title">11. Modify / Returns</span>
-                            <div className="dsr-kpi-icon-pill">
-                                <Edit3 size={14} />
+                            <div className="dsr-kpi-header-left">
+                                <div className="dsr-kpi-icon-pill">
+                                    <div className="dsr-kpi-icon-inner">
+                                        <Edit3 size={14} />
+                                    </div>
+                                </div>
+                                <span className="dsr-kpi-title">11. Modify / Returns</span>
                             </div>
+                            <ChevronRight size={14} className="dsr-kpi-arrow" />
                         </div>
                         <div>
                             <div className="dsr-kpi-value" style={{ fontSize: '1.25rem' }}>
@@ -642,10 +697,15 @@ function DailySalesReport() {
                     {/* 12. Closing Collections */}
                     <div className="dsr-kpi-card emerald" onClick={() => setActiveTab('collections')}>
                         <div className="dsr-kpi-header">
-                            <span className="dsr-kpi-title">12. Branch Collections</span>
-                            <div className="dsr-kpi-icon-pill">
-                                <Wallet size={14} />
+                            <div className="dsr-kpi-header-left">
+                                <div className="dsr-kpi-icon-pill">
+                                    <div className="dsr-kpi-icon-inner">
+                                        <Wallet size={14} />
+                                    </div>
+                                </div>
+                                <span className="dsr-kpi-title">12. Branch Collections</span>
                             </div>
+                            <ChevronRight size={14} className="dsr-kpi-arrow" />
                         </div>
                         <div>
                             <div className="dsr-kpi-value">
@@ -661,14 +721,19 @@ function DailySalesReport() {
                     {/* Net Grand Total Card */}
                     <div className="dsr-kpi-card net-total-card">
                         <div className="dsr-kpi-header">
-                            <span className="dsr-kpi-title">Day Net Total</span>
-                            <div className="dsr-kpi-icon-pill">
-                                <Receipt size={14} />
+                            <div className="dsr-kpi-header-left">
+                                <div className="dsr-kpi-icon-pill">
+                                    <div className="dsr-kpi-icon-inner">
+                                        <Receipt size={14} />
+                                    </div>
+                                </div>
+                                <span className="dsr-kpi-title">Day Net Total</span>
                             </div>
+                            <ChevronRight size={14} className="dsr-kpi-arrow" />
                         </div>
                         <div>
                             <div className="dsr-kpi-value net-value">
-                                <DirhamIcon size={18} /> 
+                                <DirhamIcon size={18} />
                                 <span>{netTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                             </div>
                             <div className="dsr-kpi-subtext" style={{ color: '#047857', fontWeight: 800 }}>
@@ -684,49 +749,49 @@ function DailySalesReport() {
                         onClick={() => setActiveTab('invoices')}
                         className={`dsr-tab-btn ${activeTab === 'invoices' ? 'active' : ''}`}
                     >
-                        <FileText size={15} /> 
+                        <FileText size={15} />
                         <span>Sales Invoices ({billsCount})</span>
                     </button>
                     <button
                         onClick={() => setActiveTab('receipts_payments')}
                         className={`dsr-tab-btn ${activeTab === 'receipts_payments' ? 'active' : ''}`}
                     >
-                        <Landmark size={15} /> 
+                        <Landmark size={15} />
                         <span>Receipts & Payments ({(data.receipts?.length || 0) + (data.payments?.length || 0)})</span>
                     </button>
                     <button
                         onClick={() => setActiveTab('transfers')}
                         className={`dsr-tab-btn ${activeTab === 'transfers' ? 'active' : ''}`}
                     >
-                        <ArrowRightLeft size={15} /> 
+                        <ArrowRightLeft size={15} />
                         <span>Branch Transfers ({transfersCount})</span>
                     </button>
                     <button
                         onClick={() => setActiveTab('discounts')}
                         className={`dsr-tab-btn ${activeTab === 'discounts' ? 'active' : ''}`}
                     >
-                        <Percent size={15} /> 
+                        <Percent size={15} />
                         <span>&gt;10% Discounts ({highDiscountCount})</span>
                     </button>
                     <button
                         onClick={() => setActiveTab('modified')}
                         className={`dsr-tab-btn ${activeTab === 'modified' ? 'active' : ''}`}
                     >
-                        <Edit3 size={15} /> 
+                        <Edit3 size={15} />
                         <span>Modify / Returns ({modifiedBillsCount})</span>
                     </button>
                     <button
                         onClick={() => setActiveTab('shifts')}
                         className={`dsr-tab-btn ${activeTab === 'shifts' ? 'active' : ''}`}
                     >
-                        <Clock size={15} /> 
+                        <Clock size={15} />
                         <span>Shifts & Cash Float ({(data.openings?.length || 0) + (data.closings?.length || 0)})</span>
                     </button>
                     <button
                         onClick={() => setActiveTab('collections')}
                         className={`dsr-tab-btn ${activeTab === 'collections' ? 'active' : ''}`}
                     >
-                        <Wallet size={15} /> 
+                        <Wallet size={15} />
                         <span>Closing Collections ({branchCollectionsCount})</span>
                     </button>
                 </div>
@@ -752,11 +817,11 @@ function DailySalesReport() {
                                         <span className="dsr-badge-count">{filteredInvoices.length} Bills</span>
                                     </div>
                                     <div className="no-print" style={{ minWidth: '220px' }}>
-                                        <input 
-                                            type="text" 
-                                            placeholder="Search invoice, customer, cashier..." 
-                                            value={searchTerm} 
-                                            onChange={(e) => setSearchTerm(e.target.value)} 
+                                        <input
+                                            type="text"
+                                            placeholder="Search invoice, customer, cashier..."
+                                            value={searchTerm}
+                                            onChange={(e) => setSearchTerm(e.target.value)}
                                             className="dsr-search-input"
                                         />
                                     </div>
@@ -787,8 +852,8 @@ function DailySalesReport() {
                                                         <td style={{ textAlign: 'center', color: '#94a3b8', fontWeight: 800 }}>{idx + 1}</td>
                                                         <td>
                                                             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                                                <span 
-                                                                    onClick={() => navigate('/salesinvoicelist', { state: { search: inv.name } })} 
+                                                                <span
+                                                                    onClick={() => navigate('/salesinvoicelist', { state: { search: inv.name } })}
                                                                     className="dsr-doc-link"
                                                                 >
                                                                     {inv.name}
@@ -1019,8 +1084,8 @@ function DailySalesReport() {
                                                 {data.high_discount_invoices?.map(inv => (
                                                     <tr key={inv.name}>
                                                         <td>
-                                                            <span 
-                                                                onClick={() => navigate('/salesinvoicelist', { state: { search: inv.name } })} 
+                                                            <span
+                                                                onClick={() => navigate('/salesinvoicelist', { state: { search: inv.name } })}
                                                                 className="dsr-doc-link"
                                                             >
                                                                 {inv.name}
@@ -1131,8 +1196,8 @@ function DailySalesReport() {
                                                 <div key={op.name} className="dsr-shift-card">
                                                     <div className="dsr-shift-header">
                                                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                                            <span 
-                                                                onClick={() => navigate('/openingentry', { state: { search: op.name } })} 
+                                                            <span
+                                                                onClick={() => navigate('/openingentry', { state: { search: op.name } })}
                                                                 className="dsr-doc-link"
                                                                 style={{ fontSize: '0.95rem' }}
                                                             >
@@ -1143,10 +1208,28 @@ function DailySalesReport() {
                                                                 {op.status}
                                                             </span>
                                                         </div>
-                                                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', fontSize: '0.78rem', fontWeight: 700, color: '#475569' }}>
-                                                            <div><User size={14} color="#94a3b8" /> Cashier: <b>{op.user?.split('@')[0]}</b></div>
-                                                            <div><Clock size={14} color="#94a3b8" /> Opened: <b>{new Date(op.period_start_date).toLocaleTimeString()}</b></div>
-                                                            <div><CreditCard size={14} color="#94a3b8" /> Profile: <b>{op.pos_profile}</b></div>
+                                                        <div className="dsr-meta-group">
+                                                            <div className="dsr-meta-pill">
+                                                                <span className="dsr-meta-icon-badge" style={{ background: '#f0fdf4', color: '#16a34a' }}>
+                                                                    <User size={13} />
+                                                                </span>
+                                                                <span className="dsr-meta-label">Cashier:</span>
+                                                                <span className="dsr-meta-value">{op.user?.split('@')[0]}</span>
+                                                            </div>
+                                                            <div className="dsr-meta-pill">
+                                                                <span className="dsr-meta-icon-badge" style={{ background: '#eff6ff', color: '#2563eb' }}>
+                                                                    <Clock size={13} />
+                                                                </span>
+                                                                <span className="dsr-meta-label">Opened:</span>
+                                                                <span className="dsr-meta-value">{new Date(op.period_start_date).toLocaleTimeString()}</span>
+                                                            </div>
+                                                            <div className="dsr-meta-pill">
+                                                                <span className="dsr-meta-icon-badge" style={{ background: '#f5f3ff', color: '#7c3aed' }}>
+                                                                    <CreditCard size={13} />
+                                                                </span>
+                                                                <span className="dsr-meta-label">Profile:</span>
+                                                                <span className="dsr-meta-value">{op.pos_profile}</span>
+                                                            </div>
                                                         </div>
                                                     </div>
 
@@ -1199,8 +1282,8 @@ function DailySalesReport() {
                                                 <div key={cl.name} className="dsr-shift-card">
                                                     <div className="dsr-shift-header">
                                                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                                            <span 
-                                                                onClick={() => navigate('/closingentrylist', { state: { search: cl.name } })} 
+                                                            <span
+                                                                onClick={() => navigate('/closingentrylist', { state: { search: cl.name } })}
                                                                 className="dsr-doc-link"
                                                                 style={{ fontSize: '0.95rem' }}
                                                             >
@@ -1209,9 +1292,21 @@ function DailySalesReport() {
                                                             </span>
                                                             <span className="dsr-status-badge closed">CLOSED</span>
                                                         </div>
-                                                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', fontSize: '0.78rem', fontWeight: 700, color: '#475569' }}>
-                                                            <div><User size={14} color="#94a3b8" /> Closed By: <b>{cl.user?.split('@')[0]}</b></div>
-                                                            <div><Clock size={14} color="#94a3b8" /> Closed At: <b>{new Date(cl.period_end_date).toLocaleTimeString()}</b></div>
+                                                        <div className="dsr-meta-group">
+                                                            <div className="dsr-meta-pill">
+                                                                <span className="dsr-meta-icon-badge" style={{ background: '#fef2f2', color: '#dc2626' }}>
+                                                                    <User size={13} />
+                                                                </span>
+                                                                <span className="dsr-meta-label">Closed By:</span>
+                                                                <span className="dsr-meta-value">{cl.user?.split('@')[0]}</span>
+                                                            </div>
+                                                            <div className="dsr-meta-pill">
+                                                                <span className="dsr-meta-icon-badge" style={{ background: '#fff7ed', color: '#ea580c' }}>
+                                                                    <Clock size={13} />
+                                                                </span>
+                                                                <span className="dsr-meta-label">Closed At:</span>
+                                                                <span className="dsr-meta-value">{new Date(cl.period_end_date).toLocaleTimeString()}</span>
+                                                            </div>
                                                         </div>
                                                     </div>
 
@@ -1466,8 +1561,8 @@ function DailySalesReport() {
                         </div>
 
                         <div className="dsr-modal-footer">
-                            <button 
-                                onClick={handlePrintThermal} 
+                            <button
+                                onClick={handlePrintThermal}
                                 className="dsr-btn-print-modal"
                             >
                                 <Printer size={16} />

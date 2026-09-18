@@ -37,12 +37,12 @@
   width: 48px;
   height: 48px;
   border-radius: 14px;
-  background: #0f172a;
-  color: #3b82f6;
+  background: #0082f6;
+  color: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 6px -1px rgba(15, 23, 42, 0.15);
+  box-shadow: 0 4px 6px -1px rgba(0, 130, 246, 0.25);
   flex-shrink: 0;
 }
 
@@ -259,7 +259,7 @@
 }
 
 .pce-kpi-card.invoices {
-  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+  background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
 }
 
 .pce-kpi-card.quantity {
@@ -273,7 +273,8 @@
 .pce-kpi-top {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
+  gap: 0.5rem;
 }
 
 .pce-kpi-label {
@@ -575,6 +576,13 @@
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: #475569;
+}
+
+.pce-select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  padding-right: 2.5rem !important;
 }
 
 .pce-select,

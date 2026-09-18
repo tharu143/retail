@@ -11,6 +11,7 @@ export const DirhamIcon = ({ className = '', size = 14, style = {}, fill = 'curr
             className={`inline-block align-middle select-none ${className}`}
             style={{ 
                 verticalAlign: '-0.1em',
+                marginRight: '0.35rem',
                 ...style 
             }}
         >

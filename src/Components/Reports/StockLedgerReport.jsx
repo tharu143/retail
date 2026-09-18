@@ -4,7 +4,7 @@ import {
   Loader2, FileText, AlertCircle, Calendar, Search,
   Filter, Palette, RefreshCw, Download, Printer,
   ChevronDown, Boxes, Layers, Package, TrendingUp, TrendingDown, DollarSign,
-  Settings, Activity, ExternalLink
+  Settings, Activity, ExternalLink, ChevronLeft, ChevronRight
 } from 'lucide-react';
 import { db } from '../../db';
 import CustomSearchDropdown from '../Purchase/CustomSearchDropdown';
@@ -51,6 +51,8 @@ function StockLedgerReport() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [pageSize, setPageSize] = useState(10);
+  const [currentPage, setCurrentPage] = useState(1);
 
   // Role Validation (Critical Access Control)
   const user_roles = JSON.parse(localStorage.getItem('user_roles') || '[]');
@@ -384,136 +386,180 @@ function StockLedgerReport() {
   };
 
   return (
-    <div className="so-page stock-ledger-report-container" style={{ padding: 0 }}>
+    <div className="slr-container">
 
-      {/* 1. PREMIUM HEADER */}
-      <div className="so-page-header" style={{ background: 'white', borderBottom: '1px solid #e2e8f0', padding: '1.25rem 2rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div>
-          <h1 className="so-page-title" style={{ display: 'flex', alignItems: 'center', gap: '10px', margin: 0 }}>
-            <Package size={22} style={{ color: themeColor || '#0082f6' }} strokeWidth={2.5} />
-            <span style={{ fontFamily: "'Outfit', 'Gilroy', sans-serif", fontSize: '22px', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.01em', textTransform: 'uppercase' }}>
-              STOCK LEDGER REPORT
-            </span>
-          </h1>
-          <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#64748b', fontWeight: 500 }}>
-            Chronological ledger of inventory logs, rates, incoming receipts and valuations
-          </p>
+      {/* 1. Header */}
+      <header className="slr-header no-print">
+        <div className="slr-header-title-box">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <div className="slr-icon-badge">
+              <Package size={22} className="stroke-[2.5]" />
+            </div>
+            <h1 className="slr-title">STOCK LEDGER REPORT</h1>
+            <span className="slr-tag">Audit Ledger</span>
+          </div>
+          <p className="slr-subtitle">Chronological ledger of inventory logs, rates, incoming receipts and valuations</p>
         </div>
 
-        <div className="header-actions" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <button
-            onClick={toggleTheme}
-            style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '0 16px', height: '38px', background: '#ffffff', border: `1.5px solid ${themeColor || '#0082f6'}`, borderRadius: '8px', fontSize: '12px', fontWeight: 800, color: themeColor || '#0082f6', cursor: 'pointer', textTransform: 'uppercase' }}
-          >
-            <Palette size={14} /> {isGreen ? 'BLUE THEME' : 'GREEN THEME'}
+        <div className="slr-actions">
+          <button onClick={() => window.print()} className="slr-btn-secondary">
+            <Printer size={15} />
+            <span>Print</span>
           </button>
-          <div className="action-divider" style={{ width: '1px', height: '24px', background: '#e2e8f0' }}></div>
+          <button onClick={exportCSV} className="slr-btn-primary">
+            <Download size={15} />
+            <span>Export CSV</span>
+          </button>
           <button
-            style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '0 16px', height: '38px', background: '#f8fafc', border: '1.5px solid #e2e8f0', borderRadius: '8px', fontSize: '12px', fontWeight: 800, color: '#475569', cursor: 'pointer', textTransform: 'uppercase' }}
+            className="slr-btn-icon"
             onClick={() => setShowColConfig(true)}
+            title="Configure Columns"
           >
-            <Settings size={14} /> CUSTOMIZE COLUMNS
+            <Settings size={18} />
           </button>
           <button
-            style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '0 16px', height: '38px', background: '#f8fafc', border: '1.5px solid #e2e8f0', borderRadius: '8px', fontSize: '12px', fontWeight: 800, color: '#475569', cursor: 'pointer', textTransform: 'uppercase' }}
-            onClick={() => window.print()}
+            onClick={() => fetchReport(filters)}
+            disabled={loading}
+            className="slr-btn-icon"
+            title="Refresh Data"
           >
-            <Printer size={14} /> PRINT
+            <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
           </button>
-          <button
-            style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '0 16px', height: '38px', background: themeColor || '#0082f6', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 800, color: '#ffffff', cursor: 'pointer', textTransform: 'uppercase' }}
-            onClick={exportCSV}
-          >
-            <Download size={14} /> EXPORT CSV
-          </button>
+        </div>
+      </header>
+
+      {/* Print Only Header */}
+      <div className="hidden print:block border-b-2 border-slate-900 pb-4 mb-6 p-8">
+        <div className="flex justify-between items-start">
+          <div>
+            <h1 className="text-2xl font-black text-slate-900 tracking-tight">Stock Ledger Report</h1>
+            <p className="text-xs text-slate-600 mt-1">Chronological Stock Audit & Movement Log</p>
+          </div>
+          <div className="text-right text-xs font-bold text-slate-700">
+            <div><b>Period:</b> {filters.from_date} to {filters.to_date}</div>
+            <div><b>Warehouse:</b> {filters.all_warehouses ? 'All Warehouses' : (filters.warehouse || 'All')}</div>
+          </div>
         </div>
       </div>
 
-      <div style={{ padding: '1.5rem 2rem' }}>
-        <div className="so-layout">
+      <main className="slr-main-body">
 
-          {/* 2. SUMMARY METRIC CARDS */}
-          <div className="metrics-grid">
-            <div className="metric-card balance">
-              <div className="metric-icon-box" style={{ background: themeColor + '15', color: themeColor }}>
-                <Boxes size={22} />
-              </div>
-              <div className="metric-info">
-                <h3>Closing Qty</h3>
-                <p className="metric-value">{finalBalQty.toLocaleString(undefined, { maximumFractionDigits: 3 })}</p>
-                <span className="metric-sub">Latest Ledger Units</span>
+        {/* 2. KPI Metrics Summary */}
+        <div className="slr-kpi-grid">
+          <div className="slr-kpi-card emerald">
+            <div className="slr-kpi-header">
+              <div className="slr-kpi-header-left">
+                <div className="slr-kpi-icon-pill">
+                  <Boxes size={18} />
+                </div>
+                <span className="slr-kpi-title">Closing Qty</span>
               </div>
             </div>
-
-            <div className="metric-card value">
-              <div className="metric-icon-box" style={{ background: '#10b98115', color: '#10b981' }}>
-                <DollarSign size={22} />
+            <div>
+              <div className="slr-kpi-value">
+                <span>{finalBalQty.toLocaleString(undefined, { maximumFractionDigits: 3 })}</span>
               </div>
-              <div className="metric-info">
-                <h3 className="flex items-center gap-1">Closing Value (<DirhamIcon size={12} />)</h3>
-                <p className="metric-value flex items-center justify-center gap-1.5"><DirhamIcon size={22} /> {finalBalVal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-                <span className="metric-sub">Latest Valuation Balance</span>
-              </div>
-            </div>
-
-            <div className="metric-card inbound">
-              <div className="metric-icon-box" style={{ background: '#3b82f615', color: '#3b82f6' }}>
-                <TrendingUp size={22} />
-              </div>
-              <div className="metric-info">
-                <h3>Total Inward</h3>
-                <p className="metric-value">+{totalInQty.toLocaleString(undefined, { maximumFractionDigits: 3 })} Units</p>
-                <span className="metric-sub">Sum of incoming transactions</span>
-              </div>
-            </div>
-
-            <div className="metric-card outbound">
-              <div className="metric-icon-box" style={{ background: '#f59e0b15', color: '#f59e0b' }}>
-                <TrendingDown size={22} />
-              </div>
-              <div className="metric-info">
-                <h3>Total Outward</h3>
-                <p className="metric-value">-{Math.abs(totalOutQty).toLocaleString(undefined, { maximumFractionDigits: 3 })} Units</p>
-                <span className="metric-sub">Sum of outgoing transactions</span>
-              </div>
+              <div className="slr-kpi-subtext">Latest Ledger Units</div>
             </div>
           </div>
 
-          {/* 3. DYNAMIC HORIZONTAL FILTERS */}
-          <div className="filters-wrapper">
-            <div className="filter-input-field flex-2">
-              <label className="so-filter-label">From Date</label>
-              <div className="so-relative">
-                <Calendar size={14} className="input-icon" style={{ color: themeColor }} />
-                <input
-                  type="date"
-                  className="so-filter-input"
-                  value={filters.from_date}
-                  onChange={(e) => handleFilterUpdate('from_date', e.target.value)}
-                  onFocus={(e) => { try { e.target.showPicker(); } catch (err) { } }}
-                  onClick={(e) => { try { e.target.showPicker(); } catch (err) { } }}
-                />
+          <div className="slr-kpi-card blue">
+            <div className="slr-kpi-header">
+              <div className="slr-kpi-header-left">
+                <div className="slr-kpi-icon-pill">
+                  <DollarSign size={18} />
+                </div>
+                <span className="slr-kpi-title">Closing Value</span>
               </div>
             </div>
+            <div>
+              <div className="slr-kpi-value">
+                <DirhamIcon size={18} />
+                <span>{finalBalVal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+              </div>
+              <div className="slr-kpi-subtext">Latest Valuation Balance</div>
+            </div>
+          </div>
 
-            <div className="filter-input-field flex-2">
-              <label className="so-filter-label">To Date</label>
-              <div className="so-relative">
-                <Calendar size={14} className="input-icon" style={{ color: themeColor }} />
-                <input
-                  type="date"
-                  className="so-filter-input"
-                  value={filters.to_date}
-                  onChange={(e) => handleFilterUpdate('to_date', e.target.value)}
-                  onFocus={(e) => { try { e.target.showPicker(); } catch (err) { } }}
-                  onClick={(e) => { try { e.target.showPicker(); } catch (err) { } }}
-                />
+          <div className="slr-kpi-card purple">
+            <div className="slr-kpi-header">
+              <div className="slr-kpi-header-left">
+                <div className="slr-kpi-icon-pill">
+                  <TrendingUp size={18} />
+                </div>
+                <span className="slr-kpi-title">Total Inward</span>
               </div>
             </div>
+            <div>
+              <div className="slr-kpi-value">
+                <span>+{totalInQty.toLocaleString(undefined, { maximumFractionDigits: 3 })}</span>
+                <span style={{ fontSize: '0.85rem', color: '#64748b', fontWeight: 600 }}>Units</span>
+              </div>
+              <div className="slr-kpi-subtext">Sum of incoming transactions</div>
+            </div>
+          </div>
 
-            <div className="filter-input-field flex-3">
-              <label className="so-filter-label">Filter by Product</label>
-              <div className="so-relative dropdown-search-container">
+          <div className="slr-kpi-card amber">
+            <div className="slr-kpi-header">
+              <div className="slr-kpi-header-left">
+                <div className="slr-kpi-icon-pill">
+                  <TrendingDown size={18} />
+                </div>
+                <span className="slr-kpi-title">Total Outward</span>
+              </div>
+            </div>
+            <div>
+              <div className="slr-kpi-value">
+                <span>-{Math.abs(totalOutQty).toLocaleString(undefined, { maximumFractionDigits: 3 })}</span>
+                <span style={{ fontSize: '0.85rem', color: '#64748b', fontWeight: 600 }}>Units</span>
+              </div>
+              <div className="slr-kpi-subtext">Sum of outgoing transactions</div>
+            </div>
+          </div>
+        </div>
+
+        {/* 3. Filters Card */}
+        <div className="slr-filter-card no-print">
+          <div className="slr-filter-inputs">
+            {/* From Date */}
+            <div className="slr-field-block">
+              <label className="slr-label">
+                <Calendar size={12} color="#2563eb" />
+                From Date
+              </label>
+              <input
+                type="date"
+                className="slr-input"
+                value={filters.from_date}
+                onChange={(e) => handleFilterUpdate('from_date', e.target.value)}
+                onFocus={(e) => { try { e.target.showPicker(); } catch (err) { } }}
+                onClick={(e) => { try { e.target.showPicker(); } catch (err) { } }}
+              />
+            </div>
+
+            {/* To Date */}
+            <div className="slr-field-block">
+              <label className="slr-label">
+                <Calendar size={12} color="#2563eb" />
+                To Date
+              </label>
+              <input
+                type="date"
+                className="slr-input"
+                value={filters.to_date}
+                onChange={(e) => handleFilterUpdate('to_date', e.target.value)}
+                onFocus={(e) => { try { e.target.showPicker(); } catch (err) { } }}
+                onClick={(e) => { try { e.target.showPicker(); } catch (err) { } }}
+              />
+            </div>
+
+            {/* Filter by Product */}
+            <div className="slr-field-block" style={{ flex: '1.5 1 220px' }}>
+              <label className="slr-label">
+                <Search size={12} color="#2563eb" />
+                Filter by Product
+              </label>
+              <div style={{ position: 'relative' }}>
                 <CustomSearchDropdown
                   placeholder="Search Product..."
                   value={selectedItemObj}
@@ -527,14 +573,18 @@ function StockLedgerReport() {
               </div>
             </div>
 
-            <div className="filter-input-field flex-3">
-              <label className="so-filter-label">Item Group</label>
-              <div className="so-relative">
-                <Layers size={14} className="input-icon" style={{ color: '#94a3b8' }} />
+            {/* Item Group */}
+            <div className="slr-field-block" style={{ flex: '1 1 180px' }}>
+              <label className="slr-label">
+                <Layers size={12} />
+                Item Group
+              </label>
+              <div style={{ position: 'relative' }}>
                 <select
-                  className="so-filter-select"
+                  className="slr-select"
                   value={filters.item_group}
                   onChange={(e) => handleFilterUpdate('item_group', e.target.value)}
+                  style={{ paddingRight: '2.5rem' }}
                 >
                   <option value="">All Item Groups</option>
                   {itemGroups.map((grp, index) => (
@@ -543,251 +593,309 @@ function StockLedgerReport() {
                     </option>
                   ))}
                 </select>
-                <ChevronDown size={14} className="select-arrow" />
+                <ChevronDown size={14} style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: '#64748b' }} />
               </div>
             </div>
 
-            <div className="filter-input-field flex-3">
-              <div className="warehouse-filter-header">
-                <label className="so-filter-label">Target Warehouse</label>
-                <label className={`all-warehouses-checkbox ${!isAdmin ? 'disabled' : ''}`}>
-                  <input
-                    type="checkbox"
-                    checked={filters.all_warehouses}
-                    disabled={!isAdmin}
-                    onChange={(e) => handleAllWarehousesToggle(e.target.checked)}
-                  />
-                  <span>All Warehouses</span>
+            {/* Target Warehouse */}
+            <div className="slr-field-block" style={{ flex: '1.2 1 200px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <label className="slr-label">
+                  <Boxes size={12} color="#2563eb" />
+                  Target Warehouse
                 </label>
+                {isAdmin && (
+                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '0.65rem', fontWeight: 700, color: '#475569', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={filters.all_warehouses}
+                      disabled={!isAdmin}
+                      onChange={(e) => handleAllWarehousesToggle(e.target.checked)}
+                    />
+                    <span>All</span>
+                  </label>
+                )}
               </div>
-              <div className="so-relative">
-                <Boxes size={14} className="input-icon" style={{ color: filters.all_warehouses ? '#cbd5e1' : themeColor }} />
+              <div style={{ position: 'relative' }}>
                 <select
-                  className="so-filter-select"
+                  className="slr-select"
                   value={filters.warehouse}
                   disabled={filters.all_warehouses || !isAdmin}
                   onChange={(e) => handleFilterUpdate('warehouse', e.target.value)}
-                  style={{ opacity: (filters.all_warehouses || !isAdmin) ? 0.6 : 1 }}
+                  style={{ opacity: (filters.all_warehouses || !isAdmin) ? 0.6 : 1, paddingRight: '2.5rem' }}
                 >
                   {warehouses.map(wh => (
                     <option key={wh.name} value={wh.name}>{wh.warehouse_name || wh.name}</option>
                   ))}
                 </select>
-                <ChevronDown size={14} className="select-arrow" />
+                <ChevronDown size={14} style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: '#64748b' }} />
               </div>
             </div>
-
-            <button
-              className="so-clear-btn"
-              onClick={() => {
-                const reset = {
-                  from_date: getDate30DaysAgo(),
-                  to_date: getTodayDate(),
-                  warehouse: defaultUserWh,
-                  all_warehouses: isAdmin ? !defaultUserWh : false,
-                  item_code: '',
-                  item_group: '',
-                  valuation_field_type: 'Currency'
-                };
-                setSelectedItemObj(null);
-                setFilters(reset);
-                fetchReport(reset);
-              }}
-            >
-              Reset
-            </button>
           </div>
 
-          {/* 4. CONTENT VIEWPORT */}
-          <main className="stock-table-viewport">
-            {error && (
-              <div className="report-error-banner">
-                <AlertCircle size={18} /> {error}
-              </div>
-            )}
-
-            <div className="results-header">
-              <p className="so-list-meta">Found <b>{data.length}</b> ledger rows</p>
-              {loading && (
-                <div className="loading-indicator" style={{ color: themeColor }}>
-                  <Loader2 size={16} className="animate-spin" /> RUNNING LEDGER CALCULATION...
-                </div>
-              )}
-            </div>
-
-            <div className="so-table-card table-outer-box">
-              <div className="so-table-wrapper scrollable-table-area">
-                <table className="so-table premium-stock-table">
-                  <thead>
-                    <tr>
-                      {ledgerColumns.filter(c => c.visible).map(col => (
-                        <th
-                          key={col.id}
-                          style={{
-                            width: col.width,
-                            minWidth: col.width,
-                            textAlign: ['in_qty', 'out_qty', 'qty_after_transaction', 'valuation_rate', 'stock_value', 'stock_value_difference'].includes(col.id) ? 'right' : 'left'
-                          }}
-                        >
-                          {col.label}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {loading && data.length === 0 ? (
-                      <tr>
-                        <td colSpan={ledgerColumns.filter(c => c.visible).length} className="so-empty" style={{ padding: '6rem 0' }}>
-                          <Loader2 size={32} className="animate-spin" style={{ margin: '0 auto', color: themeColor }} />
-                          <p className="loading-text">Rebuilding Stock Ledger...</p>
-                        </td>
-                      </tr>
-                    ) : data.length === 0 ? (
-                      <tr>
-                        <td colSpan={ledgerColumns.filter(c => c.visible).length} className="so-empty" style={{ padding: '6rem 0' }}>
-                          <div className="empty-state-icon">
-                            <FileText size={48} />
-                          </div>
-                          <p className="empty-state-text">No ledger entries match the criteria.</p>
-                        </td>
-                      </tr>
-                    ) : (
-                      data.map((row, idx) => {
-                        const inQty = parseFloat(row.in_qty) || 0;
-                        const outQty = parseFloat(row.out_qty) || 0;
-                        const balQty = parseFloat(row.qty_after_transaction) || 0;
-                        const valRate = parseFloat(row.valuation_rate) || 0;
-                        const stockVal = parseFloat(row.stock_value) || 0;
-                        const valDiff = parseFloat(row.stock_value_difference) || 0;
-
-                        // Display customized special columns
-                        return (
-                          <tr key={idx} className="table-row-hover">
-                            {ledgerColumns.filter(c => c.visible).map(col => {
-                              switch (col.id) {
-                                case 'date':
-                                  return (
-                                    <td key={col.id} style={{ fontWeight: 500 }}>
-                                      {row.date ? row.date.replace('T', ' ').substring(0, 10) : ''}
-                                    </td>
-                                  );
-                                case 'time':
-                                  return (
-                                    <td key={col.id} style={{ fontWeight: 500, color: '#64748b', fontFamily: 'monospace', fontSize: '11px' }}>
-                                      {row.date ? row.date.replace('T', ' ').substring(11, 19) : ''}
-                                    </td>
-                                  );
-                                case 'item_code':
-                                  return (
-                                    <td key={col.id} className="item-code-cell">
-                                      <span onClick={() => navigate('/itemlist', { state: { search: row.item_code } })} className="code-capsule group flex items-center gap-1.5 w-fit hover:text-indigo-600 transition-colors cursor-pointer">
-                                        {row.item_code}
-                                        <ExternalLink size={12} className="opacity-0 group-hover:opacity-100 transition-opacity" />
-                                      </span>
-                                    </td>
-                                  );
-                                case 'item_name':
-                                  return (
-                                    <td key={col.id} className="item-name-cell">{row.item_name}</td>
-                                  );
-                                case 'warehouse':
-                                  return (
-                                    <td key={col.id} className="warehouse-cell">
-                                      <span className="warehouse-name">{row.warehouse}</span>
-                                    </td>
-                                  );
-                                case 'voucher_type':
-                                  return (
-                                    <td key={col.id}><span className="badge-item-group">{row.voucher_type}</span></td>
-                                  );
-                                case 'voucher_no':
-                                  const url = getVoucherUrl(row.voucher_type, row.voucher_no);
-                                  const isExternal = url && url.startsWith('/app/');
-                                  return (
-                                    <td key={col.id} style={{ fontFamily: 'monospace', fontWeight: 600, color: '#475569' }}>
-                                      {url ? (
-                                        isExternal ? (
-                                          <a href={url} target={window.location.protocol === 'file:' ? '_self' : '_blank'} rel="noopener noreferrer" className="group flex items-center gap-1.5 hover:text-indigo-600 transition-colors underline-offset-4 hover:underline cursor-pointer">
-                                            {row.voucher_no}
-                                            <ExternalLink size={12} className="opacity-0 group-hover:opacity-100 transition-opacity text-indigo-400" />
-                                          </a>
-                                        ) : (
-                                          <span onClick={() => navigate(url)} className="group flex items-center gap-1.5 hover:text-indigo-600 transition-colors underline-offset-4 hover:underline cursor-pointer">
-                                            {row.voucher_no}
-                                            <ExternalLink size={12} className="opacity-0 group-hover:opacity-100 transition-opacity text-indigo-400" />
-                                          </span>
-                                        )
-                                      ) : (
-                                        row.voucher_no
-                                      )}
-                                    </td>
-                                  );
-                                case 'in_qty':
-                                  return (
-                                    <td key={col.id} style={{ textAlign: 'right' }}>
-                                      {inQty > 0 ? (
-                                        <span className="qty-badge-pill incoming">
-                                          +{inQty.toLocaleString(undefined, { maximumFractionDigits: 3 })}
-                                        </span>
-                                      ) : (
-                                        <span className="text-muted-zero">-</span>
-                                      )}
-                                    </td>
-                                  );
-                                case 'out_qty':
-                                  return (
-                                    <td key={col.id} style={{ textAlign: 'right' }}>
-                                      {outQty < 0 || outQty > 0 ? (
-                                        <span className="qty-badge-pill outgoing">
-                                          -{Math.abs(outQty).toLocaleString(undefined, { maximumFractionDigits: 3 })}
-                                        </span>
-                                      ) : (
-                                        <span className="text-muted-zero">-</span>
-                                      )}
-                                    </td>
-                                  );
-                                case 'qty_after_transaction':
-                                  return (
-                                    <td key={col.id} style={{ textAlign: 'right', fontWeight: 700, color: '#1e293b' }}>
-                                      {balQty.toLocaleString(undefined, { maximumFractionDigits: 3 })}
-                                    </td>
-                                  );
-                                case 'valuation_rate':
-                                  return (
-                                    <td key={col.id} style={{ textAlign: 'right', color: '#64748b' }}>
-                                      <span className="flex items-center justify-end gap-1"><DirhamIcon size={12} className="text-slate-400" /> {valRate.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                                    </td>
-                                  );
-                                case 'stock_value':
-                                  return (
-                                    <td key={col.id} style={{ textAlign: 'right', fontWeight: 800, color: themeColor }}>
-                                      <span className="flex items-center justify-end gap-1"><DirhamIcon size={12} style={{ color: themeColor }} /> {stockVal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                                    </td>
-                                  );
-                                case 'stock_value_difference':
-                                  return (
-                                    <td key={col.id} style={{ textAlign: 'right', fontWeight: 600 }}>
-                                      <span className="flex items-center justify-end gap-1"><DirhamIcon size={12} className="text-slate-400" />
-                                        <span className="curr-val" style={{ color: valDiff > 0 ? '#047857' : valDiff < 0 ? '#b91c1c' : '#334155' }}>
-                                          {valDiff > 0 ? '+' : ''}{valDiff.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                        </span></span>
-                                    </td>
-                                  );
-                                default:
-                                  return null;
-                              }
-                            })}
-                          </tr>
-                        );
-                      })
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </main>
+          <button
+            className="slr-btn-reset"
+            onClick={() => {
+              const reset = {
+                from_date: getDate30DaysAgo(),
+                to_date: getTodayDate(),
+                warehouse: defaultUserWh,
+                all_warehouses: isAdmin ? !defaultUserWh : false,
+                item_code: '',
+                item_group: '',
+                valuation_field_type: 'Currency'
+              };
+              setSelectedItemObj(null);
+              setFilters(reset);
+              fetchReport(reset);
+            }}
+          >
+            Reset
+          </button>
         </div>
-      </div>
+
+        {/* Error Banner */}
+        {error && (
+          <div style={{ padding: '1rem 1.25rem', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '10px', color: '#b91c1c', fontSize: '0.85rem', fontWeight: 'bold' }}>
+            <AlertCircle size={18} color="#ef4444" style={{ flexShrink: 0 }} />
+            <span>{error}</span>
+          </div>
+        )}
+
+        {/* 4. Table Viewport */}
+        <div className="slr-table-container">
+          <div className="slr-table-header-meta">
+            <span className="slr-meta-text">Found <b>{data.length}</b> stock ledger rows</span>
+            {loading && (
+              <span className="slr-meta-text flex items-center gap-2" style={{ color: '#2563eb' }}>
+                <Loader2 size={15} className="animate-spin" /> Calculating ledger...
+              </span>
+            )}
+          </div>
+
+          <div className="slr-table-wrapper">
+            <table className="slr-table">
+              <thead>
+                <tr>
+                  {ledgerColumns.filter(c => c.visible).map(col => (
+                    <th
+                      key={col.id}
+                      style={{
+                        width: col.width,
+                        minWidth: col.width,
+                        textAlign: ['in_qty', 'out_qty', 'qty_after_transaction', 'valuation_rate', 'stock_value', 'stock_value_difference'].includes(col.id) ? 'right' : 'left'
+                      }}
+                    >
+                      {col.label}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {loading && data.length === 0 ? (
+                  <tr>
+                    <td colSpan={ledgerColumns.filter(c => c.visible).length} style={{ textAlign: 'center', padding: '5rem 0', color: '#64748b' }}>
+                      <Loader2 size={32} className="animate-spin mx-auto mb-2 text-blue-600" />
+                      <p className="font-bold text-sm">Rebuilding Stock Ledger...</p>
+                    </td>
+                  </tr>
+                ) : data.length === 0 ? (
+                  <tr>
+                    <td colSpan={ledgerColumns.filter(c => c.visible).length} style={{ textAlign: 'center', padding: '5rem 0', color: '#64748b' }}>
+                      <FileText size={42} className="mx-auto mb-2 text-slate-300" />
+                      <p className="font-bold text-sm text-slate-700">No ledger entries match the criteria.</p>
+                    </td>
+                  </tr>
+                ) : (
+                  (() => {
+                    const displayData = pageSize === -1 ? data : data.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+                    return displayData.map((row, idx) => {
+                      const inQty = parseFloat(row.in_qty) || 0;
+                      const outQty = parseFloat(row.out_qty) || 0;
+                      const balQty = parseFloat(row.qty_after_transaction) || 0;
+                      const valRate = parseFloat(row.valuation_rate) || 0;
+                      const stockVal = parseFloat(row.stock_value) || 0;
+                      const valDiff = parseFloat(row.stock_value_difference) || 0;
+
+                      return (
+                        <tr key={idx}>
+                          {ledgerColumns.filter(c => c.visible).map(col => {
+                            switch (col.id) {
+                              case 'date':
+                                return (
+                                  <td key={col.id} style={{ fontWeight: 600 }}>
+                                    {row.date ? row.date.replace('T', ' ').substring(0, 10) : ''}
+                                  </td>
+                                );
+                              case 'time':
+                                return (
+                                  <td key={col.id} style={{ fontWeight: 600, color: '#64748b', fontFamily: 'monospace', fontSize: '11px' }}>
+                                    {row.date ? row.date.replace('T', ' ').substring(11, 19) : ''}
+                                  </td>
+                                );
+                              case 'item_code':
+                                return (
+                                  <td key={col.id}>
+                                    <span onClick={() => navigate('/itemlist', { state: { search: row.item_code } })} className="slr-code-capsule inline-flex items-center gap-1">
+                                      {row.item_code}
+                                      <ExternalLink size={11} className="opacity-70" />
+                                    </span>
+                                  </td>
+                                );
+                              case 'item_name':
+                                return (
+                                  <td key={col.id} style={{ fontWeight: 700, color: '#0f172a' }}>{row.item_name}</td>
+                                );
+                              case 'warehouse':
+                                return (
+                                  <td key={col.id} style={{ color: '#475569' }}>{row.warehouse}</td>
+                                );
+                              case 'voucher_type':
+                                return (
+                                  <td key={col.id}><span className="slr-badge-voucher">{row.voucher_type}</span></td>
+                                );
+                              case 'voucher_no':
+                                const url = getVoucherUrl(row.voucher_type, row.voucher_no);
+                                const isExternal = url && url.startsWith('/app/');
+                                return (
+                                  <td key={col.id} style={{ fontFamily: 'monospace', fontWeight: 600, color: '#475569' }}>
+                                    {url ? (
+                                      isExternal ? (
+                                        <a href={url} target={window.location.protocol === 'file:' ? '_self' : '_blank'} rel="noopener noreferrer" className="inline-flex items-center gap-1 hover:text-blue-600 transition-colors underline-offset-4 hover:underline cursor-pointer">
+                                          {row.voucher_no}
+                                          <ExternalLink size={11} className="text-blue-500 opacity-70" />
+                                        </a>
+                                      ) : (
+                                        <span onClick={() => navigate(url)} className="inline-flex items-center gap-1 hover:text-blue-600 transition-colors underline-offset-4 hover:underline cursor-pointer">
+                                          {row.voucher_no}
+                                          <ExternalLink size={11} className="text-blue-500 opacity-70" />
+                                        </span>
+                                      )
+                                    ) : (
+                                      row.voucher_no
+                                    )}
+                                  </td>
+                                );
+                              case 'in_qty':
+                                return (
+                                  <td key={col.id} style={{ textAlign: 'right' }}>
+                                    {inQty > 0 ? (
+                                      <span className="qty-pill-in">
+                                        +{inQty.toLocaleString(undefined, { maximumFractionDigits: 3 })}
+                                      </span>
+                                    ) : (
+                                      <span style={{ color: '#94a3b8' }}>-</span>
+                                    )}
+                                  </td>
+                                );
+                              case 'out_qty':
+                                return (
+                                  <td key={col.id} style={{ textAlign: 'right' }}>
+                                    {outQty < 0 || outQty > 0 ? (
+                                      <span className="qty-pill-out">
+                                        -{Math.abs(outQty).toLocaleString(undefined, { maximumFractionDigits: 3 })}
+                                      </span>
+                                    ) : (
+                                      <span style={{ color: '#94a3b8' }}>-</span>
+                                    )}
+                                  </td>
+                                );
+                              case 'qty_after_transaction':
+                                return (
+                                  <td key={col.id} style={{ textAlign: 'right', fontWeight: 800, color: '#0f172a' }}>
+                                    {balQty.toLocaleString(undefined, { maximumFractionDigits: 3 })}
+                                  </td>
+                                );
+                              case 'valuation_rate':
+                                return (
+                                  <td key={col.id} style={{ textAlign: 'right', color: '#64748b' }}>
+                                    <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end' }}>
+                                      <DirhamIcon size={12} style={{ marginRight: '0.35rem' }} />
+                                      {valRate.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                    </span>
+                                  </td>
+                                );
+                              case 'stock_value':
+                                return (
+                                  <td key={col.id} style={{ textAlign: 'right', fontWeight: 900, color: '#2563eb' }}>
+                                    <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end' }}>
+                                      <DirhamIcon size={12} style={{ marginRight: '0.35rem' }} />
+                                      {stockVal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                    </span>
+                                  </td>
+                                );
+                              case 'stock_value_difference':
+                                return (
+                                  <td key={col.id} style={{ textAlign: 'right', fontWeight: 600 }}>
+                                    <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end' }}>
+                                      <DirhamIcon size={12} style={{ marginRight: '0.35rem' }} />
+                                      <span style={{ color: valDiff > 0 ? '#047857' : valDiff < 0 ? '#b91c1c' : '#334155' }}>
+                                        {valDiff > 0 ? '+' : ''}{valDiff.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                      </span>
+                                    </span>
+                                  </td>
+                                );
+                              default:
+                                return null;
+                            }
+                          })}
+                        </tr>
+                      );
+                    });
+                  })()
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Table Footer / Pagination */}
+          {data.length > 0 && (() => {
+            const totalPages = pageSize === -1 ? 1 : (Math.ceil(data.length / pageSize) || 1);
+            return (
+              <div className="ssr-table-footer no-print" style={{ background: '#ffffff', borderTop: '1px solid #e2e8f0', padding: '0.85rem 1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
+                <div className="ssr-page-size-selector" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem', fontWeight: 600, color: '#64748b' }}>
+                  <select
+                    className="ssr-select-sm"
+                    value={pageSize}
+                    onChange={(e) => {
+                      setPageSize(Number(e.target.value));
+                      setCurrentPage(1);
+                    }}
+                    style={{ height: '32px', padding: '0 0.65rem', background: '#ffffff', border: '1.5px solid #e2e8f0', borderRadius: '8px', fontSize: '0.78rem', fontWeight: 700, color: '#1e293b', outline: 'none' }}
+                  >
+                    <option value={10}>10</option>
+                    <option value={25}>25</option>
+                    <option value={50}>50</option>
+                    <option value={100}>100</option>
+                    <option value={-1}>All</option>
+                  </select>
+                  <span>per page</span>
+                </div>
+
+                <div className="ssr-pagination" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                  <button
+                    className="ssr-page-btn"
+                    disabled={currentPage <= 1 || pageSize === -1}
+                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                    style={{ height: '32px', minWidth: '32px', padding: '0 0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1.5px solid #e2e8f0', borderRadius: '8px', background: '#ffffff', fontSize: '0.8rem', fontWeight: 700, color: '#475569', cursor: (currentPage <= 1 || pageSize === -1) ? 'not-allowed' : 'pointer', opacity: (currentPage <= 1 || pageSize === -1) ? 0.4 : 1 }}
+                  >
+                    <ChevronLeft size={16} />
+                  </button>
+                  <span className="ssr-page-btn active" style={{ height: '32px', minWidth: '32px', padding: '0 0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '8px', background: '#2563eb', color: '#ffffff', fontSize: '0.8rem', fontWeight: 700 }}>{currentPage}</span>
+                  <button
+                    className="ssr-page-btn"
+                    disabled={currentPage >= totalPages || pageSize === -1}
+                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                    style={{ height: '32px', minWidth: '32px', padding: '0 0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1.5px solid #e2e8f0', borderRadius: '8px', background: '#ffffff', fontSize: '0.8rem', fontWeight: 700, color: '#475569', cursor: (currentPage >= totalPages || pageSize === -1) ? 'not-allowed' : 'pointer', opacity: (currentPage >= totalPages || pageSize === -1) ? 0.4 : 1 }}
+                  >
+                    <ChevronRight size={16} />
+                  </button>
+                </div>
+              </div>
+            );
+          })()}
+        </div>
+      </main>
 
       {/* Column Customization Modal */}
       <ColumnConfigModal
@@ -798,15 +906,6 @@ function StockLedgerReport() {
         doctype="Stock Ledger"
         themeColor={themeColor}
       />
-
-      <style dangerouslySetInnerHTML={{
-        __html: `
-        .stock-ledger-report-container {
-          --primary-color: ${themeColor};
-          --primary-color-hover: ${themeColorHover};
-          --primary-light: ${themeLight};
-        }
-      `}} />
     </div>
   );
 }

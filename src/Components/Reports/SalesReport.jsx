@@ -3,16 +3,17 @@ import { useSelector } from 'react-redux';
 import {
   Loader2, FileText, AlertCircle, CheckCircle2,
   Calendar, Search, Filter, Palette, RefreshCw,
-  Download, Printer, ChevronDown, TrendingUp, DollarSign, CreditCard, Layers, Zap, Coins, ExternalLink, Settings
+  Download, Printer, ChevronDown, TrendingUp, DollarSign, CreditCard,
+  Zap, Coins, ExternalLink, Settings, RotateCcw, BarChart3, Gift, Percent,
+  User, MapPin, ChevronLeft, ChevronRight, MoreVertical, Minus, ArrowRightLeft
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import '../Admin/SalesOrder.css';
+import './SalesReport.css';
 import { useLegacyTheme } from '../../hooks/useLegacyTheme';
 import CustomSearchDropdown from '../Purchase/CustomSearchDropdown';
 import DirhamIcon from '../../assets/Currency/DirhamIcon';
 import PrintConfigModal from './PrintConfigModal';
 import ColumnConfigModal from '../Purchase/ColumnConfigModal';
-
 
 function SalesReport() {
   const navigate = useNavigate();
@@ -24,6 +25,11 @@ function SalesReport() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
+  // Table local search & pagination state
+  const [searchTerm, setSearchTerm] = useState('');
+  const [pageSize, setPageSize] = useState(10);
+  const [currentPage, setCurrentPage] = useState(1);
+
   // Print Customization State
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
   const [printOrientation, setPrintOrientation] = useState('portrait');
@@ -34,7 +40,8 @@ function SalesReport() {
       setSelectedPrintColumns(columns.map(c => c.fieldname));
     }
   }, [columns]);
-  const { legacySubTheme, isGreen, themeColor, themeColorHover, themeLight, themeHeaderBg, themeHeaderText, toggleTheme } = useLegacyTheme();
+
+  const { isGreen, themeColor, toggleTheme } = useLegacyTheme();
 
   // Redux Hook
   const { warehouse, user_roles } = useSelector((state) => state.user || {});
@@ -63,6 +70,8 @@ function SalesReport() {
     card: 0,
     instapay: 0,
     credit: 0,
+    loyalty_amount: 0,
+    discount_amount: 0,
     other: 0
   });
 
@@ -126,7 +135,6 @@ function SalesReport() {
     setSuccess('');
 
     try {
-      // Force non-admin role restriction before querying
       const queryFilters = { ...activeFilters };
       if (!isAdmin && warehouse) {
         queryFilters.warehouse = warehouse;
@@ -151,27 +159,31 @@ function SalesReport() {
         const savedConfigStr = localStorage.getItem('sales_report_columns');
         const savedConfig = savedConfigStr ? JSON.parse(savedConfigStr) : null;
 
-  const getDefaultColWidth = (fieldname, colWidth) => {
-    if (colWidth && parseInt(colWidth) >= 150) {
-      return typeof colWidth === 'number' ? colWidth + 'px' : colWidth;
-    }
-    switch (fieldname) {
-      case 'posting_date': case 'date': return '130px';
-      case 'name': case 'voucher_no': case 'sales_invoice': return '190px';
-      case 'customer': return '160px';
-      case 'customer_name': return '200px';
-      case 'item_code': return '145px';
-      case 'item_name': return '220px';
-      case 'qty': return '90px';
-      case 'rate': return '110px';
-      case 'amount': return '125px';
-      case 'tax_amount': return '120px';
-      case 'total': case 'grand_total': case 'paid_amount': return '135px';
-      case 'payment_mode': return '140px';
-      case 'warehouse': return '160px';
-      default: return (colWidth ? (typeof colWidth === 'number' ? colWidth + 'px' : colWidth) : '150px');
-    }
-  };
+        const getDefaultColWidth = (fieldname, colWidth) => {
+          if (colWidth && parseInt(colWidth) >= 150) {
+            return typeof colWidth === 'number' ? colWidth + 'px' : colWidth;
+          }
+          switch (fieldname) {
+            case 'posting_date': case 'date': return '120px';
+            case 'posting_time': return '120px';
+            case 'creation': return '160px';
+            case 'name': case 'voucher_no': case 'sales_invoice': return '180px';
+            case 'customer': return '150px';
+            case 'customer_name': return '180px';
+            case 'item_code': return '140px';
+            case 'item_name': return '200px';
+            case 'qty': return '90px';
+            case 'rate': return '110px';
+            case 'amount': return '120px';
+            case 'tax_amount': return '110px';
+            case 'total': case 'grand_total': case 'paid_amount': case 'net_total': case 'tax_total': return '130px';
+            case 'payment_mode': case 'mode_of_payment': return '140px';
+            case 'warehouse': return '180px';
+            case 'user': return '180px';
+            case 'currency': return '90px';
+            default: return (colWidth ? (typeof colWidth === 'number' ? colWidth + 'px' : colWidth) : '140px');
+          }
+        };
 
         let mergedCols = fetchedCols.map(c => ({
           id: c.fieldname,
@@ -188,7 +200,12 @@ function SalesReport() {
 
           mergedCols = mergedCols.map(mc => {
             if (configMap[mc.id]) {
-              return { ...mc, visible: configMap[mc.id].visible !== undefined ? configMap[mc.id].visible : true, width: configMap[mc.id].width || getDefaultColWidth(mc.id, null), align: configMap[mc.id].align };
+              return {
+                ...mc,
+                visible: configMap[mc.id].visible !== undefined ? configMap[mc.id].visible : true,
+                width: configMap[mc.id].width || getDefaultColWidth(mc.id, null),
+                align: configMap[mc.id].align
+              };
             }
             return mc;
           });
@@ -204,7 +221,7 @@ function SalesReport() {
         }
 
         setColumnConfig(mergedCols);
-        setBreakdown(payload.payment_breakdown || { grand_total: 0, net_total: 0, cash: 0, card: 0, instapay: 0, credit: 0, other: 0 });
+        setBreakdown(payload.payment_breakdown || { grand_total: 0, net_total: 0, cash: 0, card: 0, instapay: 0, credit: 0, loyalty_amount: 0, discount_amount: 0, other: 0 });
         setSuccess('Report generated successfully');
       } else {
         setError(payload.message || payload.error || 'Unknown error');
@@ -219,29 +236,18 @@ function SalesReport() {
   const handleFilterUpdate = (key, value) => {
     const next = { ...filters, [key]: value };
     setFilters(next);
+    setCurrentPage(1);
     fetchReport(next);
   };
 
-  const handleMetricCardClick = (paymentMode, url) => {
-    if (window.location.protocol === 'file:') {
-      handleFilterUpdate('payment_mode', paymentMode);
-    } else {
-      window.open(url, '_blank');
-    }
+  const handleMetricCardClick = (paymentMode) => {
+    handleFilterUpdate('payment_mode', paymentMode);
   };
 
   const handleColumnUpdate = (newConfig) => {
     if (!newConfig) {
       localStorage.removeItem('sales_report_columns');
-      const defaultCols = columns.map(c => ({
-        id: c.fieldname,
-        label: c.label,
-        visible: true,
-        width: getDefaultColWidth(c.fieldname, c.width),
-        align: c.align || (c.fieldtype === 'Currency' || c.fieldtype === 'Float' ? 'right' : 'left'),
-        original: c
-      }));
-      setColumnConfig(defaultCols);
+      fetchReport();
       return;
     }
     setColumnConfig(newConfig);
@@ -275,452 +281,542 @@ function SalesReport() {
     document.body.removeChild(link);
   };
 
-  return (
-    <div className="so-page">
-      <style dangerouslySetInnerHTML={{
-        __html: `
-        .so-filter-bar input.so-filter-input-icon,
-        .so-filter-bar select.so-filter-input-icon {
-          padding-left: 2.5rem !important;
-        }
-      `}} />
+  // Filtered & Paginated Table Data
+  const filteredData = data.filter(row => {
+    if (!searchTerm) return true;
+    const term = searchTerm.toLowerCase();
+    return (
+      (row.name || row.voucher_no || '').toLowerCase().includes(term) ||
+      (row.customer || row.customer_name || '').toLowerCase().includes(term) ||
+      (row.user || '').toLowerCase().includes(term) ||
+      (row.payment_mode || row.mode_of_payment || '').toLowerCase().includes(term) ||
+      (row.warehouse || '').toLowerCase().includes(term)
+    );
+  });
 
-      {/* 1. PREMIUM HEADER */}
-      <div className="so-page-header" style={{ background: 'white', borderBottom: '1px solid #e2e8f0', padding: '1.25rem 2rem', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' }}>
-        <div>
-          <h1 className="so-page-title" style={{ display: 'flex', alignItems: 'center', gap: '10px', margin: 0 }}>
-            <FileText size={22} style={{ color: themeColor || '#0082f6' }} strokeWidth={2.5} />
-            <span style={{ fontFamily: "'Outfit', 'Gilroy', sans-serif", fontSize: '22px', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.01em', textTransform: 'uppercase' }}>
-              SALES SUMMARY REPORT
-            </span>
-          </h1>
-          <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#64748b', fontWeight: 500 }}>
-            Aggregate data of all POS transactions and payment modes
-          </p>
+  const totalPages = Math.ceil(filteredData.length / pageSize) || 1;
+  const paginatedData = filteredData.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+  const formatPaymentPill = (mode) => {
+    const m = (mode || '').toLowerCase();
+    if (m.includes('cash')) return <span className="ssr-payment-pill cash">Cash</span>;
+    if (m.includes('card')) return <span className="ssr-payment-pill card">Card</span>;
+    if (m.includes('insta')) return <span className="ssr-payment-pill instapay">InstaPay</span>;
+    if (m.includes('credit')) return <span className="ssr-payment-pill credit">Credit</span>;
+    return <span className="ssr-payment-pill">{mode || 'N/A'}</span>;
+  };
+
+  return (
+    <div className="ssr-page">
+      {/* 1. HEADER SECTION */}
+      <div className="ssr-header no-print">
+        <div className="ssr-title-group">
+          <div className="ssr-title-icon-box">
+            <BarChart3 size={22} />
+          </div>
+          <div>
+            <h1 className="ssr-title-text">SALES SUMMARY REPORT</h1>
+            <p className="ssr-subtitle">Aggregate data of all POS transactions and payment modes</p>
+          </div>
         </div>
 
-        <div className="header-actions" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <button
-            onClick={toggleTheme}
-            style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '0 16px', height: '38px', background: '#ffffff', border: `1.5px solid ${themeColor || '#0082f6'}`, borderRadius: '8px', fontSize: '12px', fontWeight: 800, color: themeColor || '#0082f6', cursor: 'pointer', textTransform: 'uppercase' }}
-          >
-            <Palette size={14} /> {isGreen ? 'BLUE THEME' : 'GREEN THEME'}
+        <div className="ssr-header-actions">
+          <button className="ssr-btn-theme" onClick={toggleTheme}>
+            <Palette size={14} /> {isGreen ? 'Green Theme' : 'Blue Theme'}
           </button>
-          <div className="action-divider" style={{ width: '1px', height: '24px', background: '#e2e8f0' }}></div>
-          <button
-            style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '0 16px', height: '38px', background: '#f8fafc', border: '1.5px solid #e2e8f0', borderRadius: '8px', fontSize: '12px', fontWeight: 800, color: '#475569', cursor: 'pointer', textTransform: 'uppercase' }}
-            onClick={() => setShowConfigModal(true)}
-          >
-            <Settings size={14} /> CUSTOMIZE COLUMNS
+          <button className="ssr-btn-outline" onClick={() => setShowConfigModal(true)}>
+            <Settings size={14} /> Customize Columns
           </button>
-          <button
-            style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '0 16px', height: '38px', background: '#f8fafc', border: '1.5px solid #e2e8f0', borderRadius: '8px', fontSize: '12px', fontWeight: 800, color: '#475569', cursor: 'pointer', textTransform: 'uppercase' }}
-            onClick={handlePrint}
-          >
-            <Printer size={14} /> PRINT
+          <button className="ssr-btn-outline" onClick={handlePrint}>
+            <Printer size={14} /> Print
           </button>
-          <button
-            style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '0 16px', height: '38px', background: themeColor || '#0082f6', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: 800, color: '#ffffff', cursor: 'pointer', textTransform: 'uppercase' }}
-            onClick={handleExportCSV}
-          >
-            <Download size={14} /> EXPORT CSV
+          <button className="ssr-btn-primary" onClick={handleExportCSV}>
+            <Download size={14} /> Export CSV
           </button>
         </div>
       </div>
 
-      <div style={{ padding: '1.5rem 2rem' }}>
-        <div className="so-layout">
+      {/* 2. FILTER CARD */}
+      <div className="ssr-filter-card no-print">
+        {/* From Date */}
+        <div className="ssr-field-block">
+          <label className="ssr-label">From Date</label>
+          <div className="ssr-input-wrapper">
+            <Calendar size={14} className="ssr-input-icon" />
+            <input
+              type="date"
+              className="ssr-input"
+              value={filters.from_date}
+              onChange={(e) => handleFilterUpdate('from_date', e.target.value)}
+              onFocus={(e) => { try { e.target.showPicker(); } catch (err) { } }}
+              onClick={(e) => { try { e.target.showPicker(); } catch (err) { } }}
+            />
+          </div>
+        </div>
 
-          {/* 2. HORIZONTAL FILTERS */}
-          <div className="filters-wrapper no-print" style={{ background: 'transparent', border: 'none', padding: 0, boxShadow: 'none', borderRadius: 0, marginBottom: '1.5rem', display: 'flex', flexWrap: 'wrap', gap: '1rem', alignItems: 'flex-end' }}>
-            <div style={{ flex: '1 1 200px' }}>
-              <label className="so-filter-label" style={{ textTransform: 'uppercase' }}>FROM DATE</label>
-              <div className="so-relative">
-                <Calendar size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: themeColor }} />
-                <input
-                  type="date"
-                  className="so-filter-input so-filter-input-icon"
-                  value={filters.from_date}
-                  onChange={(e) => handleFilterUpdate('from_date', e.target.value)}
-                  onFocus={(e) => { try { e.target.showPicker(); } catch (err) { } }}
-                  onClick={(e) => { try { e.target.showPicker(); } catch (err) { } }}
-                />
+        {/* To Date */}
+        <div className="ssr-field-block">
+          <label className="ssr-label">To Date</label>
+          <div className="ssr-input-wrapper">
+            <Calendar size={14} className="ssr-input-icon" />
+            <input
+              type="date"
+              className="ssr-input"
+              value={filters.to_date}
+              onChange={(e) => handleFilterUpdate('to_date', e.target.value)}
+              onFocus={(e) => { try { e.target.showPicker(); } catch (err) { } }}
+              onClick={(e) => { try { e.target.showPicker(); } catch (err) { } }}
+            />
+          </div>
+        </div>
+
+        {/* Branch / Warehouse */}
+        {isAdmin ? (
+          <div className="ssr-field-block" style={{ flex: '1.2 1 230px' }}>
+            <label className="ssr-label">Active Branch</label>
+            <div className="ssr-input-wrapper">
+              <MapPin size={14} className="ssr-input-icon" />
+              <select
+                className="ssr-select"
+                value={filters.warehouse}
+                onChange={(e) => handleFilterUpdate('warehouse', e.target.value)}
+                style={{ paddingRight: '2.5rem' }}
+              >
+                <option value="">All Branches</option>
+                {warehouses.map(w => (
+                  <option key={w.value} value={w.value}>{w.label || w.value}</option>
+                ))}
+              </select>
+              <ChevronDown size={14} style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: '#64748b' }} />
+            </div>
+          </div>
+        ) : warehouse ? (
+          <div className="ssr-field-block" style={{ flex: '1.2 1 230px' }}>
+            <label className="ssr-label">Active Branch</label>
+            <div className="ssr-input-wrapper">
+              <MapPin size={14} className="ssr-input-icon" />
+              <div className="ssr-active-branch-box">
+                <span>{warehouse.replace(' - KSPL', '')}</span>
               </div>
             </div>
+          </div>
+        ) : null}
 
-            <div style={{ flex: '1 1 200px' }}>
-              <label className="so-filter-label" style={{ textTransform: 'uppercase' }}>TO DATE</label>
-              <div className="so-relative">
-                <Calendar size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: themeColor }} />
-                <input
-                  type="date"
-                  className="so-filter-input so-filter-input-icon"
-                  value={filters.to_date}
-                  onChange={(e) => handleFilterUpdate('to_date', e.target.value)}
-                  onFocus={(e) => { try { e.target.showPicker(); } catch (err) { } }}
-                  onClick={(e) => { try { e.target.showPicker(); } catch (err) { } }}
-                />
+        {/* Filter by Customer */}
+        <div className="ssr-field-block" style={{ flex: '1.2 1 230px' }}>
+          <label className="ssr-label">Filter by Customer</label>
+          <div className="ssr-input-wrapper" style={{ display: 'flex', alignItems: 'center' }}>
+            <CustomSearchDropdown
+              placeholder="Search customer..."
+              value={filters.customer ? { name: filters.customer } : null}
+              onSelect={(item) => handleFilterUpdate('customer', item ? item.name : '')}
+              fetchData={async (query) => {
+                const q = (query || '').toLowerCase();
+                return customers.filter(c =>
+                  (c.customer_name || c.name || '').toLowerCase().includes(q)
+                );
+              }}
+              optionsLabel="name"
+              themeColor={themeColor}
+            />
+          </div>
+        </div>
+
+        {/* Payment Mode */}
+        <div className="ssr-field-block">
+          <label className="ssr-label">Payment Mode</label>
+          <div className="ssr-input-wrapper">
+            <CreditCard size={14} className="ssr-input-icon" />
+            <select
+              className="ssr-select"
+              value={filters.payment_mode}
+              onChange={(e) => handleFilterUpdate('payment_mode', e.target.value)}
+              style={{ paddingRight: '2.5rem' }}
+            >
+              <option value="">All Payment Modes</option>
+              <option value="Cash">Cash</option>
+              <option value="Card">Card</option>
+              <option value="InstaPay">InstaPay</option>
+              <option value="Credit">Credit Sales</option>
+            </select>
+            <ChevronDown size={14} style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: '#64748b' }} />
+          </div>
+        </div>
+
+        {/* Reset Button */}
+        <button
+          className="ssr-btn-reset"
+          onClick={() => {
+            const reset = {
+              from_date: new Date(new Date().setDate(1)).toISOString().split('T')[0],
+              to_date: new Date().toISOString().split('T')[0],
+              customer: '',
+              warehouse: isAdmin ? '' : (warehouse || ''),
+              payment_mode: ''
+            };
+            window.history.replaceState({}, document.title, window.location.pathname + window.location.hash.split('?')[0]);
+            setFilters(reset);
+            setSearchTerm('');
+            setCurrentPage(1);
+            fetchReport(reset);
+          }}
+        >
+          <RotateCcw size={13} /> Reset
+        </button>
+      </div>
+
+      {/* ERROR BANNER */}
+      {error && (
+        <div style={{
+          background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '12px',
+          padding: '1rem 1.25rem', display: 'flex', alignItems: 'center', gap: '0.75rem',
+          color: '#b91c1c', fontSize: '0.85rem', fontWeight: 700
+        }}>
+          <AlertCircle size={18} /> {error}
+        </div>
+      )}
+
+      {/* 3. KPI CARDS GRID (7 CARDS MATCHING REFERENCE SCREENSHOT) */}
+      <div className="ssr-kpi-grid">
+        {/* Card 1: Total POS Revenue */}
+        <div
+          className="ssr-kpi-card ssr-card-revenue"
+          onClick={() => handleMetricCardClick('', '/#/salesreport')}
+        >
+          <div className="ssr-kpi-header">
+            <div className="ssr-kpi-header-left">
+              <div className="ssr-kpi-icon-pill">
+                <Coins size={16} />
               </div>
+              <span className="ssr-kpi-title">Total POS Revenue</span>
             </div>
-
-            {/* DYNAMIC ROLE-BASED WAREHOUSE FILTER */}
-            {isAdmin ? (
-              <div style={{ flex: '1 1 250px' }}>
-                <label className="so-filter-label" style={{ textTransform: 'uppercase' }}>BRANCH / WAREHOUSE</label>
-                <div className="so-relative">
-                  <Filter size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
-                  <select
-                    className="so-filter-select so-filter-input-icon"
-                    value={filters.warehouse}
-                    onChange={(e) => handleFilterUpdate('warehouse', e.target.value)}
-                  >
-                    <option value="">ALL BRANCHES</option>
-                    {warehouses.map(w => (
-                      <option key={w.value} value={w.value}>{w.label || w.value}</option>
-                    ))}
-                  </select>
-                  <ChevronDown size={14} style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', opacity: 0.5 }} />
-                </div>
-              </div>
-            ) : warehouse ? (
-              <div style={{ flex: '1 1 250px' }}>
-                <label className="so-filter-label" style={{ textTransform: 'uppercase' }}>ACTIVE BRANCH</label>
-                <div style={{
-                  height: '38px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  background: '#f8fafc',
-                  border: '1.5px solid #e2e8f0',
-                  borderRadius: '0.5rem',
-                  padding: '0 12px',
-                  fontSize: '0.8rem',
-                  fontWeight: 800,
-                  color: '#475569'
-                }}>
-                  <Filter size={14} style={{ color: themeColor }} />
-                  {warehouse.replace(' - KSPL', '')}
-                </div>
-              </div>
-            ) : null}
-
-            <div style={{ flex: '1 1 250px' }}>
-              <label className="so-filter-label" style={{ textTransform: 'uppercase' }}>FILTER BY CUSTOMER</label>
-              <div className="so-relative" style={{ display: 'flex', alignItems: 'center' }}>
-                <CustomSearchDropdown
-                  placeholder="Search customer..."
-                  value={filters.customer ? { name: filters.customer } : null}
-                  onSelect={(item) => handleFilterUpdate('customer', item ? item.name : '')}
-                  fetchData={async (query) => {
-                    const q = (query || '').toLowerCase();
-                    return customers.filter(c =>
-                      (c.customer_name || c.name || '').toLowerCase().includes(q)
-                    );
-                  }}
-                  optionsLabel="name"
-                  themeColor={themeColor}
-                />
-              </div>
+            <span className="ssr-kpi-trend" style={{ color: '#16a34a' }}>
+              <TrendingUp size={15} />
+            </span>
+          </div>
+          <div>
+            <div className="ssr-kpi-value">
+              <DirhamIcon size={16} />
+              <span>{breakdown.grand_total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
             </div>
-
-            <div style={{ flex: '1 1 200px' }}>
-              <label className="so-filter-label" style={{ textTransform: 'uppercase' }}>PAYMENT MODE</label>
-              <div className="so-relative">
-                <Filter size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
-                <select
-                  className="so-filter-select so-filter-input-icon"
-                  value={filters.payment_mode}
-                  onChange={(e) => handleFilterUpdate('payment_mode', e.target.value)}
-                >
-                  <option value="">ALL PAYMENT MODES</option>
-                  <option value="Cash">CASH</option>
-                  <option value="Card">CARD</option>
-                  <option value="InstaPay">INSTAPAY</option>
-                  <option value="Credit">CREDIT SALES</option>
-                </select>
-                <ChevronDown size={14} style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', opacity: 0.5 }} />
-              </div>
+            <div className="ssr-kpi-subtext">
+              Net Total: {breakdown.net_total.toFixed(2)}
             </div>
+          </div>
+        </div>
 
-            <button
-              className="so-clear-btn"
-              style={{ width: 'auto', padding: '0 1.5rem', height: '38px', margin: 0, alignSelf: 'flex-end', textTransform: 'uppercase' }}
-              onClick={() => {
-                const reset = {
-                  from_date: new Date(new Date().setDate(1)).toISOString().split('T')[0],
-                  to_date: new Date().toISOString().split('T')[0],
-                  customer: '',
-                  warehouse: isAdmin ? '' : (warehouse || ''),
-                  payment_mode: ''
-                };
-                window.history.replaceState({}, document.title, window.location.pathname + window.location.hash.split('?')[0]);
-                setFilters(reset);
-                fetchReport(reset);
+        {/* Card 2: Cash Payments */}
+        <div
+          className="ssr-kpi-card ssr-card-cash"
+          onClick={() => handleMetricCardClick('Cash', '/#/salesreport?payment_mode=Cash')}
+        >
+          <div className="ssr-kpi-header">
+            <div className="ssr-kpi-header-left">
+              <div className="ssr-kpi-icon-pill">
+                <DollarSign size={16} />
+              </div>
+              <span className="ssr-kpi-title">Cash Payments</span>
+            </div>
+            <span className="ssr-kpi-trend" style={{ color: '#16a34a' }}>
+              <TrendingUp size={15} />
+            </span>
+          </div>
+          <div>
+            <div className="ssr-kpi-value" style={{ color: '#047857' }}>
+              <DirhamIcon size={16} />
+              <span>{breakdown.cash.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+            </div>
+            <div className="ssr-kpi-subtext">
+              Physical Cash Sales
+            </div>
+          </div>
+        </div>
+
+        {/* Card 3: Card Payments */}
+        <div
+          className="ssr-kpi-card ssr-card-card"
+          onClick={() => handleMetricCardClick('Card', '/#/salesreport?payment_mode=Card')}
+        >
+          <div className="ssr-kpi-header">
+            <div className="ssr-kpi-header-left">
+              <div className="ssr-kpi-icon-pill">
+                <CreditCard size={16} />
+              </div>
+              <span className="ssr-kpi-title">Card Payments</span>
+            </div>
+            <span className="ssr-kpi-trend" style={{ color: '#7c3aed' }}>
+              <Minus size={15} />
+            </span>
+          </div>
+          <div>
+            <div className="ssr-kpi-value" style={{ color: '#6d28d9' }}>
+              <DirhamIcon size={16} />
+              <span>{breakdown.card.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+            </div>
+            <div className="ssr-kpi-subtext">
+              Credit &amp; Debit Cards
+            </div>
+          </div>
+        </div>
+
+        {/* Card 4: InstaPay Payments */}
+        <div
+          className="ssr-kpi-card ssr-card-instapay"
+          onClick={() => handleMetricCardClick('InstaPay', '/#/salesreport?payment_mode=InstaPay')}
+        >
+          <div className="ssr-kpi-header">
+            <div className="ssr-kpi-header-left">
+              <div className="ssr-kpi-icon-pill">
+                <ArrowRightLeft size={16} />
+              </div>
+              <span className="ssr-kpi-title">Instapay Payments</span>
+            </div>
+            <span className="ssr-kpi-trend" style={{ color: '#0891b2' }}>
+              <Minus size={15} />
+            </span>
+          </div>
+          <div>
+            <div className="ssr-kpi-value" style={{ color: '#0e7490' }}>
+              <DirhamIcon size={16} />
+              <span>{(breakdown.instapay || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+            </div>
+            <div className="ssr-kpi-subtext">
+              InstaPay Transactions
+            </div>
+          </div>
+        </div>
+
+        {/* Card 5: Credit Sales */}
+        <div
+          className="ssr-kpi-card ssr-card-credit"
+          onClick={() => handleMetricCardClick('Credit', '/#/salesreport?payment_mode=Credit')}
+        >
+          <div className="ssr-kpi-header">
+            <div className="ssr-kpi-header-left">
+              <div className="ssr-kpi-icon-pill">
+                <Coins size={16} />
+              </div>
+              <span className="ssr-kpi-title">Credit Sales</span>
+            </div>
+            <span className="ssr-kpi-trend" style={{ color: '#d97706' }}>
+              <Minus size={15} />
+            </span>
+          </div>
+          <div>
+            <div className="ssr-kpi-value" style={{ color: '#b45309' }}>
+              <DirhamIcon size={16} />
+              <span>{(breakdown.credit || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+            </div>
+            <div className="ssr-kpi-subtext">
+              Outstanding Credit Sales
+            </div>
+          </div>
+        </div>
+
+        {/* Card 6: Loyalty Points Redeemed */}
+        <div className="ssr-kpi-card ssr-card-loyalty">
+          <div className="ssr-kpi-header">
+            <div className="ssr-kpi-header-left">
+              <div className="ssr-kpi-icon-pill">
+                <Gift size={16} />
+              </div>
+              <span className="ssr-kpi-title">Loyalty Points Redeemed</span>
+            </div>
+            <span className="ssr-kpi-trend" style={{ color: '#db2777' }}>
+              <Minus size={15} />
+            </span>
+          </div>
+          <div>
+            <div className="ssr-kpi-value" style={{ color: '#be185d' }}>
+              <DirhamIcon size={16} />
+              <span>{(breakdown.loyalty_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+            </div>
+            <div className="ssr-kpi-subtext">
+              Customer Points Redeemed Value
+            </div>
+          </div>
+        </div>
+
+        {/* Card 7: Total Discounts Given */}
+        <div className="ssr-kpi-card ssr-card-discounts">
+          <div className="ssr-kpi-header">
+            <div className="ssr-kpi-header-left">
+              <div className="ssr-kpi-icon-pill">
+                <Percent size={16} />
+              </div>
+              <span className="ssr-kpi-title">Total Discounts Given</span>
+            </div>
+            <span className="ssr-kpi-trend" style={{ color: '#dc2626' }}>
+              <Minus size={15} />
+            </span>
+          </div>
+          <div>
+            <div className="ssr-kpi-value" style={{ color: '#991b1b' }}>
+              <DirhamIcon size={16} />
+              <span>{(breakdown.discount_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+            </div>
+            <div className="ssr-kpi-subtext">
+              Customer Price Discounts
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 4. TABLE SECTION ("SALES TRANSACTIONS") */}
+      <div className="ssr-table-card">
+        <div className="ssr-table-header">
+          <div className="ssr-table-title-group">
+            <h2 className="ssr-table-heading">
+              <FileText size={18} color="#2563eb" />
+              Sales Transactions
+            </h2>
+            <p className="ssr-table-subtitle">
+              Found <b>{filteredData.length}</b> records matching sequence
+            </p>
+          </div>
+
+          <div className="ssr-table-search-box no-print">
+            <Search size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#64748b' }} />
+            <input
+              type="text"
+              className="ssr-table-search-input"
+              placeholder="Search invoice, customer, cashier..."
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setCurrentPage(1);
+              }}
+            />
+          </div>
+        </div>
+
+        <div className="ssr-table-wrapper">
+          <table className="ssr-table">
+            <thead>
+              <tr>
+                <th style={{ width: '40px', textAlign: 'center' }}>
+                  <input type="checkbox" style={{ borderRadius: '4px', cursor: 'pointer' }} />
+                </th>
+                {columnConfig.filter(c => c.visible && selectedPrintColumns.includes(c.id)).map((col) => (
+                  <th key={col.id} style={{ width: col.width, minWidth: col.width, textAlign: col.align }}>
+                    {col.label}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {loading && data.length === 0 ? (
+                <tr>
+                  <td colSpan={(columnConfig.filter(c => c.visible && selectedPrintColumns.includes(c.id)).length || 1) + 1} style={{ textAlign: 'center', padding: '5rem 0' }}>
+                    <Loader2 size={32} className="animate-spin" style={{ margin: '0 auto', color: '#2563eb' }} />
+                    <p style={{ marginTop: '1rem', fontWeight: 700, color: '#64748b', fontSize: '0.8rem' }}>Processing Data Streams...</p>
+                  </td>
+                </tr>
+              ) : filteredData.length === 0 ? (
+                <tr>
+                  <td colSpan={(columnConfig.filter(c => c.visible && selectedPrintColumns.includes(c.id)).length || 1) + 1} style={{ textAlign: 'center', padding: '5rem 0', color: '#94a3b8' }}>
+                    <FileText size={40} style={{ margin: '0 auto 0.5rem auto', opacity: 0.3 }} />
+                    <p style={{ fontWeight: 600, fontSize: '0.85rem' }}>No transactions found for the selected criteria.</p>
+                  </td>
+                </tr>
+              ) : (
+                paginatedData.map((row, idx) => (
+                  <tr key={idx}>
+                    <td style={{ textAlign: 'center' }}>
+                      <input type="checkbox" style={{ borderRadius: '4px', cursor: 'pointer' }} />
+                    </td>
+                    {columnConfig.filter(c => c.visible && selectedPrintColumns.includes(c.id)).map((col) => {
+                      const fieldname = col.original.fieldname;
+                      const cellValue = row[fieldname];
+                      const isMode = fieldname === 'payment_mode' || fieldname === 'mode_of_payment';
+
+                      return (
+                        <td
+                          key={col.id}
+                          style={{
+                            textAlign: col.align,
+                            fontFamily: col.original.fieldtype === 'Currency' || col.original.fieldtype === 'Float' || fieldname.includes('date') || fieldname.includes('time') ? 'monospace' : 'inherit',
+                            fontWeight: col.original.fieldtype === 'Currency' || col.original.fieldtype === 'Float' ? 800 : 600,
+                            width: col.width,
+                            minWidth: col.width
+                          }}
+                          title={String(cellValue ?? '')}
+                        >
+                          {cellValue !== null && cellValue !== undefined ? (
+                            isMode ? (
+                              formatPaymentPill(cellValue)
+                            ) : (fieldname === 'name' || fieldname === 'voucher_no') ? (
+                              <span
+                                onClick={() => navigate('/salesinvoicelist', { state: { search: cellValue } })}
+                                style={{ fontFamily: 'monospace', fontWeight: 700, color: '#2563eb', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                              >
+                                {String(cellValue).replace(' - KSPL', '')}
+                                <ExternalLink size={12} color="#3b82f6" />
+                              </span>
+                            ) : fieldname === 'item_code' ? (
+                              <span
+                                onClick={() => navigate('/itemlist', { state: { search: cellValue } })}
+                                style={{ fontFamily: 'monospace', fontWeight: 700, color: '#2563eb', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                              >
+                                {String(cellValue).replace(' - KSPL', '')}
+                                <ExternalLink size={12} color="#3b82f6" />
+                              </span>
+                            ) : typeof cellValue === 'number' && (col.label?.toLowerCase().includes('total') || col.label?.toLowerCase().includes('amount')) ? (
+                              cellValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                            ) : (
+                              String(cellValue).replace(' - KSPL', '')
+                            )
+                          ) : '-'}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Table Footer / Pagination */}
+        <div className="ssr-table-footer no-print">
+          <div className="ssr-page-size-selector">
+            <select
+              className="ssr-select-sm"
+              value={pageSize}
+              onChange={(e) => {
+                setPageSize(Number(e.target.value));
+                setCurrentPage(1);
               }}
             >
-              RESET
+              <option value={10}>10</option>
+              <option value={25}>25</option>
+              <option value={50}>50</option>
+              <option value={100}>100</option>
+            </select>
+            <span>per page</span>
+          </div>
+
+          <div className="ssr-pagination">
+            <button
+              className="ssr-page-btn"
+              disabled={currentPage <= 1}
+              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+            >
+              <ChevronLeft size={16} />
+            </button>
+            <span className="ssr-page-btn active">{currentPage}</span>
+            <button
+              className="ssr-page-btn"
+              disabled={currentPage >= totalPages}
+              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+            >
+              <ChevronRight size={16} />
             </button>
           </div>
-
-          {/* 3. MAIN CONTENT AREA */}
-          <main style={{ padding: 0, background: 'transparent', border: 'none', boxShadow: 'none' }}>
-            {error && (
-            <div style={{
-              background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px',
-              padding: '1rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem',
-              color: '#991b1b', fontSize: '0.85rem', fontWeight: 600
-            }}>
-              <AlertCircle size={18} /> {error}
-            </div>
-          )}
-
-          {/* PREMIUM METRIC DASHBOARD CARDS */}
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-            gap: '1.5rem',
-            marginBottom: '2rem'
-          }}>
-            {/* Card 1: Grand Total */}
-            <div
-              className="po-card shadow-sm clickable-metric-card"
-              onClick={() => handleMetricCardClick('', '/#/salesreport')}
-              style={{ borderLeft: `4px solid ${themeColor}`, padding: '1.25rem', background: '#ffffff', borderRadius: '1rem', border: '1px solid #e2e8f0', borderLeftWidth: '4px', borderLeftColor: themeColor }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '9px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b' }}>Total POS Revenue</span>
-                <TrendingUp size={14} style={{ color: themeColor }} />
-              </div>
-              <span style={{ fontSize: '1.5rem', fontWeight: 950, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '0.4rem', marginTop: '0.5rem' }}>
-                <DirhamIcon size={18} /> {breakdown.grand_total.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-              </span>
-              <span style={{ fontSize: '9px', fontWeight: 700, color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '2px', marginTop: '0.25rem' }}>Net Total: <DirhamIcon size={9} /> {breakdown.net_total.toFixed(2)}</span>
-            </div>
-
-            {/* Card 2: Cash Payments */}
-            <div
-              className="po-card shadow-sm clickable-metric-card"
-              onClick={() => handleMetricCardClick('Cash', '/#/salesreport?payment_mode=Cash')}
-              style={{ borderLeft: '4px solid #10b981', padding: '1.25rem', background: '#ffffff', borderRadius: '1rem', border: '1px solid #e2e8f0', borderLeftWidth: '4px', borderLeftColor: '#10b981' }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '9px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b' }}>Cash Payments</span>
-                <DollarSign size={14} style={{ color: '#10b981' }} />
-              </div>
-              <span style={{ fontSize: '1.5rem', fontWeight: 950, color: '#047857', display: 'flex', alignItems: 'center', gap: '0.4rem', marginTop: '0.5rem' }}>
-                <DirhamIcon size={18} /> {breakdown.cash.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-              </span>
-              <span style={{ fontSize: '9px', fontWeight: 700, color: '#10b981', display: 'block', marginTop: '0.25rem' }}>Physical Cash Sales</span>
-            </div>
-
-            {/* Card 3: Card Payments */}
-            <div
-              className="po-card shadow-sm clickable-metric-card"
-              onClick={() => handleMetricCardClick('Card', '/#/salesreport?payment_mode=Card')}
-              style={{ borderLeft: '4px solid #3b82f6', padding: '1.25rem', background: '#ffffff', borderRadius: '1rem', border: '1px solid #e2e8f0', borderLeftWidth: '4px', borderLeftColor: '#3b82f6' }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '9px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b' }}>Card Payments</span>
-                <CreditCard size={14} style={{ color: '#3b82f6' }} />
-              </div>
-              <span style={{ fontSize: '1.5rem', fontWeight: 950, color: '#1d4ed8', display: 'flex', alignItems: 'center', gap: '0.4rem', marginTop: '0.5rem' }}>
-                <DirhamIcon size={18} /> {breakdown.card.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-              </span>
-              <span style={{ fontSize: '9px', fontWeight: 700, color: '#3b82f6', display: 'block', marginTop: '0.25rem' }}>Credit & Debit Cards</span>
-            </div>
-
-            {/* Card 4: InstaPay Payments */}
-            <div
-              className="po-card shadow-sm clickable-metric-card"
-              onClick={() => handleMetricCardClick('InstaPay', '/#/salesreport?payment_mode=InstaPay')}
-              style={{ borderLeft: '4px solid #06b6d4', padding: '1.25rem', background: '#ffffff', borderRadius: '1rem', border: '1px solid #e2e8f0', borderLeftWidth: '4px', borderLeftColor: '#06b6d4' }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '9px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b' }}>InstaPay Payments</span>
-                <Zap size={14} style={{ color: '#06b6d4' }} />
-              </div>
-              <span style={{ fontSize: '1.5rem', fontWeight: 950, color: '#0891b2', display: 'flex', alignItems: 'center', gap: '0.4rem', marginTop: '0.5rem' }}>
-                <DirhamIcon size={18} /> {(breakdown.instapay || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-              </span>
-              <span style={{ fontSize: '9px', fontWeight: 700, color: '#06b6d4', display: 'block', marginTop: '0.25rem' }}>InstaPay Transactions</span>
-            </div>
-
-            {/* Card 5: Credit Customer Payments */}
-            <div
-              className="po-card shadow-sm clickable-metric-card"
-              onClick={() => handleMetricCardClick('Credit', '/#/salesreport?payment_mode=Credit')}
-              style={{ borderLeft: '4px solid #f59e0b', padding: '1.25rem', background: '#ffffff', borderRadius: '1rem', border: '1px solid #e2e8f0', borderLeftWidth: '4px', borderLeftColor: '#f59e0b' }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '9px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b' }}>Credit Sales</span>
-                <Coins size={14} style={{ color: '#f59e0b' }} />
-              </div>
-              <span style={{ fontSize: '1.5rem', fontWeight: 950, color: '#d97706', display: 'flex', alignItems: 'center', gap: '0.4rem', marginTop: '0.5rem' }}>
-                <DirhamIcon size={18} /> {(breakdown.credit || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-              </span>
-              <span style={{ fontSize: '9px', fontWeight: 700, color: '#f59e0b', display: 'block', marginTop: '0.25rem' }}>Outstanding Credit Sales</span>
-            </div>
-
-            {/* Card 6: Loyalty Points Redeemed */}
-            <div
-              className="po-card shadow-sm"
-              style={{ borderLeft: '4px solid #8b5cf6', padding: '1.25rem', background: '#ffffff', borderRadius: '1rem', border: '1px solid #e2e8f0', borderLeftWidth: '4px', borderLeftColor: '#8b5cf6' }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '9px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b' }}>Loyalty Points Redeemed</span>
-                <Coins size={14} style={{ color: '#8b5cf6' }} />
-              </div>
-              <span style={{ fontSize: '1.5rem', fontWeight: 950, color: '#6d28d9', display: 'flex', alignItems: 'center', gap: '0.4rem', marginTop: '0.5rem' }}>
-                <DirhamIcon size={18} /> {(breakdown.loyalty_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-              </span>
-              <span style={{ fontSize: '9px', fontWeight: 700, color: '#8b5cf6', display: 'block', marginTop: '0.25rem' }}>Customer Points Redeemed Value</span>
-            </div>
-
-            {/* Card 7: Total Discounts Given */}
-            <div
-              className="po-card shadow-sm"
-              style={{ borderLeft: '4px solid #ec4899', padding: '1.25rem', background: '#ffffff', borderRadius: '1rem', border: '1px solid #e2e8f0', borderLeftWidth: '4px', borderLeftColor: '#ec4899' }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '9px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b' }}>Total Discounts Given</span>
-                <TrendingUp size={14} style={{ color: '#ec4899' }} />
-              </div>
-              <span style={{ fontSize: '1.5rem', fontWeight: 950, color: '#be185d', display: 'flex', alignItems: 'center', gap: '0.4rem', marginTop: '0.5rem' }}>
-                <DirhamIcon size={18} /> {(breakdown.discount_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-              </span>
-              <span style={{ fontSize: '9px', fontWeight: 700, color: '#ec4899', display: 'block', marginTop: '0.25rem' }}>Customer Price Discounts</span>
-            </div>
-          </div>
-
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-            <p className="so-list-meta">Found <b>{data.length}</b> records matching sequence</p>
-            {loading && <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: themeColor, fontSize: '0.75rem', fontWeight: 700 }}>
-              <Loader2 size={16} className="animate-spin" /> EXECUTING QUERY...
-            </div>}
-          </div>
-
-          <div className="so-table-card">
-            <div className="so-table-wrapper" style={{ overflowX: 'auto' }}>
-              <table className="so-table premium-stock-table" style={{ minWidth: '100%', width: 'max-content' }}>
-                <thead>
-                  <tr>
-                    {columnConfig.filter(c => c.visible && selectedPrintColumns.includes(c.id)).map((col, i) => (
-                      <th key={col.id} style={{ width: col.width, minWidth: col.width, textAlign: col.align, textTransform: 'uppercase' }}>
-                        {col.label}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {loading && data.length === 0 ? (
-                    <tr>
-                      <td colSpan={columnConfig.filter(c => c.visible && selectedPrintColumns.includes(c.id)).length || 1} className="so-empty" style={{ padding: '6rem 0' }}>
-                        <Loader2 size={32} className="animate-spin" style={{ margin: '0 auto', color: themeColor }} />
-                        <p style={{ marginTop: '1rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em', fontSize: '0.65rem' }}>Processing Data Streams...</p>
-                      </td>
-                    </tr>
-                  ) : data.length === 0 ? (
-                    <tr>
-                      <td colSpan={columnConfig.filter(c => c.visible && selectedPrintColumns.includes(c.id)).length || 1} className="so-empty" style={{ padding: '6rem 0' }}>
-                        <div style={{ opacity: 0.2, marginBottom: '1rem' }}>
-                          <FileText size={48} style={{ margin: '0 auto' }} />
-                        </div>
-                        <p>No transactions found for the selected criteria.</p>
-                      </td>
-                    </tr>
-                  ) : (
-                    data.map((row, idx) => (
-                      <tr key={idx} className="hover:bg-slate-50/50">
-                        {columnConfig.filter(c => c.visible && selectedPrintColumns.includes(c.id)).map((col, cIdx) => {
-                          const fieldname = col.original.fieldname;
-                          const cellValue = row[fieldname];
-                          return (
-                            <td
-                              key={col.id}
-                              style={{
-                                textAlign: col.align,
-                                fontFamily: col.original.fieldtype === 'Currency' || col.original.fieldtype === 'Float' ? 'monospace' : 'inherit',
-                                width: col.width,
-                                minWidth: col.width,
-                                padding: '0.85rem 1rem',
-                                whiteSpace: 'nowrap'
-                              }}
-                              title={String(cellValue ?? '')}
-                            >
-                              {cellValue !== null && cellValue !== undefined ? (
-                                (fieldname === 'name' || fieldname === 'voucher_no') ? (
-                                  <span onClick={() => navigate('/salesinvoicelist', { state: { search: cellValue } })} className="group flex items-center gap-1.5 hover:text-indigo-600 transition-colors underline-offset-4 hover:underline cursor-pointer" style={{ fontFamily: 'monospace', fontWeight: 600, color: '#475569', justifyContent: col.align === 'right' ? 'flex-end' : 'flex-start' }}>
-                                    {String(cellValue).replace(' - KSPL', '')}
-                                    <ExternalLink size={12} className="opacity-0 group-hover:opacity-100 transition-opacity text-indigo-400" />
-                                  </span>
-                                ) : fieldname === 'item_code' ? (
-                                  <span onClick={() => navigate('/itemlist', { state: { search: cellValue } })} className="code-capsule group flex items-center gap-1.5 w-fit hover:text-indigo-600 transition-colors cursor-pointer" style={{ marginLeft: col.align === 'right' ? 'auto' : '0' }}>
-                                    {String(cellValue).replace(' - KSPL', '')}
-                                    <ExternalLink size={12} className="opacity-0 group-hover:opacity-100 transition-opacity" />
-                                  </span>
-                                ) : typeof cellValue === 'number' && (col.label?.toLowerCase().includes('total') || col.label?.toLowerCase().includes('amount')) ?
-                                  cellValue.toLocaleString(undefined, { minimumFractionDigits: 2 }) :
-                                  String(cellValue).replace(' - KSPL', '')
-                              ) : '-'}
-                            </td>
-                          );
-                        })}
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </main>
+        </div>
       </div>
-    </div>
 
-      <style dangerouslySetInnerHTML={{
-        __html: `
-        .clickable-metric-card {
-            transition: all 0.2s ease-in-out;
-            cursor: pointer;
-        }
-        .clickable-metric-card:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 10px 20px -5px rgba(0, 0, 0, 0.08) !important;
-            border-color: #cbd5e1 !important;
-        }
-        .clickable-metric-card:active {
-            transform: translateY(-1px);
-        }
-        @media print {
-            @page {
-                size: ${printOrientation};
-                margin: 10mm;
-            }
-            body {
-                background: #ffffff !important;
-                color: #000000 !important;
-            }
-            .no-print {
-                display: none !important;
-            }
-            .so-page {
-                padding: 0 !important;
-                margin: 0 !important;
-            }
-            .so-content {
-                padding: 0 !important;
-            }
-            .so-table-card {
-                box-shadow: none !important;
-                border: none !important;
-            }
-            th, td {
-                border: 1px solid #cbd5e1 !important;
-                padding: 8px 12px !important;
-                font-size: 11px !important;
-            }
-        }
-      `}} />
-
+      {/* Modals */}
       <PrintConfigModal
         isOpen={isPrintModalOpen}
         onClose={() => setIsPrintModalOpen(false)}

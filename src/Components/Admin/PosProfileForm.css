@@ -1,0 +1,339 @@
+/* PosProfileForm.css - Wide Layout & Signature Blue Theme (#0082f6) */
+
+.ppf-page-wrapper {
+  min-height: 100vh;
+  background-color: #f8fafc;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  color: #0f172a;
+  padding-bottom: 3rem;
+}
+
+/* Header Bar */
+.ppf-header-bar {
+  background: #ffffff;
+  border-bottom: 1px solid #e2e8f0;
+  padding: 1.25rem 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+}
+
+.ppf-header-left {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.ppf-title-group h1 {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: -0.01em;
+}
+
+.ppf-title-group p {
+  margin: 2px 0 0 0;
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+.ppf-header-right {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.ppf-btn-secondary {
+  height: 38px;
+  padding: 0 1.25rem;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.ppf-btn-secondary:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.ppf-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  height: 38px;
+  padding: 0 1.5rem;
+  border-radius: 8px;
+  border: none;
+  background: #0082f6;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  box-shadow: 0 4px 12px rgba(0, 130, 246, 0.25);
+}
+
+.ppf-btn-primary:hover:not(:disabled) {
+  background: #0070d6;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(0, 130, 246, 0.35);
+}
+
+.ppf-btn-primary:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+/* Full Width Container */
+.ppf-container {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  padding: 1.5rem 2rem;
+}
+
+.ppf-form-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  width: 100%;
+}
+
+/* Card Section with Soft Light Blue Banner Header */
+.ppf-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.ppf-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #f0f7ff;
+  padding: 0.9rem 1.5rem;
+  border-bottom: 1px solid #e0eeff;
+}
+
+.ppf-card-title {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  font-size: 0.9rem;
+  font-weight: 800;
+  color: #1e3a8a;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.ppf-card-icon {
+  color: #0082f6;
+  flex-shrink: 0;
+}
+
+.ppf-card-body {
+  padding: 1.5rem 1.5rem;
+}
+
+/* Grid Fields - Spans full width cleanly */
+.ppf-fields-row-4 {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1.25rem;
+  width: 100%;
+}
+
+.ppf-fields-row-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.25rem;
+  width: 100%;
+}
+
+@media (max-width: 1024px) {
+  .ppf-fields-row-4 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .ppf-fields-row-3 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .ppf-fields-row-4,
+  .ppf-fields-row-3 {
+    grid-template-columns: 1fr;
+  }
+}
+
+.ppf-field {
+  display: flex;
+  flex-direction: column;
+}
+
+.ppf-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #475569;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 6px;
+}
+
+.ppf-label .required {
+  color: #ef4444;
+  margin-left: 2px;
+}
+
+.ppf-input,
+.ppf-select {
+  width: 100%;
+  height: 40px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 13.5px;
+  color: #0f172a;
+  background-color: #ffffff;
+  padding: 0 0.85rem;
+  outline: none;
+  transition: all 0.15s ease;
+  box-sizing: border-box;
+}
+
+.ppf-input:focus,
+.ppf-select:focus {
+  border-color: #0082f6;
+  box-shadow: 0 0 0 3px rgba(0, 130, 246, 0.15);
+}
+
+.ppf-input:disabled {
+  background-color: #f8fafc;
+  color: #64748b;
+  cursor: not-allowed;
+}
+
+.ppf-error-text {
+  font-size: 11px;
+  color: #ef4444;
+  margin-top: 4px;
+  font-weight: 500;
+}
+
+/* Table in Cards (Users & Payment Methods) */
+.ppf-table-container {
+  width: 100%;
+  overflow-x: auto;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.ppf-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.ppf-table th {
+  background: #f8fafc;
+  padding: 0.75rem 1rem;
+  font-size: 11px;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid #e2e8f0;
+  text-align: left;
+}
+
+.ppf-table td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid #f1f5f9;
+  vertical-align: middle;
+}
+
+.ppf-table tr:last-child td {
+  border-bottom: none;
+}
+
+.ppf-add-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  height: 32px;
+  padding: 0 0.85rem;
+  border-radius: 6px;
+  border: 1.5px solid #0082f6;
+  background: #ffffff;
+  color: #0082f6;
+  font-size: 11.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.ppf-add-btn:hover {
+  background: #ffffff;
+  border-color: #0070d6;
+  color: #0070d6;
+}
+
+.ppf-remove-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  border: 1px solid #fee2e2;
+  background: #ffffff;
+  color: #ef4444;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.ppf-remove-btn:hover {
+  background: #fef2f2;
+  border-color: #fca5a5;
+}
+
+/* Checkbox Toggle inside tables */
+.ppf-checkbox-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 12.5px;
+  color: #334155;
+  cursor: pointer;
+  user-select: none;
+}
+
+.ppf-checkbox {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  accent-color: #0082f6;
+  cursor: pointer;
+}

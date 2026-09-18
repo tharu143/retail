@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
 import DirhamIcon from '../../assets/Currency/DirhamIcon';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import { Calendar, DollarSign, User, Building2, CreditCard, Plus, Trash2, Check, X } from 'lucide-react';
+import { Calendar, DollarSign, User, Building2, CreditCard, Plus, Trash2, Check, X, Store, Wallet, Banknote, Coins, ArrowLeft, FileText, Printer } from 'lucide-react';
 import { db } from '../../db';
 import POSService from '../../utils/posService';
 import { frappeCall } from '../../utils/frappe';
@@ -494,115 +494,176 @@ function OpeningEntry({ company: propCompany, posProfile: propPosProfile, user: 
         );
     }
 
+    const formatDisplayDate = (dateStr) => {
+        if (!dateStr) return 'N/A';
+        try {
+            const d = new Date(dateStr);
+            if (isNaN(d.getTime())) return dateStr;
+            const day = d.getDate();
+            const month = d.toLocaleString('en-US', { month: 'short' });
+            const year = d.getFullYear();
+            let hours = d.getHours();
+            const minutes = d.getMinutes().toString().padStart(2, '0');
+            const ampm = hours >= 12 ? 'pm' : 'am';
+            hours = hours % 12 || 12;
+            const paddedHours = hours.toString().padStart(2, '0');
+            return `${day} ${month} ${year}, ${paddedHours}:${minutes} ${ampm}`;
+        } catch (e) {
+            return dateStr;
+        }
+    };
+
     if (isReadOnly || routeId) {
         return (
-            <div className="pos-opening-detail-container">
-                <div className="pos-opening-detail-card">
-                    <div className="pos-opening-detail-header">
-                        <div>
-                            <h1 className="pos-opening-detail-title">
-                                <DirhamIcon size={24} className="text-emerald-400" />
-                                {routeId || 'POS Opening Entry'}
-                            </h1>
-                            <p className="pos-opening-detail-subtitle">Point of Sale Shift Opening Entry Record</p>
+            <div className="pos-ope-page-wrapper">
+                {/* 1. TOP HEADER BAR */}
+                <div className="pos-ope-header-bar">
+                    <div className="pos-ope-header-left">
+                        <button className="pos-ope-back-btn" onClick={() => navigate('/posopeningentrylist')} title="Back to List">
+                            <ArrowLeft size={18} />
+                        </button>
+                        <div className="pos-ope-title-group">
+                            <div className="pos-ope-title-row">
+                                <h1 className="pos-ope-title">{routeId || 'POS OPENING ENTRY'}</h1>
+                                <span className="pos-ope-badge">
+                                    <span className="pos-ope-badge-dot"></span>
+                                    SUBMITTED / OPEN
+                                </span>
+                            </div>
+                            <p className="pos-ope-subtitle">Point of Sale Shift Opening Entry Record</p>
                         </div>
-                        <span className="pos-opening-badge">
-                            ● Submitted / Open
-                        </span>
                     </div>
 
-                    <div className="pos-opening-detail-body">
-                        <div className="pos-opening-grid">
-                            <div className="pos-opening-field-card">
-                                <div className="pos-opening-field-label">
-                                    <User className="w-3.5 h-3.5" />
-                                    Cashier / User
-                                </div>
-                                <div className="pos-opening-field-value">{user || 'N/A'}</div>
-                            </div>
+                    <div className="pos-ope-header-right">
+                        <button className="pos-ope-btn-secondary" onClick={() => window.print()}>
+                            <Printer size={14} /> Print
+                        </button>
+                        <button className="pos-ope-btn-secondary" onClick={() => navigate('/posopeningentrylist')}>
+                            <ArrowLeft size={14} /> Back to List
+                        </button>
+                    </div>
+                </div>
 
-                            <div className="pos-opening-field-card">
-                                <div className="pos-opening-field-label">
-                                    <Building2 className="w-3.5 h-3.5" />
-                                    Company
-                                </div>
-                                <div className="pos-opening-field-value">{company || 'N/A'}</div>
-                            </div>
+                {/* 2. PAGE CONTENT AREA */}
+                <div className="pos-ope-container">
+                    <div className="pos-ope-content-grid">
 
-                            <div className="pos-opening-field-card">
-                                <div className="pos-opening-field-label">
-                                    <CreditCard className="w-3.5 h-3.5" />
-                                    POS Profile
-                                </div>
-                                <div className="pos-opening-field-value">{posProfile || 'N/A'}</div>
-                            </div>
-
-                            <div className="pos-opening-field-card">
-                                <div className="pos-opening-field-label">
-                                    <Calendar className="w-3.5 h-3.5" />
-                                    Period Start Date
-                                </div>
-                                <div className="pos-opening-field-value">
-                                    {periodStartDate ? new Date(periodStartDate).toLocaleString('en-IN', {
-                                        day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
-                                    }) : 'N/A'}
+                        {/* CARD 1: OPENING ENTRY INFORMATION */}
+                        <div className="pos-ope-card">
+                            <div className="pos-ope-card-header">
+                                <div className="pos-ope-card-title">
+                                    <FileText className="pos-ope-card-icon" size={18} /> OPENING ENTRY INFORMATION
                                 </div>
                             </div>
+                            <div className="pos-ope-card-body">
+                                <div className="pos-ope-meta-grid">
+                                    <div className="pos-ope-info-item">
+                                        <div className="pos-ope-info-icon">
+                                            <User size={18} />
+                                        </div>
+                                        <div className="pos-ope-info-details">
+                                            <span className="pos-ope-info-label">CASHIER / USER</span>
+                                            <span className="pos-ope-info-value">{user || 'N/A'}</span>
+                                        </div>
+                                    </div>
 
-                            <div className="pos-opening-field-card">
-                                <div className="pos-opening-field-label">
-                                    <Calendar className="w-3.5 h-3.5" />
-                                    Posting Date
+                                    <div className="pos-ope-info-item">
+                                        <div className="pos-ope-info-icon">
+                                            <Building2 size={18} />
+                                        </div>
+                                        <div className="pos-ope-info-details">
+                                            <span className="pos-ope-info-label">COMPANY</span>
+                                            <span className="pos-ope-info-value">{company || 'N/A'}</span>
+                                        </div>
+                                    </div>
+
+                                    <div className="pos-ope-info-item">
+                                        <div className="pos-ope-info-icon">
+                                            <Store size={18} />
+                                        </div>
+                                        <div className="pos-ope-info-details">
+                                            <span className="pos-ope-info-label">POS PROFILE</span>
+                                            <span className="pos-ope-info-value">{posProfile || 'N/A'}</span>
+                                        </div>
+                                    </div>
+
+                                    <div className="pos-ope-info-item">
+                                        <div className="pos-ope-info-icon">
+                                            <Calendar size={18} />
+                                        </div>
+                                        <div className="pos-ope-info-details">
+                                            <span className="pos-ope-info-label">PERIOD START DATE</span>
+                                            <span className="pos-ope-info-value">{formatDisplayDate(periodStartDate)}</span>
+                                        </div>
+                                    </div>
+
+                                    <div className="pos-ope-info-item">
+                                        <div className="pos-ope-info-icon">
+                                            <Calendar size={18} />
+                                        </div>
+                                        <div className="pos-ope-info-details">
+                                            <span className="pos-ope-info-label">POSTING DATE</span>
+                                            <span className="pos-ope-info-value">{formatDisplayDate(postingDate)}</span>
+                                        </div>
+                                    </div>
                                 </div>
-                                <div className="pos-opening-field-value">
-                                    {postingDate ? new Date(postingDate).toLocaleString('en-IN', {
-                                        day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
-                                    }) : 'N/A'}
+                            </div>
+                        </div>
+
+                        {/* CARD 2: OPENING PAYMENT MODE BALANCES */}
+                        <div className="pos-ope-card">
+                            <div className="pos-ope-card-header">
+                                <div className="pos-ope-card-title">
+                                    <Wallet className="pos-ope-card-icon" size={18} /> OPENING PAYMENT MODE BALANCES
+                                </div>
+                            </div>
+                            <div className="pos-ope-card-body">
+                                <div className="pos-ope-table-container">
+                                    <table className="pos-ope-table">
+                                        <thead>
+                                            <tr>
+                                                <th>MODE OF PAYMENT</th>
+                                                <th style={{ textAlign: 'right' }}>OPENING AMOUNT</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {balanceDetails.map((detail, idx) => (
+                                                <tr key={idx}>
+                                                    <td>
+                                                        <div className="pos-ope-payment-cell">
+                                                            <div className="pos-ope-payment-icon">
+                                                                <Banknote size={16} />
+                                                            </div>
+                                                            <span>{detail.mode_of_payment || 'Cash'}</span>
+                                                        </div>
+                                                    </td>
+                                                    <td style={{ textAlign: 'right' }} className="pos-ope-amount-cell">
+                                                        AED {parseFloat(detail.opening_amount || 0).toFixed(2)}
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
                                 </div>
                             </div>
                         </div>
 
-                        <h3 className="pos-opening-section-title">
-                            <DirhamIcon size={18} className="text-emerald-600" />
-                            Opening Payment Mode Balances
-                        </h3>
-
-                        <table className="pos-opening-table">
-                            <thead>
-                                <tr>
-                                    <th>Mode of Payment</th>
-                                    <th style={{ textAlign: 'right' }}>Opening Amount</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {balanceDetails.map((detail, idx) => (
-                                    <tr key={idx}>
-                                        <td className="font-semibold text-slate-800">{detail.mode_of_payment || 'Cash'}</td>
-                                        <td style={{ textAlign: 'right' }} className="font-bold text-emerald-600">
-                                            AED {parseFloat(detail.opening_amount || 0).toFixed(2)}
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-
-                        <div className="pos-opening-hero-summary">
-                            <div className="pos-opening-hero-label">Total Opening Shift Amount</div>
-                            <div className="pos-opening-hero-amount">
-                                <DirhamIcon size={26} /> {totalAmount.toFixed(2)}
+                        {/* CARD 3: TOTAL SHIFT SUMMARY */}
+                        <div className="pos-ope-total-card">
+                            <div className="pos-ope-total-left">
+                                <div className="pos-ope-total-icon">
+                                    <Coins size={22} />
+                                </div>
+                                <div>
+                                    <div className="pos-ope-total-title">Total Opening Shift Amount</div>
+                                    <div className="pos-ope-total-sub">United Arab Emirates Dirham</div>
+                                </div>
+                            </div>
+                            <div className="pos-ope-total-amount">
+                                AED {totalAmount.toFixed(2)}
                             </div>
                         </div>
 
-                        <div className="pos-opening-detail-footer">
-                            <button
-                                type="button"
-                                onClick={() => navigate('/posopeningentrylist')}
-                                className="pos-opening-back-btn"
-                            >
-                                <X className="w-4 h-4" />
-                                <span>Back to List</span>
-                            </button>
-                        </div>
                     </div>
                 </div>
             </div>

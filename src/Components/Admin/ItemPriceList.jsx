@@ -4,7 +4,8 @@ import {
    Plus, Search, X, Tag, Filter, Edit2, Trash2,
    Loader2, ChevronLeft, ChevronRight, Scale,
    Box, Calculator, Palette, ChevronDown, Building2,
-   TrendingUp, TrendingDown, RefreshCw, CheckCircle2, AlertCircle, Package
+   TrendingUp, TrendingDown, RefreshCw, CheckCircle2, AlertCircle, Package,
+   MoreVertical
 } from 'lucide-react';
 import axios from 'axios';
 import Swal from 'sweetalert2';
@@ -49,6 +50,15 @@ function ItemPriceList() {
    const [totalCount, setTotalCount] = useState(0);
    const [pageSize, setPageSize] = useState(20);
    const [currentPage, setCurrentPage] = useState(1);
+
+   /* Action Dropdown Menu State */
+   const [activeMenuId, setActiveMenuId] = useState(null);
+
+   useEffect(() => {
+      const handleOutsideClick = () => setActiveMenuId(null);
+      document.addEventListener('click', handleOutsideClick);
+      return () => document.removeEventListener('click', handleOutsideClick);
+   }, []);
 
    /* Role & Branch Access Control */
    const user_roles = JSON.parse(localStorage.getItem('user_roles') || '[]');
@@ -623,29 +633,103 @@ function ItemPriceList() {
                                        {p[col] !== undefined && p[col] !== null ? String(p[col]) : '-'}
                                     </td>
                                  ))}
-                                 {/* Actions */}
-                                 <td onClick={e => e.stopPropagation()}>
-                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.25rem' }}>
-                                       <button
-                                          onClick={(e) => { e.stopPropagation(); handleEdit(p); }}
-                                          title="Edit"
-                                          style={{ padding: '0.35rem', borderRadius: '0.375rem', background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', transition: 'all 0.15s' }}
-                                          onMouseEnter={e => { e.currentTarget.style.background = themeLight; e.currentTarget.style.color = themeColor; }}
-                                          onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = '#94a3b8'; }}
-                                       >
-                                          <Edit2 size={14} />
-                                       </button>
-                                       <button
-                                          onClick={(e) => handleDelete(p, e)}
-                                          disabled={isDeleting}
-                                          title="Delete"
-                                          style={{ padding: '0.35rem', borderRadius: '0.375rem', background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', transition: 'all 0.15s' }}
-                                          onMouseEnter={e => { e.currentTarget.style.background = '#fef2f2'; e.currentTarget.style.color = '#ef4444'; }}
-                                          onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = '#94a3b8'; }}
-                                       >
-                                          {isDeleting ? <Loader2 size={14} className="so-spinner" /> : <Trash2 size={14} />}
-                                       </button>
-                                    </div>
+                                 {/* Actions under three dots */}
+                                 <td style={{ position: 'relative', textAlign: 'center' }} onClick={e => e.stopPropagation()}>
+                                    <button
+                                       type="button"
+                                       onClick={(e) => {
+                                          e.stopPropagation();
+                                          setActiveMenuId(activeMenuId === p.name ? null : p.name);
+                                       }}
+                                       title="Actions"
+                                       style={{
+                                          padding: '0.35rem',
+                                          borderRadius: '0.375rem',
+                                          background: activeMenuId === p.name ? '#f1f5f9' : 'transparent',
+                                          border: 'none',
+                                          cursor: 'pointer',
+                                          color: activeMenuId === p.name ? themeColor : '#94a3b8',
+                                          transition: 'all 0.15s ease',
+                                          display: 'inline-flex',
+                                          alignItems: 'center',
+                                          justifyContent: 'center'
+                                       }}
+                                    >
+                                       <MoreVertical size={16} />
+                                    </button>
+                                    {activeMenuId === p.name && (
+                                       <div style={{
+                                          position: 'absolute',
+                                          right: '12px',
+                                          top: 'calc(100% + 2px)',
+                                          zIndex: 50,
+                                          background: '#ffffff',
+                                          border: '1.5px solid #e2e8f0',
+                                          borderRadius: '0.5rem',
+                                          boxShadow: '0 10px 25px -5px rgba(15, 23, 42, 0.12), 0 8px 10px -6px rgba(15, 23, 42, 0.05)',
+                                          minWidth: '130px',
+                                          padding: '0.25rem',
+                                          display: 'flex',
+                                          flexDirection: 'column',
+                                          gap: '0.15rem'
+                                       }}>
+                                          <button
+                                             type="button"
+                                             onClick={(e) => {
+                                                e.stopPropagation();
+                                                setActiveMenuId(null);
+                                                handleEdit(p);
+                                             }}
+                                             style={{
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '0.5rem',
+                                                padding: '0.5rem 0.75rem',
+                                                fontSize: '0.8rem',
+                                                fontWeight: 600,
+                                                color: '#1e293b',
+                                                background: 'none',
+                                                border: 'none',
+                                                borderRadius: '0.375rem',
+                                                cursor: 'pointer',
+                                                width: '100%',
+                                                textAlign: 'left'
+                                             }}
+                                             onMouseEnter={e => e.currentTarget.style.background = '#f1f5f9'}
+                                             onMouseLeave={e => e.currentTarget.style.background = 'none'}
+                                          >
+                                             <Edit2 size={14} style={{ color: themeColor }} /> Edit Record
+                                          </button>
+                                          <button
+                                             type="button"
+                                             onClick={(e) => {
+                                                e.stopPropagation();
+                                                setActiveMenuId(null);
+                                                handleDelete(p, e);
+                                             }}
+                                             disabled={deleting === p.name}
+                                             style={{
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '0.5rem',
+                                                padding: '0.5rem 0.75rem',
+                                                fontSize: '0.8rem',
+                                                fontWeight: 600,
+                                                color: '#ef4444',
+                                                background: 'none',
+                                                border: 'none',
+                                                borderRadius: '0.375rem',
+                                                cursor: 'pointer',
+                                                width: '100%',
+                                                textAlign: 'left'
+                                             }}
+                                             onMouseEnter={e => e.currentTarget.style.background = '#fef2f2'}
+                                             onMouseLeave={e => e.currentTarget.style.background = 'none'}
+                                          >
+                                             {deleting === p.name ? <Loader2 size={14} className="so-spinner" /> : <Trash2 size={14} style={{ color: '#ef4444' }} />} Delete Record
+                                          </button>
+                                       </div>
+                                    )}
                                  </td>
                               </tr>
                            );

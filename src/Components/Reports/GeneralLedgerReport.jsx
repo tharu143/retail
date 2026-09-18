@@ -3,7 +3,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { 
     Loader2, FileText, AlertCircle, Calendar, 
     RefreshCw, Download, Printer, 
-    ChevronDown, DollarSign, TrendingUp, TrendingDown, ClipboardList, ChevronLeft, ExternalLink, Settings
+    ChevronDown, DollarSign, TrendingUp, TrendingDown, ClipboardList, ChevronLeft, ChevronRight, ExternalLink, Settings
 } from 'lucide-react';
 import CustomSearchDropdown from '../Purchase/CustomSearchDropdown';
 import DirhamIcon from '../../assets/Currency/DirhamIcon';
@@ -45,6 +45,8 @@ function GeneralLedgerReport() {
   const [success, setSuccess] = useState('');
   const [columnConfig, setColumnConfig] = useState([]);
   const [showConfigModal, setShowConfigModal] = useState(false);
+  const [pageSize, setPageSize] = useState(10);
+  const [currentPage, setCurrentPage] = useState(1);
 
   // Date helpers
   const getTodayDate = () => new Date().toISOString().split('T')[0];
@@ -298,21 +300,15 @@ function GeneralLedgerReport() {
       
       {/* 1. Header */}
       <header className="glr-header no-print">
-        <div className="glr-header-title-box">
-          <button onClick={handleBackClick} className="glr-btn-back">
-            <ChevronLeft size={16} />
-            <span>Back</span>
-          </button>
-          <div className="glr-icon-badge">
-            <FileText size={24} className="stroke-[2.5]" />
-          </div>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <h1 className="glr-title">GENERAL LEDGER REPORT</h1>
-              <span className="glr-tag">Audit Ledger</span>
+        <div className="glr-header-title-box" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '4px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <div className="glr-icon-badge">
+              <FileText size={22} className="stroke-[2.5]" />
             </div>
-            <p className="glr-subtitle">Chronological listing of account debit, credit, and running balance logs</p>
+            <h1 className="glr-title">GENERAL LEDGER REPORT</h1>
+            <span className="glr-tag">Audit Ledger</span>
           </div>
+          <p className="glr-subtitle" style={{ margin: '2px 0 0 0' }}>Chronological listing of account debit, credit, and running balance logs</p>
         </div>
 
         <div className="glr-actions">
@@ -362,9 +358,11 @@ function GeneralLedgerReport() {
         <div className="glr-kpi-grid">
           <div className="glr-kpi-card slate">
             <div className="glr-kpi-header">
-              <span className="glr-kpi-title">Transactions</span>
-              <div className="glr-kpi-icon-pill">
-                <ClipboardList size={16} />
+              <div className="glr-kpi-header-left">
+                <div className="glr-kpi-icon-pill">
+                  <ClipboardList size={18} />
+                </div>
+                <span className="glr-kpi-title">Transactions</span>
               </div>
             </div>
             <div>
@@ -379,9 +377,11 @@ function GeneralLedgerReport() {
 
           <div className="glr-kpi-card blue">
             <div className="glr-kpi-header">
-              <span className="glr-kpi-title">Total Debit</span>
-              <div className="glr-kpi-icon-pill">
-                <TrendingUp size={16} />
+              <div className="glr-kpi-header-left">
+                <div className="glr-kpi-icon-pill">
+                  <TrendingUp size={18} />
+                </div>
+                <span className="glr-kpi-title">Total Debit</span>
               </div>
             </div>
             <div>
@@ -389,7 +389,7 @@ function GeneralLedgerReport() {
                 <DirhamIcon size={18} />
                 <span>{totalDebit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
               </div>
-              <div className="glr-kpi-subtext" style={{ color: '#2563eb' }}>
+              <div className="glr-kpi-subtext">
                 Accumulated Period Debits
               </div>
             </div>
@@ -397,9 +397,11 @@ function GeneralLedgerReport() {
 
           <div className="glr-kpi-card red">
             <div className="glr-kpi-header">
-              <span className="glr-kpi-title">Total Credit</span>
-              <div className="glr-kpi-icon-pill">
-                <TrendingDown size={16} />
+              <div className="glr-kpi-header-left">
+                <div className="glr-kpi-icon-pill">
+                  <TrendingDown size={18} />
+                </div>
+                <span className="glr-kpi-title">Total Credit</span>
               </div>
             </div>
             <div>
@@ -407,7 +409,7 @@ function GeneralLedgerReport() {
                 <DirhamIcon size={18} />
                 <span>{totalCredit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
               </div>
-              <div className="glr-kpi-subtext" style={{ color: '#dc2626' }}>
+              <div className="glr-kpi-subtext">
                 Accumulated Period Credits
               </div>
             </div>
@@ -415,9 +417,11 @@ function GeneralLedgerReport() {
 
           <div className="glr-kpi-card emerald">
             <div className="glr-kpi-header">
-              <span className="glr-kpi-title">Net Balance Change</span>
-              <div className="glr-kpi-icon-pill">
-                <DollarSign size={16} />
+              <div className="glr-kpi-header-left">
+                <div className="glr-kpi-icon-pill">
+                  <DollarSign size={18} />
+                </div>
+                <span className="glr-kpi-title">Net Balance Change</span>
               </div>
             </div>
             <div>
@@ -425,7 +429,7 @@ function GeneralLedgerReport() {
                 <DirhamIcon size={18} />
                 <span>{finalBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
               </div>
-              <div className="glr-kpi-subtext" style={{ color: '#2563eb' }}>
+              <div className="glr-kpi-subtext">
                 Period Closing Balance Change
               </div>
             </div>
@@ -577,55 +581,58 @@ function GeneralLedgerReport() {
                     </td>
                   </tr>
                 ) : (
-                  data.map((row, idx) => (
-                    <tr key={row.name || idx}>
-                      {visibleColumns.map(col => {
-                        let cellValue = row[col.id];
-                        if (['debit', 'credit', 'balance'].includes(col.id)) {
-                          cellValue = cellValue !== undefined && cellValue !== null ? parseFloat(cellValue).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-';
-                        }
+                  (() => {
+                    const displayData = pageSize === -1 ? data : data.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+                    return displayData.map((row, idx) => (
+                      <tr key={row.name || idx}>
+                        {visibleColumns.map(col => {
+                          let cellValue = row[col.id];
+                          if (['debit', 'credit', 'balance'].includes(col.id)) {
+                            cellValue = cellValue !== undefined && cellValue !== null ? parseFloat(cellValue).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-';
+                          }
 
-                        // Render voucher_no as clickable link
-                        if (col.id === 'voucher_no') {
+                          // Render voucher_no as clickable link
+                          if (col.id === 'voucher_no') {
+                            return (
+                              <td 
+                                key={col.id}
+                                style={{ 
+                                  textAlign: col.align,
+                                  width: col.width, 
+                                  minWidth: col.width
+                                }}
+                              >
+                                {renderVoucherNoCell(row)}
+                              </td>
+                            );
+                          }
+
                           return (
                             <td 
                               key={col.id}
                               style={{ 
                                 textAlign: col.align,
+                                fontFamily: ['debit', 'credit', 'balance', 'posting_date', 'voucher_no'].includes(col.id) ? 'ui-monospace, monospace' : 'inherit',
+                                fontWeight: col.id === 'balance' ? 800 : 'inherit',
+                                color: col.id === 'balance' ? '#0f172a' : (col.id === 'debit' ? '#1d4ed8' : (col.id === 'credit' ? '#b91c1c' : '#334155')),
                                 width: col.width, 
-                                minWidth: col.width
+                                minWidth: col.width,
+                                maxWidth: col.width,
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap'
                               }}
+                              title={String(col.id === 'debit' && parseFloat(row.debit) === 0 ? '-' : col.id === 'credit' && parseFloat(row.credit) === 0 ? '-' : (cellValue ?? ''))}
                             >
-                              {renderVoucherNoCell(row)}
+                              {col.id === 'debit' && parseFloat(row.debit) === 0 ? '-' :
+                               col.id === 'credit' && parseFloat(row.credit) === 0 ? '-' :
+                               (cellValue ?? '-')}
                             </td>
                           );
-                        }
-
-                        return (
-                          <td 
-                            key={col.id}
-                            style={{ 
-                              textAlign: col.align,
-                              fontFamily: ['debit', 'credit', 'balance', 'posting_date', 'voucher_no'].includes(col.id) ? 'ui-monospace, monospace' : 'inherit',
-                              fontWeight: col.id === 'balance' ? 800 : 'inherit',
-                              color: col.id === 'balance' ? '#0f172a' : (col.id === 'debit' ? '#1d4ed8' : (col.id === 'credit' ? '#b91c1c' : '#334155')),
-                              width: col.width, 
-                              minWidth: col.width,
-                              maxWidth: col.width,
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                              whiteSpace: 'nowrap'
-                            }}
-                            title={String(col.id === 'debit' && parseFloat(row.debit) === 0 ? '-' : col.id === 'credit' && parseFloat(row.credit) === 0 ? '-' : (cellValue ?? ''))}
-                          >
-                            {col.id === 'debit' && parseFloat(row.debit) === 0 ? '-' :
-                             col.id === 'credit' && parseFloat(row.credit) === 0 ? '-' :
-                             (cellValue ?? '-')}
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  ))
+                        })}
+                      </tr>
+                    ));
+                  })()
                 )}
               </tbody>
               {data.length > 0 && (
@@ -651,6 +658,53 @@ function GeneralLedgerReport() {
               )}
             </table>
           </div>
+
+          {/* Table Footer / Pagination */}
+          {data.length > 0 && (() => {
+            const totalPages = pageSize === -1 ? 1 : (Math.ceil(data.length / pageSize) || 1);
+            return (
+              <div className="ssr-table-footer no-print" style={{ background: '#ffffff', borderTop: '1px solid #e2e8f0', padding: '0.85rem 1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
+                <div className="ssr-page-size-selector" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem', fontWeight: 600, color: '#64748b' }}>
+                  <select
+                    className="ssr-select-sm"
+                    value={pageSize}
+                    onChange={(e) => {
+                      setPageSize(Number(e.target.value));
+                      setCurrentPage(1);
+                    }}
+                    style={{ height: '32px', padding: '0 0.65rem', background: '#ffffff', border: '1.5px solid #e2e8f0', borderRadius: '8px', fontSize: '0.78rem', fontWeight: 700, color: '#1e293b', outline: 'none' }}
+                  >
+                    <option value={10}>10</option>
+                    <option value={25}>25</option>
+                    <option value={50}>50</option>
+                    <option value={100}>100</option>
+                    <option value={-1}>All</option>
+                  </select>
+                  <span>per page</span>
+                </div>
+
+                <div className="ssr-pagination" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                  <button
+                    className="ssr-page-btn"
+                    disabled={currentPage <= 1 || pageSize === -1}
+                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                    style={{ height: '32px', minWidth: '32px', padding: '0 0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1.5px solid #e2e8f0', borderRadius: '8px', background: '#ffffff', fontSize: '0.8rem', fontWeight: 700, color: '#475569', cursor: (currentPage <= 1 || pageSize === -1) ? 'not-allowed' : 'pointer', opacity: (currentPage <= 1 || pageSize === -1) ? 0.4 : 1 }}
+                  >
+                    <ChevronLeft size={16} />
+                  </button>
+                  <span className="ssr-page-btn active" style={{ height: '32px', minWidth: '32px', padding: '0 0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '8px', background: '#2563eb', color: '#ffffff', fontSize: '0.8rem', fontWeight: 700 }}>{currentPage}</span>
+                  <button
+                    className="ssr-page-btn"
+                    disabled={currentPage >= totalPages || pageSize === -1}
+                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                    style={{ height: '32px', minWidth: '32px', padding: '0 0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1.5px solid #e2e8f0', borderRadius: '8px', background: '#ffffff', fontSize: '0.8rem', fontWeight: 700, color: '#475569', cursor: (currentPage >= totalPages || pageSize === -1) ? 'not-allowed' : 'pointer', opacity: (currentPage >= totalPages || pageSize === -1) ? 0.4 : 1 }}
+                  >
+                    <ChevronRight size={16} />
+                  </button>
+                </div>
+              </div>
+            );
+          })()}
         </div>
 
       </main>
