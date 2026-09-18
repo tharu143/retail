@@ -1037,11 +1037,19 @@ function PurchaseOrder() {
           }
         } else {
           // Item does not exist, add it to the current row
-          const isBox = (item.scanned_uom || item.uom || '').toLowerCase() === 'box';
-          const piecesPerBox = parseFloat(item.custom_pieces_per_box || 12);
+          const rawUom = String(item.scanned_uom || item.uom || item.stock_uom || 'Nos').trim();
+          const normUom = rawUom.toLowerCase();
+          const isMasterBox = normUom === 'master box';
+          const isBox = normUom === 'box';
+          const isBoxOrMb = isMasterBox || isBox;
+          const piecesPerBox = parseFloat(item.custom_pcs_per_box || item.custom_pieces_per_box || 1) || 1;
+          const boxesPerMb = parseFloat(item.custom_boxes_per_master_box || item.boxes_per_master_box || 1) || 1;
           const baseRate = parseFloat(item.last_buying_rate || item.rate || 0);
+          const selectedUom = isMasterBox ? 'Master Box' : (isBox ? 'Box' : (item.stock_uom || rawUom || 'Nos'));
           const boxQty = 1;
-          const totalPieces = isBox ? (boxQty * piecesPerBox) : 1;
+          const totalPieces = isMasterBox
+            ? Math.round(boxQty * boxesPerMb * piecesPerBox)
+            : (isBox ? (boxQty * piecesPerBox) : 1);
           const totalAmount = totalPieces * baseRate;
 
           items[rowIndex] = {
@@ -1049,18 +1057,26 @@ function PurchaseOrder() {
             item_code: item.item_code,
             item_name: item.item_name,
             stock_uom: item.stock_uom || 'Nos',
-            uom: isBox ? 'Box' : (item.stock_uom || 'Nos'),
+            uom: selectedUom,
+            base_nos_rate: baseRate,
             rate: baseRate,
             last_buying_rate: baseRate,
             qty: totalPieces,
             amount: totalAmount,
             custom_pieces_per_box: piecesPerBox,
+            default_pieces_per_box: piecesPerBox,
+            custom_boxes_per_master_box: boxesPerMb,
+            default_boxes_per_master_box: boxesPerMb,
             custom_box_price: baseRate * piecesPerBox,
-            custom_box_qty: isBox ? boxQty : (piecesPerBox > 0 ? 1 / piecesPerBox : 1),
-            use_box_entry: isBox,
+            custom_master_box_price: baseRate * piecesPerBox * boxesPerMb,
+            custom_box_qty: isBoxOrMb ? boxQty : (piecesPerBox > 0 ? 1 / piecesPerBox : 1),
+            use_box_entry: isBoxOrMb,
             custom_supplier_sl_num: item.custom_supplier_sl_num || item.supplier_part_no || '',
             supplier_part_no: item.supplier_part_no || item.custom_supplier_sl_num || '',
-            temp_barcode: barcode
+            temp_barcode: barcode,
+            barcode: barcode,
+            barcodes: item.barcodes || item.barcode_details || [],
+            barcode_details: item.barcode_details || item.barcodes || []
           };
         }
         // Add new empty row if all existing rows are filled
@@ -1544,31 +1560,125 @@ function PurchaseOrder() {
   };
 
   // Called when user changes UOM dropdown for a row
-  const handleUOMChange = (uomValue, rowIndex) => {
+  const handleUOMChange = async (uomValue, rowIndex) => {
+    const safeUom = String(uomValue || 'Nos');
+    const normUom = safeUom.toLowerCase();
+    const isMasterBox = normUom === 'master box';
+    const isBox = normUom === 'box';
+
     setFormData(prev => {
       const items = [...prev.items];
+      if (!items[rowIndex]) return prev;
       const item = { ...items[rowIndex] };
-      const isBox = uomValue.toLowerCase() === 'box';
-      item.uom = uomValue;
-      item.use_box_entry = isBox;
 
-      if (isBox) {
-        // Box mode: qty = box_qty × pcs_per_box
-        const pPerBox = parseFloat(item.default_pieces_per_box || item.custom_pieces_per_box) || 1;
-        item.custom_pieces_per_box = pPerBox;
-        item.qty = parseFloat(((item.custom_box_qty || 1) * pPerBox).toFixed(2));
-        item.custom_box_price = parseFloat(((item.rate || 0) * pPerBox).toFixed(2));
-      } else {
-        // Nos mode: box_qty IS the qty, pcs_per_box not relevant
-        item.custom_pieces_per_box = 1;
-        item.qty = parseFloat(item.custom_box_qty) || 0;
-        item.custom_box_price = item.rate || 0;
+      item.uom = isMasterBox ? 'Master Box' : (isBox ? 'Box' : 'Nos');
+      item.use_box_entry = isBox || isMasterBox;
+
+      const pPerBox = parseFloat(item.default_pieces_per_box || item.custom_pieces_per_box) || 1;
+      const bPerMB = parseFloat(item.default_boxes_per_master_box || item.custom_boxes_per_master_box) || 1;
+      const totalPcsInMB = bPerMB * pPerBox;
+      item.custom_pieces_per_box = pPerBox;
+      item.custom_boxes_per_master_box = bPerMB;
+
+      // Dynamically select the barcode matching this UOM
+      const bcList = item.barcode_details || item.barcodes || [];
+      const matchingBc = Array.isArray(bcList) ? bcList.find(b => {
+        if (typeof b === 'object' && b !== null) {
+          return (b.uom || '').toLowerCase() === normUom;
+        }
+        return false;
+      }) : null;
+      if (matchingBc && matchingBc.barcode) {
+        item.temp_barcode = matchingBc.barcode;
+        item.barcode = matchingBc.barcode;
+        item.scanned_barcode = matchingBc.barcode;
       }
-      item.amount = (item.qty || 0) * (item.rate || 0);
+
+      const baseRate = parseFloat(item.base_nos_rate || (item.use_box_entry ? (parseFloat(item.custom_box_price) / pPerBox) : item.rate) || item.rate) || 0;
+      item.base_nos_rate = baseRate;
+
+      let currentRate = baseRate;
+      if (isMasterBox) {
+        item.custom_box_qty = item.custom_box_qty || 1;
+        item.qty = Math.round((parseFloat(item.custom_box_qty) || 1) * totalPcsInMB);
+        const mbPrice = parseFloat(item.custom_master_box_price) > 0 ? parseFloat(item.custom_master_box_price) : (baseRate * totalPcsInMB);
+        item.custom_master_box_price = mbPrice;
+        currentRate = totalPcsInMB > 0 ? (mbPrice / totalPcsInMB) : baseRate;
+        item.rate = currentRate;
+      } else if (isBox) {
+        item.custom_box_qty = item.custom_box_qty || 1;
+        item.qty = Math.round((parseFloat(item.custom_box_qty) || 1) * pPerBox);
+        const bPrice = parseFloat(item.custom_box_price) > 0 ? parseFloat(item.custom_box_price) : (baseRate * pPerBox);
+        item.custom_box_price = bPrice;
+        currentRate = pPerBox > 0 ? (bPrice / pPerBox) : baseRate;
+        item.rate = currentRate;
+      } else {
+        item.qty = parseFloat(item.custom_box_qty) || 1;
+        item.custom_box_qty = 1;
+        currentRate = baseRate;
+        item.rate = currentRate;
+      }
+
+      item.amount = (parseFloat(item.qty) * currentRate).toFixed(2);
       items[rowIndex] = item;
       const totals = calculateTotals(items, prev.taxes);
       return { ...prev, items, ...totals };
     });
+
+    // Fetch exact price list rate and barcodes for the newly selected UOM
+    try {
+      const targetItem = formData.items?.[rowIndex];
+      if (targetItem?.item_code) {
+        const selectedUomParam = isMasterBox ? 'Master Box' : (isBox ? 'Box' : 'Nos');
+        const res = await axios.get(`${API_PATH}.get_item_buying_rate`, {
+          params: {
+            item_code: targetItem.item_code,
+            warehouse: formData.set_warehouse || warehouse || undefined,
+            uom: selectedUomParam
+          },
+          withCredentials: true
+        });
+        if (res.data?.message) {
+          const d = res.data.message;
+          const buyingRate = parseFloat(d.rate) || 0;
+          const boxBuyingPrice = parseFloat(d.box_price) || 0;
+          const masterBoxBuyingPrice = parseFloat(d.master_box_price) || 0;
+          const newBcList = d.barcode_details || d.barcodes || [];
+
+          setFormData(currentForm => {
+            const items = [...currentForm.items];
+            if (items[rowIndex] && items[rowIndex].item_code === targetItem.item_code) {
+              const cur = { ...items[rowIndex] };
+              if (buyingRate > 0) cur.base_nos_rate = buyingRate;
+              if (buyingRate > 0) cur.rate = buyingRate;
+              if (boxBuyingPrice > 0) cur.custom_box_price = boxBuyingPrice;
+              if (masterBoxBuyingPrice > 0) cur.custom_master_box_price = masterBoxBuyingPrice;
+              if (Array.isArray(newBcList) && newBcList.length > 0) {
+                cur.barcode_details = newBcList;
+                cur.barcodes = newBcList;
+                const matchingBc = newBcList.find(b => {
+                  if (typeof b === 'object' && b !== null) {
+                    return (b.uom || '').toLowerCase() === normUom;
+                  }
+                  return false;
+                });
+                if (matchingBc && matchingBc.barcode) {
+                  cur.temp_barcode = matchingBc.barcode;
+                  cur.barcode = matchingBc.barcode;
+                  cur.scanned_barcode = matchingBc.barcode;
+                }
+              }
+              cur.amount = (parseFloat(cur.qty || 1) * (parseFloat(cur.rate) || buyingRate)).toFixed(2);
+              items[rowIndex] = cur;
+            }
+            const totals = calculateTotals(items, currentForm.taxes);
+            return { ...currentForm, items, ...totals };
+          });
+        }
+      }
+    } catch (e) {
+      // Keep local calculation
+    }
   };
 
   const handleInputChange = (e, rowIndex = null) => {
@@ -2494,12 +2604,23 @@ function PurchaseOrder() {
           }
         }
       } else {
-        const isBox = (item.scanned_uom || item.uom || '').toLowerCase() === 'box';
-        const pPerBox = parseFloat(item.custom_pieces_per_box || 1);
+        const rawUom = String(item.scanned_uom || item.uom || item.stock_uom || 'Nos').trim();
+        const normUom = rawUom.toLowerCase();
+        const isMasterBox = normUom === 'master box';
+        const isBox = normUom === 'box';
+        const isBoxOrMb = isMasterBox || isBox;
+        const pPerBox = parseFloat(item.custom_pcs_per_box || item.custom_pieces_per_box || 1) || 1;
+        const boxesPerMb = parseFloat(item.custom_boxes_per_master_box || item.boxes_per_master_box || 1) || 1;
+        const selectedUom = isMasterBox ? 'Master Box' : (isBox ? 'Box' : (item.stock_uom || rawUom || 'Nos'));
         const uomList = item.uom_list || [];
         const defaultBoxPrice = parseFloat(item.custom_box_price || (rate * pPerBox) || 0);
+        const defaultMasterBoxPrice = parseFloat(item.custom_master_box_price || (rate * pPerBox * boxesPerMb) || 0);
         const sellNos = parseFloat(item.custom_selling_price || item.selling_price || 0);
         const sellBox = parseFloat(item.custom_selling_price_box || item.custom_box_selling_price || (sellNos * pPerBox) || 0);
+        const sellMasterBox = parseFloat(item.custom_master_box_selling_price || (sellNos * pPerBox * boxesPerMb) || 0);
+        const itemQty = isMasterBox
+          ? Math.round(boxesPerMb * pPerBox)
+          : (isBox ? pPerBox : 1);
 
         const targetRow = (rowIndex !== undefined && rowIndex >= 0 && rowIndex < items.length) 
           ? items[rowIndex] 
@@ -2510,23 +2631,31 @@ function PurchaseOrder() {
           item_code: item.item_code,
           item_name: item.item_name,
           stock_uom: item.stock_uom || 'Nos',
-          uom: isBox ? 'Box' : (item.stock_uom || 'Nos'),
+          uom: selectedUom,
           uom_list: uomList,
-          use_box_entry: isBox, // auto switch if scanned Box barcode
+          use_box_entry: isBoxOrMb,
+          base_nos_rate: rate,
           rate: rate,
           last_buying_rate: rate,
           custom_pieces_per_box: pPerBox,
           default_pieces_per_box: pPerBox,
-          qty: isBox ? pPerBox : 1,
-          amount: isBox ? (rate * pPerBox) : rate,
+          custom_boxes_per_master_box: boxesPerMb,
+          default_boxes_per_master_box: boxesPerMb,
+          qty: itemQty,
+          amount: isMasterBox ? (rate * boxesPerMb * pPerBox) : (isBox ? (rate * pPerBox) : rate),
           custom_box_price: defaultBoxPrice,
+          custom_master_box_price: defaultMasterBoxPrice,
           custom_box_qty: 1,
-          temp_barcode: '',
+          temp_barcode: item.barcode || item.scanned_barcode || '',
+          barcode: item.barcode || item.scanned_barcode || '',
+          barcodes: item.barcodes || item.barcode_details || [],
+          barcode_details: item.barcode_details || item.barcodes || [],
           schedule_date: targetRow.schedule_date || prev.transaction_date,
           custom_supplier_sl_num: item.custom_supplier_sl_num || item.supplier_part_no || '',
           supplier_part_no: item.supplier_part_no || item.custom_supplier_sl_num || '',
           custom_selling_price: sellNos,
-          custom_selling_price_box: sellBox
+          custom_selling_price_box: sellBox,
+          custom_master_box_selling_price: sellMasterBox
         };
 
         if (rowIndex !== undefined && rowIndex >= 0 && rowIndex < items.length) {
@@ -2869,6 +2998,7 @@ function PurchaseOrder() {
                               >
                                 <option value="Nos">Nos</option>
                                 <option value="Box">Box (pcs)</option>
+                                <option value="Master Box">Master Box</option>
                               </select>
                             </td>
                           );
@@ -4638,12 +4768,14 @@ function PurchaseOrder() {
                                                   candidates.push(item.uom || 'Nos');
                                                   candidates.push('Nos');
                                                   candidates.push('Box');
+                                                  candidates.push('Master Box');
 
                                                   candidates.forEach(u => {
                                                     const norm = u.trim().toLowerCase();
                                                     let display = u.trim();
                                                     if (norm === 'box') display = 'Box';
                                                     else if (norm === 'nos') display = 'Nos';
+                                                    else if (norm === 'master box') display = 'Master Box';
 
                                                     if (!seen.has(norm)) {
                                                       seen.add(norm);

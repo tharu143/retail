@@ -46,6 +46,7 @@ import PurchaseReceiptList from './PurchaseReceiptList';
 import PurchaseInvoiceList from './PurchaseInvoiceList';
 import PurchaseReturnList from './PurchaseReturnList';
 import CustomerList from './CustomerList';
+import QuotationList from './QuotationList';
 import SalesOrderList from './SalesOrderList';
 import SalesInvoiceList from './SalesInvoiceList';
 import DeliveryNoteList from './DeliveryNoteList';
@@ -98,6 +99,7 @@ const routeMap = {
 
   // Sales
   'Customer': { icon: UserCheck },
+  'Quotation': { icon: FileText },
   'Sales Order': { icon: PackageCheck },
   'Sales Invoice': { icon: Receipt },
   'Delivery Note': { icon: Truck },
@@ -265,7 +267,7 @@ function Dashboard() {
       icon: TrendingUp,
       colorClass: 'icon-sales',
       cardClass: 'card-sales',
-      items: ['Customer', 'Sales Order', 'Sales Invoice', 'Delivery Note', 'Sales Return'],
+      items: ['Customer', 'Quotation', 'Sales Order', 'Sales Invoice', 'Delivery Note', 'Sales Return'],
     },
     {
       title: 'Stock Management',
@@ -321,6 +323,8 @@ function Dashboard() {
         return <PurchaseReturnList />;
       case 'Customer':
         return <CustomerList />;
+      case 'Quotation':
+        return <QuotationList />;
       case 'Sales Order':
         return <SalesOrderList />;
       case 'Sales Invoice':

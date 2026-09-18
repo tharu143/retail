@@ -3185,12 +3185,18 @@ function Home() {
                     handleOutOfStockAlert(item);
                     return prev;
                 }
-                const pcsPerBox = item.custom_pieces_per_box || 12;
+                const pcsPerBox = parseFloat(item.custom_pieces_per_box || 1) || 1;
+                const boxesPerMb = parseFloat(item.custom_boxes_per_master_box || 1) || 1;
                 const baseNosPrice = item.prices?.['Nos'] || item.prices?.['Piece'] || item.price || 0;
                 const hasValidBoxPrice = item.prices?.['Box'] && Number(item.prices['Box']) > baseNosPrice;
-                const calcPrice = selectedUom === 'Box' 
-                    ? (hasValidBoxPrice ? Number(item.prices['Box']) : (baseNosPrice * pcsPerBox)) 
-                    : baseNosPrice;
+                const hasValidMasterBoxPrice = item.prices?.['Master Box'] && Number(item.prices['Master Box']) > baseNosPrice;
+
+                let calcPrice = baseNosPrice;
+                if (selectedUom === 'Master Box') {
+                    calcPrice = hasValidMasterBoxPrice ? Number(item.prices['Master Box']) : (baseNosPrice * pcsPerBox * boxesPerMb);
+                } else if (selectedUom === 'Box') {
+                    calcPrice = hasValidBoxPrice ? Number(item.prices['Box']) : (baseNosPrice * pcsPerBox);
+                }
 
                 const newItem = {
                     ...item,
@@ -3199,6 +3205,7 @@ function Home() {
                     price: calcPrice,
                     base_unit_price: baseNosPrice,
                     custom_pieces_per_box: pcsPerBox,
+                    custom_boxes_per_master_box: boxesPerMb,
                     is_tax_inclusive: true // Default to inclusive for retail
                 };
                 setSelectedBillIndex(prev.length);
@@ -3272,14 +3279,20 @@ function Home() {
             if (apiItem) {
                 const scannedBarcodeStr = barcode.trim();
                 const matchedBarcode = (apiItem.barcodes || []).find(b => b.barcode === scannedBarcodeStr);
-                const scannedUom = matchedBarcode?.uom === 'Box' ? 'Box' : 'Nos';
+                const rawUom = matchedBarcode?.uom || apiItem.scanned_uom || apiItem.uom || apiItem.stock_uom || 'Nos';
+                const normUom = rawUom.toLowerCase();
+                const scannedUom = normUom === 'master box' ? 'Master Box' : (normUom === 'box' ? 'Box' : rawUom);
 
                 const pendingInvoices = await db.invoices.where('is_synced').equals(0).toArray();
                 let pendingQty = 0;
                 pendingInvoices.forEach(inv => {
                     (inv.items || []).forEach(it => {
                         if (it.item_code === apiItem.name) {
-                            const qtyPieces = it.uom === 'Box' ? it.qty * (it.custom_pieces_per_box || 1) : it.qty;
+                            const pcsPerBox = parseFloat(it.custom_pieces_per_box || 1) || 1;
+                            const boxesPerMb = parseFloat(it.custom_boxes_per_master_box || 1) || 1;
+                            const qtyPieces = it.uom === 'Master Box'
+                                ? it.qty * pcsPerBox * boxesPerMb
+                                : (it.uom === 'Box' ? it.qty * pcsPerBox : it.qty);
                             pendingQty += qtyPieces;
                         }
                     });
@@ -3292,7 +3305,8 @@ function Home() {
                     actual_qty: apiItem.actual_qty || 0,
                     local_qty: (apiItem.actual_qty || 0) - pendingQty,
                     warehouse_details: apiItem.warehouse_details || [],
-                    custom_pieces_per_box: apiItem.pcs_per_box || apiItem.custom_pieces_per_box || 12,
+                    custom_pieces_per_box: parseFloat(apiItem.pcs_per_box || apiItem.custom_pieces_per_box || 1) || 1,
+                    custom_boxes_per_master_box: parseFloat(apiItem.custom_boxes_per_master_box || apiItem.boxes_per_master_box || 1) || 1,
                     prices: apiItem.prices || {},
                     barcodes: apiItem.barcodes || [],
                     uom_conversions: apiItem.uom_conversions || {},
@@ -3336,7 +3350,11 @@ function Home() {
                 );
 
                 if (foundLocal) {
-                    handleAddToBill(foundLocal);
+                    const matchedBc = (foundLocal.barcodes || []).find(b => (b.barcode || '').toLowerCase() === barcode.trim().toLowerCase());
+                    const rawUom = matchedBc?.uom || (foundLocal.uom_conversions?.Nos ? 'Nos' : 'Nos');
+                    const normUom = rawUom.toLowerCase();
+                    const localUom = normUom === 'master box' ? 'Master Box' : (normUom === 'box' ? 'Box' : rawUom);
+                    handleAddToBill(foundLocal, localUom);
                     setBarcodeInput('');
                 } else {
                     // Tier 3: Global Discovery Fallback
@@ -3920,8 +3938,15 @@ function Home() {
         setBillItems(prev => prev.map((item, index) => {
             const matches = targetIndex !== null ? index === targetIndex : item.id === id;
             if (matches) {
+                const ppb = parseFloat(item.custom_pieces_per_box) || 1;
+                const bpm = parseFloat(item.custom_boxes_per_master_box) || 1;
+                const totalMbPcs = ppb * bpm;
+                const normUom = (newUom || '').toLowerCase();
+                const isMasterBox = normUom === 'master box';
+                const isBox = normUom === 'box';
+
                 // --- Stock Verification ---
-                const factor = newUom === 'Box' ? (item.custom_pieces_per_box || 1) : 1;
+                const factor = isMasterBox ? totalMbPcs : (isBox ? ppb : 1);
                 const totalPiecesNeeded = item.qty * factor;
 
                 if (totalPiecesNeeded > item.local_qty) {
@@ -3930,12 +3955,29 @@ function Home() {
                 }
 
                 // Standard UOM toggle logic - set price based on UOM or keep base price
-                const originalSinglePrice = item.base_unit_price || item.prices?.Piece || item.prices?.Nos || (item.uom === 'Box' ? (item.price / (item.custom_pieces_per_box || 1)) : item.price);
-                const hasValidBoxPrice = item.prices?.Box && item.prices.Box > originalSinglePrice;
-                const newPrice = newUom === 'Box'
-                    ? (hasValidBoxPrice ? item.prices.Box : (originalSinglePrice * (item.custom_pieces_per_box || 1)))
-                    : (item.prices?.[newUom] || originalSinglePrice);
-                return { ...item, uom: newUom, price: newPrice };
+                const originalSinglePrice = item.base_unit_price || item.prices?.Piece || item.prices?.Nos || (item.uom === 'Box' ? (item.price / ppb) : (item.uom === 'Master Box' ? (item.price / totalMbPcs) : item.price));
+                const hasValidBoxPrice = item.prices?.Box && item.prices.Box > 0;
+                const hasValidMasterBoxPrice = (item.prices?.['Master Box'] || item.custom_master_box_price || item.custom_master_box_selling_price) > 0;
+
+                let newPrice = originalSinglePrice;
+                let actualUomName = 'Nos';
+
+                if (isMasterBox) {
+                    actualUomName = 'Master Box';
+                    newPrice = hasValidMasterBoxPrice
+                        ? parseFloat(item.prices?.['Master Box'] || item.custom_master_box_price || item.custom_master_box_selling_price)
+                        : (originalSinglePrice * totalMbPcs);
+                } else if (isBox) {
+                    actualUomName = 'Box';
+                    newPrice = hasValidBoxPrice
+                        ? parseFloat(item.prices.Box)
+                        : (originalSinglePrice * ppb);
+                } else {
+                    actualUomName = item.stock_uom || (item.uom_conversions?.Nos ? 'Nos' : 'Piece');
+                    newPrice = item.prices?.[actualUomName] || originalSinglePrice;
+                }
+
+                return { ...item, uom: actualUomName, price: newPrice, base_unit_price: originalSinglePrice };
             }
             return item;
         }));
@@ -3946,10 +3988,17 @@ function Home() {
             e.preventDefault();
             const activeItem = billItems.find(it => it.id === itemId);
             if (activeItem) {
-                const nextUom = (activeItem.uom === 'Box' || activeItem.uom === 'BOX')
-                    ? (activeItem.stock_uom || (activeItem.uom_conversions?.Nos ? 'Nos' : 'Piece') || 'Piece')
-                    : 'Box';
-                if (nextUom === 'Box' && !activeItem.custom_pieces_per_box) return;
+                const curUom = (activeItem.uom || '').toLowerCase();
+                const hasBox = (activeItem.custom_pieces_per_box || 0) > 1;
+                const hasMb = (activeItem.custom_boxes_per_master_box || 0) > 1;
+                let nextUom = 'Nos';
+                if (curUom === 'nos' || curUom === 'piece') {
+                    nextUom = hasBox ? 'Box' : (hasMb ? 'Master Box' : 'Nos');
+                } else if (curUom === 'box') {
+                    nextUom = hasMb ? 'Master Box' : 'Nos';
+                } else {
+                    nextUom = 'Nos';
+                }
                 toggleUom(itemId, nextUom);
             }
         }
@@ -8500,10 +8549,42 @@ function Home() {
                 e.preventDefault();
                 if (selectedBillIndex !== -1) {
                     const item = billItems[selectedBillIndex];
-                    const newUom = item.uom === 'Box' ? (item.uom_conversions?.Nos ? 'Nos' : 'Piece') : 'Box';
-                    toggleUom(item.id, newUom);
+                    const curUom = (item.uom || '').toLowerCase();
+                    const hasBox = (item.custom_pieces_per_box || 0) > 1;
+                    const hasMb = (item.custom_boxes_per_master_box || 0) > 1;
+                    let nextUom = 'Nos';
+                    if (curUom === 'nos' || curUom === 'piece') {
+                        nextUom = hasBox ? 'Box' : (hasMb ? 'Master Box' : 'Nos');
+                    } else if (curUom === 'box') {
+                        nextUom = hasMb ? 'Master Box' : 'Nos';
+                    } else {
+                        nextUom = 'Nos';
+                    }
+                    toggleUom(item.id, nextUom);
                 } else {
                     Swal.fire('Info', 'Select an item in cart first', 'info');
+                }
+            }
+
+            // Set Master Box UOM Directly (Ctrl+M / Cmd+M / Option+M)
+            const isCtrlOrCmdM = (e.ctrlKey || e.metaKey || (isMac && e.altKey)) && (e.key.toLowerCase() === 'm' || e.code === 'KeyM');
+            if (isShortcutPressed(e, 'pos_home', 'masterBoxUom', 'Ctrl+M') || isCtrlOrCmdM || e.key === 'µ') {
+                e.preventDefault();
+                e.stopPropagation();
+                if (selectedBillIndex !== -1) {
+                    const item = billItems[selectedBillIndex];
+                    if (item.custom_boxes_per_master_box && item.custom_boxes_per_master_box > 1) {
+                        const targetUom = item.uom === 'Master Box' ? (item.stock_uom || (item.uom_conversions?.Nos ? 'Nos' : 'Piece') || 'Piece') : 'Master Box';
+                        toggleUom(item.id, targetUom);
+                        const totalMbPcs = (parseFloat(item.custom_boxes_per_master_box) || 1) * (parseFloat(item.custom_pieces_per_box) || 1);
+                        const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 1200 });
+                        Toast.fire({ icon: 'success', title: `UOM: ${targetUom} (${targetUom === 'Master Box' ? `${totalMbPcs} Pcs` : '1 Pc'})` });
+                    } else {
+                        const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 1500 });
+                        Toast.fire({ icon: 'warning', title: `Master Box packaging not configured for this item` });
+                    }
+                } else {
+                    Swal.fire('Info', 'Select an item in cart first (Press ↑ / ↓)', 'info');
                 }
             }
 
@@ -8523,6 +8604,22 @@ function Home() {
                         const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 1500 });
                         Toast.fire({ icon: 'warning', title: `Box packaging not configured for this item` });
                     }
+                } else {
+                    Swal.fire('Info', 'Select an item in cart first (Press ↑ / ↓)', 'info');
+                }
+            }
+
+            // Set Nos / Piece UOM Directly (Ctrl+N / Cmd+N / Option+N)
+            const isCtrlOrCmdN = (e.ctrlKey || e.metaKey || (isMac && e.altKey)) && (e.key.toLowerCase() === 'n' || e.code === 'KeyN');
+            if (isShortcutPressed(e, 'pos_home', 'nosUom', 'Ctrl+N') || isCtrlOrCmdN) {
+                e.preventDefault();
+                e.stopPropagation();
+                if (selectedBillIndex !== -1) {
+                    const item = billItems[selectedBillIndex];
+                    const targetUom = item.stock_uom || (item.uom_conversions?.Nos ? 'Nos' : 'Piece') || 'Piece';
+                    toggleUom(item.id, targetUom);
+                    const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 1200 });
+                    Toast.fire({ icon: 'success', title: `UOM: ${targetUom} (1 Pc)` });
                 } else {
                     Swal.fire('Info', 'Select an item in cart first (Press ↑ / ↓)', 'info');
                 }
@@ -10273,16 +10370,26 @@ function Home() {
                                                                         const targetUom = item.stock_uom || (item.uom_conversions?.Nos ? 'Nos' : 'Piece');
                                                                         toggleUom(item.id, targetUom);
                                                                     }}
-                                                                    className={`px-1 py-0 text-[8px] font-black transition-all ${item.uom === 'Piece' || item.uom === 'Nos' || (item.uom !== 'Box' && item.uom !== 'BOX') ? (isGreen ? 'bg-emerald-500 text-white' : 'bg-sky-500 text-white') : 'bg-white text-slate-400 hover:bg-slate-50'}`}
+                                                                    className={`px-1 py-0 text-[8px] font-black transition-all ${item.uom === 'Piece' || item.uom === 'Nos' || (item.uom !== 'Box' && item.uom !== 'BOX' && item.uom !== 'Master Box') ? (isGreen ? 'bg-emerald-500 text-white' : 'bg-sky-500 text-white') : 'bg-white text-slate-400 hover:bg-slate-50'}`}
                                                                 >
                                                                     PC
-                                                                </button>                                                                {item.custom_pieces_per_box > 1 && (
+                                                                </button>
+                                                                {item.custom_pieces_per_box > 1 && (
                                                                     <button
                                                                         onKeyDown={(e) => handleUomBtnKeyDown(e, item.id)}
                                                                         onClick={() => toggleUom(item.id, 'Box')}
                                                                         className={`px-1 py-0 text-[8px] font-black transition-all ${item.uom === 'Box' || item.uom === 'BOX' ? (isGreen ? 'bg-emerald-500 text-white' : 'bg-sky-500 text-white') : 'bg-white text-slate-400 hover:bg-slate-50'}`}
                                                                     >
                                                                         BOX
+                                                                    </button>
+                                                                )}
+                                                                {item.custom_boxes_per_master_box > 1 && (
+                                                                    <button
+                                                                        onKeyDown={(e) => handleUomBtnKeyDown(e, item.id)}
+                                                                        onClick={() => toggleUom(item.id, 'Master Box')}
+                                                                        className={`px-1 py-0 text-[8px] font-black transition-all ${item.uom === 'Master Box' ? (isGreen ? 'bg-emerald-500 text-white' : 'bg-purple-600 text-white') : 'bg-white text-slate-400 hover:bg-slate-50'}`}
+                                                                    >
+                                                                        MB
                                                                     </button>
                                                                 )}
                                                             </div>
@@ -11060,12 +11167,15 @@ function Home() {
                                                         <select
                                                             value={item.uom || 'Nos'}
                                                             onChange={e => toggleUom(item.id, e.target.value, idx)}
-                                                            disabled={item.is_print_job || item.is_bundle || (item.id && (item.id.includes('BUNDLE') || item.id.includes('COMBO'))) || !item.custom_pieces_per_box || item.custom_pieces_per_box <= 1}
+                                                            disabled={item.is_print_job || item.is_bundle || (item.id && (item.id.includes('BUNDLE') || item.id.includes('COMBO'))) || ((!item.custom_pieces_per_box || item.custom_pieces_per_box <= 1) && (!item.custom_boxes_per_master_box || item.custom_boxes_per_master_box <= 1))}
                                                             className="w-full h-full bg-slate-50 font-black text-[12px] text-center text-slate-700 border-none outline-none focus:bg-sky-200/70 cursor-pointer hover:bg-slate-100 transition-colors disabled:cursor-default"
                                                         >
                                                             <option value="Nos">Nos</option>
                                                             {item.custom_pieces_per_box > 1 && !(item.is_print_job || item.is_bundle || (item.id && (item.id.includes('BUNDLE') || item.id.includes('COMBO')))) && (
                                                                 <option value="Box">Box ({item.custom_pieces_per_box})</option>
+                                                            )}
+                                                            {item.custom_boxes_per_master_box > 1 && !(item.is_print_job || item.is_bundle || (item.id && (item.id.includes('BUNDLE') || item.id.includes('COMBO')))) && (
+                                                                <option value="Master Box">Master Box ({(parseFloat(item.custom_boxes_per_master_box) || 1) * (parseFloat(item.custom_pieces_per_box) || 1)})</option>
                                                             )}
                                                         </select>
                                                     </td>
@@ -11952,11 +12062,16 @@ function Home() {
                                                             <button className="home-bill-remove-btn" onClick={e => { e.stopPropagation(); removeFromBill(item.id); }}><X size={14} /></button>
                                                         </div>
                                                     </div>
-                                                    {/* PIECE VS BOX TOGGLE */}
-                                                    {!(item.is_print_job || item.is_bundle || (item.id && (item.id.includes('BUNDLE') || item.id.includes('COMBO')))) && item.custom_pieces_per_box > 1 && (
+                                                    {/* PIECE VS BOX VS MASTER BOX TOGGLE */}
+                                                    {!(item.is_print_job || item.is_bundle || (item.id && (item.id.includes('BUNDLE') || item.id.includes('COMBO')))) && (item.custom_pieces_per_box > 1 || item.custom_boxes_per_master_box > 1) && (
                                                         <div style={{ display: 'flex', gap: '4px' }}>
                                                             <button onKeyDown={(e) => handleUomBtnKeyDown(e, item.id)} onClick={() => toggleUom(item.id, item.uom_conversions?.Nos ? 'Nos' : 'Piece')} style={{ flex: 1, padding: '4px', fontSize: '11px', fontWeight: 700, borderRadius: '6px', border: '1px solid #3b82f6', background: (item.uom === 'Piece' || item.uom === 'Nos') ? '#3b82f6' : '#fff', color: (item.uom === 'Piece' || item.uom === 'Nos') ? '#fff' : '#3b82f6' }}>Piece</button>
-                                                            <button onKeyDown={(e) => handleUomBtnKeyDown(e, item.id)} onClick={() => toggleUom(item.id, 'Box')} disabled={!item.custom_pieces_per_box || item.custom_pieces_per_box <= 1} style={{ flex: 1, padding: '4px', fontSize: '11px', fontWeight: 700, borderRadius: '6px', border: '1px solid #8b5cf6', background: item.uom === 'Box' ? '#8b5cf6' : '#fff', color: item.uom === 'Box' ? '#fff' : '#8b5cf6', opacity: (!item.custom_pieces_per_box || item.custom_pieces_per_box <= 1) ? 0.5 : 1 }}>Box ({item.custom_pieces_per_box || 1})</button>
+                                                            {item.custom_pieces_per_box > 1 && (
+                                                                <button onKeyDown={(e) => handleUomBtnKeyDown(e, item.id)} onClick={() => toggleUom(item.id, 'Box')} disabled={!item.custom_pieces_per_box || item.custom_pieces_per_box <= 1} style={{ flex: 1, padding: '4px', fontSize: '11px', fontWeight: 700, borderRadius: '6px', border: '1px solid #8b5cf6', background: item.uom === 'Box' ? '#8b5cf6' : '#fff', color: item.uom === 'Box' ? '#fff' : '#8b5cf6', opacity: (!item.custom_pieces_per_box || item.custom_pieces_per_box <= 1) ? 0.5 : 1 }}>Box ({item.custom_pieces_per_box || 1})</button>
+                                                            )}
+                                                            {item.custom_boxes_per_master_box > 1 && (
+                                                                <button onKeyDown={(e) => handleUomBtnKeyDown(e, item.id)} onClick={() => toggleUom(item.id, 'Master Box')} style={{ flex: 1, padding: '4px', fontSize: '11px', fontWeight: 700, borderRadius: '6px', border: '1px solid #7c3aed', background: item.uom === 'Master Box' ? '#7c3aed' : '#fff', color: item.uom === 'Master Box' ? '#fff' : '#7c3aed' }}>MB ({(parseFloat(item.custom_boxes_per_master_box) || 1) * (parseFloat(item.custom_pieces_per_box) || 1)})</button>
+                                                            )}
                                                         </div>
                                                     )}
                                                 </li>

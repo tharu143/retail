@@ -961,21 +961,32 @@ function PurchaseInvoiceList() {
 
         if (item && item.item_code) {
           setFormData(prev => {
-            let items = [...prev.items];
-            const isBoxScan = (item.scanned_uom || item.uom || '').toLowerCase() === 'box';
-            const pcsPerBox = parseFloat(item.custom_pcs_per_box || item.custom_pieces_per_box || 12);
+            const scannedUomStr = String(item.scanned_uom || item.uom || '').toLowerCase();
+            const isMasterBoxScan = scannedUomStr === 'master box';
+            const isBoxScan = scannedUomStr === 'box';
+            const isBoxOrMbScan = isMasterBoxScan || isBoxScan;
+            const pcsPerBox = parseFloat(item.custom_pcs_per_box || item.custom_pieces_per_box || 1) || 1;
+            const boxesPerMb = parseFloat(item.custom_boxes_per_master_box || 1) || 1;
 
             // Check if item already exists in table
             const existingIdx = items.findIndex(i =>
-              i.item_code === item.item_code && (isBoxScan ? i.use_box_entry : !i.use_box_entry)
+              i.item_code === item.item_code &&
+              (isMasterBoxScan
+                ? (i.uom || '').toLowerCase() === 'master box'
+                : isBoxScan
+                ? (i.uom || '').toLowerCase() === 'box'
+                : !i.use_box_entry)
             );
 
             if (existingIdx !== -1) {
               // Increment Qty for existing item
               const existing = { ...items[existingIdx] };
-              if (isBoxScan || existing.use_box_entry) {
+              if (isMasterBoxScan) {
                 existing.custom_box_qty = (parseFloat(existing.custom_box_qty) || 0) + 1;
-                existing.qty = existing.custom_box_qty * pcsPerBox;
+                existing.qty = Math.round(existing.custom_box_qty * boxesPerMb * pcsPerBox);
+              } else if (isBoxScan || existing.use_box_entry) {
+                existing.custom_box_qty = (parseFloat(existing.custom_box_qty) || 0) + 1;
+                existing.qty = Math.round(existing.custom_box_qty * pcsPerBox);
               } else {
                 existing.qty = (parseFloat(existing.qty) || 0) + 1;
                 if (pcsPerBox > 0) existing.custom_box_qty = existing.qty / pcsPerBox;
@@ -986,19 +997,29 @@ function PurchaseInvoiceList() {
               // Prepare new item row object
               const isBoxUom = isBoxScan || (item.stock_uom || '').toLowerCase() === 'box';
               const lastPurRate = parseFloat(item.last_purchase_rate || item.last_buying_rate || item.rate || 0);
+              const selectedUom = isMasterBoxScan ? 'Master Box' : (isBoxUom ? 'Box' : (item.stock_uom || 'Nos'));
+              const calcQty = isMasterBoxScan ? Math.round(boxesPerMb * pcsPerBox) : (isBoxUom ? Math.round(pcsPerBox) : 1);
+
               const newItemRow = {
                 item_code: item.item_code,
                 item_name: item.item_name,
-                uom: isBoxUom ? 'Box' : (item.stock_uom || 'Nos'),
-                qty: isBoxUom ? Math.round(pcsPerBox) : 1,
+                barcode: code,
+                scanned_barcode: code,
+                uom: selectedUom,
+                qty: calcQty,
                 rate: lastPurRate,
                 custom_selling_price: parseFloat(item.custom_selling_price || 0),
+                custom_box_selling_price: parseFloat(item.custom_box_selling_price || (parseFloat(item.custom_selling_price || 0) * pcsPerBox)),
+                custom_master_box_selling_price: parseFloat(item.custom_master_box_selling_price || (parseFloat(item.custom_selling_price || 0) * pcsPerBox * boxesPerMb)),
                 custom_pieces_per_box: pcsPerBox,
                 default_pieces_per_box: pcsPerBox,
-                custom_box_qty: isBoxUom ? 1 : (pcsPerBox > 0 ? 1 / pcsPerBox : 0),
-                custom_box_price: isBoxUom ? lastPurRate : (lastPurRate * pcsPerBox),
-                use_box_entry: isBoxUom,
-                amount: ((isBoxUom ? pcsPerBox : 1) * lastPurRate).toFixed(2),
+                custom_boxes_per_master_box: boxesPerMb,
+                default_boxes_per_master_box: boxesPerMb,
+                custom_box_qty: 1,
+                custom_box_price: (lastPurRate * pcsPerBox),
+                custom_master_box_price: (lastPurRate * pcsPerBox * boxesPerMb),
+                use_box_entry: isBoxOrMbScan,
+                amount: (calcQty * lastPurRate).toFixed(2),
                 last_purchase_rate: lastPurRate,
                 last_buying_rate: lastPurRate
               };
@@ -1422,7 +1443,7 @@ function PurchaseInvoiceList() {
             po_detail: i.po_detail || i.purchase_order_item || '',
             purchase_receipt: i.purchase_receipt || '',
             pr_detail: i.pr_detail || '',
-            use_box_entry: (i.uom || '').toLowerCase() === 'box'
+            use_box_entry: ['box', 'master box'].includes((i.uom || '').toLowerCase())
           })),
           total_qty: d.total_qty || 0,
           net_total: d.net_total || 0,
@@ -2091,55 +2112,150 @@ function PurchaseInvoiceList() {
   };
   const handleSupplierSelect = selectSupplier;
 
-  const handleUOMChange = (uomValue, rowIndex) => {
+  const handleUOMChange = async (uomValue, rowIndex) => {
+    const safeUom = String(uomValue || 'Nos');
+    const normUom = safeUom.toLowerCase();
+    const isMasterBox = normUom === 'master box';
+    const isBox = normUom === 'box';
+
     setFormData(prev => {
       let items = [...prev.items];
       if (rowIndex < 0 || rowIndex >= items.length) return prev;
       const item = { ...items[rowIndex] };
-      const safeUom = String(uomValue || 'Nos');
-      const normUom = safeUom.toLowerCase();
-      const isMasterBox = normUom === 'master box';
-      const isBox = normUom === 'box';
 
       item.uom = isMasterBox ? 'Master Box' : (isBox ? 'Box' : 'Nos');
       item.use_box_entry = isBox || isMasterBox;
 
-      const pPerBox = parseFloat(item.default_pieces_per_box || item.custom_pieces_per_box) || 12;
+      const pPerBox = parseFloat(item.default_pieces_per_box || item.custom_pieces_per_box) || 1;
       const bPerMB = parseFloat(item.default_boxes_per_master_box || item.custom_boxes_per_master_box) || 1;
+      const totalPcsInMB = bPerMB * pPerBox;
 
       item.custom_pieces_per_box = pPerBox;
       item.custom_boxes_per_master_box = bPerMB;
 
-      if (isMasterBox) {
-        item.custom_box_qty = 1;
-        item.qty = Math.round(1 * bPerMB * pPerBox);
-      } else if (isBox) {
-        item.custom_box_qty = 1;
-        item.qty = pPerBox; // 1 Box = pPerBox Nos
-      } else {
-        item.qty = 1; // 1 Nos
-        item.custom_box_qty = 1;
+      // Dynamically select the barcode matching this UOM
+      const bcList = item.barcode_details || item.barcodes || [];
+      const matchingBc = Array.isArray(bcList) ? bcList.find(b => {
+        if (typeof b === 'object' && b !== null) {
+          return (b.uom || '').toLowerCase() === normUom;
+        }
+        return false;
+      }) : null;
+      if (matchingBc && matchingBc.barcode) {
+        item.barcode = matchingBc.barcode;
+        item.scanned_barcode = matchingBc.barcode;
       }
 
-      item.amount = (parseFloat(item.qty) * (parseFloat(item.rate) || 0)).toFixed(2);
+      const baseRate = parseFloat(item.base_nos_rate || (item.use_box_entry ? (parseFloat(item.custom_box_price) / pPerBox) : item.rate) || item.rate) || 0;
+      item.base_nos_rate = baseRate;
+
+      let currentRate = baseRate;
+      if (isMasterBox) {
+        item.custom_box_qty = 1;
+        item.qty = Math.round(1 * totalPcsInMB);
+        const mbPrice = parseFloat(item.custom_master_box_price) > 0 ? parseFloat(item.custom_master_box_price) : (baseRate * totalPcsInMB);
+        item.custom_master_box_price = mbPrice;
+        currentRate = totalPcsInMB > 0 ? (mbPrice / totalPcsInMB) : baseRate;
+        item.rate = currentRate;
+      } else if (isBox) {
+        item.custom_box_qty = 1;
+        item.qty = Math.round(pPerBox);
+        const bPrice = parseFloat(item.custom_box_price) > 0 ? parseFloat(item.custom_box_price) : (baseRate * pPerBox);
+        item.custom_box_price = bPrice;
+        currentRate = pPerBox > 0 ? (bPrice / pPerBox) : baseRate;
+        item.rate = currentRate;
+      } else {
+        item.qty = 1;
+        item.custom_box_qty = 1;
+        currentRate = baseRate;
+        item.rate = currentRate;
+      }
+
+      item.amount = (parseFloat(item.qty) * currentRate).toFixed(2);
       items[rowIndex] = item;
 
       return { ...prev, items };
     });
+
+    // Fetch exact price list rate and barcodes for the newly selected UOM
+    try {
+      const targetItem = formData.items?.[rowIndex];
+      if (targetItem?.item_code) {
+        const selectedUomParam = isMasterBox ? 'Master Box' : (isBox ? 'Box' : 'Nos');
+        const res = await axios.get(`${API_PATH}.get_item_buying_rate`, {
+          params: {
+            item_code: targetItem.item_code,
+            warehouse: formData.accepted_warehouse || warehouse || undefined,
+            uom: selectedUomParam
+          },
+          withCredentials: true
+        });
+        if (res.data?.message) {
+          const d = res.data.message;
+          const buyingRate = parseFloat(d.rate) || 0;
+          const boxBuyingPrice = parseFloat(d.box_price) || 0;
+          const masterBoxBuyingPrice = parseFloat(d.master_box_price) || 0;
+          const newBcList = d.barcode_details || d.barcodes || [];
+
+          setFormData(currentForm => {
+            const items = [...currentForm.items];
+            if (items[rowIndex] && items[rowIndex].item_code === targetItem.item_code) {
+              const cur = { ...items[rowIndex] };
+              if (buyingRate > 0) cur.base_nos_rate = buyingRate;
+              if (buyingRate > 0) cur.rate = buyingRate;
+              if (boxBuyingPrice > 0) cur.custom_box_price = boxBuyingPrice;
+              if (masterBoxBuyingPrice > 0) cur.custom_master_box_price = masterBoxBuyingPrice;
+              if (Array.isArray(newBcList) && newBcList.length > 0) {
+                cur.barcode_details = newBcList;
+                cur.barcodes = newBcList;
+                const matchingBc = newBcList.find(b => {
+                  if (typeof b === 'object' && b !== null) {
+                    return (b.uom || '').toLowerCase() === normUom;
+                  }
+                  return false;
+                });
+                if (matchingBc && matchingBc.barcode) {
+                  cur.barcode = matchingBc.barcode;
+                  cur.scanned_barcode = matchingBc.barcode;
+                }
+              }
+              cur.amount = (parseFloat(cur.qty || 1) * (parseFloat(cur.rate) || buyingRate)).toFixed(2);
+              items[rowIndex] = cur;
+            }
+            return { ...currentForm, items };
+          });
+        }
+      }
+    } catch (e) {
+      // Keep local calculation
+    }
   };
 
   const selectItem = async (rowIndex, item) => {
     console.log('[PurchaseInvoice selectItem] Incoming item data:', item);
     let existingIdx = -1;
+    let targetIndex = rowIndex;
+    const rawUom = String(item.scanned_uom || item.uom || item.stock_uom || 'Nos').trim();
+    const normUom = rawUom.toLowerCase();
+    const isMasterBoxScan = normUom === 'master box';
+    const isBoxScan = normUom === 'box';
+    const isBoxOrMbScan = isMasterBoxScan || isBoxScan;
+
+    const pcsPerBox = parseFloat(item.custom_pcs_per_box || item.custom_pieces_per_box || item.default_pieces_per_box || 1) || 1;
+    const boxesPerMb = parseFloat(item.custom_boxes_per_master_box || item.boxes_per_master_box || item.default_boxes_per_master_box || 1) || 1;
+    const totalPcsInMB = pcsPerBox * boxesPerMb;
+
     setFormData(prev => {
       let items = [...prev.items];
-      const isBoxScan = (item.scanned_uom || item.uom || '').toLowerCase() === 'box';
       existingIdx = items.findIndex((i, idx) =>
         idx !== rowIndex &&
         i.item_code === item.item_code &&
-        (isBoxScan ? i.use_box_entry : !i.use_box_entry)
+        (isMasterBoxScan
+          ? (i.uom || '').toLowerCase() === 'master box'
+          : isBoxScan
+          ? (i.uom || '').toLowerCase() === 'box'
+          : (!i.use_box_entry && (i.uom || '').toLowerCase() === normUom))
       );
-      const pcsPerBox = parseFloat(item.custom_pcs_per_box || item.custom_pieces_per_box || 12);
 
       if (existingIdx !== -1) {
         // Merge with existing item!
@@ -2159,7 +2275,14 @@ function PurchaseInvoiceList() {
         existingItem.barcode =
           scannedBarcode || existingItem.barcode || '';
 
-        if (isBoxScan || existingItem.use_box_entry) {
+        if (isMasterBoxScan) {
+          existingItem.use_box_entry = true;
+          existingItem.uom = 'Master Box';
+          existingItem.custom_pieces_per_box = pcsPerBox;
+          existingItem.custom_boxes_per_master_box = boxesPerMb;
+          existingItem.custom_box_qty = Math.round((parseFloat(existingItem.custom_box_qty) || 0) + 1);
+          existingItem.qty = Math.round(existingItem.custom_box_qty * boxesPerMb * pcsPerBox);
+        } else if (isBoxScan || existingItem.use_box_entry) {
           existingItem.use_box_entry = true;
           existingItem.uom = 'Box';
           existingItem.custom_pieces_per_box = pcsPerBox;
@@ -2184,36 +2307,51 @@ function PurchaseInvoiceList() {
           targetIndex = items.length - 1;
         }
 
-        const isBoxUom = isBoxScan || (item.stock_uom || '').toLowerCase() === 'box';
-        const rate = parseFloat(item.rate || item.last_buying_rate || item.last_purchase_rate || 0);
-        const lastPurRate = parseFloat(item.last_purchase_rate || item.last_buying_rate || item.rate || 0);
+        const selectedUom = isMasterBoxScan ? 'Master Box' : (isBoxScan ? 'Box' : (item.stock_uom || rawUom || 'Nos'));
+        const nosLastPurRate = item.last_purchase_rate
+          ? (isMasterBoxScan ? parseFloat(item.last_purchase_rate) / totalPcsInMB : (isBoxScan ? parseFloat(item.last_purchase_rate) / pcsPerBox : parseFloat(item.last_purchase_rate)))
+          : 0;
+        const rate = parseFloat(item.rate || item.last_buying_rate || nosLastPurRate || 0);
+        const lastPurRate = parseFloat(item.last_purchase_rate || item.last_buying_rate || rate || 0);
         const defaultBoxPrice = parseFloat(item.custom_box_price || (rate * pcsPerBox) || 0);
+        const defaultMasterBoxPrice = parseFloat(item.custom_master_box_price || (rate * totalPcsInMB) || 0);
         const sellNos = parseFloat(item.custom_selling_price || 0);
         const sellBox = parseFloat(item.custom_box_selling_price || item.custom_selling_price_box || (sellNos * pcsPerBox) || 0);
-        const itemQty = isBoxUom ? Math.round(pcsPerBox) : 1;
+        const sellMasterBox = parseFloat(item.custom_master_box_selling_price || (sellNos * totalPcsInMB) || 0);
+        const itemQty = isMasterBoxScan
+          ? Math.round(totalPcsInMB)
+          : (isBoxScan ? Math.round(pcsPerBox) : 1);
         const rawBarcode = item.scanned_barcode || item.barcode || (item.barcodes && item.barcodes[0] ? (typeof item.barcodes[0] === 'object' ? item.barcodes[0].barcode : item.barcodes[0]) : '') || '';
         const barcodeVal = typeof rawBarcode === 'object' && rawBarcode !== null ? (rawBarcode.barcode || rawBarcode.name || '') : String(rawBarcode || '');
-        console.log('[PurchaseInvoice selectItem] Extracted barcodeVal:', barcodeVal, 'from item:', item);
 
         items[targetIndex] = {
           item_code: item.item_code,
           item_name: item.item_name,
           barcode: barcodeVal,
           scanned_barcode: barcodeVal,
-          uom: isBoxUom ? 'Box' : (item.stock_uom || 'Nos'),
+          uom: selectedUom,
           qty: itemQty,
+          base_nos_rate: rate,
           rate: rate,
           last_purchase_rate: lastPurRate,
           amount: (itemQty * rate).toFixed(2),
           custom_box_price: defaultBoxPrice,
+          custom_master_box_price: defaultMasterBoxPrice,
           custom_box_qty: 1,
           custom_pieces_per_box: pcsPerBox,
           default_pieces_per_box: pcsPerBox,
+          custom_boxes_per_master_box: boxesPerMb,
+          default_boxes_per_master_box: boxesPerMb,
           custom_selling_price: sellNos,
           custom_box_selling_price: sellBox,
-          custom_supplier_sl_num: item.custom_ref_sl_no || item.custom_supplier_sl_num || item.supplier_part_no || '',
-          custom_ref_sl_no: item.custom_ref_sl_no || item.custom_supplier_sl_num || '',
-          use_box_entry: isBoxUom
+          custom_master_box_selling_price: sellMasterBox,
+          discount_percentage: 0,
+          discount_amount: 0,
+          custom_supplier_sl_num: item.custom_supplier_sl_num || '',
+          custom_ref_sl_no: item.custom_ref_sl_no || '',
+          use_box_entry: isBoxOrMbScan,
+          barcodes: item.barcodes || item.barcode_details || [],
+          barcode_details: item.barcode_details || item.barcodes || []
         };
 
         // Filter out any other empty dummy rows that had no item_code
@@ -2222,7 +2360,6 @@ function PurchaseInvoiceList() {
       return { ...prev, items };
     });
 
-    setItemSearches(prev => ({ ...prev, [rowIndex]: '' }));
     setShowItemDropdowns(prev => ({ ...prev, [rowIndex]: false }));
 
     if (existingIdx !== -1) {
@@ -2231,26 +2368,29 @@ function PurchaseInvoiceList() {
     }
 
     try {
+      const selectedUomParam = isMasterBoxScan ? 'Master Box' : (isBoxScan ? 'Box' : (item.stock_uom || rawUom || 'Nos'));
       const res = await axios.get(`${API_PATH}.get_item_buying_rate`, {
         params: {
           item_code: item.item_code,
           warehouse: formData.accepted_warehouse || warehouse || undefined,
-          uom: isBoxUom ? 'Box' : 'Nos'
+          uom: selectedUomParam
         },
         withCredentials: true
       });
-      if (res.data.message) {
-        const buyingRate = parseFloat(res.data.message.rate) || 0;
-        const boxBuyingPrice = parseFloat(res.data.message.box_price) || (buyingRate * pcsPerBox);
-        if (buyingRate > 0 || boxBuyingPrice > 0) {
+      if (res.data?.message) {
+        const d = res.data.message;
+        const buyingRate = parseFloat(d.rate) || 0;
+        const boxBuyingPrice = parseFloat(d.box_price) || (buyingRate * pcsPerBox);
+        const masterBoxBuyingPrice = parseFloat(d.master_box_price) || (buyingRate * totalPcsInMB);
+        if (buyingRate > 0 || boxBuyingPrice > 0 || masterBoxBuyingPrice > 0) {
           setFormData(currentForm => {
             const items = [...currentForm.items];
-            const targetIdx = items.findIndex(it => it && it.item_code === item.item_code);
-            if (targetIdx !== -1) {
+            const curIdx = targetIndex < items.length ? targetIndex : rowIndex;
+            if (curIdx >= 0 && items[curIdx]) {
               const currentBarcode =
-                items[targetIdx].scanned_barcode ||
+                items[curIdx].scanned_barcode ||
                 item.scanned_barcode ||
-                items[targetIdx].barcode ||
+                items[curIdx].barcode ||
                 item.barcode ||
                 (item.barcodes?.[0]
                   ? (typeof item.barcodes[0] === 'object'
@@ -2258,13 +2398,15 @@ function PurchaseInvoiceList() {
                       : item.barcodes[0])
                   : '') ||
                 '';
-              items[targetIdx] = {
-                ...items[targetIdx],
+              items[curIdx] = {
+                ...items[curIdx],
                 barcode: currentBarcode,
                 scanned_barcode: currentBarcode,
-                rate: buyingRate,
-                custom_box_price: boxBuyingPrice,
-                amount: (parseFloat(items[targetIdx].qty || 1) * buyingRate).toFixed(2)
+                base_nos_rate: buyingRate > 0 ? buyingRate : items[curIdx].base_nos_rate,
+                rate: buyingRate > 0 ? buyingRate : items[curIdx].rate,
+                custom_box_price: boxBuyingPrice > 0 ? boxBuyingPrice : items[curIdx].custom_box_price,
+                custom_master_box_price: masterBoxBuyingPrice > 0 ? masterBoxBuyingPrice : items[curIdx].custom_master_box_price,
+                amount: (parseFloat(items[curIdx].qty || 1) * (buyingRate > 0 ? buyingRate : items[curIdx].rate)).toFixed(2)
               };
             }
             return { ...currentForm, items };
@@ -5651,8 +5793,8 @@ function PurchaseInvoiceList() {
 
                             {(() => {
                               const activeCols = columnConfig.filter(c => c.visible);
-                              const isNosUom = (item.uom || '').toLowerCase() !== 'box';
-                              const anyBoxUom = formData.items.some(it => (it.uom || '').toLowerCase() === 'box');
+                              const isNosUom = !['box', 'master box'].includes((item.uom || '').toLowerCase());
+                              const anyBoxUom = formData.items.some(it => ['box', 'master box'].includes((it.uom || '').toLowerCase()));
 
                               const stickyLefts = {
                                 'barcode': 40,
@@ -5717,6 +5859,10 @@ function PurchaseInvoiceList() {
                                       </td>
                                     );
                                   case 'custom_pieces_per_box':
+                                    const isMbUnit = (item.uom || '').toLowerCase() === 'master box';
+                                    const displayUnits = isMbUnit
+                                      ? Math.round((parseFloat(item.custom_boxes_per_master_box) || 1) * (parseFloat(item.custom_pieces_per_box) || 1))
+                                      : (item.custom_pieces_per_box || 1);
                                     return (
                                       <td key={col.id}>
                                         <div className="premium-cell-container">
@@ -5725,12 +5871,12 @@ function PurchaseInvoiceList() {
                                               <div className="premium-cell-readonly premium-cell-readonly-center">—</div>
                                             ) : isViewMode ? (
                                               <div className="premium-cell-readonly premium-cell-readonly-left pl-3 font-bold text-slate-800">
-                                                {(item.custom_pieces_per_box || 1)}
+                                                {displayUnits}
                                               </div>
                                             ) : (
                                               <input
                                                 type="text" inputMode="decimal"
-                                                value={item.custom_pieces_per_box !== undefined ? item.custom_pieces_per_box : ''}
+                                                value={isMbUnit ? displayUnits : (item.custom_pieces_per_box !== undefined ? item.custom_pieces_per_box : '')}
                                                 onFocus={e => e.target.select()}
                                                 onClick={e => e.target.select()}
                                                 onChange={e => updateItem(i, 'custom_pieces_per_box', e.target.value)} onBlur={e => updateItem(i, 'custom_pieces_per_box', e.target.value ? Number(e.target.value).toFixed(2) : "")}
@@ -5932,12 +6078,14 @@ function PurchaseInvoiceList() {
                                                   candidates.push(item.uom || 'Nos');
                                                   candidates.push('Nos');
                                                   candidates.push('Box');
+                                                  candidates.push('Master Box');
 
                                                   candidates.forEach(u => {
                                                     const norm = u.trim().toLowerCase();
                                                     let display = u.trim();
                                                     if (norm === 'box') display = 'Box';
                                                     else if (norm === 'nos') display = 'Nos';
+                                                    else if (norm === 'master box') display = 'Master Box';
 
                                                     if (!seen.has(norm)) {
                                                       seen.add(norm);
@@ -5964,19 +6112,20 @@ function PurchaseInvoiceList() {
                                               <div className="premium-cell-readonly premium-cell-readonly-center">—</div>
                                             ) : isViewMode ? (
                                               <div className="premium-cell-readonly premium-cell-readonly-right pr-3 font-bold text-slate-800">
-                                                {formatPrice(item.custom_box_price)}
+                                                {formatPrice(uomPriceDisplay)}
                                               </div>
                                             ) : (
                                               <input
                                                 type="text" inputMode="decimal"
-                                                value={item.custom_box_price !== undefined ? item.custom_box_price : ''}
+                                                value={uomPriceDisplay !== undefined ? uomPriceDisplay : ''}
                                                 onFocus={e => e.target.select()}
                                                 onClick={e => e.target.select()}
-                                                onChange={e => updateItem(i, 'custom_box_price', e.target.value)} onBlur={e => updateItem(i, 'custom_box_price', e.target.value ? Number(e.target.value).toFixed(2) : "")}
+                                                onChange={e => updateItem(i, isMbRow ? 'custom_master_box_price' : 'custom_box_price', e.target.value)}
+                                                onBlur={e => updateItem(i, isMbRow ? 'custom_master_box_price' : 'custom_box_price', e.target.value ? Number(e.target.value).toFixed(2) : "")}
                                                 className="so-input text-right pr-3 font-bold"
                                                 style={{ textAlign: 'right' }}
                                                 step="0.01"
-                                                placeholder="Box Price"
+                                                placeholder="UOM Price"
                                               />
                                             )}
                                           </div>
@@ -5988,7 +6137,7 @@ function PurchaseInvoiceList() {
                                       <td key={col.id}>
                                         <div className="premium-cell-container">
                                           <div className="premium-cell-box">
-                                            {item.use_box_entry || (item.uom || '').toLowerCase() === 'box' ? (
+                                            {item.use_box_entry || ['box', 'master box'].includes((item.uom || '').toLowerCase()) ? (
                                               <div className="premium-cell-readonly premium-cell-readonly-center">—</div>
                                             ) : isViewMode ? (
                                               <div className="premium-cell-readonly premium-cell-readonly-right pr-3 font-bold text-[var(--so-primary)]">

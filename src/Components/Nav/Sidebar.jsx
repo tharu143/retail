@@ -47,6 +47,7 @@ const routeMap = {
 
   // Sales
   'Customer': { icon: UserCheck },
+  'Quotation': { icon: FileText },
   'Sales Order': { icon: PackageCheck },
   'Sales Invoice': { icon: Receipt },
   'Delivery Note': { icon: Truck },
@@ -99,7 +100,7 @@ const sections = [
     icon: TrendingUp,
     colorClass: 'icon-sales',
     cardClass: 'card-sales',
-    items: ['Customer', 'Sales Order', 'Sales Invoice', 'Delivery Note', 'Sales Return'],
+    items: ['Customer', 'Quotation', 'Sales Order', 'Sales Invoice', 'Delivery Note', 'Sales Return'],
   },
   {
     title: 'Stock Management',
@@ -160,6 +161,7 @@ function Sidebar({ activeItem: propsActiveItem, setActiveItem: propsSetActiveIte
     if (pathname === '/purchasereturn') return 'Purchase Return';
 
     if (pathname.includes('/customer')) return 'Customer';
+    if (pathname.includes('/quotation')) return 'Quotation';
     if (pathname.includes('/salesorder')) return 'Sales Order';
     if (pathname === '/salesinvoice') return 'Sales Invoice';
     if (pathname.includes('/deliverynote')) return 'Delivery Note';

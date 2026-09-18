@@ -1,0 +1,189 @@
+/* ============================================
+   Quotation Module Dedicated Styles
+   POS Classic / Modern Soft Palette Theme
+   ============================================ */
+
+:root {
+  --qtn-primary: #0082f6;
+  --qtn-primary-hover: #006ed4;
+  --qtn-primary-light: #eff6ff;
+  --qtn-border: #e2e8f0;
+  --qtn-border-strong: #cbd5e1;
+  --qtn-text-heading: #0f172a;
+  --qtn-text-body: #1e293b;
+  --qtn-text-muted: #64748b;
+  --qtn-bg: #f8fafc;
+  --qtn-white: #ffffff;
+  --qtn-radius: 8px;
+}
+
+/* Base Page & Root */
+.qtn-page-root {
+  min-height: 100vh;
+  background: #f8fafc;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  color: #1e293b;
+}
+
+/* Top Nav Pill Tabs */
+.qtn-top-nav {
+  padding: 1rem 2rem 0;
+  background: #f8fafc;
+}
+
+.qtn-pill-tabs {
+  display: flex;
+  gap: 8px;
+}
+
+.qtn-pill-tab {
+  padding: 8px 20px;
+  border-radius: 8px;
+  font-weight: 800;
+  font-size: 13px;
+  border: none;
+  cursor: pointer;
+  background: #ffffff;
+  color: #64748b;
+  transition: all 0.15s ease;
+}
+
+.qtn-pill-tab.active {
+  background: var(--qtn-primary);
+  color: #ffffff;
+  box-shadow: 0 2px 4px rgba(0, 130, 246, 0.25);
+}
+
+/* Header Card */
+.qtn-header-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.qtn-header-title-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.qtn-header-icon-box {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  background: rgba(0, 130, 246, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--qtn-primary);
+}
+
+.qtn-header-title {
+  font-size: 20px;
+  font-weight: 900;
+  color: #0f172a;
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.qtn-header-subtitle {
+  font-size: 13px;
+  color: #64748b;
+  margin: 2px 0 0 0;
+  font-weight: 500;
+}
+
+.qtn-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Standard Buttons */
+.qtn-btn-outline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 38px;
+  padding: 0 16px;
+  background: #ffffff;
+  color: var(--qtn-primary);
+  border: 1.5px solid var(--qtn-primary);
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  transition: all 0.15s ease-in-out;
+  box-sizing: border-box;
+}
+
+.qtn-btn-outline:hover {
+  background: rgba(0, 130, 246, 0.05);
+}
+
+.qtn-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 38px;
+  padding: 0 16px;
+  background: var(--qtn-primary);
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(0, 130, 246, 0.25);
+  transition: all 0.15s ease-in-out;
+  box-sizing: border-box;
+}
+
+.qtn-btn-primary:hover {
+  background: var(--qtn-primary-hover);
+}
+
+/* Executive Stats Summary Bar */
+.qtn-stats-bar {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 1.25rem 2rem;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  margin-bottom: 1.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.qtn-action-btn-item {
+  height: 40px !important;
+  min-height: 40px !important;
+  max-height: 40px !important;
+  border-radius: 10px !important;
+  padding: 0 12px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  font-weight: 800 !important;
+  font-size: 11px !important;
+  cursor: pointer !important;
+  transition: all 0.15s ease !important;
+  box-sizing: border-box !important;
+}
+
+.qtn-action-btn-item:active {
+  transform: scale(0.97);
+}

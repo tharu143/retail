@@ -38,6 +38,8 @@ import PosProfileList from '../Components/Admin/PosProfileList'
 import PurchaseInvoiceList from '../Components/Admin/PurchaseInvoiceList'
 import PurchaseReceiptList from '../Components/Admin/PurchaseReceiptList'
 import SupplierList from '../Components/Admin/SupplierList'
+import QuotationList from '../Components/Admin/QuotationList'
+import QuotationDetailsPage from '../Pages/QuotationDetailsPage'
 import SalesOrderList from '../Components/Admin/SalesOrderList'
 import SalesOrderDetailsPage from '../Pages/SalesOrderDetailsPage'
 import SalesInvoiceList from '../Components/Admin/SalesInvoiceList'
@@ -384,6 +386,9 @@ function UserRouter() {
             <Route path='purchaseinvoicelist' element={<PurchaseInvoiceList />} />
             <Route path='purchasereceiptlist' element={<PurchaseReceiptList />} />
             <Route path='supplierlist' element={<SupplierList />} />
+            <Route path='quotationlist' element={<QuotationList />} />
+            <Route path='quotation-details/:name' element={<QuotationDetailsPage />} />
+            <Route path='quotation/create' element={<QuotationDetailsPage />} />
             <Route path='salesorderlist' element={<SalesOrderList />} />
             <Route path='salesorder-details/:name' element={<SalesOrderDetailsPage />} />
             <Route path='salesorder/create' element={<SalesOrderDetailsPage />} />

@@ -500,17 +500,26 @@ const DeliveryNoteDetails = () => {
         setForm(prev => {
             const items = [...prev.items];
             const item = { ...items[rowIndex] };
-            const isBox = uomValue.toLowerCase() === 'box';
-            item.uom = uomValue;
-            item.use_box_entry = isBox;
+            const safeUom = String(uomValue || 'Nos');
+            const normUom = safeUom.toLowerCase();
+            const isMasterBox = normUom === 'master box';
+            const isBox = normUom === 'box';
 
-            if (isBox) {
-                const pPerBox = parseFloat(item.default_pieces_per_box || item.custom_pieces_per_box) || 1;
-                item.custom_pieces_per_box = pPerBox;
+            item.uom = isMasterBox ? 'Master Box' : (isBox ? 'Box' : safeUom);
+            item.use_box_entry = isBox || isMasterBox;
+
+            const pPerBox = parseFloat(item.default_pieces_per_box || item.custom_pieces_per_box) || 1;
+            const bPerMB = parseFloat(item.default_boxes_per_master_box || item.custom_boxes_per_master_box) || 1;
+            item.custom_pieces_per_box = pPerBox;
+            item.custom_boxes_per_master_box = bPerMB;
+
+            if (isMasterBox) {
+                item.qty = parseFloat(((item.custom_box_qty || 1) * bPerMB * pPerBox).toFixed(2));
+                item.custom_master_box_price = parseFloat(((item.rate || 0) * pPerBox * bPerMB).toFixed(2));
+            } else if (isBox) {
                 item.qty = parseFloat(((item.custom_box_qty || 1) * pPerBox).toFixed(2));
                 item.custom_box_price = parseFloat(((item.rate || 0) * pPerBox).toFixed(2));
             } else {
-                item.custom_pieces_per_box = 1;
                 item.qty = parseFloat(item.custom_box_qty) || 0;
                 item.custom_box_price = item.rate || 0;
             }
@@ -531,19 +540,33 @@ const DeliveryNoteDetails = () => {
             const val = (value === '' || value === '.') ? 0 : parseFloat(value);
             const isBoxMode = item.use_box_entry;
 
+            const ppb = parseFloat(item.custom_pieces_per_box) || 1;
+            const bpm = parseFloat(item.custom_boxes_per_master_box) || 1;
+            const totalMbPcs = ppb * bpm;
+            const normUom = (item.uom || '').toLowerCase();
+
             if (name === 'qty' || name === 'rate') {
                 const q = name === 'qty' ? val : (parseFloat(item.qty) || 0);
                 const r = name === 'rate' ? val : (parseFloat(item.rate) || 0);
                 item.amount = parseFloat((q * r).toFixed(2));
 
                 if (name === 'rate') {
-                    item.custom_box_price = parseFloat((val * (item.custom_pieces_per_box || 1)).toFixed(2));
+                    item.custom_box_price = parseFloat((val * ppb).toFixed(2));
+                    item.custom_master_box_price = parseFloat((val * totalMbPcs).toFixed(2));
                 } else if (name === 'qty') {
-                    item.custom_box_qty = (item.custom_pieces_per_box > 0) ? parseFloat((val / item.custom_pieces_per_box).toFixed(2)) : 0;
+                    if (normUom === 'master box' && totalMbPcs > 0) {
+                        item.custom_box_qty = parseFloat((val / totalMbPcs).toFixed(2));
+                    } else if (normUom === 'box' && ppb > 0) {
+                        item.custom_box_qty = parseFloat((val / ppb).toFixed(2));
+                    } else {
+                        item.custom_box_qty = val;
+                    }
                 }
             } else if (name === 'custom_box_qty') {
-                if (isBoxMode) {
-                    item.qty = parseFloat((val * (item.custom_pieces_per_box || 1)).toFixed(2));
+                if (normUom === 'master box') {
+                    item.qty = parseFloat((val * totalMbPcs).toFixed(2));
+                } else if (isBoxMode || normUom === 'box') {
+                    item.qty = parseFloat((val * ppb).toFixed(2));
                 } else {
                     item.qty = val;
                 }
@@ -572,7 +595,15 @@ const DeliveryNoteDetails = () => {
             });
             const rate = rateRes.data?.message?.message?.rate || rateRes.data?.message?.rate || 0;
 
-            const pPerBox = parseFloat(item.custom_pieces_per_box || 1);
+            const rawUom = String(item.scanned_uom || item.uom || item.stock_uom || 'Nos').trim();
+            const normUom = rawUom.toLowerCase();
+            const isMasterBox = normUom === 'master box';
+            const isBox = normUom === 'box';
+            const isBoxOrMb = isMasterBox || isBox;
+            const pPerBox = parseFloat(item.custom_pcs_per_box || item.custom_pieces_per_box || 1) || 1;
+            const bPerMB = parseFloat(item.custom_boxes_per_master_box || item.boxes_per_master_box || 1) || 1;
+            const selectedUom = isMasterBox ? 'Master Box' : (isBox ? 'Box' : (item.stock_uom || rawUom || 'Nos'));
+            const itemQty = isMasterBox ? Math.round(bPerMB * pPerBox) : (isBox ? pPerBox : 1);
             const uomList = item.uom_list || [];
 
             setForm(prev => {
@@ -582,16 +613,19 @@ const DeliveryNoteDetails = () => {
                     item_code: item.item_code,
                     item_name: item.item_name,
                     stock_uom: item.stock_uom || 'Nos',
-                    uom: item.stock_uom || 'Nos',
+                    uom: selectedUom,
                     uom_list: uomList,
-                    use_box_entry: false,
-                    qty: 1,
+                    use_box_entry: isBoxOrMb,
+                    qty: itemQty,
                     rate,
-                    amount: rate,
-                    custom_pieces_per_box: 1,
+                    amount: isMasterBox ? (rate * bPerMB * pPerBox) : (isBox ? (rate * pPerBox) : rate),
+                    custom_pieces_per_box: pPerBox,
                     default_pieces_per_box: pPerBox,
+                    custom_boxes_per_master_box: bPerMB,
+                    default_boxes_per_master_box: bPerMB,
                     custom_box_qty: 1,
-                    custom_box_price: rate,
+                    custom_box_price: rate * pPerBox,
+                    custom_master_box_price: rate * pPerBox * bPerMB,
                     custom_selling_price: parseFloat(item.selling_price || 0),
                     custom_ref_sl_no: item.custom_ref_sl_no || item.custom_supplier_sl_num || '',
                     warehouse: prev.set_warehouse || ''
@@ -1791,12 +1825,14 @@ const DeliveryNoteDetails = () => {
                                                                     candidates.push(item.uom || 'Nos');
                                                                     candidates.push('Nos');
                                                                     candidates.push('Box');
+                                                                    candidates.push('Master Box');
 
                                                                     candidates.forEach(u => {
                                                                         const norm = u.trim().toLowerCase();
                                                                         let display = u.trim();
                                                                         if (display === 'box' || display === 'BOX') display = 'Box';
                                                                         else if (display === 'nos' || display === 'NOS') display = 'Nos';
+                                                                        else if (norm === 'master box') display = 'Master Box';
                                                                         if (!seen.has(norm)) {
                                                                             seen.add(norm);
                                                                             uniqueUoms.push(display);
@@ -1904,12 +1940,14 @@ const DeliveryNoteDetails = () => {
                                                                     candidates.push(item.uom || 'Nos');
                                                                     candidates.push('Nos');
                                                                     candidates.push('Box');
+                                                                    candidates.push('Master Box');
 
                                                                     candidates.forEach(u => {
                                                                         const norm = u.trim().toLowerCase();
                                                                         let display = u.trim();
                                                                         if (display === 'box' || display === 'BOX') display = 'Box';
                                                                         else if (display === 'nos' || display === 'NOS') display = 'Nos';
+                                                                        else if (norm === 'master box') display = 'Master Box';
                                                                         if (!seen.has(norm)) {
                                                                             seen.add(norm);
                                                                             uniqueUoms.push(display);
@@ -3001,12 +3039,14 @@ const DeliveryNoteDetails = () => {
                                                                                         candidates.push(item.uom || 'Nos');
                                                                                         candidates.push('Nos');
                                                                                         candidates.push('Box');
+                                                                                        candidates.push('Master Box');
 
                                                                                         candidates.forEach(u => {
                                                                                             const norm = u.trim().toLowerCase();
                                                                                             let display = u.trim();
                                                                                             if (norm === 'box') display = 'Box';
                                                                                             else if (norm === 'nos') display = 'Nos';
+                                                                                            else if (norm === 'master box') display = 'Master Box';
 
                                                                                             if (!seen.has(norm)) {
                                                                                                 seen.add(norm);
