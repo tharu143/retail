@@ -320,8 +320,13 @@ const SalesInvoiceList = () => {
   const [statusFilter, setStatusFilter] = useState('all');
   const [minAmount, setMinAmount] = useState('');
   const [maxAmount, setMaxAmount] = useState('');
-  const [dateStart, setDateStart] = useState('');
-  const [dateEnd, setDateEnd] = useState('');
+  const getTodayDate = () => {
+    const tzoffset = (new Date()).getTimezoneOffset() * 60000;
+    return (new Date(Date.now() - tzoffset)).toISOString().split('T')[0];
+  };
+
+  const [dateStart, setDateStart] = useState(() => getTodayDate());
+  const [dateEnd, setDateEnd] = useState(() => getTodayDate());
   const [branchFilter, setBranchFilter] = useState('all');
   const [pageSize, setPageSize] = useState(20);
   const [currentPage, setCurrentPage] = useState(1);

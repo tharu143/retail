@@ -115,6 +115,19 @@ const POSService = {
         });
     },
 
+    updateCustomerGroupWithAuth: async ({ customerName, newCustomerGroup, secretKey, warehouse, reason }) => {
+        return await frappeCall({
+            method: 'kyle_retail.retail_api.api.update_customer_group_with_auth',
+            args: {
+                customer_name: customerName,
+                new_customer_group: newCustomerGroup,
+                secret_key: secretKey,
+                warehouse: warehouse,
+                reason: reason || ''
+            }
+        });
+    },
+
     getCashierBySecretKey: async (secretKey, warehouse) => {
         return await frappeCall({
             method: 'custom_retailpos.custom_retailpos.retail_api.retail.get_cashier_by_secret_key',

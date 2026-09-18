@@ -274,6 +274,12 @@ const DeliveryNoteList = () => {
     const [customerFilter, setCustomerFilter] = useState('');
     const [companyFilter, setCompanyFilter] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');
+    const getTodayDate = () => {
+        const tzoffset = (new Date()).getTimezoneOffset() * 60000;
+        return (new Date(Date.now() - tzoffset)).toISOString().split('T')[0];
+    };
+    const [filterDateFrom, setFilterDateFrom] = useState(() => getTodayDate());
+    const [filterDateTo, setFilterDateTo] = useState(() => getTodayDate());
     const [minAmount, setMinAmount] = useState('');
     const [maxAmount, setMaxAmount] = useState('');
     const [pageSize, setPageSize] = useState(20);
@@ -447,6 +453,12 @@ const DeliveryNoteList = () => {
         if (customerFilter) filtered = filtered.filter(dn => dn.customer_name?.toLowerCase().includes(customerFilter.toLowerCase()));
         if (companyFilter) filtered = filtered.filter(dn => dn.company?.toLowerCase().includes(companyFilter.toLowerCase()));
         if (statusFilter !== 'all') filtered = filtered.filter(dn => (dn.status || 'Draft') === statusFilter);
+        if (filterDateFrom) {
+            filtered = filtered.filter(dn => String(dn.posting_date || '').slice(0, 10) >= String(filterDateFrom).slice(0, 10));
+        }
+        if (filterDateTo) {
+            filtered = filtered.filter(dn => String(dn.posting_date || '').slice(0, 10) <= String(filterDateTo).slice(0, 10));
+        }
         if (minAmount || maxAmount) {
             filtered = filtered.filter(dn => {
                 const amount = Number(dn.grand_total || 0);
@@ -457,7 +469,7 @@ const DeliveryNoteList = () => {
         }
         setFilteredNotes(filtered);
         setCurrentPage(1);
-    }, [searchTerm, titleFilter, customerFilter, companyFilter, statusFilter, minAmount, maxAmount, deliveryNotes]);
+    }, [searchTerm, titleFilter, customerFilter, companyFilter, statusFilter, filterDateFrom, filterDateTo, minAmount, maxAmount, deliveryNotes]);
 
     // ─── Item Management ────────────────────────────────────────────────────────
 
@@ -968,6 +980,30 @@ const DeliveryNoteList = () => {
                                 <option value="Cancelled">CANCELLED</option>
                             </select>
                         </div>
+                        <div className="so-filter-group" style={{ minWidth: '150px', flex: 1 }}>
+                            <label className="so-filter-label" style={{ fontSize: '12px', fontWeight: 800, color: '#334155', textTransform: 'uppercase', letterSpacing: '0.01em', display: 'block', marginBottom: '6px' }}>FROM DATE</label>
+                            <input
+                                type="date"
+                                className="so-filter-input"
+                                value={filterDateFrom}
+                                onChange={e => setFilterDateFrom(e.target.value)}
+                                onFocus={(e) => { try { e.target.showPicker(); } catch (err) {} }}
+                                onClick={(e) => { try { e.target.showPicker(); } catch (err) {} }}
+                                style={{ width: '100%', height: '38px', padding: '0 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none', background: '#fff', color: filterDateFrom ? '#0f172a' : '#64748b', fontWeight: 500 }}
+                            />
+                        </div>
+                        <div className="so-filter-group" style={{ minWidth: '150px', flex: 1 }}>
+                            <label className="so-filter-label" style={{ fontSize: '12px', fontWeight: 800, color: '#334155', textTransform: 'uppercase', letterSpacing: '0.01em', display: 'block', marginBottom: '6px' }}>TO DATE</label>
+                            <input
+                                type="date"
+                                className="so-filter-input"
+                                value={filterDateTo}
+                                onChange={e => setFilterDateTo(e.target.value)}
+                                onFocus={(e) => { try { e.target.showPicker(); } catch (err) {} }}
+                                onClick={(e) => { try { e.target.showPicker(); } catch (err) {} }}
+                                style={{ width: '100%', height: '38px', padding: '0 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none', background: '#fff', color: filterDateTo ? '#0f172a' : '#64748b', fontWeight: 500 }}
+                            />
+                        </div>
                         <button
                             type="button"
                             className="so-clear-btn"
@@ -976,8 +1012,8 @@ const DeliveryNoteList = () => {
                                 padding: '0 18px',
                                 borderRadius: '8px',
                                 background: '#ffffff',
-                                color: (searchTerm || statusFilter !== 'all') ? '#ef4444' : '#64748b',
-                                border: `1px solid ${(searchTerm || statusFilter !== 'all') ? '#fecaca' : '#cbd5e1'}`,
+                                color: (searchTerm || statusFilter !== 'all' || filterDateFrom || filterDateTo) ? '#ef4444' : '#64748b',
+                                border: `1px solid ${(searchTerm || statusFilter !== 'all' || filterDateFrom || filterDateTo) ? '#fecaca' : '#cbd5e1'}`,
                                 fontSize: '13px',
                                 fontWeight: 600,
                                 cursor: 'pointer',
@@ -988,9 +1024,9 @@ const DeliveryNoteList = () => {
                                 transition: 'all 0.15s ease',
                                 textTransform: 'uppercase'
                             }}
-                            onClick={() => { setSearchTerm(''); setStatusFilter('all'); }}
+                            onClick={() => { setSearchTerm(''); setStatusFilter('all'); setFilterDateFrom(''); setFilterDateTo(''); }}
                         >
-                            {(searchTerm || statusFilter !== 'all') ? <X size={14} /> : null}
+                            {(searchTerm || statusFilter !== 'all' || filterDateFrom || filterDateTo) ? <X size={14} /> : null}
                             <span>CLEAR</span>
                         </button>
                     </div>

@@ -316,8 +316,13 @@ function PurchaseReceiptList() {
   const [filterName, setFilterName] = useState(location.state?.search || '');
   const [filterSupplier, setFilterSupplier] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
-  const [filterDateFrom, setFilterDateFrom] = useState('');
-  const [filterDateTo, setFilterDateTo] = useState('');
+  const getTodayDate = () => {
+    const tzoffset = (new Date()).getTimezoneOffset() * 60000;
+    return (new Date(Date.now() - tzoffset)).toISOString().split('T')[0];
+  };
+
+  const [filterDateFrom, setFilterDateFrom] = useState(() => getTodayDate());
+  const [filterDateTo, setFilterDateTo] = useState(() => getTodayDate());
   const [showFilters, setShowFilters] = useState(false);
   const [loadingLinks, setLoadingLinks] = useState(false);
   const [linkedDocs, setLinkedDocs] = useState({});

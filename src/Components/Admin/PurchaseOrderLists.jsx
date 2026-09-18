@@ -72,8 +72,13 @@ function PurchaseOrderLists() {
   const navigate = useNavigate();
   const [filterSupplier, setFilterSupplier] = useState(location.state?.search || '');
   const [filterStatus, setFilterStatus] = useState('');
-  const [filterDateFrom, setFilterDateFrom] = useState('');
-  const [filterDateTo, setFilterDateTo] = useState('');
+  const getTodayDate = () => {
+    const tzoffset = (new Date()).getTimezoneOffset() * 60000;
+    return (new Date(Date.now() - tzoffset)).toISOString().split('T')[0];
+  };
+
+  const [filterDateFrom, setFilterDateFrom] = useState(() => getTodayDate());
+  const [filterDateTo, setFilterDateTo] = useState(() => getTodayDate());
 
   // Theme Hook
   const { legacySubTheme, isGreen, themeColor, themeColorHover, themeLight, toggleTheme } = useLegacyTheme();
@@ -141,8 +146,9 @@ function PurchaseOrderLists() {
         (po.supplier_name?.toLowerCase().includes(filterSupplier.toLowerCase()) ||
           po.supplier?.toLowerCase().includes(filterSupplier.toLowerCase()));
       const matchesStatus = !filterStatus || po.status === filterStatus;
-      const matchesFrom = !filterDateFrom || new Date(po.transaction_date) >= new Date(filterDateFrom);
-      const matchesTo = !filterDateTo || new Date(po.transaction_date) <= new Date(filterDateTo);
+      const poDateStr = String(po.transaction_date || '').slice(0, 10);
+      const matchesFrom = !filterDateFrom || poDateStr >= String(filterDateFrom).slice(0, 10);
+      const matchesTo = !filterDateTo || poDateStr <= String(filterDateTo).slice(0, 10);
       return matchesSupplier && matchesStatus && matchesFrom && matchesTo;
     });
   }, [orders, filterSupplier, filterStatus, filterDateFrom, filterDateTo]);

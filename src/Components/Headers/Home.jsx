@@ -11,6 +11,9 @@ import {
     DollarSign, Trash2, Info, Package, Palette, MonitorSmartphone, Camera, Video, Scan, Printer,
     ShoppingCart, Minus, Plus, Upload, Percent,
     User,
+    UserRound,
+    Landmark,
+    History,
     Tag,
     ArrowLeftRight,
     Move,
@@ -36,7 +39,17 @@ import {
     KeyRound,
     Users,
     Clock,
-    Edit
+    Edit,
+    Pencil,
+    SlidersHorizontal,
+    Filter,
+    ShieldAlert,
+    Maximize2,
+    Minimize2,
+    ZoomIn,
+    ZoomOut,
+    RotateCcw,
+    Crop
 } from 'lucide-react';
 import { BrowserMultiFormatReader, BarcodeFormat, DecodeHintType } from '@zxing/library';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
@@ -49,6 +62,7 @@ import DirhamIcon from '../../assets/Currency/DirhamIcon';
 import ModernNoImageGrid from './ModernNoImageGrid';
 import PrintJobModal from './PrintJobModal';
 import FastPrintModal from './FastPrintModal';
+import ItemSearchFilterDrawer from './ItemSearchFilterDrawer';
 import ColumnConfigModal from '../Purchase/ColumnConfigModal';
 import CardTerminalModal from '../Admin/CardTerminalModal';
 
@@ -120,14 +134,13 @@ const InvoiceNumberDisplay = ({ branchPrefix, userName, ddmm, sessionOrderCount,
     }
 
     return (
-        <div className="flex items-center gap-1.5">
-            <input
-                value={displayString}
-                readOnly
-                tabIndex={-1}
+        <div className="flex items-center min-w-0 flex-1">
+            <span
                 title="Offline ID generated according to the continuous sequence"
-                className="offline-id-input w-48 h-8 px-3 text-center text-[12px] cursor-text font-black italic text-sky-600 bg-sky-50 outline-none border border-sky-200 rounded-lg shadow-sm"
-            />
+                className="offline-id-input text-xs font-black tracking-tight text-slate-800 font-mono select-all truncate"
+            >
+                {displayString}
+            </span>
         </div>
     );
 };
@@ -208,6 +221,7 @@ function Home() {
                     price: i.rate,
                     is_tax_inclusive: true,
                     custom_pieces_per_box: i.custom_pieces_per_box || 1,
+                    custom_boxes_per_master_box: i.custom_boxes_per_master_box || 1,
                     sales_order: soDoc.name,
                     so_detail: i.name
                 }));
@@ -256,6 +270,7 @@ function Home() {
                     price: i.rate,
                     is_tax_inclusive: true,
                     custom_pieces_per_box: i.custom_pieces_per_box || 1,
+                    custom_boxes_per_master_box: i.custom_boxes_per_master_box || 1,
                     delivery_note: dnDoc.name,
                     dn_detail: i.name
                 }));
@@ -296,27 +311,29 @@ function Home() {
     }, []);
     const formatKeyLabel = useCallback((keyStr) => {
         if (!keyStr) return '';
-        if (!isMac) return keyStr;
         const trimmed = String(keyStr).trim();
-        // Function keys F1-F12 -> fn+F1..F12
+        if (!isMac) {
+            return trimmed
+                .replace(/^⌥\s*\+?\s*/i, 'Alt+')
+                .replace(/^Option\s*\+\s*/i, 'Alt+')
+                .replace(/^⌘\s*\+?\s*/i, 'Ctrl+')
+                .replace(/^\^\s*Ctrl\s*\+\s*/i, 'Ctrl+')
+                .replace(/^\^\s*\+?\s*/i, 'Ctrl+')
+                .replace(/^fn\+/i, '');
+        }
         if (/^F\d{1,2}$/i.test(trimmed)) {
             return `fn+${trimmed.toUpperCase()}`;
         }
-        // Alt+Key or Option -> ⌥+Key
-        if (/^alt\s*\+\s*/i.test(trimmed)) {
-            return `⌥+${trimmed.replace(/^alt\s*\+\s*/i, '').toUpperCase()}`;
+        if (/^alt\s*\+\s*/i.test(trimmed) || /^option\s*\+\s*/i.test(trimmed) || /^⌥\s*Option\s*\+\s*/i.test(trimmed)) {
+            return `⌥${trimmed.replace(/^(alt|option|⌥\s*option)\s*\+\s*/i, '').toUpperCase()}`;
         }
-        if (/^⌥\s*\+\s*/i.test(trimmed)) {
-            return `⌥+${trimmed.replace(/^⌥\s*\+\s*/i, '').toUpperCase()}`;
+        if (/^ctrl\s*\+\s*/i.test(trimmed) || /^\^\s*Ctrl\s*\+\s*/i.test(trimmed)) {
+            return `⌃${trimmed.replace(/^(ctrl|\^\s*ctrl)\s*\+\s*/i, '').toUpperCase()}`;
         }
-        // Ctrl+Key -> ⌘+Key
-        if (/^ctrl\s*\+\s*/i.test(trimmed)) {
-            return `⌘+${trimmed.replace(/^ctrl\s*\+\s*/i, '').toUpperCase()}`;
+        if (/^cmd\s*\+\s*/i.test(trimmed) || /^⌘\s*\+\s*/i.test(trimmed)) {
+            return `⌘${trimmed.replace(/^(cmd|⌘)\s*\+\s*/i, '').toUpperCase()}`;
         }
-        if (/^⌘\s*\+\s*/i.test(trimmed)) {
-            return `⌘+${trimmed.replace(/^⌘\s*\+\s*/i, '').toUpperCase()}`;
-        }
-        return keyStr;
+        return trimmed;
     }, [isMac]);
     const isAdmin = user_roles.includes("Administrator") || user_roles.includes("System Manager");
     const isManager = useSelector((state) => state.user.is_manager || false) || isAdmin;
@@ -325,6 +342,7 @@ function Home() {
     const [showOpeningModal, setShowOpeningModal] = useState(false);
     const [showPrintJobModal, setShowPrintJobModal] = useState(false);
     const [showFastPrintModal, setShowFastPrintModal] = useState(false);
+    const [showItemSearchDrawer, setShowItemSearchDrawer] = useState(false);
     const [isOffline, setIsOffline] = useState(!navigator.onLine);
 
     // Classic Theme Settings menu dropdown states
@@ -339,6 +357,277 @@ function Home() {
 
     const [pendingSyncCount, setPendingSyncCount] = useState(0);
     const [sessionOrderCount, setSessionOrderCount] = useState(1);
+
+    // POS Window Mode: 'fullscreen' or 'popup' (Compact popup card with background overlay)
+    const [posWindowMode, setPosWindowMode] = useState(() => {
+        try {
+            return localStorage.getItem('pos_window_mode') || 'fullscreen';
+        } catch (e) {
+            return 'fullscreen';
+        }
+    });
+
+    // POS Popup Dimensions, Crop & Scale State
+    const [popupDimensions, setPopupDimensions] = useState(() => {
+        try {
+            const saved = localStorage.getItem('pos_popup_dimensions');
+            if (saved) return JSON.parse(saved);
+        } catch (e) {}
+        return { width: 1440, height: 860, scale: 100, isMax: false };
+    });
+
+    const isResizingRef = useRef(null);
+    const [isResizing, setIsResizing] = useState(false);
+
+    const updateDimensions = (newDim) => {
+        setPopupDimensions(prev => {
+            const updated = typeof newDim === 'function' ? newDim(prev) : { ...prev, ...newDim };
+            try {
+                localStorage.setItem('pos_popup_dimensions', JSON.stringify(updated));
+            } catch (e) {}
+            return updated;
+        });
+    };
+
+    const handleResizeStart = (direction, e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const startX = e.clientX;
+        const startY = e.clientY;
+        const startW = popupDimensions.width || 1440;
+        const startH = popupDimensions.height || 860;
+
+        isResizingRef.current = { direction, startX, startY, startW, startH };
+        setIsResizing(true);
+
+        const onMouseMove = (moveEvent) => {
+            if (!isResizingRef.current) return;
+            const { direction: dir, startX: sx, startY: sy, startW: sw, startH: sh } = isResizingRef.current;
+            const dx = moveEvent.clientX - sx;
+            const dy = moveEvent.clientY - sy;
+
+            let nextW = sw;
+            let nextH = sh;
+
+            if (dir.includes('r')) {
+                nextW = sw + dx * 2;
+            } else if (dir.includes('l')) {
+                nextW = sw - dx * 2;
+            }
+
+            if (dir.includes('b')) {
+                nextH = sh + dy * 2;
+            } else if (dir.includes('t')) {
+                nextH = sh - dy * 2;
+            }
+
+            const maxW = Math.max(800, window.innerWidth - 30);
+            const maxH = Math.max(520, window.innerHeight - 60);
+
+            nextW = Math.round(Math.min(maxW, Math.max(780, nextW)));
+            nextH = Math.round(Math.min(maxH, Math.max(500, nextH)));
+
+            setPopupDimensions(prev => ({
+                ...prev,
+                width: nextW,
+                height: nextH,
+                isMax: false
+            }));
+        };
+
+        const onMouseUp = () => {
+            setIsResizing(false);
+            isResizingRef.current = null;
+            window.removeEventListener('mousemove', onMouseMove);
+            window.removeEventListener('mouseup', onMouseUp);
+            setPopupDimensions(prev => {
+                try {
+                    localStorage.setItem('pos_popup_dimensions', JSON.stringify(prev));
+                } catch (err) {}
+                return prev;
+            });
+        };
+
+        window.addEventListener('mousemove', onMouseMove);
+        window.addEventListener('mouseup', onMouseUp);
+    };
+
+    const wrapWindowMode = (content) => {
+        if (posWindowMode !== 'popup') return content;
+
+        const effectiveWidth = popupDimensions.isMax ? '98vw' : `${Math.min(window.innerWidth - 20, Math.max(780, popupDimensions.width || 1440))}px`;
+        const effectiveHeight = popupDimensions.isMax ? 'calc(100vh - 56px)' : `${Math.min(window.innerHeight - 56, Math.max(500, popupDimensions.height || 860))}px`;
+        const zoomScale = (popupDimensions.scale || 100) / 100;
+
+        return (
+            <div
+                className="pos-popup-backdrop"
+                style={{
+                    position: 'fixed',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    zIndex: 100,
+                    backgroundColor: 'rgba(15, 23, 42, 0.76)',
+                    backdropFilter: 'blur(8px)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '8px',
+                    boxSizing: 'border-box',
+                    overflow: 'hidden',
+                    userSelect: isResizing ? 'none' : 'auto'
+                }}
+            >
+                {/* FLOATING CROP & RESIZE CONTROLS TOOLBAR */}
+                <div
+                    className="pos-crop-toolbar animate-in fade-in slide-in-from-top-3 duration-200"
+                    style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        background: 'rgba(15, 23, 42, 0.9)',
+                        backdropFilter: 'blur(12px)',
+                        padding: '4px 12px',
+                        borderRadius: '30px',
+                        border: '1px solid rgba(255, 255, 255, 0.18)',
+                        boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.5)',
+                        marginBottom: '8px',
+                        zIndex: 110,
+                        flexShrink: 0
+                    }}
+                >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#38bdf8', paddingRight: '8px', borderRight: '1px solid rgba(255, 255, 255, 0.15)' }}>
+                        <Crop size={14} />
+                        <span style={{ fontSize: '11px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#f8fafc' }}>
+                            Crop & Scale
+                        </span>
+                    </div>
+
+                    {/* Dimensions Pill */}
+                    <span style={{ fontSize: '10px', fontWeight: 800, color: '#94a3b8', background: 'rgba(255, 255, 255, 0.08)', padding: '2px 8px', borderRadius: '12px', fontFamily: 'monospace' }}>
+                        {popupDimensions.isMax ? 'FULL VIEW' : `${Math.round(parseInt(effectiveWidth))} × ${Math.round(parseInt(effectiveHeight))} px`}
+                    </span>
+
+                    {/* Scale / Zoom Buttons */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '3px', marginLeft: '4px' }}>
+                        <button
+                            type="button"
+                            onClick={() => updateDimensions(prev => ({ ...prev, scale: Math.max(75, (prev.scale || 100) - 5) }))}
+                            style={{ background: 'rgba(255, 255, 255, 0.1)', border: 'none', color: '#ffffff', borderRadius: '6px', padding: '3px 6px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                            title="Decrease UI Scale (-5%)"
+                        >
+                            <ZoomOut size={13} />
+                        </button>
+                        <span style={{ fontSize: '10px', fontWeight: 900, color: '#38bdf8', minWidth: '36px', textAlign: 'center' }}>
+                            {popupDimensions.scale || 100}%
+                        </span>
+                        <button
+                            type="button"
+                            onClick={() => updateDimensions(prev => ({ ...prev, scale: Math.min(125, (prev.scale || 100) + 5) }))}
+                            style={{ background: 'rgba(255, 255, 255, 0.1)', border: 'none', color: '#ffffff', borderRadius: '6px', padding: '3px 6px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                            title="Increase UI Scale (+5%)"
+                        >
+                            <ZoomIn size={13} />
+                        </button>
+                    </div>
+
+                    {/* Presets */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '3px', borderLeft: '1px solid rgba(255, 255, 255, 0.15)', paddingLeft: '8px' }}>
+                        <button
+                            type="button"
+                            onClick={() => updateDimensions({ width: 1024, height: 680, isMax: false })}
+                            style={{ background: 'rgba(255, 255, 255, 0.08)', border: 'none', color: '#e2e8f0', borderRadius: '6px', padding: '3px 7px', fontSize: '10px', fontWeight: 800, cursor: 'pointer' }}
+                        >
+                            Compact
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => updateDimensions({ width: 1280, height: 780, isMax: false })}
+                            style={{ background: 'rgba(255, 255, 255, 0.08)', border: 'none', color: '#e2e8f0', borderRadius: '6px', padding: '3px 7px', fontSize: '10px', fontWeight: 800, cursor: 'pointer' }}
+                        >
+                            Medium
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => updateDimensions({ width: 1520, height: 880, isMax: false })}
+                            style={{ background: 'rgba(255, 255, 255, 0.08)', border: 'none', color: '#e2e8f0', borderRadius: '6px', padding: '3px 7px', fontSize: '10px', fontWeight: 800, cursor: 'pointer' }}
+                        >
+                            Large
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => updateDimensions(prev => ({ ...prev, isMax: !prev.isMax }))}
+                            style={{ background: popupDimensions.isMax ? '#0284c7' : 'rgba(255, 255, 255, 0.08)', border: 'none', color: '#ffffff', borderRadius: '6px', padding: '3px 7px', fontSize: '10px', fontWeight: 800, cursor: 'pointer' }}
+                        >
+                            {popupDimensions.isMax ? 'Fit' : 'Max'}
+                        </button>
+                    </div>
+
+                    {/* Reset Button */}
+                    <button
+                        type="button"
+                        onClick={() => updateDimensions({ width: 1440, height: 860, scale: 100, isMax: false })}
+                        style={{ background: 'transparent', border: 'none', color: '#94a3b8', borderRadius: '6px', padding: '3px 6px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '3px', fontSize: '10px', fontWeight: 800 }}
+                        title="Reset Dimensions & Scale"
+                    >
+                        <RotateCcw size={12} />
+                        Reset
+                    </button>
+
+                    {/* Exit Popup / Fullscreen */}
+                    <button
+                        type="button"
+                        onClick={() => {
+                            setPosWindowMode('fullscreen');
+                            try { localStorage.setItem('pos_window_mode', 'fullscreen'); } catch (e) {}
+                        }}
+                        style={{ background: '#10b981', border: 'none', color: '#ffffff', borderRadius: '6px', padding: '3px 9px', fontSize: '10px', fontWeight: 900, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', marginLeft: '4px' }}
+                    >
+                        <Maximize2 size={11} />
+                        FULLSCREEN
+                    </button>
+                </div>
+
+                {/* RESIZABLE POPUP CONTAINER WITH CROP CORNERS & EDGES */}
+                <div
+                    className="pos-popup-modal-container pos-popup-mode"
+                    style={{
+                        width: effectiveWidth,
+                        height: effectiveHeight,
+                        maxWidth: '100%',
+                        maxHeight: 'calc(100vh - 54px)',
+                        borderRadius: '16px',
+                        boxShadow: '0 25px 60px -15px rgba(0, 0, 0, 0.6), 0 0 0 2px rgba(56, 189, 248, 0.45)',
+                        background: '#ffffff',
+                        overflow: 'hidden',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        position: 'relative',
+                        transform: zoomScale !== 1 ? `scale(${zoomScale})` : 'none',
+                        transformOrigin: 'center center',
+                        transition: isResizing ? 'none' : 'width 0.15s ease, height 0.15s ease, transform 0.15s ease'
+                    }}
+                >
+                    {/* CROP CORNER HANDLES */}
+                    <div className="pos-crop-handle pos-crop-tl" onMouseDown={(e) => handleResizeStart('tl', e)} title="Drag to Resize (Top-Left)" />
+                    <div className="pos-crop-handle pos-crop-tr" onMouseDown={(e) => handleResizeStart('tr', e)} title="Drag to Resize (Top-Right)" />
+                    <div className="pos-crop-handle pos-crop-bl" onMouseDown={(e) => handleResizeStart('bl', e)} title="Drag to Resize (Bottom-Left)" />
+                    <div className="pos-crop-handle pos-crop-br" onMouseDown={(e) => handleResizeStart('br', e)} title="Drag to Resize (Bottom-Right)" />
+
+                    {/* CROP EDGE HANDLES */}
+                    <div className="pos-crop-edge-handle pos-crop-top" onMouseDown={(e) => handleResizeStart('t', e)} title="Drag to Resize Height" />
+                    <div className="pos-crop-edge-handle pos-crop-bottom" onMouseDown={(e) => handleResizeStart('b', e)} title="Drag to Resize Height" />
+                    <div className="pos-crop-edge-handle pos-crop-left" onMouseDown={(e) => handleResizeStart('l', e)} title="Drag to Resize Width" />
+                    <div className="pos-crop-edge-handle pos-crop-right" onMouseDown={(e) => handleResizeStart('r', e)} title="Drag to Resize Width" />
+
+                    {content}
+                </div>
+            </div>
+        );
+    };
 
     // NEW: Legacy Classic Themes (for styles)
     const { legacySubTheme, setLegacySubTheme, isGreen, toggleTheme: toggleLegacyColor } = useLegacyTheme();
@@ -451,16 +740,10 @@ function Home() {
       }
       .classic-header-form {
         background: #ffffff !important;
-        padding: 0.6rem 1.25rem !important;
         border-bottom: 1px solid #e2e8f0 !important;
-        display: flex !important;
-        flex-wrap: nowrap !important;
-        gap: 1.5rem !important;
-        align-items: center !important;
         flex-shrink: 0 !important;
         position: relative !important;
         z-index: 110 !important;
-        height: 70px !important;
       }
       .classic-field label { color: ${statusBarColor}; font-size: 10px; white-space: nowrap; font-weight: 900; letter-spacing: 0.5px; }
       .classic-field input, .classic-field select {
@@ -470,7 +753,7 @@ function Home() {
         border-radius: 12px;
         box-shadow: inset 1px 1px 2px rgba(0,0,0,0.1);
       }
-      .classic-entry-area { flex: 1; display: flex; flex-direction: column; background: ${lightColor}; position: relative; }
+      .classic-entry-area { flex: 1; display: flex; flex-direction: column; background: #f8fafc; position: relative; }
       .classic-entry-header {
         background: ${mainColor}; padding: 4px 10px;
         display: flex; align-items: center; justify-content: space-between;
@@ -480,15 +763,18 @@ function Home() {
         width: 100%; border-collapse: collapse; font-size: 11px; table-layout: fixed;
       }
       table.classic-table thead tr {
-        background: ${darkColor}; color: ${accentColor};
+        background: #f1f5f9; color: #334155;
         position: sticky; top: 0; z-index: 5;
+        border-bottom: 1px solid #cbd5e1;
       }
       table.classic-table thead th {
-        padding: 5px 5px; text-align: left; font-weight: bold;
-        border-right: 1px solid ${borderColor};
+        padding: 6px 8px; text-align: left; font-weight: 700; font-size: 11px;
+        letter-spacing: 0.04em; color: #334155;
+        border-right: 1px solid #e2e8f0;
+        background: #f1f5f9;
       }
       table.classic-table tbody td {
-        padding: 0; border-right: 1px solid ${isGreen ? '#b0d8c0' : '#a8c4e0'};
+        padding: 0; border-right: 1px solid #e2e8f0;
         height: 32px; vertical-align: middle;
         overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
       }
@@ -816,6 +1102,7 @@ function Home() {
             {showLoyaltyModal && renderLoyaltyModal()}
             {showPaymentModal && renderPaymentModal()}
             {showCreateModal && renderCreateModal()}
+            {showGroupChangeModal && renderGroupChangeModal()}
             <CardTerminalModal
                 isOpen={showCardTerminalModal}
                 onClose={() => setShowCardTerminalModal(false)}
@@ -834,6 +1121,15 @@ function Home() {
                 isOpen={showFastPrintModal}
                 onClose={() => setShowFastPrintModal(false)}
                 onAddJobToCart={(item, uom, initialQty) => handleAddToBill(item, uom, initialQty)}
+            />
+            <ItemSearchFilterDrawer
+                isOpen={showItemSearchDrawer}
+                onClose={() => setShowItemSearchDrawer(false)}
+                items={Items}
+                onSelectItem={(item) => handleAddToBill(item)}
+                warehouse={warehouse}
+                categories={categories}
+                theme={theme}
             />
             {showOpeningModal && (
                 <div className="home-modal-overlay" style={{ zIndex: 9999 }}>
@@ -1512,6 +1808,13 @@ function Home() {
     const [editingCustomerId, setEditingCustomerId] = useState(null);
     const [showCreateSecretKey, setShowCreateSecretKey] = useState(false);
     const [customerGroups, setCustomerGroups] = useState([]);
+    const [showGroupChangeModal, setShowGroupChangeModal] = useState(false);
+    const [groupChangeCust, setGroupChangeCust] = useState(null);
+    const [targetGroup, setTargetGroup] = useState('Retail Customer');
+    const [groupSecretKey, setGroupSecretKey] = useState('');
+    const [showGroupSecretKey, setShowGroupSecretKey] = useState(false);
+    const [groupChangeReason, setGroupChangeReason] = useState('');
+    const [isSubmittingGroupChange, setIsSubmittingGroupChange] = useState(false);
     const [createForm, setCreateForm] = useState({
         name: '', phone: '', email: '',
         customer_group: 'Retail Customer',
@@ -2251,95 +2554,137 @@ function Home() {
         setShowDropdown(false);
     };
 
-    const promoteCustomerGroup = async (cust, newGroup) => {
-        // Prompt for Secret Key / Security PIN before updating customer group
-        const { value: secretKey } = await Swal.fire({
-            title: 'Authorization Required',
-            text: `Enter Cashier Secret Code to update ${cust.customer_name || 'Customer'} to "${newGroup}":`,
-            input: 'password',
-            inputPlaceholder: 'Enter 4-digit secret key / PIN',
-            inputAttributes: {
-                autocapitalize: 'off',
-                autocorrect: 'off'
-            },
-            showCancelButton: true,
-            confirmButtonText: 'Authorize & Update',
-            confirmButtonColor: '#0284c7',
-            cancelButtonText: 'Cancel',
-            inputValidator: (value) => {
-                if (!value) {
-                    return 'Secret key is required to update customer group!';
-                }
-            }
-        });
+    const openCustomerGroupChangeModal = (cust) => {
+        if (!cust || cust.name === 'Cash') {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Select Named Customer',
+                text: 'Please select or search a registered customer first to edit customer group.',
+                confirmButtonColor: '#0284c7'
+            });
+            return;
+        }
+        setGroupChangeCust(cust);
+        setTargetGroup(cust.customer_group || 'Retail Customer');
+        setGroupSecretKey('');
+        setShowGroupSecretKey(false);
+        setGroupChangeReason('');
+        setShowGroupChangeModal(true);
+    };
 
-        if (!secretKey) return null;
+    const handleConfirmCustomerGroupChange = async () => {
+        if (!groupChangeCust) return;
+        if (!groupSecretKey || !groupSecretKey.trim()) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Secret Key Required',
+                text: 'Cashier / Manager secret code is strictly required to change customer group.',
+                confirmButtonColor: '#f59e0b'
+            });
+            return;
+        }
 
-        Swal.showLoading();
+        if (targetGroup === groupChangeCust.customer_group) {
+            Swal.fire({
+                icon: 'info',
+                title: 'No Change',
+                text: `Customer is already assigned to "${targetGroup}".`,
+                confirmButtonColor: '#0ea5e9'
+            });
+            return;
+        }
 
-        // 1. Verify Secret Key against Employee / User record
-        let isAuthorized = false;
+        setIsSubmittingGroupChange(true);
         try {
             if (isOffline) {
-                if (secretKey === userSecretKey) {
-                    isAuthorized = true;
+                if (groupSecretKey.trim() !== userSecretKey) {
+                    throw new Error("Invalid Secret Key. Customer group update cancelled.");
                 }
-            } else {
-                const verRes = await POSService.verifyAuthorizationKey(secretKey, 'customer_group_change', warehouse);
-                if (verRes && (verRes.status === 'success' || verRes.message?.includes('Authorized'))) {
-                    isAuthorized = true;
-                } else {
-                    const fallback = await POSService.verifySecretKey(secretKey);
-                    if (fallback && (fallback.status === 'success' || fallback.message === 'Authorized')) {
-                        isAuthorized = true;
-                    } else if (secretKey === userSecretKey) {
-                        isAuthorized = true;
-                    }
+                const updatedCust = {
+                    ...groupChangeCust,
+                    customer_group: targetGroup
+                };
+                await db.customers.put(updatedCust);
+                if (selectedCustomer?.name === groupChangeCust.name || selectedCustomer?.customer_name === groupChangeCust.customer_name) {
+                    setSelectedCustomer(updatedCust);
                 }
+                setShowGroupChangeModal(false);
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Customer Group Updated (Offline)',
+                    text: `Customer group changed to ${targetGroup}. Will sync online.`,
+                    confirmButtonColor: '#10b981',
+                    timer: 2000
+                });
+                return;
             }
-        } catch (authErr) {
-            console.warn("Server auth error, falling back to local secret check:", authErr);
-            if (secretKey === userSecretKey) {
-                isAuthorized = true;
-            }
-        }
 
-        if (!isAuthorized) {
-            Swal.fire({
-                icon: 'error',
-                title: 'Unauthorized',
-                text: 'Invalid Secret Key. Customer group update cancelled.',
-                confirmButtonColor: '#e11d48'
+            const res = await POSService.updateCustomerGroupWithAuth({
+                customerName: groupChangeCust.name || groupChangeCust.customer_name,
+                newCustomerGroup: targetGroup,
+                secretKey: groupSecretKey.trim(),
+                warehouse: warehouse,
+                reason: groupChangeReason.trim()
             });
-            return null;
-        }
 
-        try {
-            const res = await frappeCall({
-                method: 'kyle_retail.retail_api.api.get_or_create_customer_by_mobile',
-                args: {
-                    mobile_no: cust.mobile_no || phoneNumber,
-                    customer_name: cust.customer_name,
-                    warehouse: warehouse,
-                    customer_group: newGroup
-                }
-            });
-            if (res && res.name) {
+            if (res && (res.status === 'success' || res.customer)) {
                 const updatedCustomer = {
-                    ...cust,
-                    customer_group: newGroup
+                    ...groupChangeCust,
+                    customer_group: targetGroup,
+                    ...(res.customer || {})
                 };
                 await db.customers.put(updatedCustomer);
-                if (selectedCustomer?.name === cust.name || selectedCustomer?.customer_name === cust.customer_name) {
+                if (selectedCustomer?.name === groupChangeCust.name || selectedCustomer?.customer_name === groupChangeCust.customer_name) {
                     setSelectedCustomer(updatedCustomer);
                     setCustomerName(updatedCustomer.customer_name);
-                    setPhoneNumber(updatedCustomer.mobile_no);
+                    setPhoneNumber(updatedCustomer.mobile_no || phoneNumber);
                 }
-                return updatedCustomer;
+
+                try {
+                    const discRes = await frappeCall({
+                        method: 'kyle_retail.kyle_retail.api.get_customer_group_discount',
+                        args: { customer_group: targetGroup }
+                    });
+                    if (discRes && typeof discRes.discount_percentage === 'number') {
+                        setDiscountPercent(discRes.discount_percentage);
+                    }
+                } catch (dErr) {
+                    console.warn("Could not fetch group discount:", dErr);
+                }
+
+                setShowGroupChangeModal(false);
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Customer Group Updated',
+                    html: `Customer <b>${groupChangeCust.customer_name}</b> is now set to <b>${targetGroup}</b>.<br/><small style="color: #64748b; font-size: 11px;">Activity timeline log added to customer record.</small>`,
+                    confirmButtonColor: '#10b981',
+                    timer: 2500
+                });
+            } else {
+                throw new Error(res?.message || 'Failed to update customer group');
             }
         } catch (err) {
             console.error("Promotion failed", err);
+            const rawMsg = err.message || err.response?.data?.message || (err._server_messages ? JSON.parse(err._server_messages)[0] : '') || 'Invalid Secret Key or unauthorized operation.';
+            const cleanMsg = typeof rawMsg === 'string' ? rawMsg.replace(/<[^>]*>/g, '') : 'Invalid Secret Key';
+            Swal.fire({
+                icon: 'error',
+                title: 'Authorization Failed',
+                text: cleanMsg,
+                confirmButtonColor: '#e11d48'
+            });
+        } finally {
+            setIsSubmittingGroupChange(false);
         }
+    };
+
+    const promoteCustomerGroup = async (cust, newGroup) => {
+        setGroupChangeCust(cust);
+        setTargetGroup(newGroup);
+        setGroupSecretKey('');
+        setShowGroupSecretKey(false);
+        setGroupChangeReason('Promoted during payment selection');
+        setShowGroupChangeModal(true);
         return null;
     };
 
@@ -2970,6 +3315,7 @@ function Home() {
                                 barcodes: item.barcodes || [],
                                 modified: item.modified,
                                 custom_pieces_per_box: item.custom_pieces_per_box || 1,
+                                custom_boxes_per_master_box: item.custom_boxes_per_master_box || item.boxes_per_master_box || 1,
                                 custom_loyalty_eligible: item.custom_loyalty_eligible || 0,
                                 is_bundle: item.is_bundle || 0
                             };
@@ -3035,7 +3381,10 @@ function Home() {
                     warehouse_details: item.warehouse_details || [],
                     branch_availability: item.branch_availability || [],
                     barcodes: item.barcodes || [],
+                    brand: item.brand || "",
+                    custom_size: item.custom_size || item.size || "",
                     custom_pieces_per_box: item.custom_pieces_per_box || 1,
+                    custom_boxes_per_master_box: item.custom_boxes_per_master_box || item.boxes_per_master_box || 1,
                     custom_loyalty_eligible: item.custom_loyalty_eligible || 0
                 };
             });
@@ -3690,9 +4039,13 @@ function Home() {
 
     const handleRequestStock = async (item, fromWarehouse = null) => {
         const hasBox = (item.custom_pieces_per_box || 0) > 1;
-        const uomOptions = hasBox
-            ? `<option value="Nos">Nos (Each)</option><option value="Box">Box (${item.custom_pieces_per_box} pcs)</option>`
-            : `<option value="Nos">Nos (Each)</option>`;
+        const hasMb = (item.custom_boxes_per_master_box || 0) > 1;
+        const totalMbPcs = (parseFloat(item.custom_boxes_per_master_box) || 1) * (parseFloat(item.custom_pieces_per_box) || 1);
+        const uomOptions = `
+            <option value="Nos">Nos (Each)</option>
+            ${hasBox ? `<option value="Box">Box (${item.custom_pieces_per_box} pcs)</option>` : ''}
+            ${hasMb ? `<option value="Master Box">Master Box (${totalMbPcs} pcs)</option>` : ''}
+        `;
 
         let pinTimeout = null;
 
@@ -4596,6 +4949,7 @@ function Home() {
                     uom_type: item.uom,
                     is_tax_inclusive: item.is_tax_inclusive !== false,
                     custom_pieces_per_box: item.custom_pieces_per_box,
+                    custom_boxes_per_master_box: item.custom_boxes_per_master_box || 1,
                     rate: discRate,
                     price_list_rate: discRate,
                     income_account: 'Sales of I/C - KSPL',
@@ -4683,6 +5037,7 @@ function Home() {
                         price: item.rate,
                         is_tax_inclusive: item.is_tax_inclusive !== false,
                         custom_pieces_per_box: item.custom_pieces_per_box || catalogItem?.custom_pieces_per_box || 1,
+                        custom_boxes_per_master_box: item.custom_boxes_per_master_box || catalogItem?.custom_boxes_per_master_box || 1,
                         image: item.image || catalogItem?.image,
                         category: item.category || catalogItem?.category || catalogItem?.group,
                         prices: catalogItem?.prices || { [item.uom]: item.rate },
@@ -4990,6 +5345,7 @@ function Home() {
                     uom_type: item.uom,
                     is_tax_inclusive: item.is_tax_inclusive !== false,
                     custom_pieces_per_box: item.custom_pieces_per_box,
+                    custom_boxes_per_master_box: item.custom_boxes_per_master_box || 1,
                     basePrice: itemRate,
                     rate: itemRate,
                     price_list_rate: itemRate,
@@ -6663,6 +7019,394 @@ function Home() {
             </div>
         </div>
     );
+
+    const renderGroupChangeModal = () => {
+        const custName = groupChangeCust?.customer_name || groupChangeCust?.name || 'Customer';
+        const currentGroup = groupChangeCust?.customer_group || 'Retail Customer';
+        const availableGroups = customerGroups && customerGroups.length > 0
+            ? customerGroups
+            : ['Retail Customer', 'Discount Customer', 'Credit Customer', 'Commercial Customer', 'Individual'];
+
+        return (
+            <div
+                className="home-modal-overlay"
+                onClick={(e) => { if (e.target === e.currentTarget) setShowGroupChangeModal(false); }}
+                style={{
+                    position: 'fixed',
+                    inset: 0,
+                    backgroundColor: 'rgba(15, 23, 42, 0.65)',
+                    backdropFilter: 'blur(12px)',
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    zIndex: 10000,
+                    padding: '20px'
+                }}
+            >
+                <div
+                    className="animate-in zoom-in-95 duration-200"
+                    onClick={e => e.stopPropagation()}
+                    style={{
+                        width: '100%',
+                        maxWidth: '520px',
+                        backgroundColor: '#ffffff',
+                        borderRadius: '20px',
+                        overflow: 'hidden',
+                        boxShadow: '0 25px 60px -15px rgba(15, 23, 42, 0.4), 0 0 0 1px rgba(15, 23, 42, 0.08)',
+                        display: 'flex',
+                        flexDirection: 'column'
+                    }}
+                >
+                    {/* Header */}
+                    <div
+                        style={{
+                            padding: '16px 20px',
+                            background: '#0f172a',
+                            borderBottom: '1px solid #1e293b',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            color: '#ffffff'
+                        }}
+                    >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                            <div
+                                style={{
+                                    width: '40px',
+                                    height: '40px',
+                                    borderRadius: '12px',
+                                    background: 'rgba(2, 132, 199, 0.15)',
+                                    border: '1px solid rgba(56, 189, 248, 0.3)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    color: '#38bdf8',
+                                    flexShrink: 0
+                                }}
+                            >
+                                <ShieldCheck size={22} />
+                            </div>
+                            <div>
+                                <h3 style={{ fontSize: '15px', fontWeight: 800, color: '#ffffff', textTransform: 'uppercase', letterSpacing: '0.04em', margin: 0 }}>
+                                    Change Customer Group
+                                </h3>
+                                <p style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 500, margin: '2px 0 0 0' }}>
+                                    Authorized Pricing Tier & Group Update
+                                </p>
+                            </div>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => setShowGroupChangeModal(false)}
+                            style={{
+                                width: '32px',
+                                height: '32px',
+                                borderRadius: '10px',
+                                background: '#1e293b',
+                                border: '1px solid #334155',
+                                color: '#94a3b8',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                cursor: 'pointer',
+                                transition: 'all 0.15s'
+                            }}
+                            onMouseEnter={e => { e.currentTarget.style.color = '#ffffff'; e.currentTarget.style.background = '#334155'; }}
+                            onMouseLeave={e => { e.currentTarget.style.color = '#94a3b8'; e.currentTarget.style.background = '#1e293b'; }}
+                        >
+                            <X size={16} />
+                        </button>
+                    </div>
+
+                    {/* Body */}
+                    <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px', background: '#f8fafc' }}>
+                        {/* Customer Info Card */}
+                        <div
+                            style={{
+                                background: '#ffffff',
+                                border: '1.5px solid #e2e8f0',
+                                borderRadius: '14px',
+                                padding: '12px 16px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                boxShadow: '0 1px 3px rgba(0,0,0,0.03)'
+                            }}
+                        >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
+                                <div
+                                    style={{
+                                        width: '38px',
+                                        height: '38px',
+                                        borderRadius: '10px',
+                                        background: '#e0f2fe',
+                                        color: '#0369a1',
+                                        fontWeight: 900,
+                                        fontSize: '13px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        textTransform: 'uppercase',
+                                        flexShrink: 0
+                                    }}
+                                >
+                                    {custName.slice(0, 2)}
+                                </div>
+                                <div style={{ minWidth: 0 }}>
+                                    <div style={{ fontSize: '13px', fontWeight: 800, color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                        {custName}
+                                    </div>
+                                    <div style={{ fontSize: '11px', color: '#64748b', fontFamily: 'monospace', fontWeight: 600 }}>
+                                        {groupChangeCust?.mobile_no || 'No Mobile'}
+                                    </div>
+                                </div>
+                            </div>
+                            <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                                <div style={{ fontSize: '9px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '3px' }}>
+                                    Current Group
+                                </div>
+                                <span
+                                    style={{
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        padding: '3px 10px',
+                                        borderRadius: '8px',
+                                        fontSize: '11px',
+                                        fontWeight: 800,
+                                        background: '#f1f5f9',
+                                        color: '#334155',
+                                        border: '1px solid #cbd5e1'
+                                    }}
+                                >
+                                    {currentGroup}
+                                </span>
+                            </div>
+                        </div>
+
+                        {/* Select New Group */}
+                        <div>
+                            <label style={{ fontSize: '11px', fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+                                <Layers size={13} style={{ color: '#0284c7' }} />
+                                Select Target Customer Group <span style={{ color: '#ef4444' }}>*</span>
+                            </label>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px', maxHeight: '180px', overflowY: 'auto', paddingRight: '2px' }}>
+                                {availableGroups.map((grp) => {
+                                    const isSelected = targetGroup === grp;
+                                    const isCurrent = currentGroup === grp;
+                                    return (
+                                        <button
+                                            key={grp}
+                                            type="button"
+                                            onClick={() => setTargetGroup(grp)}
+                                            style={{
+                                                padding: '10px 12px',
+                                                borderRadius: '12px',
+                                                border: isSelected ? '2px solid #0284c7' : '1.5px solid #e2e8f0',
+                                                background: isSelected ? '#f0f9ff' : '#ffffff',
+                                                color: isSelected ? '#0369a1' : '#334155',
+                                                textAlign: 'left',
+                                                cursor: 'pointer',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'space-between',
+                                                gap: '6px',
+                                                boxShadow: isSelected ? '0 2px 8px rgba(2, 132, 199, 0.15)' : 'none',
+                                                transition: 'all 0.15s'
+                                            }}
+                                        >
+                                            <div style={{ minWidth: 0, flex: 1 }}>
+                                                <div style={{ fontSize: '12px', fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                                    {grp}
+                                                </div>
+                                                {isCurrent && (
+                                                    <span style={{ fontSize: '9px', fontWeight: 700, color: isSelected ? '#0284c7' : '#94a3b8' }}>
+                                                        (Current)
+                                                    </span>
+                                                )}
+                                            </div>
+                                            {isSelected && (
+                                                <div style={{ width: '20px', height: '20px', borderRadius: '50%', background: '#0284c7', color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                                    <Check size={12} strokeWidth={3} />
+                                                </div>
+                                            )}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+
+                        {/* Secret Key Input */}
+                        <div>
+                            <label style={{ fontSize: '11px', fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+                                <Lock size={13} style={{ color: '#4f46e5' }} />
+                                Cashier Secret PIN / Manager Code <span style={{ color: '#ef4444' }}>*</span>
+                            </label>
+                            <div
+                                style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    background: '#ffffff',
+                                    border: '1.5px solid #cbd5e1',
+                                    borderRadius: '12px',
+                                    height: '44px',
+                                    padding: '0 12px',
+                                    gap: '10px',
+                                    transition: 'all 0.15s'
+                                }}
+                            >
+                                <KeyRound size={16} style={{ color: '#94a3b8', flexShrink: 0 }} />
+                                <input
+                                    type={showGroupSecretKey ? "text" : "password"}
+                                    placeholder="Enter secret PIN to authorize"
+                                    value={groupSecretKey}
+                                    onChange={e => setGroupSecretKey(e.target.value)}
+                                    autoFocus
+                                    style={{
+                                        border: 'none',
+                                        outline: 'none',
+                                        width: '100%',
+                                        fontSize: '14px',
+                                        fontWeight: 800,
+                                        fontFamily: 'monospace',
+                                        letterSpacing: showGroupSecretKey ? 'normal' : '0.15em',
+                                        color: '#0f172a',
+                                        background: 'transparent'
+                                    }}
+                                    onKeyDown={e => {
+                                        if (e.key === 'Enter') {
+                                            e.preventDefault();
+                                            handleConfirmCustomerGroupChange();
+                                        }
+                                    }}
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowGroupSecretKey(!showGroupSecretKey)}
+                                    style={{
+                                        background: 'none',
+                                        border: 'none',
+                                        padding: '4px',
+                                        cursor: 'pointer',
+                                        color: '#94a3b8',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        flexShrink: 0
+                                    }}
+                                    onMouseEnter={e => e.currentTarget.style.color = '#334155'}
+                                    onMouseLeave={e => e.currentTarget.style.color = '#94a3b8'}
+                                >
+                                    {showGroupSecretKey ? <EyeOff size={16} /> : <Eye size={16} />}
+                                </button>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginTop: '6px' }}>
+                                <ShieldAlert size={12} style={{ color: '#0284c7', flexShrink: 0 }} />
+                                <span style={{ fontSize: '10.5px', color: '#64748b', fontWeight: 500 }}>
+                                    Group changes modify customer pricing tiers. Action is verified and logged.
+                                </span>
+                            </div>
+                        </div>
+
+                        {/* Reason / Note (Optional) */}
+                        <div>
+                            <label style={{ fontSize: '11px', fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
+                                Reason / Note <span style={{ color: '#94a3b8', fontWeight: 500 }}>(Optional)</span>
+                            </label>
+                            <input
+                                type="text"
+                                placeholder="e.g. VIP upgrade, corporate discount approval"
+                                value={groupChangeReason}
+                                onChange={e => setGroupChangeReason(e.target.value)}
+                                style={{
+                                    width: '100%',
+                                    height: '38px',
+                                    borderRadius: '10px',
+                                    border: '1.5px solid #e2e8f0',
+                                    background: '#ffffff',
+                                    padding: '0 12px',
+                                    fontSize: '12px',
+                                    fontWeight: 500,
+                                    color: '#0f172a',
+                                    outline: 'none',
+                                    boxSizing: 'border-box'
+                                }}
+                            />
+                        </div>
+                    </div>
+
+                    {/* Footer */}
+                    <div
+                        style={{
+                            padding: '14px 20px',
+                            background: '#ffffff',
+                            borderTop: '1px solid #e2e8f0',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'flex-end',
+                            gap: '10px'
+                        }}
+                    >
+                        <button
+                            type="button"
+                            onClick={() => setShowGroupChangeModal(false)}
+                            style={{
+                                padding: '10px 18px',
+                                borderRadius: '10px',
+                                background: '#ffffff',
+                                border: '1.5px solid #cbd5e1',
+                                color: '#475569',
+                                fontSize: '12px',
+                                fontWeight: 800,
+                                textTransform: 'uppercase',
+                                cursor: 'pointer',
+                                transition: 'all 0.15s'
+                            }}
+                            onMouseEnter={e => { e.currentTarget.style.background = '#f1f5f9'; e.currentTarget.style.color = '#0f172a'; }}
+                            onMouseLeave={e => { e.currentTarget.style.background = '#ffffff'; e.currentTarget.style.color = '#475569'; }}
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            type="button"
+                            onClick={handleConfirmCustomerGroupChange}
+                            disabled={isSubmittingGroupChange || !groupSecretKey}
+                            style={{
+                                padding: '10px 22px',
+                                borderRadius: '10px',
+                                background: isSubmittingGroupChange || !groupSecretKey ? '#94a3b8' : '#0284c7',
+                                color: '#ffffff',
+                                border: 'none',
+                                fontSize: '12px',
+                                fontWeight: 900,
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.04em',
+                                cursor: isSubmittingGroupChange || !groupSecretKey ? 'not-allowed' : 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '8px',
+                                boxShadow: isSubmittingGroupChange || !groupSecretKey ? 'none' : '0 4px 12px rgba(2, 132, 199, 0.3)',
+                                transition: 'all 0.15s'
+                            }}
+                            onMouseEnter={e => { if (!isSubmittingGroupChange && groupSecretKey) e.currentTarget.style.background = '#0369a1'; }}
+                            onMouseLeave={e => { if (!isSubmittingGroupChange && groupSecretKey) e.currentTarget.style.background = '#0284c7'; }}
+                        >
+                            {isSubmittingGroupChange ? (
+                                <>
+                                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                    <span>Verifying & Updating...</span>
+                                </>
+                            ) : (
+                                <>
+                                    <ShieldCheck size={16} />
+                                    <span>Authorize & Update Group</span>
+                                </>
+                            )}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    };
 
     const renderLoyaltyModal = () => {
         const points = parseInt(loyaltyInput) || 0;
@@ -8784,9 +9528,29 @@ function Home() {
                 setShowFastPrintModal(prev => !prev);
             }
 
+            // Advanced Item Search & Filter Drawer Shortcut (Alt+S / Option+S)
+            if ((e.altKey && (e.key.toLowerCase() === 's' || e.code === 'KeyS')) || e.key === 'ß' || e.key === '§') {
+                e.preventDefault();
+                e.stopPropagation();
+                setShowItemSearchDrawer(prev => !prev);
+            }
+
+            // Screen Mode Toggle Shortcut (Alt+W / Option+W) -> Full Screen <-> Popup Window
+            if ((e.altKey && (e.key.toLowerCase() === 'w' || e.code === 'KeyW')) || e.key === '∑' || e.key === '„') {
+                e.preventDefault();
+                e.stopPropagation();
+                setPosWindowMode(prev => {
+                    const next = prev === 'popup' ? 'fullscreen' : 'popup';
+                    localStorage.setItem('pos_window_mode', next);
+                    return next;
+                });
+            }
+
             // Esc: Close Modals (Fallbacks)
             if (e.key === 'Escape') {
-                if (showPrintJobModal) {
+                if (showItemSearchDrawer) {
+                    setShowItemSearchDrawer(false);
+                } else if (showPrintJobModal) {
                     setShowPrintJobModal(false);
                 } else if (showFastPrintModal) {
                     setShowFastPrintModal(false);
@@ -9007,18 +9771,26 @@ function Home() {
                 }
             },
             {
-                key: getShortcut('pos_home', 'uom', 'F8'), label: 'UOM', colorClass: 'violet', action: () => {
+                key: getShortcut('pos_home', 'uom', 'F8'), label: 'UOM Toggle', colorClass: 'violet', action: () => {
                     if (selectedBillIndex !== -1) {
                         const item = billItems[selectedBillIndex];
-                        const newUom = item.uom === 'Box' ? (item.uom_conversions?.Nos ? 'Nos' : 'Piece') : 'Box';
-                        toggleUom(item.id, newUom);
+                        const hasMb = item.custom_boxes_per_master_box && item.custom_boxes_per_master_box > 1;
+                        let nextUom = 'Nos';
+                        if (item.uom === 'Nos' || item.uom === 'Piece' || item.uom === (item.stock_uom || 'Nos')) {
+                            nextUom = (item.custom_pieces_per_box && item.custom_pieces_per_box > 1) ? 'Box' : (hasMb ? 'Master Box' : 'Nos');
+                        } else if (item.uom === 'Box') {
+                            nextUom = hasMb ? 'Master Box' : (item.stock_uom || 'Nos');
+                        } else {
+                            nextUom = item.stock_uom || 'Nos';
+                        }
+                        toggleUom(item.id, nextUom);
                     } else {
                         Swal.fire('Info', 'Select an item in cart first', 'info');
                     }
                 }
             },
             {
-                key: getShortcut('pos_home', 'boxUom', isMac ? '⌘B' : 'Ctrl+B'), label: 'Box UOM', colorClass: 'violet', action: () => {
+                key: getShortcut('pos_home', 'boxUom', 'Ctrl+B'), label: 'Box UOM', colorClass: 'violet', action: () => {
                     if (selectedBillIndex !== -1) {
                         const item = billItems[selectedBillIndex];
                         if (item.custom_pieces_per_box && item.custom_pieces_per_box > 1) {
@@ -9027,6 +9799,32 @@ function Home() {
                         } else {
                             Swal.fire('Info', 'Box packaging not configured for this item', 'info');
                         }
+                    } else {
+                        Swal.fire('Info', 'Select an item in cart first', 'info');
+                    }
+                }
+            },
+            {
+                key: getShortcut('pos_home', 'masterBoxUom', 'Ctrl+M'), label: 'Master Box', colorClass: 'indigo', action: () => {
+                    if (selectedBillIndex !== -1) {
+                        const item = billItems[selectedBillIndex];
+                        if (item.custom_boxes_per_master_box && item.custom_boxes_per_master_box > 1) {
+                            const targetUom = item.uom === 'Master Box' ? (item.stock_uom || (item.uom_conversions?.Nos ? 'Nos' : 'Piece') || 'Piece') : 'Master Box';
+                            toggleUom(item.id, targetUom);
+                        } else {
+                            Swal.fire('Info', 'Master Box packaging not configured for this item', 'info');
+                        }
+                    } else {
+                        Swal.fire('Info', 'Select an item in cart first', 'info');
+                    }
+                }
+            },
+            {
+                key: getShortcut('pos_home', 'nosUom', 'Ctrl+N'), label: 'Nos / Unit', colorClass: 'emerald', action: () => {
+                    if (selectedBillIndex !== -1) {
+                        const item = billItems[selectedBillIndex];
+                        const targetUom = item.stock_uom || (item.uom_conversions?.Nos ? 'Nos' : 'Piece') || 'Piece';
+                        toggleUom(item.id, targetUom);
                     } else {
                         Swal.fire('Info', 'Select an item in cart first', 'info');
                     }
@@ -9043,18 +9841,15 @@ function Home() {
             { key: getShortcut('pos_home', 'directCash', 'Alt+1'), label: 'Direct Cash', colorClass: 'emerald', action: () => { if (billItems.length > 0) completePayment('Cash'); } },
             { key: getShortcut('pos_home', 'directBank', 'Ctrl+V'), label: 'Direct Bank', colorClass: 'sky', action: () => { if (billItems.length > 0) completePayment('Bank'); } },
             { key: getShortcut('pos_home', 'directCard', 'Alt+2'), label: 'Direct Card', colorClass: 'indigo', action: () => { if (billItems.length > 0) { setSelectedPaymentMode('Card'); setShowCardTerminalModal(true); } } },
-
-            {
-                key: getShortcut('pos_home', 'selectItem', 'Alt+I'), label: theme !== 'legacy' ? 'Select Item' : 'Swap Item', colorClass: 'indigo', action: () => {
-                    if (theme !== 'legacy') {
-                        if (filteredItems.length > 0) {
-                            setActiveCardIndex(prev => prev === -1 ? 0 : -1);
-                        }
-                    } else {
-                        triggerSwapItem();
+            { key: getShortcut('pos_home', 'selectItem', 'Alt+I'), label: theme !== 'legacy' ? 'Select Item' : 'Swap Item', colorClass: 'indigo', action: () => {
+                if (theme !== 'legacy') {
+                    if (filteredItems.length > 0) {
+                        setActiveCardIndex(prev => prev === -1 ? 0 : -1);
                     }
+                } else {
+                    triggerSwapItem();
                 }
-            },
+            } },
             { key: '↑ ↓', label: 'Navigate', colorClass: 'slate' },
             { key: '+ / -', label: 'Qty', colorClass: 'slate' },
             { key: '← / →', label: 'Tax Toggle', colorClass: 'slate' }
@@ -9436,15 +10231,23 @@ function Home() {
                 key: getShortcut('pos_home', 'uom', 'F8'), label: 'UOM Toggle', color: '#6366f1', icon: <RefreshCw size={12} />, action: () => {
                     if (selectedBillIndex !== -1) {
                         const item = billItems[selectedBillIndex];
-                        const newUom = item.uom === 'Box' ? (item.uom_conversions?.Nos ? 'Nos' : 'Piece') : 'Box';
-                        toggleUom(item.id, newUom);
+                        const hasMb = item.custom_boxes_per_master_box && item.custom_boxes_per_master_box > 1;
+                        let nextUom = 'Nos';
+                        if (item.uom === 'Nos' || item.uom === 'Piece' || item.uom === (item.stock_uom || 'Nos')) {
+                            nextUom = (item.custom_pieces_per_box && item.custom_pieces_per_box > 1) ? 'Box' : (hasMb ? 'Master Box' : 'Nos');
+                        } else if (item.uom === 'Box') {
+                            nextUom = hasMb ? 'Master Box' : (item.stock_uom || 'Nos');
+                        } else {
+                            nextUom = item.stock_uom || 'Nos';
+                        }
+                        toggleUom(item.id, nextUom);
                     } else {
                         Swal.fire('Info', 'Select an item in cart first', 'info');
                     }
                 }
             },
             {
-                key: getShortcut('pos_home', 'boxUom', isMac ? '⌘B' : 'Ctrl+B'), label: 'Box UOM', color: '#8b5cf6', icon: <Package size={12} />, action: () => {
+                key: getShortcut('pos_home', 'boxUom', 'Ctrl+B'), label: 'Box UOM', color: '#8b5cf6', icon: <Package size={12} />, action: () => {
                     if (selectedBillIndex !== -1) {
                         const item = billItems[selectedBillIndex];
                         if (item.custom_pieces_per_box && item.custom_pieces_per_box > 1) {
@@ -9458,10 +10261,40 @@ function Home() {
                     }
                 }
             },
+            {
+                key: getShortcut('pos_home', 'masterBoxUom', 'Ctrl+M'), label: 'Master Box', color: '#6366f1', icon: <Package size={12} />, action: () => {
+                    if (selectedBillIndex !== -1) {
+                        const item = billItems[selectedBillIndex];
+                        if (item.custom_boxes_per_master_box && item.custom_boxes_per_master_box > 1) {
+                            const targetUom = item.uom === 'Master Box' ? (item.stock_uom || (item.uom_conversions?.Nos ? 'Nos' : 'Piece') || 'Piece') : 'Master Box';
+                            toggleUom(item.id, targetUom);
+                            const totalMbPcs = (parseFloat(item.custom_boxes_per_master_box) || 1) * (parseFloat(item.custom_pieces_per_box) || 1);
+                            const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 1200 });
+                            Toast.fire({ icon: 'success', title: `UOM: ${targetUom} (${targetUom === 'Master Box' ? `${totalMbPcs} Pcs` : '1 Pc'})` });
+                        } else {
+                            Swal.fire('Info', 'Master Box packaging not configured for this item', 'info');
+                        }
+                    } else {
+                        Swal.fire('Info', 'Select an item in cart first', 'info');
+                    }
+                }
+            },
+            {
+                key: getShortcut('pos_home', 'nosUom', 'Ctrl+N'), label: 'Nos / Unit', color: '#10b981', icon: <Tag size={12} />, action: () => {
+                    if (selectedBillIndex !== -1) {
+                        const item = billItems[selectedBillIndex];
+                        const targetUom = item.stock_uom || (item.uom_conversions?.Nos ? 'Nos' : 'Piece') || 'Piece';
+                        toggleUom(item.id, targetUom);
+                    } else {
+                        Swal.fire('Info', 'Select an item in cart first', 'info');
+                    }
+                }
+            },
             { key: getShortcut('pos_home', 'orders', 'F9'), label: 'Orders', color: '#0369a1', icon: <Package size={12} />, action: () => setShowDraftsModal(prev => !prev) },
             { key: getShortcut('pos_home', 'printBill', 'F10'), label: 'Print Bill', color: '#6366f1', icon: <Printer size={12} />, action: handleShowRecentInvoicesPrint },
-            { key: isMac ? '⌥P' : 'Alt+P', label: 'PRINT JOB', color: '#0ea5e9', icon: <Printer size={12} />, action: () => setShowPrintJobModal(true) },
-            { key: isMac ? '⌥F' : 'Alt+F', label: 'FAST PRINT', color: '#e11d48', icon: <Zap size={12} />, action: () => setShowFastPrintModal(true) },
+            { key: getShortcut('pos_home', 'printJob', 'Alt+P'), label: 'PRINT JOB', color: '#0ea5e9', icon: <Printer size={12} />, action: () => setShowPrintJobModal(true) },
+            { key: getShortcut('pos_home', 'fastPrint', 'Alt+F'), label: 'FAST PRINT', color: '#e11d48', icon: <Zap size={12} />, action: () => setShowFastPrintModal(true) },
+            { key: getShortcut('pos_home', 'itemFilter', 'Alt+S'), label: 'Item Filter', color: '#6366f1', icon: <SlidersHorizontal size={12} />, action: () => setShowItemSearchDrawer(true) },
             { key: getShortcut('pos_home', 'selectItem', 'Alt+I'), label: 'Swap Item', color: '#a855f7', icon: <RefreshCw size={12} />, action: triggerSwapItem },
             { key: '↑↓', label: 'Navigate', color: '#64748b', icon: <Move size={12} /> },
             { key: '+/-', label: 'Adjust Qty', color: '#64748b', icon: <Minus size={12} /> },
@@ -9475,13 +10308,13 @@ function Home() {
                 onClick={s.action}
                 style={{
                     flexShrink: 0,
-                    width: isVertical ? '100%' : '155px',
-                    minWidth: isVertical ? '100%' : '155px',
+                    width: isVertical ? '100%' : 'auto',
+                    minWidth: isVertical ? '100%' : '125px',
                     display: 'flex',
                     justifyContent: 'space-between',
                     alignItems: 'center',
                     gap: '8px',
-                    padding: '4px 14px',
+                    padding: '4px 10px',
                     background: '#f4fbf9',
                     border: '1.5px solid #bce3da',
                     borderRadius: '9999px',
@@ -9492,17 +10325,14 @@ function Home() {
                     <div className="classic-shortcut-icon" style={{ display: 'flex', flexShrink: 0, color: s.color || '#0ea5e9' }}>
                         {s.icon}
                     </div>
-                    <span className="classic-shortcut-label text-[11px] font-black text-slate-850" style={{
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
+                    <span className="classic-shortcut-label text-[11px] font-black text-slate-850 whitespace-nowrap" style={{
                         color: '#0f172a',
                         fontWeight: 800
                     }}>
                         {s.label}
                     </span>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0, marginLeft: '4px' }}>
                     <span
                         className="classic-shortcut-key font-mono font-black text-slate-900 text-[9.5px]"
                         style={{
@@ -9594,8 +10424,8 @@ function Home() {
 
     // ---------- LIGHT THEME RENDERER (Emerald & Slate) ----------
     const renderLightTheme = () => {
-        return (
-            <div className="so-page" style={{ height: '100vh', maxHeight: '100vh', overflow: 'hidden', display: 'flex', flexDirection: 'column', position: 'relative' }}>
+        return wrapWindowMode(
+            <div className="so-page" style={{ height: '100%', maxHeight: '100%', overflow: 'hidden', display: 'flex', flexDirection: 'column', position: 'relative' }}>
                 {/* MODERN TOOL STRIP — Two-Zone Layout */}
                 <div className="so-tool-strip" style={{
                     display: 'flex', alignItems: 'center', width: '100%',
@@ -9635,6 +10465,42 @@ function Home() {
                     }}>
                         {/* Group 1: Navigation & Shift */}
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            {/* Screen Mode Switcher: Fullscreen <-> Popup */}
+                            <button
+                                onClick={() => {
+                                    const nextMode = posWindowMode === 'popup' ? 'fullscreen' : 'popup';
+                                    setPosWindowMode(nextMode);
+                                    localStorage.setItem('pos_window_mode', nextMode);
+                                }}
+                                style={{
+                                    display: 'flex', alignItems: 'center', gap: '0.35rem',
+                                    padding: '0 0.65rem', height: '1.85rem',
+                                    background: posWindowMode === 'popup' ? '#ecfdf5' : '#f8fafc',
+                                    border: `1.5px solid ${posWindowMode === 'popup' ? '#6ee7b7' : '#cbd5e1'}`,
+                                    borderRadius: '0.375rem',
+                                    fontSize: '0.65rem', fontWeight: 900,
+                                    color: posWindowMode === 'popup' ? '#047857' : '#334155',
+                                    cursor: 'pointer', textTransform: 'uppercase', flexShrink: 0,
+                                    whiteSpace: 'nowrap',
+                                    boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+                                    transition: 'all 0.15s ease'
+                                }}
+                                title={posWindowMode === 'popup' ? "Switch to Full Screen (Alt+W)" : "Switch to Mini Popup Window (Alt+W)"}
+                            >
+                                {posWindowMode === 'popup' ? (
+                                    <>
+                                        <Maximize2 size={12} color="#047857" /> FULL SCREEN
+                                    </>
+                                ) : (
+                                    <>
+                                        <Minimize2 size={12} color="#475569" /> POPUP VIEW
+                                    </>
+                                )}
+                                <span style={{ background: posWindowMode === 'popup' ? 'rgba(4, 120, 87, 0.15)' : '#e2e8f0', color: posWindowMode === 'popup' ? '#047857' : '#64748b', fontSize: '9px', padding: '1px 5px', borderRadius: '3px', marginLeft: '2px', fontWeight: 800 }}>
+                                    {isMac ? '⌥W' : 'Alt+W'}
+                                </span>
+                            </button>
+
                             {/* Active Orders */}
                             <button
                                 onClick={() => setShowDraftsModal(true)}
@@ -9962,6 +10828,18 @@ function Home() {
                                         )}
                                     </div>
 
+                                    {/* Advanced Search & Multi-Attribute Filter Drawer Button */}
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowItemSearchDrawer(true)}
+                                        className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 active:scale-95 text-indigo-700 border border-indigo-200 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-sm shrink-0"
+                                        title="Advanced Item Search & Filter (Alt+S)"
+                                        style={{ height: '36px' }}
+                                    >
+                                        <SlidersHorizontal size={14} className="text-indigo-600" />
+                                        <span>Filter & Search</span>
+                                    </button>
+
                                     {filteredCategories.length > 5 && (
                                         <button className="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-50 text-slate-400 border border-slate-200" onClick={handlePrevSlide}>
                                             <ChevronLeft size={18} />
@@ -10209,73 +11087,116 @@ function Home() {
                             {!hideAllShortcuts && shortcutsPosition === 'right' && renderShortcutsVertical('right')}
                         </div>
 
-                        <aside className="so-bill-side">
-                            <div className="so-bill-header flex flex-col gap-3">
-                                <div className="relative group">
-                                    <div className="flex items-center border border-slate-200 rounded-xl overflow-hidden bg-white focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/20 transition-all" style={{ height: '42px' }}>
+                        {/* ==================== MODERN CART SECTION ==================== */}
+                        <div className="so-bill-side">
+
+                            {/* CUSTOMER */}
+                            <div className="so-bill-header">
+
+                                <div className="so-customer-wrapper">
+                                    <div className="so-customer-field">
                                         <CountryCodeSelector
                                             value={countryCodePrefix}
-                                            onChange={newVal => {
+                                            onChange={(newVal) => {
                                                 setCountryCodePrefix(newVal);
                                                 localStorage.setItem('pos_country_code', newVal);
                                             }}
                                         />
-                                        <div className="relative flex-1 h-full flex items-center">
-                                            <div className="absolute inset-y-0 left-0 flex items-center pointer-events-none" style={{ paddingLeft: '14px' }}>
-                                                <UserPlus size={14} className="text-slate-400 transition-colors group-focus-within:text-emerald-500" />
-                                            </div>
-                                            <input
-                                                ref={nameInputRef}
-                                                type="text"
-                                                placeholder="Customer Name / Mobile..."
-                                                value={customerName === 'Cash' ? '' : customerName}
-                                                className="w-full h-full pr-3 py-2 text-xs font-bold text-slate-900 placeholder:text-slate-400 bg-transparent outline-none border-none"
-                                                style={{ paddingLeft: '36px' }}
-                                                onChange={e => {
-                                                    justSelectedCustomerRef.current = false;
-                                                    setActiveCustomerIndex(-1);
-                                                    let val = e.target.value;
-                                                    if (/^[\d+]*$/.test(val)) {
-                                                        const cleaned = val.replace(/\D/g, '');
-                                                        const rule = getCountryRule(countryCodePrefix);
-                                                        val = cleaned.slice(0, rule.maxLen);
-                                                        setCustomerMobile(val);
-                                                        setCustomerName(val);
-                                                    } else {
-                                                        setCustomerName(val);
-                                                        setCustomerMobile('');
+
+                                        <input
+                                            ref={mobileInputRef}
+                                            type="text"
+                                            placeholder="Enter Customer Mobile / Name..."
+                                            value={customerMobile || (selectedCustomer && selectedCustomer.name !== 'Cash' ? (selectedCustomer.mobile_no || selectedCustomer.customer_name || selectedCustomer.name) : (customerName === 'Cash' ? '' : customerName))}
+                                            onChange={(e) => {
+                                                justSelectedCustomerRef.current = false;
+                                                setActiveCustomerIndex(-1);
+                                                const val = e.target.value;
+
+                                                if (/^[\d+]*$/.test(val)) {
+                                                    let cleaned = val.replace(/\D/g, '');
+                                                    while (cleaned.startsWith('0')) {
+                                                        cleaned = cleaned.slice(1);
                                                     }
-                                                    if (val.trim() !== 'Cash') setSelectedCustomer(null);
-                                                }}
-                                                onFocus={() => { if (customerName.trim() === 'Cash') setCustomerName(''); if (!selectedCustomer && !justSelectedCustomerRef.current && customerName.trim().length >= 1) setShowDropdown(true); }}
-                                                onBlur={() => { if (!customerName.trim()) setCustomerName('Cash'); }}
-                                                onKeyDown={handleMobileEnter}
-                                            />
-                                        </div>
+                                                    const rule = getCountryRule(countryCodePrefix);
+                                                    const restricted = cleaned.slice(0, rule.maxLen);
+                                                    setCustomerMobile(restricted);
+                                                    setCustomerName('');
+                                                } else {
+                                                    setCustomerName(val);
+                                                    setCustomerMobile('');
+                                                }
+
+                                                if (selectedCustomer) setSelectedCustomer(null);
+                                                if (val.trim().length >= 1) {
+                                                    setShowDropdown(true);
+                                                }
+                                            }}
+                                            onFocus={() => {
+                                                setSearchContext('customer');
+                                                if (
+                                                    !selectedCustomer &&
+                                                    !justSelectedCustomerRef.current &&
+                                                    (customerMobile || customerName).trim().length >= 1
+                                                ) {
+                                                    setShowDropdown(true);
+                                                }
+                                                setShowSettingsMenu(false);
+                                            }}
+                                            onBlur={() => {
+                                                if (!customerMobile && !customerName.trim() && !selectedCustomer) {
+                                                    setCustomerName('Cash');
+                                                }
+                                            }}
+                                            onKeyDown={handleMobileEnter}
+                                            className="so-customer-input"
+                                        />
+
+                                        {customerLoading ? (
+                                            <Loader2 className="so-customer-status-icon animate-spin" size={15} />
+                                        ) : (
+                                            <Phone className="so-customer-status-icon" size={15} />
+                                        )}
                                     </div>
+
                                     {showDropdown && (
-                                        <div ref={dropdownRef} className="so-customer-dropdown animate-in fade-in slide-in-from-top-2 duration-150">
+                                        <div
+                                            ref={dropdownRef}
+                                            className="so-customer-dropdown animate-in fade-in slide-in-from-top-2 duration-150"
+                                        >
                                             {searchResults.map((c, idx) => {
                                                 const isSelected = idx === activeCustomerIndex;
+
                                                 return (
                                                     <div
                                                         key={c.name}
                                                         id={`cust-item-0-${idx}`}
-                                                        onMouseDown={() => { pickCustomer(c); setActiveCustomerIndex(-1); }}
-                                                        className={`so-customer-dropdown-item ${isSelected ? 'active' : ''}`}
+                                                        onMouseDown={() => {
+                                                            pickCustomer(c);
+                                                            setActiveCustomerIndex(-1);
+                                                        }}
+                                                        className={`so-customer-dropdown-item ${
+                                                            isSelected ? 'active' : ''
+                                                        }`}
                                                     >
                                                         <div>
-                                                            <div className="so-customer-name">{c.customer_name}</div>
+                                                            <div className="so-customer-name">
+                                                                {c.customer_name}
+                                                            </div>
+
                                                             <div className="so-customer-mobile">
-                                                                <Phone size={10} className="text-slate-400" /> {c.mobile_no}
+                                                                <Phone size={10} />
+                                                                {c.mobile_no}
                                                             </div>
                                                         </div>
-                                                        <ChevronRight size={14} className={`text-slate-400 transition-colors ${isSelected ? 'text-sky-600 font-bold' : 'group-hover:text-emerald-500'}`} />
+
+                                                        <ChevronRight size={14} />
                                                     </div>
                                                 );
                                             })}
+
                                             <div
-                                                onMouseDown={() => openCreate(customerName.trim())}
+                                                onMouseDown={() => openCreate(customerMobile || customerName.trim())}
                                                 className="so-customer-register-btn"
                                             >
                                                 + Register New Customer
@@ -10284,344 +11205,690 @@ function Home() {
                                     )}
                                 </div>
 
-                                <div className="relative group flex items-center" style={{ height: '42px' }}>
-                                    <div className="absolute inset-y-0 left-0 flex items-center pointer-events-none" style={{ paddingLeft: '14px' }}>
-                                        <Search size={14} className="text-slate-400 group-focus-within:text-sky-500 transition-colors" />
-                                    </div>
+                                {/* SEARCH */}
+                                <div className="so-cart-search">
+                                    <Search size={16} className="so-cart-search-icon" />
+
                                     <input
                                         ref={barcodeInputRef}
                                         type="text"
                                         placeholder="SCAN / SEARCH PRODUCT..."
                                         value={barcodeInput}
-                                        onChange={e => setBarcodeInput(e.target.value)}
+                                        onChange={(e) => setBarcodeInput(e.target.value)}
                                         onKeyDown={onBarcodeKeyDown}
-                                        onFocus={() => setActiveCardIndex(-1)}
-                                        className="w-full h-full border border-slate-200 rounded-xl bg-slate-50 focus:border-sky-500 focus:bg-white focus:ring-2 focus:ring-sky-500/20 transition-all text-xs font-bold text-slate-800 placeholder:text-slate-400 outline-none"
-                                        style={{ paddingLeft: '36px', paddingRight: '40px' }}
+                                        onFocus={() => {
+                                            setActiveCardIndex(-1);
+                                            setShowSettingsMenu(false);
+                                        }}
                                     />
+
                                     <button
                                         type="button"
                                         onClick={() => setShowCamera(true)}
-                                        className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1.5 text-slate-400 hover:text-sky-600 hover:bg-sky-100 rounded-lg transition-all cursor-pointer"
+                                        className="so-cart-camera"
                                         title="Camera Barcode Scanner"
                                     >
-                                        <Camera size={14} />
+                                        <Camera size={15} />
                                     </button>
                                 </div>
-                            </div><div className="so-bill-items">
+                            </div>
+
+                            {/* CART ITEMS */}
+                            <div className="so-bill-items">
+
                                 {billItems.length === 0 ? (
-                                    <div className="flex-1 flex flex-col items-center justify-center opacity-20 gap-3 grayscale">
-                                        <MonitorSmartphone size={64} strokeWidth={1} />
-                                        <span className="font-black text-[10px] uppercase tracking-widest text-center px-12 leading-relaxed">
-                                            Select items or scan barcode<br />to start a new transaction
-                                        </span>
+                                    <div className="so-cart-empty">
+                                        <ShoppingCart size={34} />
+                                        <span>Cart is empty</span>
+                                        <small>Scan or search a product to add it</small>
                                     </div>
                                 ) : (
                                     billItems.map((item, idx) => {
-                                        const effectivePrice = item.price;
+
+                                        const isActive = idx === selectedBillIndex;
+
+                                        const itemName =
+                                            item.name ||
+                                            item.item_name ||
+                                            item.item_code ||
+                                            item.id;
+
+                                        const barcodeValue =
+                                            item.barcode ||
+                                            item.barcodes?.[0]?.barcode ||
+                                            item.barcodes?.[0] ||
+                                            item.custom_ref_sl_no ||
+                                            item.id ||
+                                            '';
+
+                                        const qty = parseFloat(item.qty || item.quantity || 1);
+
+                                        const price = parseFloat(item.price || 0);
+
+                                        const hasBox =
+                                            parseFloat(item.custom_pieces_per_box || 0) > 1;
+
+                                        const hasMasterBox =
+                                            parseFloat(item.custom_boxes_per_master_box || 0) > 1;
+
+                                        const isInc = item.is_tax_inclusive !== false;
+                                        const currentTaxRate = parseFloat(taxRate) || 5;
+                                        const lineTotalBase = price * qty;
+                                        const lineNet = isInc ? (lineTotalBase / (1 + currentTaxRate / 100)) : lineTotalBase;
+                                        const lineTax = isInc ? (lineTotalBase - lineNet) : (lineTotalBase * (currentTaxRate / 100));
+                                        const lineTotal = isInc ? lineTotalBase : (lineNet + lineTax);
+
                                         return (
                                             <div
-                                                key={item.id}
-                                                id={`bill-row-${idx}`}
-                                                className={`so-bill-item transition-all cursor-pointer ${idx === selectedBillIndex ? 'active' : ''}`}
+                                                key={`${item.id}-${idx}`}
+                                                className={`so-cart-item ${
+                                                    isActive ? 'is-active' : ''
+                                                }`}
                                                 onClick={() => setSelectedBillIndex(idx)}
-                                                style={{ padding: '0.25rem 0.4rem', gap: '2px' }}
                                             >
-                                                {/* Line 1: Item Name & Qty Controls + Delete */}
-                                                <div className="flex justify-between items-center gap-2">
-                                                    <h4 className="so-bill-item-name flex-1 truncate text-[11px] font-extrabold text-slate-800 m-0 leading-tight" title={item.name}>
-                                                        {item.name}
-                                                    </h4>
-                                                    <div className="flex items-center gap-1.5 shrink-0">
-                                                        <div className="so-bill-qty-control shadow-xs" style={{ padding: '0px 2px' }}>
-                                                            <button onClick={() => updateQuantity(item.id, -1)} className="so-bill-qty-btn" style={{ width: '16px', height: '16px' }}>
-                                                                {item.qty > 1 ? <Minus size={9} className="opacity-40" /> : <X size={9} className="text-rose-400" />}
-                                                            </button>
-                                                            <input
-                                                                id={`qty-input-${idx}`}
-                                                                className="so-bill-qty-input"
-                                                                style={{ width: '20px', fontSize: '11px' }}
-                                                                value={item.qty}
-                                                                onChange={(e) => setQuantity(item.id, e.target.value)}
-                                                                onFocus={(e) => e.target.select()}
-                                                                onClick={(e) => e.target.select()}
-                                                            />
-                                                            <button onClick={() => updateQuantity(item.id, 1)} className="so-bill-qty-btn text-emerald-500" style={{ width: '16px', height: '16px' }}>
-                                                                <Plus size={9} />
-                                                            </button>
-                                                        </div>
-                                                        <button onClick={() => removeFromBill(item.id)} className="so-bill-remove text-slate-300 hover:text-rose-500 transition-colors p-0.5">
-                                                            <X size={13} />
-                                                        </button>
-                                                    </div>
-                                                </div>
 
-                                                {/* Line 2: Unit Price, UOM Toggle, INC/EXC Badge & Item Total */}
-                                                <div className="flex justify-between items-center text-[10px]">
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="font-extrabold text-slate-400 flex items-center gap-0.5">
-                                                            <DirhamIcon size={8} /> {item.price}
-                                                        </span>
-                                                        {!(item.is_print_job || item.is_bundle || (item.id && (item.id.includes('BUNDLE') || item.id.includes('COMBO')))) && (
-                                                            <div className="flex rounded border border-slate-200 overflow-hidden">
-                                                                <button
-                                                                    onKeyDown={(e) => handleUomBtnKeyDown(e, item.id)}
-                                                                    onClick={() => {
-                                                                        const targetUom = item.stock_uom || (item.uom_conversions?.Nos ? 'Nos' : 'Piece');
-                                                                        toggleUom(item.id, targetUom);
-                                                                    }}
-                                                                    className={`px-1 py-0 text-[8px] font-black transition-all ${item.uom === 'Piece' || item.uom === 'Nos' || (item.uom !== 'Box' && item.uom !== 'BOX' && item.uom !== 'Master Box') ? (isGreen ? 'bg-emerald-500 text-white' : 'bg-sky-500 text-white') : 'bg-white text-slate-400 hover:bg-slate-50'}`}
-                                                                >
-                                                                    PC
-                                                                </button>
-                                                                {item.custom_pieces_per_box > 1 && (
-                                                                    <button
-                                                                        onKeyDown={(e) => handleUomBtnKeyDown(e, item.id)}
-                                                                        onClick={() => toggleUom(item.id, 'Box')}
-                                                                        className={`px-1 py-0 text-[8px] font-black transition-all ${item.uom === 'Box' || item.uom === 'BOX' ? (isGreen ? 'bg-emerald-500 text-white' : 'bg-sky-500 text-white') : 'bg-white text-slate-400 hover:bg-slate-50'}`}
-                                                                    >
-                                                                        BOX
-                                                                    </button>
-                                                                )}
-                                                                {item.custom_boxes_per_master_box > 1 && (
-                                                                    <button
-                                                                        onKeyDown={(e) => handleUomBtnKeyDown(e, item.id)}
-                                                                        onClick={() => toggleUom(item.id, 'Master Box')}
-                                                                        className={`px-1 py-0 text-[8px] font-black transition-all ${item.uom === 'Master Box' ? (isGreen ? 'bg-emerald-500 text-white' : 'bg-purple-600 text-white') : 'bg-white text-slate-400 hover:bg-slate-50'}`}
-                                                                    >
-                                                                        MB
-                                                                    </button>
-                                                                )}
-                                                            </div>
-                                                        )}
+                                                {/* TOP */}
+                                                <div className="so-cart-item-top">
+
+                                                    <div className="so-cart-item-info">
+
                                                         <div
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                const newBill = [...billItems];
-                                                                newBill[idx].is_tax_inclusive = !newBill[idx].is_tax_inclusive;
-                                                                setBillItems(newBill);
-                                                            }}
-                                                            className={`px-1 py-0 rounded text-[7.5px] font-black cursor-pointer hover:scale-105 active:scale-95 transition-all select-none ${item.is_tax_inclusive !== false ? 'bg-sky-100 text-sky-600 hover:bg-sky-200' : 'bg-amber-100 text-amber-600 hover:bg-amber-200'}`}
-                                                            title={item.is_tax_inclusive !== false ? 'Tax Inclusive - Click to change' : 'Tax Exclusive - Click to change'}
+                                                            className="so-cart-item-name"
+                                                            title={itemName}
                                                         >
-                                                            {item.is_tax_inclusive !== false ? 'INC' : 'EXC'}
+                                                            {itemName}
+                                                        </div>
+
+                                                        <div
+                                                            className="so-cart-item-barcode"
+                                                            title={String(barcodeValue)}
+                                                        >
+                                                            <Barcode size={10} />
+                                                            <span>
+                                                                {barcodeValue || '-'}
+                                                            </span>
+                                                        </div>
+
+                                                    </div>
+
+                                                    {/* INC / EXC Toggle Badge */}
+                                                    <button
+                                                        type="button"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            const newBill = [...billItems];
+                                                            newBill[idx].is_tax_inclusive = !isInc;
+                                                            setBillItems(newBill);
+                                                        }}
+                                                        className={`so-cart-tax-badge ${isInc ? 'inc' : 'exc'}`}
+                                                        title={`Tax ${isInc ? 'Inclusive' : 'Exclusive'} - Click to toggle (or use shortcut)`}
+                                                    >
+                                                        {isInc ? 'INC' : 'EXC'}
+                                                    </button>
+
+                                                    <button
+                                                        type="button"
+                                                        className="so-cart-remove"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            removeFromBill(item.id);
+                                                        }}
+                                                        title="Remove item"
+                                                    >
+                                                        <X size={13} />
+                                                    </button>
+                                                </div>
+
+                                                {/* MIDDLE */}
+                                                <div className="so-cart-item-middle">
+
+                                                    {/* UOM */}
+                                                    <div className="so-cart-uom">
+
+                                                        <span className="so-cart-label">
+                                                            UOM
+                                                        </span>
+
+                                                        <div className="so-uom-buttons">
+
+                                                            <button
+                                                                type="button"
+                                                                className={
+                                                                    item.uom !== 'Box' &&
+                                                                    item.uom !== 'Master Box'
+                                                                        ? 'active'
+                                                                        : ''
+                                                                }
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+
+                                                                    const targetUom =
+                                                                        item.stock_uom ||
+                                                                        (
+                                                                            item.uom_conversions?.Nos
+                                                                                ? 'Nos'
+                                                                                : 'Piece'
+                                                                        );
+
+                                                                    toggleUom(
+                                                                        item.id,
+                                                                        targetUom
+                                                                    );
+                                                                }}
+                                                            >
+                                                                {item.stock_uom || 'Nos'}
+                                                            </button>
+
+                                                            {hasBox && (
+                                                                <button
+                                                                    type="button"
+                                                                    className={
+                                                                        item.uom === 'Box'
+                                                                            ? 'active'
+                                                                            : ''
+                                                                    }
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        toggleUom(
+                                                                            item.id,
+                                                                            'Box'
+                                                                        );
+                                                                    }}
+                                                                >
+                                                                    BOX
+                                                                </button>
+                                                            )}
+
+                                                            {hasMasterBox && (
+                                                                <button
+                                                                    type="button"
+                                                                    className={
+                                                                        item.uom === 'Master Box'
+                                                                            ? 'active'
+                                                                            : ''
+                                                                    }
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        toggleUom(
+                                                                            item.id,
+                                                                            'Master Box'
+                                                                        );
+                                                                    }}
+                                                                >
+                                                                    MASTER
+                                                                </button>
+                                                            )}
+
                                                         </div>
                                                     </div>
 
-                                                    <span className="font-black text-slate-800 text-[11px] flex items-center gap-0.5 mr-[22px]">
-                                                        <DirhamIcon size={10} className="text-slate-800" /> {(item.qty * effectivePrice).toFixed(2)}
-                                                    </span>
+                                                    {/* QTY */}
+                                                    <div className="so-cart-qty">
+
+                                                        <span className="so-cart-label">
+                                                            QTY
+                                                        </span>
+
+                                                        <div className="so-qty-control">
+
+                                                            <button
+                                                                type="button"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    setQuantity(
+                                                                        item.id,
+                                                                        Math.max(1, qty - 1)
+                                                                    );
+                                                                }}
+                                                            >
+                                                                −
+                                                            </button>
+
+                                                            <input
+                                                                type="number"
+                                                                min="1"
+                                                                value={qty}
+                                                                onChange={(e) => {
+                                                                    const value =
+                                                                        parseFloat(
+                                                                            e.target.value
+                                                                        ) || 1;
+
+                                                                    setQuantity(
+                                                                        item.id,
+                                                                        value
+                                                                    );
+                                                                }}
+                                                                onClick={(e) =>
+                                                                    e.stopPropagation()
+                                                                }
+                                                            />
+
+                                                            <button
+                                                                type="button"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    setQuantity(
+                                                                        item.id,
+                                                                        qty + 1
+                                                                    );
+                                                                }}
+                                                            >
+                                                                +
+                                                            </button>
+
+                                                        </div>
+                                                    </div>
+
+                                                    {/* PRICE */}
+                                                    <div className="so-cart-price">
+
+                                                        <span className="so-cart-label">
+                                                            PRICE {isInc ? '(INC)' : '(EXC)'}
+                                                        </span>
+
+                                                        <span className="so-cart-price-value">
+                                                            <DirhamIcon size={10} />
+                                                            {price.toFixed(2)}
+                                                        </span>
+
+                                                    </div>
+
                                                 </div>
 
-                                                {/* Customer Last Sale Price Badge */}
-                                                {selectedCustomer && selectedCustomer.name !== 'Cash' && (
-                                                    <div className="mt-1 flex items-center gap-1 text-[9px] font-extrabold text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200/80 w-fit">
+                                                {/* BOTTOM INFO */}
+                                                <div className="so-cart-item-bottom">
+
+                                                    <div>
+                                                        <span>NET</span>
+                                                        <strong>
+                                                            <DirhamIcon size={9} />
+                                                            {lineNet.toFixed(2)}
+                                                        </strong>
+                                                    </div>
+
+                                                    <div>
+                                                        <span>VAT ({currentTaxRate}%)</span>
+                                                        <strong className="vat-value">
+                                                            <DirhamIcon size={9} />
+                                                            {lineTax.toFixed(2)}
+                                                        </strong>
+                                                    </div>
+
+                                                    <div className="so-cart-line-total">
+                                                        <span>TOTAL</span>
+                                                        <strong>
+                                                            <DirhamIcon size={10} />
+                                                            {lineTotal.toFixed(2)}
+                                                        </strong>
+                                                    </div>
+
+                                                </div>
+
+                                                {/* PREVIOUS SALE */}
+                                                <div className="so-previous-sale">
+
+                                                    <span className="so-previous-sale-label">
+                                                        <History size={10} />
+                                                        Previous Sale
+                                                    </span>
+
+                                                    <span className="so-previous-sale-value">
                                                         {(() => {
-                                                            const info = getCustomerLastPriceInfo(item);
-                                                            if (info) {
+                                                            const info =
+                                                                item.previous_sale ||
+                                                                item.previousSale;
+
+                                                            if (
+                                                                info &&
+                                                                typeof info === 'object'
+                                                            ) {
                                                                 return (
-                                                                    <span className="flex items-center gap-1">
-                                                                        <span className="opacity-80">Last Sale ({info.uom}):</span>
-                                                                        <DirhamIcon size={8} /> {parseFloat(info.rate || 0).toFixed(2)}
-                                                                        <span className="text-[8px] text-amber-600 font-normal ml-0.5">({info.posting_date})</span>
-                                                                    </span>
+                                                                    <>
+                                                                        <DirhamIcon size={8} />
+                                                                        {parseFloat(
+                                                                            info.rate || 0
+                                                                        ).toFixed(2)}
+
+                                                                        {info.posting_date && (
+                                                                            <em>
+                                                                                ({info.posting_date})
+                                                                            </em>
+                                                                        )}
+                                                                    </>
                                                                 );
                                                             }
-                                                            return <span className="text-slate-400 font-normal italic text-[8.5px]">No previous sale for this customer</span>;
+
+                                                            if (
+                                                                info !== undefined &&
+                                                                info !== null &&
+                                                                info !== ''
+                                                            ) {
+                                                                return (
+                                                                    <>
+                                                                        <DirhamIcon size={8} />
+                                                                        {parseFloat(
+                                                                            info || 0
+                                                                        ).toFixed(2)}
+                                                                    </>
+                                                                );
+                                                            }
+
+                                                            return (
+                                                                <span className="no-previous-sale">
+                                                                    No previous sale
+                                                                </span>
+                                                            );
                                                         })()}
-                                                    </div>
-                                                )}
+                                                    </span>
+
+                                                </div>
+
                                             </div>
                                         );
                                     })
                                 )}
+
                             </div>
 
+                            {/* FOOTER */}
                             <div className="so-bill-footer">
-                                {/* Summary & Actions Side-by-Side */}
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
-                                    {/* Left: 4 Action Buttons Stacked vertically */}
-                                    <div className="flex flex-col gap-1.5">
+
+                                <div className="so-cart-footer-top">
+
+                                    {/* ACTIONS */}
+                                    <div className="so-cart-actions">
+
                                         <button
+                                            type="button"
                                             onClick={() => setShowDiscountModal(true)}
-                                            className="so-btn-secondary w-full h-8 px-2.5 text-[10px] flex items-center justify-between transition-all hover:-translate-y-0.5 active:translate-y-0"
-                                            style={discountAmount > 0 ? { color: 'var(--so-danger)', borderColor: '#fee2e2', backgroundColor: '#fef2f2', height: '32px', borderRadius: '0.5rem' } : { color: '#6366f1', borderColor: '#e0e7ff', backgroundColor: '#f5f3ff', height: '32px', borderRadius: '0.5rem' }}
+                                            className="so-cart-action discount"
                                         >
-                                            <span className="flex items-center gap-1.5 font-bold uppercase tracking-wider"><Palette size={11} /> Discount</span>
-                                            <span className="btn-shortcut-key">{formatKeyLabel(getShortcut('pos_home', 'discount', 'F1'))}</span>
+                                            <span>
+                                                <Percent size={14} />
+                                                DISCOUNT
+                                            </span>
+
+                                            <kbd>
+                                                F1
+                                            </kbd>
                                         </button>
+
                                         <button
+                                            type="button"
                                             onClick={handleLoyaltyPointsClick}
-                                            className="so-btn-secondary w-full h-8 px-2.5 text-[10px] flex items-center justify-between transition-all hover:-translate-y-0.5 active:translate-y-0"
-                                            style={loyaltyAmount > 0 ? { color: '#10b981', borderColor: '#d1fae5', backgroundColor: '#ecfdf5', height: '32px', borderRadius: '0.5rem' } : { color: '#10b981', borderColor: '#ecfdf5', backgroundColor: '#f0fdf4', height: '32px', borderRadius: '0.5rem' }}
+                                            className="so-cart-action loyalty"
                                         >
-                                            <span className="flex items-center gap-1.5 font-bold uppercase tracking-wider"><Award size={11} /> Loyalty</span>
-                                            <span className="btn-shortcut-key">{formatKeyLabel(getShortcut('pos_home', 'loyalty', 'Alt+L'))}</span>
+                                            <span>
+                                                <Gift size={14} />
+                                                LOYALTY
+                                            </span>
+
+                                            <kbd>
+                                                {formatKeyLabel(
+                                                    getShortcut(
+                                                        'pos_home',
+                                                        'loyalty',
+                                                        'Alt+L'
+                                                    )
+                                                )}
+                                            </kbd>
                                         </button>
+
                                         <button
+                                            type="button"
                                             onClick={handleSaveDraft}
-                                            className="so-btn-secondary w-full h-8 px-2.5 text-[10px] flex items-center justify-between transition-all hover:-translate-y-0.5 active:translate-y-0"
-                                            style={{ color: '#d97706', borderColor: '#fef3c7', backgroundColor: '#fffbeb', height: '32px', borderRadius: '0.5rem' }}
-                                            disabled={billItems.length === 0}
+                                            className="so-cart-action draft"
                                         >
-                                            <span className="flex items-center gap-1.5 font-bold uppercase tracking-wider"><Package size={11} /> Save Draft</span>
-                                            <span className="btn-shortcut-key">{formatKeyLabel(getShortcut('pos_home', 'saveDraft', 'Alt+S'))}</span>
+                                            <span>
+                                                <Upload size={14} />
+                                                SAVE DRAFT
+                                            </span>
+
+                                            <kbd>
+                                                {formatKeyLabel(
+                                                    getShortcut(
+                                                        'pos_home',
+                                                        'saveDraft',
+                                                        'Alt+S'
+                                                    )
+                                                )}
+                                            </kbd>
                                         </button>
+
                                         <button
+                                            type="button"
                                             onClick={clearBillHandler}
-                                            className="so-btn-secondary w-full h-8 px-2.5 text-[10px] flex items-center justify-between transition-all hover:-translate-y-0.5 active:translate-y-0"
-                                            style={{ color: 'var(--so-danger)', borderColor: '#fecaca', backgroundColor: '#fef2f2', height: '32px', borderRadius: '0.5rem' }}
+                                            className="so-cart-action reset"
                                         >
-                                            <span className="flex items-center gap-1.5 font-bold uppercase tracking-wider"><Trash2 size={11} /> Reset</span>
-                                            <span className="btn-shortcut-key">{formatKeyLabel(getShortcut('pos_home', 'clearBill', 'Alt+C'))}</span>
+                                            <span>
+                                                <Trash2 size={14} />
+                                                RESET
+                                            </span>
+
+                                            <kbd>
+                                                {formatKeyLabel(
+                                                    getShortcut(
+                                                        'pos_home',
+                                                        'clearBill',
+                                                        'Alt+C'
+                                                    )
+                                                )}
+                                            </kbd>
                                         </button>
+
                                     </div>
 
-                                    {/* Right: Subtotal / Total Box */}
-                                    <div className="so-total-box mb-0 flex flex-col justify-between">
-                                        <div className="space-y-1">
-                                            <div className="so-total-row">
-                                                <span>Subtotal</span>
-                                                <span className="flex items-center gap-0.5"><DirhamIcon size={9} /> {displaySubtotal.toFixed(2)}</span>
+                                    {/* TOTALS */}
+                                    <div className="so-cart-summary">
+
+                                        <div className="so-summary-row">
+                                            <span>Subtotal</span>
+
+                                            <strong>
+                                                <DirhamIcon size={10} />
+                                                {displaySubtotal.toFixed(2)}
+                                            </strong>
+                                        </div>
+
+                                        {discount.value > 0 && (
+                                            <div className="so-summary-row discount-row">
+                                                <span>
+                                                    Discount
+                                                    {discount.type === 'percent'
+                                                        ? ` (${discount.value}%)`
+                                                        : ''}
+                                                </span>
+
+                                                <strong>
+                                                    −
+                                                    <DirhamIcon size={10} />
+                                                    {displayDiscount.toFixed(2)}
+                                                </strong>
                                             </div>
-                                            {displayDiscount > 0 && (
-                                                <div className="so-total-row" style={{ color: 'var(--so-danger)' }}>
-                                                    <span>Discount</span>
-                                                    <span className="flex items-center gap-0.5">-<DirhamIcon size={9} /> {displayDiscount.toFixed(2)}</span>
-                                                </div>
-                                            )}
-                                            {loyaltyAmount > 0 && (
-                                                <div className="so-total-row" style={{ color: '#10b981' }}>
-                                                    <span>Loyalty</span>
-                                                    <span className="flex items-center gap-0.5">-<DirhamIcon size={9} /> {loyaltyAmount.toFixed(2)}</span>
-                                                </div>
-                                            )}
-                                            <div className="so-total-row">
-                                                <span>Tax ({taxRate}%)</span>
-                                                <span className="flex items-center gap-0.5"><DirhamIcon size={9} /> {displayTax.toFixed(2)}</span>
+                                        )}
+
+                                        {loyaltyAmount > 0 && (
+                                            <div className="so-summary-row loyalty-row">
+                                                <span>
+                                                    Loyalty
+                                                </span>
+
+                                                <strong>
+                                                    −
+                                                    <DirhamIcon size={10} />
+                                                    {loyaltyAmount.toFixed(2)}
+                                                </strong>
                                             </div>
+                                        )}
+
+                                        <div className="so-summary-row">
+                                            <span>
+                                                Tax ({taxRate}%)
+                                            </span>
+
+                                            <strong>
+                                                <DirhamIcon size={10} />
+                                                {displayTax.toFixed(2)}
+                                            </strong>
                                         </div>
 
                                         <div className="so-grand-total">
-                                            <span className="text-[0.6em] font-black uppercase tracking-widest opacity-40">TOTAL</span>
-                                            <span className="flex items-center gap-0.5"><DirhamIcon size={13} /> {grandTotal.toFixed(2)}</span>
+                                            <span>TOTAL</span>
+
+                                            <strong>
+                                                <DirhamIcon size={16} />
+                                                {grandTotal.toFixed(2)}
+                                            </strong>
                                         </div>
+
                                     </div>
+
                                 </div>
 
-                                <div className="flex gap-2.5 mb-2.5">
+                                {/* PAYMENT METHODS */}
+                                <div className="so-payment-methods">
+
                                     <button
-                                        onClick={() => { if (billItems.length > 0) completePayment('Cash'); }}
-                                        className="so-btn-secondary flex-1 px-3 py-2 text-xs font-bold transition-all hover:-translate-y-0.5 active:translate-y-0"
-                                        style={{ height: '36px', borderRadius: '0.625rem', color: '#10b981', borderColor: '#a7f3d0', backgroundColor: '#f0fdf4', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '6px' }}
-                                        disabled={grandTotal <= 0 || paymentLoading}
+                                        type="button"
+                                        className="so-payment-method cash"
+                                        disabled={paymentLoading}
+                                        onClick={() => {
+                                            setShowSettingsMenu(false);
+
+                                            if (billItems.length > 0) {
+                                                completePayment('Cash');
+                                            } else {
+                                                Swal.fire(
+                                                    'Info',
+                                                    'No items in bill',
+                                                    'info'
+                                                );
+                                            }
+                                        }}
                                     >
-                                        <span>Cash</span> <span className="btn-shortcut-key" style={{ margin: 0 }}>{formatKeyLabel(getShortcut('pos_home', 'directCash', 'Alt+1'))}</span>
+                                        <div className="so-btn-left">
+                                            <Banknote size={15} />
+                                            <span>CASH</span>
+                                        </div>
+                                        <kbd>
+                                            {formatKeyLabel(
+                                                getShortcut(
+                                                    'pos_home',
+                                                    'directCash',
+                                                    'Alt+1'
+                                                )
+                                            )}
+                                        </kbd>
                                     </button>
+
                                     <button
-                                        onClick={() => { if (billItems.length > 0) completePayment('Bank'); }}
-                                        className="so-btn-secondary flex-1 px-3 py-2 text-xs font-bold transition-all hover:-translate-y-0.5 active:translate-y-0"
-                                        style={{ height: '36px', borderRadius: '0.625rem', color: '#0ea5e9', borderColor: '#bae6fd', backgroundColor: '#f0f9ff', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '6px' }}
-                                        disabled={grandTotal <= 0 || paymentLoading}
+                                        type="button"
+                                        className="so-payment-method bank"
+                                        disabled={paymentLoading}
+                                        onClick={() => {
+                                            setShowSettingsMenu(false);
+
+                                            if (billItems.length > 0) {
+                                                setSelectedPaymentMode('Bank');
+                                                setShowCardTerminalModal(true);
+                                            } else {
+                                                Swal.fire(
+                                                    'Info',
+                                                    'No items in bill',
+                                                    'info'
+                                                );
+                                            }
+                                        }}
                                     >
-                                        <span>Bank</span> <span className="btn-shortcut-key" style={{ margin: 0 }}>{formatKeyLabel(getShortcut('pos_home', 'directBank', 'Ctrl+V'))}</span>
+                                        <div className="so-btn-left">
+                                            <Landmark size={15} />
+                                            <span>BANK</span>
+                                        </div>
+                                        <kbd>Alt+V</kbd>
                                     </button>
+
                                     <button
-                                        onClick={() => { if (billItems.length > 0) { setSelectedPaymentMode('Card'); setShowCardTerminalModal(true); } }}
-                                        className="so-btn-secondary flex-1 px-3 py-2 text-xs font-bold transition-all hover:-translate-y-0.5 active:translate-y-0"
-                                        style={{ height: '36px', borderRadius: '0.625rem', color: '#6366f1', borderColor: '#c7d2fe', backgroundColor: '#e0e7ff', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '6px' }}
-                                        disabled={grandTotal <= 0 || paymentLoading}
+                                        type="button"
+                                        className="so-payment-method card"
+                                        disabled={paymentLoading}
+                                        onClick={() => {
+                                            setShowSettingsMenu(false);
+
+                                            if (billItems.length > 0) {
+                                                setSelectedPaymentMode('Card');
+                                                setShowCardTerminalModal(true);
+                                            } else {
+                                                Swal.fire(
+                                                    'Info',
+                                                    'No items in bill',
+                                                    'info'
+                                                );
+                                            }
+                                        }}
                                     >
-                                        <span>Card</span> <span className="btn-shortcut-key" style={{ margin: 0 }}>{formatKeyLabel(getShortcut('pos_home', 'directCard', 'Alt+2'))}</span>
+                                        <div className="so-btn-left">
+                                            <CreditCard size={15} />
+                                            <span>CARD</span>
+                                        </div>
+                                        <kbd>Alt+2</kbd>
                                     </button>
+
                                 </div>
 
-                                {paymentLoading ? (
+                                {/* FINAL PAYMENTS */}
+                                <div className="so-final-payment-buttons">
+
                                     <button
-                                        className="so-btn-pay opacity-70 cursor-not-allowed flex items-center justify-center"
-                                        disabled
-                                        style={{ height: '46px', borderRadius: '0.75rem' }}
+                                        type="button"
+                                        className="so-final-payment print"
+                                        disabled={paymentLoading || billItems.length === 0}
+                                        onClick={() =>
+                                            handleCheckoutWithMode('print')
+                                        }
                                     >
-                                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                                        <span>Processing...</span>
+                                        <div className="so-btn-left">
+                                            <Printer size={15} />
+                                            <span>PAY & PRINT</span>
+                                        </div>
+                                        <kbd>SPACE</kbd>
                                     </button>
-                                ) : (
-                                    <div className="flex gap-2.5 mt-3">
-                                        <button
-                                            className="so-btn-pay flex items-center justify-between transition-all hover:brightness-105 active:scale-[0.98]"
-                                            disabled={grandTotal <= 0}
-                                            style={{
-                                                backgroundColor: '#10b981',
-                                                height: '46px',
-                                                minHeight: '46px',
-                                                flex: 1,
-                                                padding: '8px 12px',
-                                                fontSize: '11px',
-                                                fontWeight: '900',
-                                                borderRadius: '0.75rem',
-                                                boxShadow: grandTotal > 0 ? '0 4px 12px rgba(16, 185, 129, 0.2)' : 'none',
-                                                border: 'none',
-                                                cursor: grandTotal > 0 ? 'pointer' : 'not-allowed',
-                                                color: '#ffffff'
-                                            }}
-                                            onClick={() => handleCheckoutWithMode('print')}
-                                        >
-                                            <span className="flex items-center gap-1.5 uppercase tracking-wide">
-                                                <Printer size={12} /> Pay & Print
-                                            </span>
-                                            <span className="btn-shortcut-key" style={{ fontSize: '7.5px', padding: '1.5px 4.5px', margin: 0 }}>Space</span>
-                                        </button>
-                                        <button
-                                            className="so-btn-pay flex items-center justify-between transition-all hover:brightness-105 active:scale-[0.98]"
-                                            disabled={grandTotal <= 0}
-                                            style={{
-                                                backgroundColor: '#3b82f6',
-                                                height: '46px',
-                                                minHeight: '46px',
-                                                flex: 1,
-                                                padding: '8px 12px',
-                                                fontSize: '11px',
-                                                fontWeight: '900',
-                                                borderRadius: '0.75rem',
-                                                boxShadow: grandTotal > 0 ? '0 4px 12px rgba(59, 130, 246, 0.2)' : 'none',
-                                                border: 'none',
-                                                cursor: grandTotal > 0 ? 'pointer' : 'not-allowed',
-                                                color: '#ffffff'
-                                            }}
-                                            onClick={() => handleCheckoutWithMode('no-print')}
-                                        >
-                                            <span className="flex items-center gap-1.5 uppercase tracking-wide">
-                                                <CreditCard size={12} /> Pay No Print
-                                            </span>
-                                            <span className="btn-shortcut-key" style={{ fontSize: '7.5px', padding: '1.5px 4.5px', margin: 0 }}>{formatKeyLabel('Alt+N')}</span>
-                                        </button>
-                                        <button
-                                            className="so-btn-pay flex items-center justify-between transition-all hover:brightness-105 active:scale-[0.98]"
-                                            disabled={grandTotal <= 0}
-                                            style={{
-                                                backgroundColor: '#8b5cf6',
-                                                height: '46px',
-                                                minHeight: '46px',
-                                                flex: 1,
-                                                padding: '8px 12px',
-                                                fontSize: '11px',
-                                                fontWeight: '900',
-                                                borderRadius: '0.75rem',
-                                                boxShadow: grandTotal > 0 ? '0 4px 12px rgba(139, 92, 246, 0.2)' : 'none',
-                                                border: 'none',
-                                                cursor: grandTotal > 0 ? 'pointer' : 'not-allowed',
-                                                color: '#ffffff'
-                                            }}
-                                            onClick={() => handleCheckoutWithMode('print-a4')}
-                                        >
-                                            <span className="flex items-center gap-1.5 uppercase tracking-wide">
-                                                <Printer size={12} /> Pay A4 Print
-                                            </span>
-                                            <span className="btn-shortcut-key" style={{ fontSize: '7.5px', padding: '1.5px 4.5px', margin: 0 }}>{formatKeyLabel('Alt+A')}</span>
-                                        </button>
-                                    </div>
-                                )}
-                            </div></aside>
+
+                                    <button
+                                        type="button"
+                                        className="so-final-payment no-print"
+                                        disabled={paymentLoading || billItems.length === 0}
+                                        onClick={() =>
+                                            handleCheckoutWithMode('no-print')
+                                        }
+                                    >
+                                        <div className="so-btn-left">
+                                            <Receipt size={15} />
+                                            <span>PAY NO PRINT</span>
+                                        </div>
+                                        <kbd>CTRL+N</kbd>
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        className="so-final-payment a4"
+                                        disabled={paymentLoading || billItems.length === 0}
+                                        onClick={() =>
+                                            handleCheckoutWithMode('print-a4')
+                                        }
+                                    >
+                                        <div className="so-btn-left">
+                                            <Printer size={15} />
+                                            <span>PAY A4 PRINT</span>
+                                        </div>
+                                        <kbd>ALT+A</kbd>
+                                    </button>
+
+                                </div>
+
+                            </div>
+
+                        </div>
                     </main>
                 </div>
 
@@ -10646,8 +11913,8 @@ function Home() {
         const isGreen = legacySubTheme === 'green';
         const accentColor = '#e8c84a';
 
-        return (
-            <div className={`classic-root ${!isGreen ? 'theme-blue' : ''}`} style={{ position: 'relative' }}>
+        return wrapWindowMode(
+            <div className={`classic-root ${!isGreen ? 'theme-blue' : ''}`} style={{ position: 'relative', height: '100%', maxHeight: '100%' }}>
 
                 {/* CLASSIC NAVBAR */}
                 <nav className="classic-nav">
@@ -10675,6 +11942,24 @@ function Home() {
                     <div className="ml-auto flex items-center pr-2" style={{ gap: '12px' }}>
                         {/* Group 3: Utilities in Uniform Iconic Cards */}
                         <div className="flex items-center gap-2.5">
+                            {/* Screen Mode Switcher Button */}
+                            <button
+                                onClick={() => {
+                                    const nextMode = posWindowMode === 'popup' ? 'fullscreen' : 'popup';
+                                    setPosWindowMode(nextMode);
+                                    localStorage.setItem('pos_window_mode', nextMode);
+                                }}
+                                className={`h-9 px-2.5 flex items-center gap-1.5 bg-[#f4fbf9] border border-[#bce3da] text-slate-600 hover:bg-[#e6f4f1] hover:text-emerald-700 transition-all cursor-pointer shadow-sm ${posWindowMode === 'popup' ? 'bg-emerald-50 text-emerald-700 font-extrabold border-emerald-400' : ''}`}
+                                style={{ borderRadius: '9999px', fontSize: '11px', fontWeight: 800 }}
+                                title={posWindowMode === 'popup' ? "Switch to Full Screen (Alt+W)" : "Switch to Mini Popup Window (Alt+W)"}
+                            >
+                                {posWindowMode === 'popup' ? <Maximize2 size={14} /> : <Minimize2 size={14} />}
+                                <span className="hidden sm:inline">{posWindowMode === 'popup' ? 'FULL' : 'POPUP'}</span>
+                                <span style={{ background: '#dcfce7', color: '#166534', fontSize: '9px', padding: '1px 4px', borderRadius: '3px', fontWeight: 800 }}>
+                                    {isMac ? '⌥W' : 'Alt+W'}
+                                </span>
+                            </button>
+
                             {/* Connection Status Badge */}
                             <div className="flex items-center gap-2 px-3 py-1.5 bg-[#f4fbf9] border border-[#bce3da] shadow-sm select-none transition-all hover:bg-[#e6f4f1] cursor-pointer" style={{ borderRadius: '9999px' }}>
                                 <div className={`w-2.5 h-2.5 rounded-full ${isOffline ? 'bg-rose-500 animate-pulse' : 'bg-emerald-500'}`}></div>
@@ -10878,153 +12163,174 @@ function Home() {
                 {/* CLASSIC SHORTCUTS GUIDE - RELOCATED TO TOP */}
                 {!hideAllShortcuts && shortcutsPosition === 'top' && renderClassicShortcutsHorizontal()}
 
-                {/* CLASSIC HEADER FORM */}
-                <div className="classic-header-form">
-                    <div className="classic-field flex items-center gap-2.5 relative flex-1 min-w-0">
-                        <label className="uppercase font-black text-[11px] text-slate-500 tracking-tight whitespace-nowrap shrink-0">CUSTOMER</label>
-                        
-                        <div className="flex items-center gap-3 flex-1 min-w-0">
-                            {/* 1. Mobile / Search Box (Equal Proportion flex-1) */}
-                            <div className="relative group flex-1 min-w-[200px]" ref={dropdownRef}>
-                                <div className={`flex items-center h-11 border-2 rounded-xl overflow-hidden transition-all w-full shadow-xs ${selectedCustomer && selectedCustomer.name !== 'Cash'
-                                    ? 'border-emerald-300 focus-within:border-emerald-500 bg-emerald-50/20'
-                                    : 'border-slate-200 focus-within:border-sky-500 bg-white'
-                                    }`}>
-                                    <CountryCodeSelector
-                                        value={countryCodePrefix}
-                                        variant="classic"
-                                        onChange={newVal => {
-                                            setCountryCodePrefix(newVal);
-                                            localStorage.setItem('pos_country_code', newVal);
-                                        }}
-                                    />
-                                    <input
-                                        ref={mobileInputRef}
-                                        value={customerMobile || (selectedCustomer && selectedCustomer.name !== 'Cash' ? (selectedCustomer.mobile_no || selectedCustomer.name) : customerName)}
-                                        onChange={e => {
-                                            justSelectedCustomerRef.current = false;
-                                            setActiveCustomerIndex(-1);
-                                            const val = e.target.value;
-                                            if (/^[\d+]*$/.test(val)) {
-                                                let cleaned = val.replace(/\D/g, '');
-                                                // Strip leading 0 so 0501234567 becomes 501234567 (allowing full 9 digits)
-                                                while (cleaned.startsWith('0')) {
-                                                    cleaned = cleaned.slice(1);
-                                                }
-                                                const rule = getCountryRule(countryCodePrefix);
-                                                const restricted = cleaned.slice(0, rule.maxLen);
-                                                setCustomerMobile(restricted);
-                                                setCustomerName('');
-                                            } else {
-                                                setCustomerName(val);
-                                                setCustomerMobile('');
+                {/* CLASSIC HEADER FORM - 4 MODERN PREMIUM CARDS */}
+                <div className="classic-header-form flex items-stretch gap-2.5 w-full bg-slate-100/60 p-2 border-b border-slate-200/90">
+                    {/* Card 1: Customer Phone */}
+                    <div className="bg-white/95 backdrop-blur-sm border border-slate-200/90 hover:border-slate-300 focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/20 focus-within:shadow-[0_2px_12px_rgba(16,185,129,0.12)] rounded-xl px-3 py-2 shadow-[0_1px_3px_rgba(0,0,0,0.04)] hover:shadow-xs transition-all duration-200 flex-1 min-w-[220px] flex items-center gap-2.5 relative" ref={dropdownRef}>
+                        <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-emerald-500/15 to-teal-500/25 text-emerald-700 border border-emerald-500/20 flex items-center justify-center shrink-0 shadow-2xs">
+                            <Phone size={14} strokeWidth={2.4} />
+                        </div>
+                        <div className="flex-1 min-w-0 flex flex-col justify-center">
+                            <span className="text-[9.5px] font-black uppercase tracking-wider text-slate-400 leading-none mb-1">Customer Phone</span>
+                            <div className="flex items-center w-full min-w-0">
+                                <CountryCodeSelector
+                                    value={countryCodePrefix}
+                                    variant="classic"
+                                    onChange={newVal => {
+                                        setCountryCodePrefix(newVal);
+                                        localStorage.setItem('pos_country_code', newVal);
+                                    }}
+                                />
+                                <div className="h-4 w-[1px] bg-slate-200 mx-1.5 shrink-0" />
+                                <input
+                                    ref={mobileInputRef}
+                                    value={customerMobile || (selectedCustomer && selectedCustomer.name !== 'Cash' ? (selectedCustomer.mobile_no || selectedCustomer.name) : customerName)}
+                                    onChange={e => {
+                                        justSelectedCustomerRef.current = false;
+                                        setActiveCustomerIndex(-1);
+                                        const val = e.target.value;
+                                        if (/^[\d+]*$/.test(val)) {
+                                            let cleaned = val.replace(/\D/g, '');
+                                            while (cleaned.startsWith('0')) {
+                                                cleaned = cleaned.slice(1);
                                             }
-                                            if (selectedCustomer) setSelectedCustomer(null);
-                                        }}
-                                        onFocus={() => { setSearchContext('customer'); if (!selectedCustomer && !justSelectedCustomerRef.current && (customerMobile || customerName).trim().length >= 1) setShowDropdown(true); setShowSettingsMenu(false); }}
-                                        onClick={() => { setSearchContext('customer'); if (!selectedCustomer && !justSelectedCustomerRef.current && (customerMobile || customerName).trim().length >= 1) setShowDropdown(true); setShowSettingsMenu(false); }}
-                                        onBlur={() => setTimeout(() => setShowDropdown(false), 300)}
-                                        onKeyDown={handleMobileEnter}
-                                        className={`flex-1 h-full px-3 text-xs font-black outline-none bg-transparent ${selectedCustomer && selectedCustomer.name !== 'Cash'
-                                            ? 'text-emerald-950 font-black'
-                                            : 'text-slate-900'
-                                            }`}
-                                        placeholder="Search Mobile or Name..."
-                                        style={{ minWidth: '100px' }}
-                                    />
+                                            const rule = getCountryRule(countryCodePrefix);
+                                            const restricted = cleaned.slice(0, rule.maxLen);
+                                            setCustomerMobile(restricted);
+                                            setCustomerName('');
+                                        } else {
+                                            setCustomerName(val);
+                                            setCustomerMobile('');
+                                        }
+                                        if (selectedCustomer) setSelectedCustomer(null);
+                                    }}
+                                    onFocus={() => { setSearchContext('customer'); if (!selectedCustomer && !justSelectedCustomerRef.current && (customerMobile || customerName).trim().length >= 1) setShowDropdown(true); setShowSettingsMenu(false); }}
+                                    onClick={() => { setSearchContext('customer'); if (!selectedCustomer && !justSelectedCustomerRef.current && (customerMobile || customerName).trim().length >= 1) setShowDropdown(true); setShowSettingsMenu(false); }}
+                                    onBlur={() => setTimeout(() => setShowDropdown(false), 300)}
+                                    onKeyDown={handleMobileEnter}
+                                    className="flex-1 h-5 px-1 text-xs font-black outline-none bg-transparent text-slate-800 placeholder:text-slate-400 placeholder:font-normal min-w-0"
+                                    placeholder="Enter phone or name"
+                                />
 
-                                    {customerLoading && (
-                                        <div className="pr-3 flex items-center">
-                                            <div className="w-3.5 h-3.5 border-2 border-sky-500 border-t-transparent rounded-full animate-spin" />
-                                        </div>
-                                    )}
-                                </div>
-
-                                {showDropdown && (
-                                    <div className="absolute top-full left-0 w-full bg-white border border-slate-200 rounded-xl shadow-xl z-[9999] max-h-56 overflow-y-auto mt-1 py-1">
-                                        {searchResults.length === 0 ? (
-                                            <div style={{ padding: '12px 14px', color: '#64748b', textAlign: 'center', fontSize: '12px', fontWeight: 'bold' }}>
-                                                {(customerMobile || customerName).trim().length < 2 ? 'Type 2+ chars' : 'No customers found'}
-                                            </div>
-                                        ) : searchResults.map((c, idx) => {
-                                            const isSelected = idx === activeCustomerIndex;
-                                            return (
-                                                <div
-                                                    key={c.name}
-                                                    id={`cust-item-1-${idx}`}
-                                                    className={`cursor-pointer text-xs transition-colors ${isSelected ? 'bg-sky-100 text-sky-950 font-black' : 'hover:bg-slate-50 text-slate-700 font-semibold'}`}
-                                                    style={{ padding: '8px 14px', borderBottom: '1px solid #f1f5f9' }}
-                                                    onMouseDown={(e) => { e.preventDefault(); pickCustomer(c); setActiveCustomerIndex(-1); }}
-                                                >
-                                                    <div className="flex items-center justify-between gap-2">
-                                                        <span className="truncate">{c.customer_name}</span>
-                                                        {c.mobile_no && (
-                                                            <span className="text-[10px] opacity-60 font-mono bg-slate-100 px-1.5 py-0.5 rounded flex-shrink-0 text-slate-700">{c.mobile_no}</span>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            );
-                                        })}
-                                        {searchResults.every(c => c.customer_name.toLowerCase() !== (customerMobile || customerName).trim().toLowerCase()) && (customerMobile || customerName).trim() && (
-                                            <div
-                                                onMouseDown={(e) => { e.preventDefault(); openCreate((customerMobile || customerName).trim()); }}
-                                                className="bg-sky-50 text-sky-600 font-black text-[10px] uppercase tracking-wider cursor-pointer hover:bg-sky-100 text-center border-t border-sky-100 transition-colors"
-                                                style={{ padding: '10px 14px' }}
-                                            >
-                                                + Register New Customer
-                                            </div>
-                                        )}
+                                {customerLoading && (
+                                    <div className="pr-1 flex items-center">
+                                        <div className="w-3.5 h-3.5 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
                                     </div>
                                 )}
                             </div>
-
-                            {/* 2. Customer Name + Edit Box (Equal Proportion flex-1) */}
-                            {selectedCustomer && selectedCustomer.name !== 'Cash' && selectedCustomer.customer_name && (
-                                <div className="h-11 flex-1 min-w-[200px] flex items-center justify-between bg-emerald-50 border-2 border-emerald-300 rounded-xl overflow-hidden shadow-xs animate-in slide-in-from-left-2 duration-200">
-                                    <div className="px-3.5 h-full flex items-center gap-2 text-emerald-950 text-xs font-black uppercase tracking-tight min-w-0 flex-1">
-                                        <User size={15} className="text-emerald-600 shrink-0" />
-                                        <span className="truncate text-[12.5px]" title={selectedCustomer.customer_name}>{selectedCustomer.customer_name}</span>
-                                    </div>
-                                    <button
-                                        type="button"
-                                        onClick={() => openEditCustomer(selectedCustomer)}
-                                        className="h-full px-4 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white flex items-center gap-1.5 text-xs font-black uppercase tracking-wider transition-all cursor-pointer border-none shrink-0"
-                                        title="Edit Customer Details"
-                                    >
-                                        <Edit size={13} />
-                                        <span>Edit</span>
-                                    </button>
-                                </div>
-                            )}
-
-                            {/* 3. Customer Group Badge (Equal Proportion flex-1 or solid min-w) */}
-                            <div className={`h-11 px-4 flex items-center justify-center border-2 rounded-xl text-xs font-black uppercase tracking-tight shadow-xs shrink-0 gap-2 transition-all ${selectedCustomer && selectedCustomer.name !== 'Cash'
-                                ? 'bg-sky-50 border-sky-200 text-sky-700 flex-1 min-w-[170px]'
-                                : 'bg-slate-50 border-slate-200 text-slate-600 min-w-[160px]'
-                                }`}>
-                                <Layers size={15} className={selectedCustomer && selectedCustomer.name !== 'Cash' ? 'text-sky-500 shrink-0' : 'text-slate-400 shrink-0'} />
-                                <span className="truncate text-[12px]">{selectedCustomer ? (selectedCustomer.customer_group || 'Retail Customer') : 'Retail Customer'}</span>
-                            </div>
                         </div>
+
+                        {showDropdown && (
+                            <div className="absolute top-full left-0 w-full bg-white border border-slate-200 rounded-xl shadow-xl z-[9999] max-h-56 overflow-y-auto mt-1.5 py-1">
+                                {searchResults.length === 0 ? (
+                                    <div style={{ padding: '12px 14px', color: '#64748b', textAlign: 'center', fontSize: '12px', fontWeight: 'bold' }}>
+                                        {(customerMobile || customerName).trim().length < 2 ? 'Type 2+ chars' : 'No customers found'}
+                                    </div>
+                                ) : searchResults.map((c, idx) => {
+                                    const isSelected = idx === activeCustomerIndex;
+                                    return (
+                                        <div
+                                            key={c.name}
+                                            id={`cust-item-1-${idx}`}
+                                            className={`cursor-pointer text-xs transition-colors ${isSelected ? 'bg-emerald-100 text-emerald-950 font-black' : 'hover:bg-slate-50 text-slate-700 font-semibold'}`}
+                                            style={{ padding: '8px 14px', borderBottom: '1px solid #f1f5f9' }}
+                                            onMouseDown={(e) => { e.preventDefault(); pickCustomer(c); setActiveCustomerIndex(-1); }}
+                                        >
+                                            <div className="flex items-center justify-between gap-2">
+                                                <span className="truncate">{c.customer_name}</span>
+                                                {c.mobile_no && (
+                                                    <span className="text-[10px] opacity-60 font-mono bg-slate-100 px-1.5 py-0.5 rounded flex-shrink-0 text-slate-700">{c.mobile_no}</span>
+                                                )}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                                {searchResults.every(c => c.customer_name.toLowerCase() !== (customerMobile || customerName).trim().toLowerCase()) && (customerMobile || customerName).trim() && (
+                                    <div
+                                        onMouseDown={(e) => { e.preventDefault(); openCreate((customerMobile || customerName).trim()); }}
+                                        className="bg-emerald-50 text-emerald-700 font-black text-[10px] uppercase tracking-wider cursor-pointer hover:bg-emerald-100 text-center border-t border-emerald-100 transition-colors"
+                                        style={{ padding: '10px 14px' }}
+                                    >
+                                        + Register New Customer
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </div>
 
-                    <div className="classic-field flex items-center gap-3 ml-auto">
-                        <label className="uppercase font-black text-[11px] text-slate-500 tracking-tight whitespace-nowrap">INV NO:</label>
-                        <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                            <InvoiceNumberDisplay
-                                branchPrefix={branchPrefix}
-                                userName={user?.split('@')[0]}
-                                ddmm={format(new Date(), 'ddMM')}
-                                sessionOrderCount={sessionOrderCount}
-                                formatType={offlineIdType}
-                                onToggleFormat={setOfflineIdMethodHandle}
-                                continuousCount={continuousOrderCount}
-                            />
-                            {isSyncingCount && (
-                                <div style={{ position: 'absolute', right: '-20px', display: 'flex', alignItems: 'center' }}>
-                                    <div className="w-3 h-3 border-2 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
+                    {/* Card 2: Customer */}
+                    <div className="bg-white/95 backdrop-blur-sm border border-slate-200/90 hover:border-slate-300 rounded-xl px-3 py-2 shadow-[0_1px_3px_rgba(0,0,0,0.04)] hover:shadow-xs transition-all duration-200 flex-1 min-w-[200px] flex items-center justify-between gap-2.5">
+                        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-cyan-500/15 to-teal-500/25 text-teal-700 border border-teal-500/20 flex items-center justify-center shrink-0 shadow-2xs">
+                                <User size={14} strokeWidth={2.4} />
+                            </div>
+                            <div className="flex-1 min-w-0 flex flex-col justify-center">
+                                <span className="text-[9.5px] font-black uppercase tracking-wider text-slate-400 leading-none mb-1">Customer</span>
+                                <span className="truncate text-xs font-black text-slate-900 uppercase tracking-tight block" title={selectedCustomer?.customer_name || customerName || 'Cash'}>
+                                    {selectedCustomer?.customer_name || customerName || 'Cash'}
+                                </span>
+                            </div>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => selectedCustomer && selectedCustomer.name !== 'Cash' ? openEditCustomer(selectedCustomer) : openCreate(customerMobile || customerName)}
+                            className="group/btn h-7 px-2.5 rounded-lg bg-teal-50 hover:bg-teal-600 text-teal-700 hover:text-white border border-teal-200 hover:border-teal-600 text-[11px] font-bold flex items-center gap-1.5 transition-all duration-150 cursor-pointer active:scale-95 shrink-0 shadow-2xs hover:shadow-xs"
+                            title="Edit Customer Details"
+                        >
+                            <Pencil size={11} strokeWidth={2.5} className="transition-transform duration-150 group-hover/btn:-rotate-12" />
+                            <span>Edit</span>
+                        </button>
+                    </div>
+
+                    {/* Card 3: Tier / Group */}
+                    <div className="bg-white/95 backdrop-blur-sm border border-slate-200/90 hover:border-slate-300 rounded-xl px-3 py-2 shadow-[0_1px_3px_rgba(0,0,0,0.04)] hover:shadow-xs transition-all duration-200 flex-1 min-w-[200px] flex items-center justify-between gap-2.5">
+                        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-violet-500/15 to-indigo-500/25 text-indigo-700 border border-indigo-500/20 flex items-center justify-center shrink-0 shadow-2xs">
+                                <Users size={14} strokeWidth={2.4} />
+                            </div>
+                            <div className="flex-1 min-w-0 flex flex-col justify-center">
+                                <span className="text-[9.5px] font-black uppercase tracking-wider text-slate-400 leading-none mb-1">Tier / Group</span>
+                                <span className="truncate text-xs font-black text-slate-900 uppercase tracking-tight block" title={selectedCustomer ? (selectedCustomer.customer_group || 'Retail Customer') : 'Retail Customer'}>
+                                    {selectedCustomer ? (selectedCustomer.customer_group || 'Retail Customer') : 'Retail Customer'}
+                                </span>
+                            </div>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => openCustomerGroupChangeModal(selectedCustomer)}
+                            className="group/btn h-7 px-2.5 rounded-lg bg-indigo-50 hover:bg-indigo-600 text-indigo-700 hover:text-white border border-indigo-200 hover:border-indigo-600 text-[11px] font-bold flex items-center gap-1.5 transition-all duration-150 cursor-pointer active:scale-95 shrink-0 shadow-2xs hover:shadow-xs"
+                            title="Edit Customer Group / Pricing Tier"
+                        >
+                            <Pencil size={11} strokeWidth={2.5} className="transition-transform duration-150 group-hover/btn:-rotate-12" />
+                            <span>Edit</span>
+                        </button>
+                    </div>
+
+                    {/* Card 4: Invoice No */}
+                    <div className="bg-white/95 backdrop-blur-sm border border-slate-200/90 hover:border-slate-300 rounded-xl px-3 py-2 shadow-[0_1px_3px_rgba(0,0,0,0.04)] hover:shadow-xs transition-all duration-200 flex-1 min-w-[200px] flex items-center justify-between gap-2.5">
+                        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-amber-500/15 to-orange-500/25 text-amber-700 border border-amber-500/20 flex items-center justify-center shrink-0 shadow-2xs">
+                                <FileText size={14} strokeWidth={2.4} />
+                            </div>
+                            <div className="flex-1 min-w-0 flex flex-col justify-center">
+                                <span className="text-[9.5px] font-black uppercase tracking-wider text-slate-400 leading-none mb-1">Invoice No</span>
+                                <div className="relative flex items-center flex-1 min-w-0">
+                                    <InvoiceNumberDisplay
+                                        branchPrefix={branchPrefix}
+                                        userName={user?.split('@')[0]}
+                                        ddmm={format(new Date(), 'ddMM')}
+                                        sessionOrderCount={sessionOrderCount}
+                                        formatType={offlineIdType}
+                                        onToggleFormat={setOfflineIdMethodHandle}
+                                        continuousCount={continuousOrderCount}
+                                    />
+                                    {isSyncingCount && (
+                                        <div className="ml-2 flex items-center">
+                                            <div className="w-3 h-3 border-2 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
+                                        </div>
+                                    )}
                                 </div>
-                            )}
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -11986,8 +13292,20 @@ function Home() {
                                             </div>
                                         )}
                                     </div>
-                                    <div className="flex items-center px-4 bg-slate-50 border-2 border-slate-100 text-slate-700 rounded-2xl text-xs font-black uppercase tracking-wider shadow-sm shrink-0">
-                                        {selectedCustomer ? (selectedCustomer.customer_group || 'Retail Customer') : 'Retail Customer'}
+                                    <div className="flex items-center overflow-hidden bg-slate-50 border-2 border-slate-200 text-slate-700 rounded-2xl text-xs font-black uppercase tracking-wider shadow-sm shrink-0">
+                                        <div className="px-4 py-3 flex items-center gap-2">
+                                            <Layers size={14} className="text-sky-500 shrink-0" />
+                                            <span>{selectedCustomer ? (selectedCustomer.customer_group || 'Retail Customer') : 'Retail Customer'}</span>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => openCustomerGroupChangeModal(selectedCustomer)}
+                                            className="px-3 py-3 bg-sky-600 hover:bg-sky-700 active:scale-95 text-white flex items-center gap-1 text-[11px] font-black uppercase tracking-wider transition-all cursor-pointer border-none"
+                                            title="Edit Customer Group"
+                                        >
+                                            <Edit size={12} />
+                                            <span>Edit</span>
+                                        </button>
                                     </div>
                                 </div>
                                 <input type="tel" placeholder="Phone Number" value={phoneNumber} onChange={e => {
@@ -12224,7 +13542,7 @@ function Home() {
                 onAddJobToCart={(item, uom, initialQty) => handleAddToBill(item, uom, initialQty)}
             />
         </div>
-    );
+        );
 }
 export default Home;
 

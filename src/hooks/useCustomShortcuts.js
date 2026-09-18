@@ -9,22 +9,27 @@ export const DEFAULT_SHORTCUTS = {
         customer: 'F2',
         search: 'F3',
         countryCode: 'F4',
-        stock: 'F7',
+        itemDetail: 'F5',
         bulkQty: 'F6',
-        pay: 'Space',
+        stock: 'F7',
         uom: 'F8',
         boxUom: 'Ctrl+B',
+        masterBoxUom: 'Ctrl+M',
+        nosUom: 'Ctrl+N',
         orders: 'F9',
-        saveDraft: 'Alt+S',
+        printBill: 'F10',
         priceUpdate: 'F11',
         loyalty: 'Alt+L',
+        saveDraft: 'Alt+S',
         clearBill: 'Alt+C',
+        printJob: 'Alt+P',
+        fastPrint: 'Alt+F',
+        itemFilter: 'Alt+S',
         directCash: 'Alt+1',
         directBank: 'Ctrl+V',
         directCard: 'Alt+2',
         selectItem: 'Alt+I',
-        itemDetail: 'F5',
-        printBill: 'F10'
+        pay: 'Space'
     },
     doc_editor: {
         customerSupplier: 'F2',
@@ -45,22 +50,27 @@ export const ACTION_LABELS = {
         customer: 'Focus Customer Mobile',
         search: 'Focus Barcode/Search',
         countryCode: 'Toggle Country Code Prefix',
-        stock: 'Stock Breakdown Lookup',
+        itemDetail: 'Selected Item Detail Modal',
         bulkQty: 'Bulk Qty Update',
-        pay: 'Checkout / Pay (Classic)',
-        uom: 'UOM Toggle in Cart',
+        stock: 'Stock Breakdown Lookup',
+        uom: 'Cycle / Toggle UOM in Cart',
         boxUom: 'Set Box UOM Directly',
+        masterBoxUom: 'Set Master Box UOM Directly',
+        nosUom: 'Set Nos / Piece UOM Directly',
         orders: 'Active Orders (Drafts) Modal',
-        saveDraft: 'Save Current Draft',
+        printBill: 'Print Last Invoice / Bill',
         priceUpdate: 'Quick Price Update',
         loyalty: 'Loyalty Modal Toggle',
+        saveDraft: 'Save Current Draft',
         clearBill: 'Clear Cart / Bill',
+        printJob: 'Print Job Calculator',
+        fastPrint: 'Fast Print Modal',
+        itemFilter: 'Item Search & Filter Drawer',
         directCash: 'Direct Cash Complete',
         directBank: 'Direct Bank Complete',
         directCard: 'Direct Card Complete',
-        selectItem: 'Grid Item Selection',
-        itemDetail: 'Selected Item Detail Modal',
-        printBill: 'Print Last Invoice / Bill'
+        selectItem: 'Grid Item Selection / Swap',
+        pay: 'Checkout / Pay (Classic)'
     },
     doc_editor: {
         customerSupplier: 'Focus Customer/Supplier Search',
@@ -233,16 +243,40 @@ export const useCustomShortcuts = () => {
         const rawStr = getRawShortcut(page, actionId, defaultVal);
         if (!rawStr) return '';
         
-        const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0 || navigator.userAgent.toUpperCase().indexOf('MAC') >= 0;
-        if (!isMac) return rawStr;
+        const isMac = typeof navigator !== 'undefined' && (
+            (navigator.platform && navigator.platform.toUpperCase().indexOf('MAC') >= 0) ||
+            (navigator.userAgent && navigator.userAgent.toUpperCase().indexOf('MAC') >= 0)
+        );
         
-        return rawStr.split('+').map(part => {
-            const p = part.trim().toUpperCase();
-            if (p === 'ALT') return '⌥ Option';
-            if (p === 'CTRL' || p === 'CONTROL') return '⌃ Ctrl';
-            if (p === 'SHIFT') return '⇧ Shift';
-            return part.trim();
-        }).join(' + ');
+        if (!isMac) {
+            return rawStr
+                .replace(/^⌥\s*\+?\s*/i, 'Alt+')
+                .replace(/^Option\s*\+\s*/i, 'Alt+')
+                .replace(/^⌘\s*\+?\s*/i, 'Ctrl+')
+                .replace(/^\^\s*\+?\s*/i, 'Ctrl+')
+                .replace(/^\^\s*Ctrl\s*\+\s*/i, 'Ctrl+');
+        }
+        
+        const parts = rawStr.split('+').map(p => p.trim());
+        const modSymbols = [];
+        let mainKey = '';
+        
+        parts.forEach(part => {
+            const p = part.toUpperCase();
+            if (p === 'ALT' || p === 'OPTION' || p === '⌥') modSymbols.push('⌥');
+            else if (p === 'CTRL' || p === 'CONTROL' || p === '⌃' || p === '^') modSymbols.push('⌃');
+            else if (p === 'CMD' || p === 'COMMAND' || p === '⌘') modSymbols.push('⌘');
+            else if (p === 'SHIFT' || p === '⇧') modSymbols.push('⇧');
+            else mainKey = part;
+        });
+        
+        if (modSymbols.length > 0) {
+            return `${modSymbols.join('')}${mainKey.toUpperCase()}`;
+        }
+        if (/^F\d{1,2}$/i.test(mainKey)) {
+            return `fn+${mainKey.toUpperCase()}`;
+        }
+        return mainKey;
     }, [getRawShortcut]);
 
     const isShortcutPressed = useCallback((e, page, actionId, defaultVal) => {

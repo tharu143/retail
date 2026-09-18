@@ -75,7 +75,13 @@ export default function QuotationList() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState(location.state?.search || '');
   const [filterStatus, setFilterStatus] = useState('');
-  const [filterDateRange, setFilterDateRange] = useState('');
+  const getTodayDate = () => {
+    const tzoffset = (new Date()).getTimezoneOffset() * 60000;
+    return (new Date(Date.now() - tzoffset)).toISOString().split('T')[0];
+  };
+
+  const [filterDateFrom, setFilterDateFrom] = useState(() => getTodayDate());
+  const [filterDateTo, setFilterDateTo] = useState(() => getTodayDate());
 
   // Sorting
   const [sortField, setSortField] = useState('modified');
@@ -180,11 +186,13 @@ export default function QuotationList() {
 
       const matchStatus = !filterStatus || q.status === filterStatus || (filterStatus === 'Submitted' && q.docstatus === 1) || (filterStatus === 'Draft' && q.docstatus === 0);
 
-      const matchDate = !filterDateRange || (q.transaction_date && q.transaction_date.includes(filterDateRange));
+      const qtnDateStr = String(q.transaction_date || '').slice(0, 10);
+      const matchFrom = !filterDateFrom || qtnDateStr >= String(filterDateFrom).slice(0, 10);
+      const matchTo = !filterDateTo || qtnDateStr <= String(filterDateTo).slice(0, 10);
 
-      return matchSearch && matchStatus && matchDate;
+      return matchSearch && matchStatus && matchFrom && matchTo;
     });
-  }, [quotations, searchTerm, filterStatus, filterDateRange]);
+  }, [quotations, searchTerm, filterStatus, filterDateFrom, filterDateTo]);
 
   const sortedQuotations = useMemo(() => {
     if (!sortField) return filteredQuotations;
@@ -463,17 +471,35 @@ export default function QuotationList() {
 
           <div style={{ width: '160px' }}>
             <label style={{ fontSize: '12px', fontWeight: 800, color: '#334155', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: '6px' }}>
-              Date Filter
+              FROM DATE
             </label>
             <input
               type="date"
               className="so-filter-input"
-              value={filterDateRange}
+              value={filterDateFrom}
               onChange={(e) => {
-                setFilterDateRange(e.target.value);
+                setFilterDateFrom(e.target.value);
                 setCurrentPage(1);
               }}
-              style={{ width: '100%', height: '38px', padding: '0 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none', background: '#fff', color: filterDateRange ? '#0f172a' : '#64748b', fontWeight: 500 }}
+              style={{ width: '100%', height: '38px', padding: '0 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none', background: '#fff', color: filterDateFrom ? '#0f172a' : '#64748b', fontWeight: 500 }}
+              onFocus={(e) => { try { e.target.showPicker(); } catch (err) {} }}
+              onClick={(e) => { try { e.target.showPicker(); } catch (err) {} }}
+            />
+          </div>
+
+          <div style={{ width: '160px' }}>
+            <label style={{ fontSize: '12px', fontWeight: 800, color: '#334155', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: '6px' }}>
+              TO DATE
+            </label>
+            <input
+              type="date"
+              className="so-filter-input"
+              value={filterDateTo}
+              onChange={(e) => {
+                setFilterDateTo(e.target.value);
+                setCurrentPage(1);
+              }}
+              style={{ width: '100%', height: '38px', padding: '0 12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '13px', outline: 'none', background: '#fff', color: filterDateTo ? '#0f172a' : '#64748b', fontWeight: 500 }}
               onFocus={(e) => { try { e.target.showPicker(); } catch (err) {} }}
               onClick={(e) => { try { e.target.showPicker(); } catch (err) {} }}
             />
@@ -486,7 +512,8 @@ export default function QuotationList() {
               onClick={() => {
                 setSearchTerm('');
                 setFilterStatus('');
-                setFilterDateRange('');
+                setFilterDateFrom('');
+                setFilterDateTo('');
                 setCurrentPage(1);
               }}
               style={{
@@ -494,8 +521,8 @@ export default function QuotationList() {
                 padding: '0 1.25rem',
                 borderRadius: '8px',
                 background: '#ffffff',
-                color: searchTerm || filterStatus || filterDateRange ? '#ef4444' : '#64748b',
-                border: `1.5px solid ${searchTerm || filterStatus || filterDateRange ? '#fecaca' : '#cbd5e1'}`,
+                color: searchTerm || filterStatus || filterDateFrom || filterDateTo ? '#ef4444' : '#64748b',
+                border: `1.5px solid ${searchTerm || filterStatus || filterDateFrom || filterDateTo ? '#fecaca' : '#cbd5e1'}`,
                 fontSize: '13px',
                 fontWeight: 600,
                 cursor: 'pointer',
@@ -506,7 +533,7 @@ export default function QuotationList() {
                 transition: 'all 0.15s ease'
               }}
             >
-              {searchTerm || filterStatus || filterDateRange ? <X size={14} /> : null}
+              {searchTerm || filterStatus || filterDateFrom || filterDateTo ? <X size={14} /> : null}
               <span>Clear Search</span>
             </button>
           </div>

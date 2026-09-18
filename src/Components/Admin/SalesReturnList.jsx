@@ -78,10 +78,18 @@ function SalesReturnList() {
   const [pageSize, setPageSize] = useState(20);
   const [currentPage, setCurrentPage] = useState(1);
   
+  const getTodayDate = () => {
+    const tzoffset = (new Date()).getTimezoneOffset() * 60000;
+    return (new Date(Date.now() - tzoffset)).toISOString().split('T')[0];
+  };
+
+  const [filterDateFrom, setFilterDateFrom] = useState(() => getTodayDate());
+  const [filterDateTo, setFilterDateTo] = useState(() => getTodayDate());
+
   // Create Flow Filters
   const [selectedCustomer, setSelectedCustomer] = useState(null);
-  const [fromDate, setFromDate] = useState('');
-  const [toDate, setToDate] = useState('');
+  const [fromDate, setFromDate] = useState(() => getTodayDate());
+  const [toDate, setToDate] = useState(() => getTodayDate());
   const [selectedItemFilter, setSelectedItemFilter] = useState(null);
   
   // Create Flow Invoices List & Workspace
@@ -655,6 +663,12 @@ function SalesReturnList() {
         r.status?.toLowerCase().includes(q)
       ));
     }
+    if (filterDateFrom) {
+      list = list.filter(r => String(r.posting_date || '').slice(0, 10) >= String(filterDateFrom).slice(0, 10));
+    }
+    if (filterDateTo) {
+      list = list.filter(r => String(r.posting_date || '').slice(0, 10) <= String(filterDateTo).slice(0, 10));
+    }
     if (sortField) {
       list.sort((a, b) => {
         let valA = a[sortField];
@@ -670,7 +684,7 @@ function SalesReturnList() {
       });
     }
     return list;
-  }, [returns, searchTerm, sortField, sortDirection]);
+  }, [returns, searchTerm, filterDateFrom, filterDateTo, sortField, sortDirection]);
 
   const paginated = sortedReturns.slice((currentPage - 1) * pageSize, currentPage * pageSize);
   const totalPages = Math.ceil(sortedReturns.length / pageSize);
@@ -1133,15 +1147,66 @@ function SalesReturnList() {
           </div>
 
           <div className="so-content" style={{ background: '#751010', padding: '1.25rem', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.3)' }}>
-            <div className="relative mb-6" style={{ position: 'relative', marginBottom: '1.25rem' }}>
-              <Search size={18} style={{ position: 'absolute', left: '1.25rem', top: '50%', transform: 'translateY(-50%)', color: '#751010', stroke: '#751010', zIndex: 10, pointerEvents: 'none' }} />
-              <input
-                className="so-input"
-                style={{ paddingLeft: '3.25rem', background: '#ffffff', color: '#751010', fontWeight: 800 }}
-                placeholder="Search Credit ID, Customer or Original SINV..."
-                value={searchTerm}
-                onChange={e => setSearchTerm(e.target.value)}
-              />
+            <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-end', marginBottom: '1.25rem', flexWrap: 'wrap' }}>
+              <div style={{ position: 'relative', flex: 1, minWidth: '220px' }}>
+                <Search size={18} style={{ position: 'absolute', left: '1.25rem', top: '50%', transform: 'translateY(-50%)', color: '#751010', stroke: '#751010', zIndex: 10, pointerEvents: 'none' }} />
+                <input
+                  className="so-input"
+                  style={{ width: '100%', paddingLeft: '3.25rem', background: '#ffffff', color: '#751010', fontWeight: 800, height: '40px', borderRadius: '8px', border: '1px solid #ffffff' }}
+                  placeholder="Search Credit ID, Customer or Original SINV..."
+                  value={searchTerm}
+                  onChange={e => setSearchTerm(e.target.value)}
+                />
+              </div>
+              <div style={{ width: '160px' }}>
+                <label style={{ fontSize: '11px', fontWeight: 800, color: '#ffffff', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: '4px' }}>FROM DATE</label>
+                <input
+                  type="date"
+                  className="so-input"
+                  value={filterDateFrom}
+                  onChange={e => setFilterDateFrom(e.target.value)}
+                  onFocus={(e) => { try { e.target.showPicker(); } catch (err) {} }}
+                  onClick={(e) => { try { e.target.showPicker(); } catch (err) {} }}
+                  style={{ width: '100%', height: '40px', padding: '0 10px', borderRadius: '8px', background: '#ffffff', color: '#751010', fontWeight: 700, fontSize: '13px', border: '1px solid #ffffff' }}
+                />
+              </div>
+              <div style={{ width: '160px' }}>
+                <label style={{ fontSize: '11px', fontWeight: 800, color: '#ffffff', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: '4px' }}>TO DATE</label>
+                <input
+                  type="date"
+                  className="so-input"
+                  value={filterDateTo}
+                  onChange={e => setFilterDateTo(e.target.value)}
+                  onFocus={(e) => { try { e.target.showPicker(); } catch (err) {} }}
+                  onClick={(e) => { try { e.target.showPicker(); } catch (err) {} }}
+                  style={{ width: '100%', height: '40px', padding: '0 10px', borderRadius: '8px', background: '#ffffff', color: '#751010', fontWeight: 700, fontSize: '13px', border: '1px solid #ffffff' }}
+                />
+              </div>
+              <div>
+                <button
+                  type="button"
+                  onClick={() => { setSearchTerm(''); setFilterDateFrom(''); setFilterDateTo(''); }}
+                  style={{
+                    height: '40px',
+                    padding: '0 1.25rem',
+                    borderRadius: '8px',
+                    background: '#ffffff',
+                    color: (searchTerm || filterDateFrom || filterDateTo) ? '#ef4444' : '#751010',
+                    border: '1.5px solid #ffffff',
+                    fontSize: '13px',
+                    fontWeight: 800,
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+                    transition: 'all 0.15s ease'
+                  }}
+                >
+                  {(searchTerm || filterDateFrom || filterDateTo) ? <X size={14} /> : null}
+                  <span>CLEAR</span>
+                </button>
+              </div>
             </div>
 
             <div className="so-table-card" style={{ background: '#751010', color: '#ffffff', border: '1px solid rgba(255, 255, 255, 0.3)' }}>

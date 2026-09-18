@@ -444,29 +444,113 @@ const CameraScanner = ({ onScan, onClose }) => {
   );
 };
 /* ========== SEARCHABLE SELECT ========== */
-const SearchableSelect = ({ label, value, options, onChange, placeholder, onAction, required }) => {
+const SearchableSelect = ({ label, value, options, onChange, placeholder, onAction, required, tabIndex = 0 }) => {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
+  const [highlightIndex, setHighlightIndex] = useState(0);
   const ref = useRef(null);
+  const triggerRef = useRef(null);
+
   useEffect(() => {
     const click = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
     document.addEventListener('mousedown', click);
     return () => document.removeEventListener('mousedown', click);
   }, []);
+
   const filtered = options.filter(o => String(o.label || o.value || '').toLowerCase().includes(search.toLowerCase()));
+
+  useEffect(() => {
+    setHighlightIndex(0);
+  }, [search, open]);
+
   return (
     <div className="il-form-field" ref={ref} style={{ position: 'relative' }}>
       <label className={`il-form-label ${required ? 'req' : ''}`}>{label}</label>
-      <div className="il-input" onClick={() => setOpen(!open)} style={{ cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', minHeight: 38, padding: '0 13px', background: T.surface }}>
+      <div
+        ref={triggerRef}
+        className="il-input"
+        tabIndex={tabIndex}
+        role="combobox"
+        aria-expanded={open}
+        onClick={() => setOpen(!open)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ' || e.key === 'ArrowDown') {
+            e.preventDefault();
+            setOpen(true);
+          } else if (e.key === 'Tab') {
+            if (open) setOpen(false);
+          }
+        }}
+        onFocus={(e) => {
+          e.currentTarget.style.borderColor = T.blue;
+          e.currentTarget.style.boxShadow = `0 0 0 3px ${T.blueLight}`;
+        }}
+        onBlur={(e) => {
+          if (!open) {
+            e.currentTarget.style.borderColor = T.border;
+            e.currentTarget.style.boxShadow = 'none';
+          }
+        }}
+        style={{
+          cursor: 'pointer',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          minHeight: 38,
+          padding: '0 13px',
+          background: T.surface,
+          outline: 'none',
+          borderColor: open ? T.blue : T.border,
+          boxShadow: open ? `0 0 0 3px ${T.blueLight}` : 'none',
+          transition: 'border-color 0.15s, box-shadow 0.15s'
+        }}
+      >
         <span style={{ color: value ? T.text : T.textMuted, fontSize: 14, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {options.find(o => String(o.value) === String(value))?.label || placeholder}
         </span>
-        <ChevronDown size={14} style={{ color: T.textMuted, flexShrink: 0 }} />
+        <ChevronDown size={14} style={{ color: T.textMuted, flexShrink: 0, transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }} />
       </div>
       {open && (
         <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: T.surface, border: `1.5px solid ${T.blue}`, borderRadius: T.radius, zIndex: 1100, marginTop: 4, maxHeight: 300, overflow: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: T.shadowMd }}>
           <div style={{ padding: 8, borderBottom: `1px solid ${T.borderLight}`, background: T.bg, display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <input className="il-input" style={{ height: 34, fontSize: 13 }} autoFocus placeholder="Type to search..." value={search} onChange={e => setSearch(e.target.value)} onClick={e => e.stopPropagation()} />
+            <input
+              className="il-input"
+              style={{ height: 34, fontSize: 13 }}
+              autoFocus
+              placeholder="Type to search..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              onClick={e => e.stopPropagation()}
+              onKeyDown={e => {
+                if (e.key === 'Escape') {
+                  e.preventDefault();
+                  setOpen(false);
+                  if (triggerRef.current) triggerRef.current.focus();
+                } else if (e.key === 'ArrowDown') {
+                  e.preventDefault();
+                  setHighlightIndex(prev => Math.min(prev + 1, filtered.length - 1));
+                } else if (e.key === 'ArrowUp') {
+                  e.preventDefault();
+                  setHighlightIndex(prev => Math.max(prev - 1, 0));
+                } else if (e.key === 'Enter') {
+                  e.preventDefault();
+                  if (filtered.length > 0 && highlightIndex >= 0 && highlightIndex < filtered.length) {
+                    onChange(filtered[highlightIndex].value);
+                    setOpen(false);
+                    setSearch('');
+                    if (triggerRef.current) triggerRef.current.focus();
+                  } else if (onAction && filtered.length === 0) {
+                    onAction(search);
+                    setOpen(false);
+                  }
+                } else if (e.key === 'Tab') {
+                  if (filtered.length > 0 && highlightIndex >= 0 && highlightIndex < filtered.length) {
+                    onChange(filtered[highlightIndex].value);
+                  }
+                  setOpen(false);
+                }
+              }}
+            />
             {onAction && (
               <button
                 type="button"
@@ -520,8 +604,21 @@ const SearchableSelect = ({ label, value, options, onChange, placeholder, onActi
                   </button>
                 )}
               </div>
-            ) : filtered.map(o => (
-              <div key={o.value} onClick={(e) => { e.stopPropagation(); onChange(o.value); setOpen(false); setSearch(''); }} style={{ padding: '10px 14px', fontSize: 13, cursor: 'pointer', background: String(value) === String(o.value) ? T.blueLight : 'transparent', color: String(value) === String(o.value) ? T.blue : T.text, fontWeight: String(value) === String(o.value) ? 600 : 500, borderBottom: `1px solid ${T.borderLight}` }} onMouseOver={e => e.currentTarget.style.background = T.bg} onMouseOut={e => e.currentTarget.style.background = String(value) === String(o.value) ? T.blueLight : 'transparent'}>
+            ) : filtered.map((o, idx) => (
+              <div
+                key={o.value}
+                onClick={(e) => { e.stopPropagation(); onChange(o.value); setOpen(false); setSearch(''); if (triggerRef.current) triggerRef.current.focus(); }}
+                style={{
+                  padding: '10px 14px',
+                  fontSize: 13,
+                  cursor: 'pointer',
+                  background: idx === highlightIndex ? T.bg : (String(value) === String(o.value) ? T.blueLight : 'transparent'),
+                  color: String(value) === String(o.value) ? T.blue : T.text,
+                  fontWeight: String(value) === String(o.value) ? 600 : 500,
+                  borderBottom: `1px solid ${T.borderLight}`
+                }}
+                onMouseEnter={() => setHighlightIndex(idx)}
+              >
                 {o.label}
               </div>
             ))}
@@ -770,7 +867,7 @@ const defaultForm = () => ({
   attributes: [],
   opening_stock: 0, valuation_rate: 0, standard_selling_rate: 0, brand: '',
   default_uom: 'Nos', description: '', image: null, imagePreview: null,
-  uoms: [{ uom: 'Nos', conversion_factor: 1 }], hsn_code: '', country_of_origin: '', custom_loyalty_eligible: 0, custom_allow_discount: 1,
+  uoms: [{ uom: 'Nos', conversion_factor: 1 }], hsn_code: '', country_of_origin: '', custom_size: '', custom_loyalty_eligible: 0, custom_allow_discount: 1,
   is_stock_item: 1, is_sales_item: 1, is_purchase_item: 1, supplier_items: [],
   branch_availability: [], custom_pieces_per_box: 0, custom_boxes_per_master_box: 0,
   buying_price_list: 'Standard Buying', buying_price: 0,
@@ -837,6 +934,7 @@ export default function ItemList() {
   const [barcodes, setBarcodes] = useState([]);
   const [barcodeInput, setBarcodeInput] = useState('');
   const [barcodeUom, setBarcodeUom] = useState('Nos');
+  const addingBarcodeSetRef = useRef(new Set());
 
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState(defaultForm());
@@ -1870,16 +1968,14 @@ export default function ItemList() {
     if (!code?.trim()) return;
     code = code.trim();
     const uom = uomToUse || barcodeUom || form.default_uom || 'Nos';
-    if (barcodes.some(b => b.barcode === code)) {
-      Swal.fire({
-        icon: 'info',
-        title: 'Barcode Already Added',
-        text: `Barcode "${code}" is already in this item's barcode list.`,
-        timer: 1800,
-        showConfirmButton: false
-      });
+
+    if (addingBarcodeSetRef.current.has(code) || barcodes.some(b => b.barcode === code)) {
       return;
     }
+    addingBarcodeSetRef.current.add(code);
+    setBarcodeInput('');
+    setIsScanning(false);
+
     try {
       const res = await axios.get('/api/method/custom_retailpos.custom_retailpos.retail_api.retail.check_barcode_exists', { params: { barcode: code }, withCredentials: true });
       if (res.data?.message?.exists) {
@@ -1907,8 +2003,10 @@ export default function ItemList() {
         return;
       }
     } catch { }
-    setBarcodes(p => [...p, { barcode: code, uom }]);
-    setBarcodeInput(''); setIsScanning(false);
+    finally {
+      addingBarcodeSetRef.current.delete(code);
+    }
+    setBarcodes(p => (p.some(b => b.barcode === code) ? p : [...p, { barcode: code, uom }]));
   };
 
   const rebuildUoms = (baseUom, pcsPerBoxVal, boxesPerMasterVal, currentUoms = []) => {
@@ -1986,7 +2084,7 @@ export default function ItemList() {
         (item.item_code || '').toLowerCase().includes(b);
 
       return matchesBarcode
-        && (!filterName || item.item_code.toLowerCase().includes(s) || item.item_name.toLowerCase().includes(s))
+        && (!filterName || item.item_code.toLowerCase().includes(s) || item.item_name.toLowerCase().includes(s) || (item.custom_size || '').toLowerCase().includes(s) || (item.brand || '').toLowerCase().includes(s))
         && (!filterGroup || item.item_group.toLowerCase().includes(filterGroup.toLowerCase()))
         && (!filterStatus || (filterStatus === 'Enabled' ? !item.disabled : item.disabled))
         && (!filterHasVariants || (filterHasVariants === 'Yes' ? item.has_variants : !item.has_variants));
@@ -2165,6 +2263,7 @@ export default function ItemList() {
         image: form.image || form.imagePreview || '',
         hsn_code: form.hsn_code,
         brand: form.brand,
+        custom_size: form.custom_size || '',
         country_of_origin: form.country_of_origin,
         custom_loyalty_eligible: form.custom_loyalty_eligible ? 1 : 0,
         custom_allow_discount: form.custom_allow_discount ? 1 : 0,
@@ -2403,6 +2502,7 @@ export default function ItemList() {
       standard_selling_rate: item.standard_rate || 0,
       imagePreview: item.image,
       brand: item.brand || '',
+      custom_size: item.custom_size || item.size || '',
       country_of_origin: item.country_of_origin || '',
       custom_pieces_per_box: item.custom_pieces_per_box || 0,
       branch_availability: []
@@ -3395,6 +3495,7 @@ export default function ItemList() {
                             ['Main Category', formMainGroup || '—'],
                             ['Subgroup / Item Group', form.item_group || '—'],
                             ['Brand', form.brand || '—'],
+                            ['Size', form.custom_size || '—'],
                             ['Base UOM', form.default_uom],
                             ['Valuation', `AED ${Number(form.valuation_rate || 0).toFixed(2)}`],
                             ['HSN Code', form.hsn_code || '—'],
@@ -4363,10 +4464,10 @@ export default function ItemList() {
                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 5 }}>
                             <label className="il-form-label" style={{ margin: 0 }}>Barcode</label>
                             <div style={{ display: 'flex', gap: 4 }}>
-                              <button type="button" className="il-btn il-btn-secondary" style={{ padding: '2px 7px', fontSize: 11, height: 22 }} onClick={() => setShowCameraScanner(true)} title="Camera Scan">
+                              <button type="button" tabIndex={-1} className="il-btn il-btn-secondary" style={{ padding: '2px 7px', fontSize: 11, height: 22 }} onClick={() => setShowCameraScanner(true)} title="Camera Scan">
                                 <Camera size={11} /> Camera
                               </button>
-                              <button type="button" className="il-btn il-btn-secondary" style={{ padding: '2px 7px', fontSize: 11, height: 22, color: isScanning ? T.blue : T.textSub, borderColor: isScanning ? T.blue : T.border }} onClick={() => setIsScanning(s => !s)} title="Hardware Scan">
+                              <button type="button" tabIndex={-1} className="il-btn il-btn-secondary" style={{ padding: '2px 7px', fontSize: 11, height: 22, color: isScanning ? T.blue : T.textSub, borderColor: isScanning ? T.blue : T.border }} onClick={() => setIsScanning(s => !s)} title="Hardware Scan">
                                 {isScanning ? '● Scanning' : 'HW Scan'}
                               </button>
                             </div>
@@ -4375,22 +4476,39 @@ export default function ItemList() {
                             <input
                               ref={barcodeInputRef}
                               className="il-input"
+                              tabIndex={0}
                               style={{ flex: 1 }}
                               value={barcodeInput}
                               onChange={e => setBarcodeInput(e.target.value)}
-                              onKeyDown={e => {
+                              onKeyDown={async e => {
                                 if (e.key === 'Enter') {
                                   e.preventDefault();
-                                  addBarcode(barcodeInput, barcodeUom);
+                                  if (barcodeInput.trim()) {
+                                    await addBarcode(barcodeInput.trim(), barcodeUom);
+                                  }
                                 }
                               }}
-                              placeholder="Type barcode and press Enter..."
+                              placeholder="Type barcode..."
                             />
                             <select
                               className="il-select"
-                              style={{ width: 120, height: 38, fontSize: 12, fontWeight: 700, background: '#fff' }}
+                              tabIndex={0}
+                              style={{ width: 130, height: 38, fontSize: 12, fontWeight: 700, background: '#fff' }}
                               value={barcodeUom}
                               onChange={e => setBarcodeUom(e.target.value)}
+                              onKeyDown={async e => {
+                                if (e.key === 'Enter') {
+                                  e.preventDefault();
+                                  if (barcodeInput.trim()) {
+                                    await addBarcode(barcodeInput.trim(), barcodeUom);
+                                  }
+                                }
+                              }}
+                              onBlur={async () => {
+                                if (barcodeInput.trim()) {
+                                  await addBarcode(barcodeInput.trim(), barcodeUom);
+                                }
+                              }}
                             >
                               <option value={form.default_uom || 'Nos'}>{form.default_uom || 'Nos'} (Base)</option>
                               <option value="Box">Box</option>
@@ -4399,9 +4517,6 @@ export default function ItemList() {
                                 <option key={u.uom} value={u.uom}>{u.uom}</option>
                               ))}
                             </select>
-                            <button type="button" className="il-btn il-btn-primary" style={{ padding: '0 12px', fontSize: 12, fontWeight: 700 }} onClick={() => addBarcode(barcodeInput, barcodeUom)}>
-                              Add
-                            </button>
                           </div>
                           {barcodes.length > 0 && (
                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
@@ -4422,6 +4537,7 @@ export default function ItemList() {
                                 >
                                   <span style={{ fontWeight: 800, fontFamily: "'DM Mono', monospace" }}>{b.barcode}</span>
                                   <select
+                                    tabIndex={-1}
                                     value={b.uom || form.default_uom || 'Nos'}
                                     onChange={e => {
                                       const next = [...barcodes];
@@ -4449,6 +4565,7 @@ export default function ItemList() {
                                   </select>
                                   <button
                                     type="button"
+                                    tabIndex={-1}
                                     onClick={() => setBarcodes(p => p.filter((_, idx) => idx !== i))}
                                     style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.red, display: 'flex', padding: 0 }}
                                     title="Remove barcode"
@@ -4467,6 +4584,7 @@ export default function ItemList() {
                         <label className="il-form-label req">Item Code</label>
                         <input
                           className="il-input"
+                          tabIndex={0}
                           value={form.item_code}
                           onChange={e => setForm({ ...form, item_code: e.target.value })}
                           onBlur={async () => {
@@ -4526,7 +4644,7 @@ export default function ItemList() {
                       {/* ROW 1: 3. Item Name */}
                       <div className="il-form-field">
                         <label className="il-form-label req">Item Name</label>
-                        <input className="il-input" value={form.item_name} onChange={e => setForm({ ...form, item_name: e.target.value })} placeholder="Full item name" />
+                        <input className="il-input" tabIndex={0} value={form.item_name} onChange={e => setForm({ ...form, item_name: e.target.value })} placeholder="Full item name" />
                       </div>
 
                       {/* ROW 2: 4. Main Item Category */}
@@ -4535,6 +4653,7 @@ export default function ItemList() {
                         value={formMainGroup}
                         options={groupHierarchy.map(h => ({ label: h.main_group, value: h.main_group }))}
                         placeholder="Select Main Category"
+                        tabIndex={0}
                         onChange={val => {
                           setFormMainGroup(val);
                           setForm({ ...form, item_group: '' });
@@ -4553,6 +4672,7 @@ export default function ItemList() {
                         }
                         required
                         placeholder="Select Subgroup"
+                        tabIndex={0}
                         onChange={val => setForm({ ...form, item_group: val })}
                         onAction={(search) => handleOpenCreateItemGroup(formMainGroup || '', search)}
                       />
@@ -4563,22 +4683,36 @@ export default function ItemList() {
                         value={form.brand}
                         options={brands}
                         placeholder="Select Brand"
+                        tabIndex={0}
                         onChange={val => setForm({ ...form, brand: val })}
                         onAction={handleCreateBrand}
                       />
 
-                      {/* ROW 3: 7. Country of Origin */}
+                      {/* ROW 2: 7. Size */}
+                      <div className="il-form-field">
+                        <label className="il-form-label">Size</label>
+                        <input
+                          className="il-input"
+                          placeholder="e.g. S, M, L, XL, 500g, 1L, 42..."
+                          value={form.custom_size || ''}
+                          tabIndex={0}
+                          onChange={e => setForm({ ...form, custom_size: e.target.value })}
+                        />
+                      </div>
+
+                      {/* ROW 3: 7. Country of Origin (Skipped in Tab sequence) */}
                       <div className="il-form-field">
                         <SearchableSelect
                           label="Country of Origin"
                           value={form.country_of_origin}
                           options={countries}
                           placeholder="Select Country"
+                          tabIndex={-1}
                           onChange={val => setForm({ ...form, country_of_origin: val })}
                         />
                       </div>
 
-                      {/* ROW 3: 8. Base UOM */}
+                      {/* ROW 3: 8. Base UOM (Skipped in Tab sequence) */}
                       {!isEditMode ? (
                         <SearchableSelect
                           label="Base UOM"
@@ -4586,13 +4720,14 @@ export default function ItemList() {
                           options={baseUomOptions}
                           required
                           placeholder="Select UOM"
+                          tabIndex={-1}
                           onChange={handleDefaultUomChange}
                           onAction={handleCreateUom}
                         />
                       ) : (
                         <div className="il-form-field">
                           <label className="il-form-label req">Base UOM</label>
-                          <input className="il-input" value={form.default_uom || 'Nos'} disabled />
+                          <input className="il-input" value={form.default_uom || 'Nos'} disabled tabIndex={-1} />
                         </div>
                       )}
 
@@ -4601,11 +4736,11 @@ export default function ItemList() {
                         <>
                           <div className="il-form-field">
                             <label className="il-form-label">No of units in box</label>
-                            <input type="number" className="il-input" value={form.custom_pieces_per_box} onChange={e => handlePiecesPerBoxChange(e.target.value)} placeholder="Conversion factor (e.g. 12)" />
+                            <input type="number" tabIndex={0} className="il-input" value={form.custom_pieces_per_box} onChange={e => handlePiecesPerBoxChange(e.target.value)} placeholder="Conversion factor (e.g. 12)" />
                           </div>
                           <div className="il-form-field">
                             <label className="il-form-label">No of boxes in master box</label>
-                            <input type="number" className="il-input" value={form.custom_boxes_per_master_box} onChange={e => handleBoxesPerMasterBoxChange(e.target.value)} placeholder="e.g. 10 (Master Box = 10 Boxes)" />
+                            <input type="number" tabIndex={0} className="il-input" value={form.custom_boxes_per_master_box} onChange={e => handleBoxesPerMasterBoxChange(e.target.value)} placeholder="e.g. 10 (Master Box = 10 Boxes)" />
                           </div>
                         </>
                       )}
