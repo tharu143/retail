@@ -4667,12 +4667,12 @@ function PurchaseInvoiceList() {
 
                 <div className="flex items-end justify-between gap-3 pt-1">
                   <div className="flex flex-col gap-1">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[9px] font-bold uppercase text-slate-400">SUBTOTAL</span>
+                    <div className="flex items-center gap-4">
+                      <span className="text-[9px] font-bold uppercase text-slate-400 w-16">SUBTOTAL</span>
                       <span className="text-slate-800 font-bold text-sm">{formatPrice(subtotal)}</span>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-[9px] font-bold uppercase text-slate-400">TAX</span>
+                    <div className="flex items-center gap-4">
+                      <span className="text-[9px] font-bold uppercase text-slate-400 w-16">TAX</span>
                       <span className="text-slate-600 font-bold text-sm">{formatPrice(taxTotal)}</span>
                     </div>
                   </div>

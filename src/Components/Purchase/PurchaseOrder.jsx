@@ -1349,7 +1349,7 @@ function PurchaseOrder() {
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
-      const whList = data.message || [];
+      const whList = Array.isArray(data.message) ? data.message : [];
       setWarehouses(whList);
 
       // Auto-set default warehouse based on logged-in user

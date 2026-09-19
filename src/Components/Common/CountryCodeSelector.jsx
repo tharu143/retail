@@ -164,17 +164,18 @@ const CountryCodeSelector = ({
         ref={buttonRef}
         type="button"
         onClick={handleToggle}
-        className={`flex items-center justify-between gap-1.5 px-2.5 outline-none transition-all cursor-pointer select-none font-bold text-xs shrink-0 ${
+        className={`flex items-center justify-between gap-1.5 outline-none transition-all duration-200 cursor-pointer select-none font-bold text-[11px] shrink-0 ${
           variant === 'classic'
-            ? 'h-full bg-slate-100 hover:bg-slate-200 text-slate-800 border-r-2 border-slate-200'
+            ? 'h-[26px] px-2.5 bg-white hover:bg-emerald-50 text-slate-700 hover:text-emerald-700 border border-slate-200 hover:border-emerald-300 shadow-[0_1px_2px_rgba(0,0,0,0.05)] hover:shadow-sm'
             : variant === 'modal'
-            ? 'h-10 bg-slate-50/80 hover:bg-slate-100 text-slate-800 border border-slate-300 rounded-lg shadow-2xs'
-            : 'h-full bg-slate-50/90 hover:bg-slate-100 text-slate-700 border-r border-slate-200'
+            ? 'h-10 px-2 bg-slate-50/80 hover:bg-slate-100 text-slate-800 border border-slate-300 rounded-lg shadow-2xs'
+            : 'h-full px-2 bg-slate-50/90 hover:bg-slate-100 text-slate-700 border-r border-slate-200'
         } ${className}`}
         style={{
-          minWidth: '98px',
-          width: '98px',
-          height: variant === 'modal' ? '40px' : '100%',
+          borderRadius: variant === 'classic' ? '9999px' : undefined,
+          minWidth: variant === 'classic' ? '74px' : '98px',
+          width: variant === 'classic' ? 'auto' : '98px',
+          height: variant === 'modal' ? '40px' : variant === 'classic' ? '26px' : '100%',
           ...style,
         }}
         title={`Country Code: ${selectedCountry.country} (${selectedCountry.code}) - Press F4 to toggle`}

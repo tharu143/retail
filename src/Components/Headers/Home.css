@@ -1225,8 +1225,8 @@
 
 .so-cart-action {
     min-width: 0;
-    height: 38px;
-    padding: 0 8px;
+    height: 48px;
+    padding: 0 10px;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -1242,9 +1242,9 @@
     min-width: 0;
     display: flex;
     align-items: center;
-    gap: 5px;
+    gap: 6px;
     overflow: hidden;
-    font-size: 10px;
+    font-size: 12px;
     font-weight: 900;
     letter-spacing: 0.25px;
     white-space: nowrap;
@@ -1258,7 +1258,7 @@
     background: #0f172a;
     color: #ffffff;
     font-family: ui-monospace, monospace;
-    font-size: 7.5px;
+    font-size: 9px;
     font-weight: 800;
 }
 
@@ -1377,8 +1377,8 @@
 
 .so-payment-method {
     min-width: 0;
-    height: 38px;
-    padding: 0 8px;
+    height: 48px;
+    padding: 0 10px;
     display: flex;
     flex-direction: row;
     align-items: center;
@@ -1402,7 +1402,7 @@
 .so-btn-left span {
     min-width: 0;
     overflow: hidden;
-    font-size: 10px;
+    font-size: 13px;
     font-weight: 900;
     white-space: nowrap;
     text-overflow: ellipsis;
@@ -1411,12 +1411,12 @@
 .so-payment-method kbd {
     flex: 0 0 auto;
     margin-left: auto;
-    padding: 2px 4.5px;
+    padding: 2.5px 5px;
     border-radius: 4px;
     background: rgba(15, 23, 42, 0.75);
     color: #ffffff;
     font-family: ui-monospace, monospace;
-    font-size: 7px;
+    font-size: 9px;
     font-weight: 800;
 }
 
@@ -1465,12 +1465,12 @@
 
 .so-final-payment {
     min-width: 0;
-    height: 40px;
-    padding: 0 8px;
+    height: 52px;
+    padding: 0 10px;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 5px;
+    gap: 6px;
     border: 0;
     border-radius: 8px;
     color: #ffffff;
@@ -1482,7 +1482,7 @@
 .so-final-payment span {
     min-width: 0;
     overflow: hidden;
-    font-size: 9px;
+    font-size: 13px;
     font-weight: 950;
     white-space: nowrap;
     text-overflow: ellipsis;
@@ -1491,12 +1491,12 @@
 
 .so-final-payment kbd {
     flex: 0 0 auto;
-    padding: 2.5px 4.5px;
+    padding: 3px 6px;
     border-radius: 4px;
     background: rgba(15, 23, 42, 0.75);
     color: #ffffff;
     font-family: ui-monospace, monospace;
-    font-size: 6.5px;
+    font-size: 9px;
     font-weight: 900;
 }
 

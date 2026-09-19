@@ -49,7 +49,9 @@ import {
     ZoomIn,
     ZoomOut,
     RotateCcw,
-    Crop
+    Crop,
+    Check,
+    ChevronDown
 } from 'lucide-react';
 import { BrowserMultiFormatReader, BarcodeFormat, DecodeHintType } from '@zxing/library';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
@@ -384,7 +386,7 @@ function Home() {
                     };
                 }
             }
-        } catch (e) {}
+        } catch (e) { }
         const winH = typeof window !== 'undefined' ? window.innerHeight : 768;
         const winW = typeof window !== 'undefined' ? window.innerWidth : 1280;
         return {
@@ -403,7 +405,7 @@ function Home() {
             const updated = typeof newDim === 'function' ? newDim(prev) : { ...prev, ...newDim };
             try {
                 localStorage.setItem('pos_popup_dimensions', JSON.stringify(updated));
-            } catch (e) {}
+            } catch (e) { }
             return updated;
         });
     };
@@ -462,7 +464,7 @@ function Home() {
             setPopupDimensions(prev => {
                 try {
                     localStorage.setItem('pos_popup_dimensions', JSON.stringify(prev));
-                } catch (err) {}
+                } catch (err) { }
                 return prev;
             });
         };
@@ -633,7 +635,7 @@ function Home() {
                         type="button"
                         onClick={() => {
                             setPosWindowMode('fullscreen');
-                            try { localStorage.setItem('pos_window_mode', 'fullscreen'); } catch (e) {}
+                            try { localStorage.setItem('pos_window_mode', 'fullscreen'); } catch (e) { }
                         }}
                         style={{ background: '#10b981', border: 'none', color: '#ffffff', borderRadius: '6px', padding: '3px 9px', fontSize: '10px', fontWeight: 900, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', marginLeft: '4px' }}
                     >
@@ -1772,8 +1774,8 @@ function Home() {
         });
 
         return categories.filter(cat =>
-            cat === "all" || 
-            cat.toLowerCase().includes(term) || 
+            cat === "all" ||
+            cat.toLowerCase().includes(term) ||
             matchingCategoriesFromItems.has(cat)
         );
     }, [categories, groupSearch, Items]);
@@ -1814,7 +1816,7 @@ function Home() {
         const numOnly = trimmed.replace(/\D/g, '');
         if (!trimmed) return false;
         return (Items || []).some(it => {
-            if ((it.id && String(it.id).toLowerCase() === trimmed) || 
+            if ((it.id && String(it.id).toLowerCase() === trimmed) ||
                 (it.item_code && String(it.item_code).toLowerCase() === trimmed) ||
                 (numOnly && it.item_code && String(it.item_code).replace(/\D/g, '') === numOnly)) {
                 return true;
@@ -1873,6 +1875,7 @@ function Home() {
     const [showGroupChangeModal, setShowGroupChangeModal] = useState(false);
     const [groupChangeCust, setGroupChangeCust] = useState(null);
     const [targetGroup, setTargetGroup] = useState('Retail Customer');
+    const [isEditingInlineGroup, setIsEditingInlineGroup] = useState(false);
     const [groupSecretKey, setGroupSecretKey] = useState('');
     const [showGroupSecretKey, setShowGroupSecretKey] = useState(false);
     const [groupChangeReason, setGroupChangeReason] = useState('');
@@ -2615,6 +2618,14 @@ function Home() {
         setShowCreateModal(true);
         setShowDropdown(false);
     };
+    const handleInlineGroupChangeOk = () => {
+        if (!targetGroup) return;
+        setIsEditingInlineGroup(false);
+        setGroupSecretKey('');
+        setShowGroupSecretKey(false);
+        setGroupChangeReason('');
+        setShowGroupChangeModal(true);
+    };
 
     const openCustomerGroupChangeModal = (cust) => {
         if (!cust || cust.name === 'Cash') {
@@ -2911,7 +2922,7 @@ function Home() {
             }, { withCredentials: true });
 
             const newGroupName = res.data?.message?.name || res.data?.name || formValues;
-            
+
             // Add to dropdown list and auto-select
             setCustomerGroups(prev => {
                 const existing = Array.isArray(prev) ? prev : [];
@@ -4546,11 +4557,11 @@ function Home() {
         const sellVal = parseFloat(inputVal) || 0;
         const isBox = item.uom === 'Box' || item.uom === 'BOX';
         const factor = isBox ? (item.custom_pieces_per_box || 1) : 1;
-        
+
         // Find accurate buying price from item or master items list (Items state)
         const masterItem = (Items || filteredItems || []).find(it => it.id === item.id || it.item_code === item.id || it.name === item.name);
         const whDetail = (item.warehouse_details || masterItem?.warehouse_details || []).find(w => (w.warehouse || w.warehouse_name) === warehouse);
-        
+
         let minBuyRate = 0;
         if (isBox) {
             const buyPriceBox = parseFloat(item.buying_prices?.Box || masterItem?.buying_prices?.Box || 0);
@@ -5212,10 +5223,10 @@ function Home() {
             const item = billItems[idx];
             const isBox = item.uom === 'Box' || item.uom === 'BOX';
             const factor = isBox ? (item.custom_pieces_per_box || 1) : 1;
-            
+
             const masterItem = (Items || filteredItems || []).find(it => it.id === item.id || it.item_code === item.id || it.name === item.name);
             const whDetail = (item.warehouse_details || masterItem?.warehouse_details || []).find(w => (w.warehouse || w.warehouse_name) === warehouse);
-            
+
             let minBuyRate = 0;
             if (isBox) {
                 const buyPriceBox = parseFloat(item.buying_prices?.Box || masterItem?.buying_prices?.Box || 0);
@@ -5269,7 +5280,7 @@ function Home() {
         // 10% Discount Threshold Authorization Validation
         const totalCartSelling = billItems.reduce((sum, it) => sum + (parseFloat(it.price || 0) * parseFloat(it.qty || 1)), 0);
         const effectiveDiscPct = totalCartSelling > 0 ? (discountAmount / totalCartSelling) * 100 : 0;
-        
+
         if (effectiveDiscPct > 10.0 && (!discountAuthorizedBy || discountAuthorizedBy.includes("Standard"))) {
             Swal.fire({
                 icon: 'warning',
@@ -6096,7 +6107,7 @@ function Home() {
 
                     {/* Body */}
                     <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: '14px', maxHeight: '72vh', overflowY: 'auto' }}>
-                        
+
                         {/* Quick Metrics Bar */}
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px' }}>
                             <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '8px 12px' }}>
@@ -6307,7 +6318,7 @@ function Home() {
                                                                             onMouseLeave={e => e.currentTarget.style.background = '#2563eb'}
                                                                             title={`Request Stock from ${branchName}`}
                                                                         >
-                                                                        <span>Request</span>
+                                                                            <span>Request</span>
                                                                         </button>
                                                                     ) : (
                                                                         <span style={{ fontSize: '10px', color: '#cbd5e1', fontWeight: 700 }}>—</span>
@@ -6518,7 +6529,7 @@ function Home() {
                     </div>
 
                     <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: '16px', background: '#f8fafc' }}>
-                        
+
                         {/* Summary Metrics Box Layout */}
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
                             <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '14px', padding: '10px 12px', display: 'flex', flexDirection: 'column', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
@@ -7081,13 +7092,13 @@ function Home() {
             </div>
         </div>
     );
+    const availableGroups = customerGroups && customerGroups.length > 0
+        ? customerGroups
+        : ['Retail Customer', 'Discount Customer', 'Credit Customer', 'Commercial Customer', 'Individual'];
 
     const renderGroupChangeModal = () => {
         const custName = groupChangeCust?.customer_name || groupChangeCust?.name || 'Customer';
         const currentGroup = groupChangeCust?.customer_group || 'Retail Customer';
-        const availableGroups = customerGroups && customerGroups.length > 0
-            ? customerGroups
-            : ['Retail Customer', 'Discount Customer', 'Credit Customer', 'Commercial Customer', 'Individual'];
 
         return (
             <div
@@ -7245,56 +7256,10 @@ function Home() {
                             </div>
                         </div>
 
-                        {/* Select New Group */}
-                        <div>
-                            <label style={{ fontSize: '11px', fontWeight: 800, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
-                                <Layers size={13} style={{ color: '#0284c7' }} />
-                                Select Target Customer Group <span style={{ color: '#ef4444' }}>*</span>
-                            </label>
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px', maxHeight: '180px', overflowY: 'auto', paddingRight: '2px' }}>
-                                {availableGroups.map((grp) => {
-                                    const isSelected = targetGroup === grp;
-                                    const isCurrent = currentGroup === grp;
-                                    return (
-                                        <button
-                                            key={grp}
-                                            type="button"
-                                            onClick={() => setTargetGroup(grp)}
-                                            style={{
-                                                padding: '10px 12px',
-                                                borderRadius: '12px',
-                                                border: isSelected ? '2px solid #0284c7' : '1.5px solid #e2e8f0',
-                                                background: isSelected ? '#f0f9ff' : '#ffffff',
-                                                color: isSelected ? '#0369a1' : '#334155',
-                                                textAlign: 'left',
-                                                cursor: 'pointer',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                justifyContent: 'space-between',
-                                                gap: '6px',
-                                                boxShadow: isSelected ? '0 2px 8px rgba(2, 132, 199, 0.15)' : 'none',
-                                                transition: 'all 0.15s'
-                                            }}
-                                        >
-                                            <div style={{ minWidth: 0, flex: 1 }}>
-                                                <div style={{ fontSize: '12px', fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                                    {grp}
-                                                </div>
-                                                {isCurrent && (
-                                                    <span style={{ fontSize: '9px', fontWeight: 700, color: isSelected ? '#0284c7' : '#94a3b8' }}>
-                                                        (Current)
-                                                    </span>
-                                                )}
-                                            </div>
-                                            {isSelected && (
-                                                <div style={{ width: '20px', height: '20px', borderRadius: '50%', background: '#0284c7', color: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                                                    <Check size={12} strokeWidth={3} />
-                                                </div>
-                                            )}
-                                        </button>
-                                    );
-                                })}
-                            </div>
+                        {/* Target Group Info */}
+                        <div style={{ background: '#f8fafc', padding: '12px 16px', borderRadius: '12px', border: '1.5px dashed #cbd5e1', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <div style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Changing Group To:</div>
+                            <div style={{ fontSize: '13px', fontWeight: 900, color: '#0284c7' }}>{targetGroup}</div>
                         </div>
 
                         {/* Secret Key Input */}
@@ -9903,15 +9868,17 @@ function Home() {
             { key: getShortcut('pos_home', 'directCash', 'Alt+1'), label: 'Direct Cash', colorClass: 'emerald', action: () => { if (billItems.length > 0) completePayment('Cash'); } },
             { key: getShortcut('pos_home', 'directBank', 'Ctrl+V'), label: 'Direct Bank', colorClass: 'sky', action: () => { if (billItems.length > 0) completePayment('Bank'); } },
             { key: getShortcut('pos_home', 'directCard', 'Alt+2'), label: 'Direct Card', colorClass: 'indigo', action: () => { if (billItems.length > 0) { setSelectedPaymentMode('Card'); setShowCardTerminalModal(true); } } },
-            { key: getShortcut('pos_home', 'selectItem', 'Alt+I'), label: theme !== 'legacy' ? 'Select Item' : 'Swap Item', colorClass: 'indigo', action: () => {
-                if (theme !== 'legacy') {
-                    if (filteredItems.length > 0) {
-                        setActiveCardIndex(prev => prev === -1 ? 0 : -1);
+            {
+                key: getShortcut('pos_home', 'selectItem', 'Alt+I'), label: theme !== 'legacy' ? 'Select Item' : 'Swap Item', colorClass: 'indigo', action: () => {
+                    if (theme !== 'legacy') {
+                        if (filteredItems.length > 0) {
+                            setActiveCardIndex(prev => prev === -1 ? 0 : -1);
+                        }
+                    } else {
+                        triggerSwapItem();
                     }
-                } else {
-                    triggerSwapItem();
                 }
-            } },
+            },
             { key: '↑ ↓', label: 'Navigate', colorClass: 'slate' },
             { key: '+ / -', label: 'Qty', colorClass: 'slate' },
             { key: '← / →', label: 'Tax Toggle', colorClass: 'slate' }
@@ -10929,7 +10896,7 @@ function Home() {
                                     )}
 
                                     {/* Premium Stock Filter Tabs (All / In Stock / Out of Stock) */}
-                                    <div 
+                                    <div
                                         style={{
                                             display: 'flex',
                                             alignItems: 'center',
@@ -10985,7 +10952,7 @@ function Home() {
                                                 lineHeight: '1.2'
                                             }}
                                         >
-                                            <span 
+                                            <span
                                                 style={{
                                                     width: '6px',
                                                     height: '6px',
@@ -11016,7 +10983,7 @@ function Home() {
                                                 lineHeight: '1.2'
                                             }}
                                         >
-                                            <span 
+                                            <span
                                                 style={{
                                                     width: '6px',
                                                     height: '6px',
@@ -11241,9 +11208,8 @@ function Home() {
                                                             pickCustomer(c);
                                                             setActiveCustomerIndex(-1);
                                                         }}
-                                                        className={`so-customer-dropdown-item ${
-                                                            isSelected ? 'active' : ''
-                                                        }`}
+                                                        className={`so-customer-dropdown-item ${isSelected ? 'active' : ''
+                                                            }`}
                                                     >
                                                         <div>
                                                             <div className="so-customer-name">
@@ -11347,9 +11313,8 @@ function Home() {
                                         return (
                                             <div
                                                 key={`${item.id}-${idx}`}
-                                                className={`so-cart-item ${
-                                                    isActive ? 'is-active' : ''
-                                                }`}
+                                                className={`so-cart-item ${isActive ? 'is-active' : ''
+                                                    }`}
                                                 onClick={() => setSelectedBillIndex(idx)}
                                             >
 
@@ -11421,7 +11386,7 @@ function Home() {
                                                                 type="button"
                                                                 className={
                                                                     item.uom !== 'Box' &&
-                                                                    item.uom !== 'Master Box'
+                                                                        item.uom !== 'Master Box'
                                                                         ? 'active'
                                                                         : ''
                                                                 }
@@ -12236,13 +12201,13 @@ function Home() {
                 {/* CLASSIC HEADER FORM - 4 MODERN PREMIUM CARDS */}
                 <div className="classic-header-form flex items-stretch gap-2.5 w-full bg-slate-100/60 p-2 border-b border-slate-200/90">
                     {/* Card 1: Customer Phone */}
-                    <div className="bg-white/95 backdrop-blur-sm border border-slate-200/90 hover:border-slate-300 focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/20 focus-within:shadow-[0_2px_12px_rgba(16,185,129,0.12)] rounded-xl px-3 py-2 shadow-[0_1px_3px_rgba(0,0,0,0.04)] hover:shadow-xs transition-all duration-200 flex-1 min-w-[220px] flex items-center gap-2.5 relative" ref={dropdownRef}>
+                    <div className="bg-white/95 backdrop-blur-sm border border-slate-200/90 hover:border-slate-300 focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/20 focus-within:shadow-[0_2px_12px_rgba(16,185,129,0.12)] rounded-xl px-3 py-2 shadow-[0_1px_3px_rgba(0,0,0,0.04)] hover:shadow-xs transition-all duration-200 flex-[0.8] min-w-[170px] flex items-center gap-2.5 relative" ref={dropdownRef}>
                         <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-emerald-500/15 to-teal-500/25 text-emerald-700 border border-emerald-500/20 flex items-center justify-center shrink-0 shadow-2xs">
                             <Phone size={14} strokeWidth={2.4} />
                         </div>
                         <div className="flex-1 min-w-0 flex flex-col justify-center">
                             <span className="text-[9.5px] font-black uppercase tracking-wider text-slate-400 leading-none mb-1">Customer Phone</span>
-                            <div className="flex items-center w-full min-w-0">
+                            <div className="flex items-center gap-1.5 w-full min-w-0 mt-0.5">
                                 <CountryCodeSelector
                                     value={countryCodePrefix}
                                     variant="classic"
@@ -12251,7 +12216,6 @@ function Home() {
                                         localStorage.setItem('pos_country_code', newVal);
                                     }}
                                 />
-                                <div className="h-4 w-[1px] bg-slate-200 mx-1.5 shrink-0" />
                                 <input
                                     ref={mobileInputRef}
                                     value={customerMobile || (selectedCustomer && selectedCustomer.name !== 'Cash' ? (selectedCustomer.mobile_no || selectedCustomer.name) : customerName)}
@@ -12278,7 +12242,7 @@ function Home() {
                                     onClick={() => { setSearchContext('customer'); if (!selectedCustomer && !justSelectedCustomerRef.current && (customerMobile || customerName).trim().length >= 1) setShowDropdown(true); setShowSettingsMenu(false); }}
                                     onBlur={() => setTimeout(() => setShowDropdown(false), 300)}
                                     onKeyDown={handleMobileEnter}
-                                    className="flex-1 h-5 px-1 text-xs font-black outline-none bg-transparent text-slate-800 placeholder:text-slate-400 placeholder:font-normal min-w-0"
+                                    className="flex-1 h-6 px-1 text-xs font-black outline-none bg-transparent text-slate-800 placeholder:text-slate-400 placeholder:font-normal min-w-0 pb-0.5"
                                     placeholder="Enter phone or name"
                                 />
 
@@ -12329,7 +12293,7 @@ function Home() {
                     </div>
 
                     {/* Card 2: Customer */}
-                    <div className="bg-white/95 backdrop-blur-sm border border-slate-200/90 hover:border-slate-300 rounded-xl px-3 py-2 shadow-[0_1px_3px_rgba(0,0,0,0.04)] hover:shadow-xs transition-all duration-200 flex-1 min-w-[200px] flex items-center justify-between gap-2.5">
+                    <div className="bg-white/95 backdrop-blur-sm border border-slate-200/90 hover:border-slate-300 rounded-xl px-3 py-2 shadow-[0_1px_3px_rgba(0,0,0,0.04)] hover:shadow-xs transition-all duration-200 flex-[1.4] min-w-[240px] flex items-center justify-between gap-2.5">
                         <div className="flex items-center gap-2.5 min-w-0 flex-1">
                             <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-cyan-500/15 to-teal-500/25 text-teal-700 border border-teal-500/20 flex items-center justify-center shrink-0 shadow-2xs">
                                 <User size={14} strokeWidth={2.4} />
@@ -12344,40 +12308,85 @@ function Home() {
                         <button
                             type="button"
                             onClick={() => selectedCustomer && selectedCustomer.name !== 'Cash' ? openEditCustomer(selectedCustomer) : openCreate(customerMobile || customerName)}
-                            className="group/btn h-7 px-2.5 rounded-lg bg-teal-50 hover:bg-teal-600 text-teal-700 hover:text-white border border-teal-200 hover:border-teal-600 text-[11px] font-bold flex items-center gap-1.5 transition-all duration-150 cursor-pointer active:scale-95 shrink-0 shadow-2xs hover:shadow-xs"
+                            className="group/btn h-[26px] px-3 bg-white hover:bg-teal-50 text-slate-700 hover:text-teal-700 border border-slate-200 hover:border-teal-300 shadow-[0_1px_2px_rgba(0,0,0,0.05)] hover:shadow-sm flex items-center justify-center gap-1.5 transition-all duration-200 cursor-pointer active:scale-95 text-[10.5px] font-bold shrink-0 ml-2 rounded-full"
+                            style={{ borderRadius: '9999px' }}
                             title="Edit Customer Details"
                         >
-                            <Pencil size={11} strokeWidth={2.5} className="transition-transform duration-150 group-hover/btn:-rotate-12" />
+                            <Pencil size={11} strokeWidth={2.5} className="text-slate-400 group-hover/btn:text-teal-500 transition-colors duration-200" />
                             <span>Edit</span>
                         </button>
                     </div>
 
                     {/* Card 3: Tier / Group */}
-                    <div className="bg-white/95 backdrop-blur-sm border border-slate-200/90 hover:border-slate-300 rounded-xl px-3 py-2 shadow-[0_1px_3px_rgba(0,0,0,0.04)] hover:shadow-xs transition-all duration-200 flex-1 min-w-[200px] flex items-center justify-between gap-2.5">
+                    <div className="bg-white/95 backdrop-blur-sm border border-slate-200/90 hover:border-slate-300 rounded-xl px-3 py-2 shadow-[0_1px_3px_rgba(0,0,0,0.04)] hover:shadow-xs transition-all duration-200 flex-[0.9] min-w-[180px] flex items-center justify-between gap-2.5">
                         <div className="flex items-center gap-2.5 min-w-0 flex-1">
                             <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-violet-500/15 to-indigo-500/25 text-indigo-700 border border-indigo-500/20 flex items-center justify-center shrink-0 shadow-2xs">
                                 <Users size={14} strokeWidth={2.4} />
                             </div>
                             <div className="flex-1 min-w-0 flex flex-col justify-center">
                                 <span className="text-[9.5px] font-black uppercase tracking-wider text-slate-400 leading-none mb-1">Tier / Group</span>
-                                <span className="truncate text-xs font-black text-slate-900 uppercase tracking-tight block" title={selectedCustomer ? (selectedCustomer.customer_group || 'Retail Customer') : 'Retail Customer'}>
-                                    {selectedCustomer ? (selectedCustomer.customer_group || 'Retail Customer') : 'Retail Customer'}
-                                </span>
+                                {isEditingInlineGroup ? (
+                                    <div className="relative w-full z-[60]">
+                                        <div
+                                            className="w-full text-[11px] font-black text-slate-900 bg-white border border-slate-300 rounded-md px-2 py-1 flex items-center justify-between cursor-pointer shadow-sm mt-0.5 ring-2 ring-indigo-500/20"
+                                        >
+                                            <span className="truncate">{targetGroup}</span>
+                                            <ChevronDown size={12} className="text-indigo-500 shrink-0 ml-1" />
+                                        </div>
+                                        <div className="absolute top-full left-0 mt-1 w-[160px] bg-white border border-slate-200 rounded-lg shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+                                            {availableGroups.map(grp => (
+                                                <div
+                                                    key={grp}
+                                                    className={`px-3 py-2 text-[10px] font-black cursor-pointer transition-colors ${targetGroup === grp ? 'bg-indigo-50 text-indigo-700 border-l-2 border-indigo-500' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 border-l-2 border-transparent'}`}
+                                                    onClick={(e) => { e.stopPropagation(); setTargetGroup(grp); }}
+                                                >
+                                                    {grp}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <span className="truncate text-xs font-black text-slate-900 uppercase tracking-tight block" title={selectedCustomer ? (selectedCustomer.customer_group || 'Retail Customer') : 'Retail Customer'}>
+                                        {selectedCustomer ? (selectedCustomer.customer_group || 'Retail Customer') : 'Retail Customer'}
+                                    </span>
+                                )}
                             </div>
                         </div>
-                        <button
-                            type="button"
-                            onClick={() => openCustomerGroupChangeModal(selectedCustomer)}
-                            className="group/btn h-7 px-2.5 rounded-lg bg-indigo-50 hover:bg-indigo-600 text-indigo-700 hover:text-white border border-indigo-200 hover:border-indigo-600 text-[11px] font-bold flex items-center gap-1.5 transition-all duration-150 cursor-pointer active:scale-95 shrink-0 shadow-2xs hover:shadow-xs"
-                            title="Edit Customer Group / Pricing Tier"
-                        >
-                            <Pencil size={11} strokeWidth={2.5} className="transition-transform duration-150 group-hover/btn:-rotate-12" />
-                            <span>Edit</span>
-                        </button>
+                        {isEditingInlineGroup ? (
+                            <button
+                                type="button"
+                                onClick={handleInlineGroupChangeOk}
+                                className="group/btn h-[26px] px-3 bg-emerald-50 hover:bg-emerald-500 text-emerald-700 hover:text-white border border-emerald-200 hover:border-emerald-500 text-[10.5px] font-bold flex items-center justify-center gap-1.5 transition-all duration-150 cursor-pointer active:scale-95 shrink-0 shadow-sm ml-2 mt-0.5 rounded-full"
+                                style={{ borderRadius: '9999px' }}
+                                title="Confirm Group Change"
+                            >
+                                <Check size={11} strokeWidth={2.5} className="transition-transform duration-150 group-hover/btn:scale-110" />
+                                <span>OK</span>
+                            </button>
+                        ) : (
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    if (!selectedCustomer || selectedCustomer.name === 'Cash') {
+                                        Swal.fire({ icon: 'warning', title: 'Select Named Customer', text: 'Please select or search a registered customer first to edit customer group.', confirmButtonColor: '#0284c7' });
+                                        return;
+                                    }
+                                    setGroupChangeCust(selectedCustomer);
+                                    setTargetGroup(selectedCustomer.customer_group || 'Retail Customer');
+                                    setIsEditingInlineGroup(true);
+                                }}
+                                className="group/btn h-[26px] px-3 bg-white hover:bg-indigo-50 text-slate-700 hover:text-indigo-700 border border-slate-200 hover:border-indigo-300 shadow-[0_1px_2px_rgba(0,0,0,0.05)] hover:shadow-sm flex items-center justify-center gap-1.5 transition-all duration-200 cursor-pointer active:scale-95 text-[10.5px] font-bold shrink-0 ml-2 rounded-full"
+                                style={{ borderRadius: '9999px' }}
+                                title="Edit Customer Group / Pricing Tier"
+                            >
+                                <Pencil size={11} strokeWidth={2.5} className="text-slate-400 group-hover/btn:text-indigo-500 transition-colors duration-200" />
+                                <span>Edit</span>
+                            </button>
+                        )}
                     </div>
 
                     {/* Card 4: Invoice No */}
-                    <div className="bg-white/95 backdrop-blur-sm border border-slate-200/90 hover:border-slate-300 rounded-xl px-3 py-2 shadow-[0_1px_3px_rgba(0,0,0,0.04)] hover:shadow-xs transition-all duration-200 flex-1 min-w-[200px] flex items-center justify-between gap-2.5">
+                    <div className="bg-white/95 backdrop-blur-sm border border-slate-200/90 hover:border-slate-300 rounded-xl px-3 py-2 shadow-[0_1px_3px_rgba(0,0,0,0.04)] hover:shadow-xs transition-all duration-200 flex-[0.9] min-w-[180px] flex items-center justify-between gap-2.5">
                         <div className="flex items-center gap-2.5 min-w-0 flex-1">
                             <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-amber-500/15 to-orange-500/25 text-amber-700 border border-amber-500/20 flex items-center justify-center shrink-0 shadow-2xs">
                                 <FileText size={14} strokeWidth={2.4} />
@@ -12424,8 +12433,8 @@ function Home() {
                                     <tr>
                                         <th className="text-center">#</th>
                                         {visibleClassicCols.map(col => (
-                                            <th 
-                                                key={col.id} 
+                                            <th
+                                                key={col.id}
                                                 className={`relative select-none ${col.id === 'price' || col.id === 'vat' || col.id === 'total' ? 'text-right' : 'text-center'}`}
                                                 style={{ userSelect: 'none' }}
                                             >
@@ -13365,17 +13374,57 @@ function Home() {
                                     <div className="flex items-center overflow-hidden bg-slate-50 border-2 border-slate-200 text-slate-700 rounded-2xl text-xs font-black uppercase tracking-wider shadow-sm shrink-0">
                                         <div className="px-4 py-3 flex items-center gap-2">
                                             <Layers size={14} className="text-sky-500 shrink-0" />
-                                            <span>{selectedCustomer ? (selectedCustomer.customer_group || 'Retail Customer') : 'Retail Customer'}</span>
+                                            {isEditingInlineGroup ? (
+                                                <div className="relative w-full z-[60]">
+                                                    <div className="w-full text-[11px] font-black text-slate-900 bg-white border border-slate-300 rounded-md px-2 py-1.5 flex items-center justify-between cursor-pointer shadow-sm ring-2 ring-sky-500/20">
+                                                        <span className="truncate">{targetGroup}</span>
+                                                        <ChevronDown size={12} className="text-sky-500 shrink-0 ml-1" />
+                                                    </div>
+                                                    <div className="absolute top-full left-0 mt-1 w-[160px] bg-white border border-slate-200 rounded-lg shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+                                                        {availableGroups.map(grp => (
+                                                            <div
+                                                                key={grp}
+                                                                className={`px-3 py-2 text-[10px] font-black cursor-pointer transition-colors ${targetGroup === grp ? 'bg-sky-50 text-sky-700 border-l-2 border-sky-500' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 border-l-2 border-transparent'}`}
+                                                                onClick={(e) => { e.stopPropagation(); setTargetGroup(grp); }}
+                                                            >
+                                                                {grp}
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <span>{selectedCustomer ? (selectedCustomer.customer_group || 'Retail Customer') : 'Retail Customer'}</span>
+                                            )}
                                         </div>
-                                        <button
-                                            type="button"
-                                            onClick={() => openCustomerGroupChangeModal(selectedCustomer)}
-                                            className="px-3 py-3 bg-sky-600 hover:bg-sky-700 active:scale-95 text-white flex items-center gap-1 text-[11px] font-black uppercase tracking-wider transition-all cursor-pointer border-none"
-                                            title="Edit Customer Group"
-                                        >
-                                            <Edit size={12} />
-                                            <span>Edit</span>
-                                        </button>
+                                        {isEditingInlineGroup ? (
+                                            <button
+                                                type="button"
+                                                onClick={handleInlineGroupChangeOk}
+                                                className="px-3 py-3 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white flex items-center gap-1 text-[11px] font-black uppercase tracking-wider transition-all cursor-pointer border-none"
+                                                title="Confirm Selection"
+                                            >
+                                                <Check size={12} />
+                                                <span>OK</span>
+                                            </button>
+                                        ) : (
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    if (!selectedCustomer || selectedCustomer.name === 'Cash') {
+                                                        Swal.fire({ icon: 'warning', title: 'Select Named Customer', text: 'Please select or search a registered customer first to edit customer group.', confirmButtonColor: '#0284c7' });
+                                                        return;
+                                                    }
+                                                    setGroupChangeCust(selectedCustomer);
+                                                    setTargetGroup(selectedCustomer.customer_group || 'Retail Customer');
+                                                    setIsEditingInlineGroup(true);
+                                                }}
+                                                className="px-3 py-3 bg-sky-600 hover:bg-sky-700 active:scale-95 text-white flex items-center gap-1 text-[11px] font-black uppercase tracking-wider transition-all cursor-pointer border-none"
+                                                title="Edit Customer Group"
+                                            >
+                                                <Edit size={12} />
+                                                <span>Edit</span>
+                                            </button>
+                                        )}
                                     </div>
                                 </div>
                                 <input type="tel" placeholder="Phone Number" value={phoneNumber} onChange={e => {
@@ -13612,7 +13661,7 @@ function Home() {
                 onAddJobToCart={(item, uom, initialQty) => handleAddToBill(item, uom, initialQty)}
             />
         </div>
-        );
+    );
 }
 export default Home;
 
