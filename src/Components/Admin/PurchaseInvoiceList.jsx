@@ -43,8 +43,60 @@ const DEFAULT_PI_COLUMNS = [
   { id: 'custom_box_selling_price', label: 'Selling Price (Box)', visible: true, width: 100 },
   { id: 'qty', label: 'Total Qty', visible: true, width: 90 },
   { id: 'amount', label: 'Subtotal', visible: true, width: 90 },
-  { id: 'last_purchase_rate', label: 'Last Purchase Price', visible: true, width: 110 }
+  { id: 'last_purchase_rate', label: 'Last Purchase Price', visible: true, width: 110 },
+  { id: 'margin', label: 'Margin', visible: true, width: 95 }
 ];
+
+const calculateItemMargin = (item) => {
+  if (!item) return { marginPercent: null, profitAmount: null, isLoss: false };
+
+  const uom = String(item.uom || 'Nos').trim().toLowerCase();
+  let cost = 0;
+  let sell = 0;
+
+  if (uom === 'box') {
+    const pPerBox = parseFloat(item.custom_pieces_per_box) || 1;
+    cost = parseFloat(item.custom_box_price) || ((parseFloat(item.rate) || 0) * pPerBox);
+    sell = parseFloat(item.custom_box_selling_price) || 0;
+  } else if (uom === 'master box') {
+    const pPerBox = parseFloat(item.custom_pieces_per_box) || 1;
+    const bPerMB = parseFloat(item.custom_boxes_per_master_box) || 1;
+    const totalPcs = (bPerMB * pPerBox) || 1;
+    cost = parseFloat(item.custom_master_box_price) || ((parseFloat(item.rate) || 0) * totalPcs);
+    sell = parseFloat(item.custom_master_box_selling_price) || 0;
+  } else {
+    // Default: Nos
+    cost = parseFloat(item.rate) || 0;
+    sell = parseFloat(item.custom_selling_price) || 0;
+  }
+
+  // Fallback: If primary sell is 0, check if the other unit's selling price is entered
+  if (sell <= 0) {
+    if (parseFloat(item.custom_selling_price) > 0 && parseFloat(item.rate) > 0) {
+      cost = parseFloat(item.rate) || 0;
+      sell = parseFloat(item.custom_selling_price) || 0;
+    } else if (parseFloat(item.custom_box_selling_price) > 0) {
+      const pPerBox = parseFloat(item.custom_pieces_per_box) || 1;
+      cost = parseFloat(item.custom_box_price) || ((parseFloat(item.rate) || 0) * pPerBox);
+      sell = parseFloat(item.custom_box_selling_price) || 0;
+    }
+  }
+
+  if (sell <= 0 || cost <= 0) {
+    return { marginPercent: null, profitAmount: null, isLoss: false };
+  }
+
+  const profitAmount = sell - cost;
+  const marginPercent = (profitAmount / sell) * 100;
+  const isLoss = profitAmount < 0;
+
+  return {
+    marginPercent: marginPercent.toFixed(1),
+    profitAmount: profitAmount.toFixed(2),
+    isLoss
+  };
+};
+
 
 const getLocalISODate = () => {
   const tzoffset = (new Date()).getTimezoneOffset() * 60000;
@@ -4033,7 +4085,7 @@ function PurchaseInvoiceList() {
                           width: colW,
                           minWidth: colW,
                           maxWidth: colW,
-                          textAlign: col.align || (['rate', 'custom_master_box_price', 'custom_box_price', 'custom_selling_price', 'custom_box_selling_price', 'custom_master_box_selling_price', 'discount_amount', 'discount_percentage', 'amount', 'last_purchase_rate'].includes(col.id) ? 'right' : (['uom', 'custom_box_qty', 'custom_boxes_per_master_box', 'custom_pieces_per_box', 'qty'].includes(col.id) ? 'center' : 'left')),
+                          textAlign: col.align || (['rate', 'custom_master_box_price', 'custom_box_price', 'custom_selling_price', 'custom_box_selling_price', 'custom_master_box_selling_price', 'discount_amount', 'discount_percentage', 'amount', 'last_purchase_rate', 'margin'].includes(col.id) ? 'right' : (['uom', 'custom_box_qty', 'custom_boxes_per_master_box', 'custom_pieces_per_box', 'qty'].includes(col.id) ? 'center' : 'left')),
                           padding: '8px 8px',
                           fontSize: '11px',
                           fontWeight: 900,
@@ -4337,6 +4389,25 @@ function PurchaseInvoiceList() {
                                 {item.last_purchase_rate || item.last_buying_rate ? formatPrice(item.last_purchase_rate || item.last_buying_rate) : '0'}
                               </td>
                             );
+                          case 'margin': {
+                            const { marginPercent, profitAmount, isLoss } = calculateItemMargin(item);
+                            return (
+                              <td key={col.id} className="px-2 py-1 text-right border-r border-slate-100 align-middle bg-slate-50/20">
+                                {marginPercent !== null ? (
+                                  <div className="flex flex-col items-end justify-center leading-none">
+                                    <span className={`font-black text-xs ${isLoss ? 'text-rose-600' : 'text-emerald-700'}`}>
+                                      {marginPercent}%
+                                    </span>
+                                    <span className={`text-[9.5px] font-bold mt-0.5 ${isLoss ? 'text-rose-500' : 'text-slate-400'}`}>
+                                      {profitAmount >= 0 ? `+${profitAmount}` : profitAmount}
+                                    </span>
+                                  </div>
+                                ) : (
+                                  <span className="text-slate-300 font-bold text-xs">—</span>
+                                )}
+                              </td>
+                            );
+                          }
                           default:
                             return <td key={col.id} className="px-2 py-1 text-xs border-r border-slate-100 align-middle">{item[col.id] || '—'}</td>;
                         }
@@ -5836,7 +5907,7 @@ function PurchaseInvoiceList() {
                                   style={{
                                     width: col.width,
                                     minWidth: col.id === 'item_code' ? 180 : undefined,
-                                    textAlign: ['rate', 'amount', 'custom_selling_price', 'custom_box_selling_price', 'custom_box_price', 'last_purchase_rate'].includes(col.id) ? 'right' :
+                                    textAlign: ['rate', 'amount', 'custom_selling_price', 'custom_box_selling_price', 'custom_box_price', 'last_purchase_rate', 'margin'].includes(col.id) ? 'right' :
                                       ['custom_box_qty', 'qty', 'custom_pieces_per_box'].includes(col.id) ? 'left' : 'center',
                                     backgroundColor: isLpr ? '#fef3c7' : (isSticky ? '#f8fafc' : undefined),
                                     color: isLpr ? '#92400e' : undefined,
@@ -6431,6 +6502,25 @@ function PurchaseInvoiceList() {
                                         </div>
                                       </td>
                                     );
+                                  case 'margin': {
+                                    const { marginPercent, isLoss } = calculateItemMargin(item);
+                                    return (
+                                      <td key={col.id}>
+                                        <div className="premium-cell-container">
+                                          <div className="premium-cell-box">
+                                            <div
+                                              className={`premium-cell-readonly premium-cell-readonly-right pr-3 font-bold ${
+                                                isLoss ? 'text-rose-700 bg-rose-50/50' : 'text-emerald-700 bg-emerald-50/50'
+                                              }`}
+                                              style={{ textAlign: 'right' }}
+                                            >
+                                              {marginPercent !== null ? `${marginPercent}%` : '—'}
+                                            </div>
+                                          </div>
+                                        </div>
+                                      </td>
+                                    );
+                                  }
                                 }
                               });
                             })()}

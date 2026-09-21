@@ -325,56 +325,46 @@ function OpeningEntry({ company: propCompany, posProfile: propPosProfile, user: 
 
                 {/* UAE Cash Denominations Counting Grid */}
                 <div className="border-t border-slate-100 pt-4">
-                    <h2 className="text-sm font-black text-slate-800 mb-2 uppercase tracking-wider flex items-center gap-2">
-                        <DirhamIcon size={14} className="text-blue-500" />
-                        UAE Cash Denomination Count
-                    </h2>
-                    <div className="bg-slate-50 border border-slate-100 rounded-xl p-3">
-                        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-11 gap-2">
+                    <div className="flex items-center justify-between mb-3">
+                        <h2 className="text-sm font-black text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                            <DirhamIcon size={14} className="text-blue-500" />
+                            UAE Cash Denomination Count
+                        </h2>
+                        <div className="flex items-center gap-2 bg-blue-50 border border-blue-100 px-3 py-1 rounded-full text-xs font-bold text-blue-700">
+                            <span>Total Counted:</span>
+                            <span className="font-black">
+                                AED {Object.keys(denomCounts).reduce((sum, k) => sum + (parseFloat(k) * (denomCounts[k] || 0)), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </span>
+                        </div>
+                    </div>
+                    <div className="bg-slate-50/50 border border-slate-100 rounded-2xl p-3.5">
+                        <div className="pce-denom-grid">
                             {UAE_DENOMINATIONS.map((d) => {
                                 const count = denomCounts[d.value] || 0;
-                                const total = d.value * count;
-                                const isNote = d.value >= 5;
+                                const subtotal = (d.value * count);
+                                const isNote = d.label.includes('Note');
+
                                 return (
-                                    <div
-                                        key={d.value}
-                                        className={`bg-white rounded-xl p-2 border-2 transition-all flex flex-col justify-between relative overflow-hidden group ${count > 0
-                                            ? 'border-blue-500 shadow-sm shadow-blue-500/5'
-                                            : 'border-slate-100 hover:border-slate-300'
-                                            }`}
-                                    >
-                                        <div className="absolute -right-2 -top-2 w-8 h-8 bg-slate-50 rounded-full group-hover:scale-125 transition-transform duration-300"></div>
-
-                                        <div className="relative">
-                                            <div className="flex items-center justify-between mb-2">
-                                                <span className="text-[14px] font-black text-slate-800 tracking-tight">
-                                                    {d.value} <span className="text-[9px] text-slate-400 font-bold">AED</span>
-                                                </span>
-                                                <span className={`text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider ${isNote ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'
-                                                    }`}>
-                                                    {isNote ? 'Note' : 'Coin'}
-                                                </span>
-                                            </div>
-
-                                            <div className="relative">
-                                                <input
-                                                    type="number"
-                                                    min="0"
-                                                    placeholder="0"
-                                                    value={denomCounts[d.value] || ''}
-                                                    onChange={(e) => handleDenomChange(d.value, e.target.value)}
-                                                    className="w-full px-2 py-1 text-[13px] border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none font-bold text-slate-800 text-center"
-                                                />
-                                            </div>
+                                    <div key={d.value} className={`pce-denom-box ${count > 0 ? 'active' : ''}`}>
+                                        <div className="pce-denom-header">
+                                            <span className={`pce-denom-tag ${isNote ? 'note' : 'coin'}`}>
+                                                {d.value >= 1 ? `${d.value} AED` : `${d.value.toFixed(2)} AED`}
+                                            </span>
+                                            <span className={`pce-denom-subtotal ${count === 0 ? 'zero' : ''}`}>
+                                                = {subtotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                            </span>
                                         </div>
-
-                                        {count > 0 && (
-                                            <div className="mt-1.5 pt-1.5 border-t border-slate-50 flex items-center justify-center">
-                                                <span className="text-[9px] font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full tracking-wider">
-                                                    Total: {(total).toFixed(2)}
-                                                </span>
-                                            </div>
-                                        )}
+                                        <div className="pce-denom-input-wrap">
+                                            <span className="pce-denom-qty-lbl">QTY</span>
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                placeholder="0"
+                                                value={denomCounts[d.value] === 0 ? '' : denomCounts[d.value]}
+                                                onChange={(e) => handleDenomChange(d.value, e.target.value)}
+                                                className="pce-denom-input"
+                                            />
+                                        </div>
                                     </div>
                                 );
                             })}
@@ -753,30 +743,49 @@ function OpeningEntry({ company: propCompany, posProfile: propPosProfile, user: 
                         {/* UAE Denominations Calculator */}
                         {!isReadOnly && (
                             <div className="mb-8 border-t border-slate-200 pt-6">
-                                <h2 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
-                                    <DirhamIcon size={18} className="text-blue-600" />
-                                    UAE Opening Cash Denominations (Optional Calculator)
-                                </h2>
-                                <div className="bg-slate-50 rounded-xl p-6 border border-slate-200">
-                                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                                        {UAE_DENOMINATIONS.map((d) => (
-                                            <div key={d.value} className="bg-white p-3 rounded-lg border border-slate-200 shadow-sm flex flex-col justify-between">
-                                                <label className="text-xs font-bold text-slate-700 mb-1.5 flex items-center gap-1">
-                                                    <DirhamIcon size={11} className="text-slate-400" />
-                                                    {d.label}
-                                                </label>
-                                                <div className="flex items-center gap-2">
-                                                    <input
-                                                        type="number"
-                                                        min="0"
-                                                        placeholder="0"
-                                                        value={denomCounts[d.value] || ''}
-                                                        onChange={(e) => handleDenomChange(d.value, e.target.value)}
-                                                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none font-semibold"
-                                                    />
+                                <div className="flex items-center justify-between mb-4">
+                                    <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+                                        <DirhamIcon size={18} className="text-blue-600" />
+                                        UAE Opening Cash Denominations (Optional Calculator)
+                                    </h2>
+                                    <div className="flex items-center gap-2 bg-blue-50 border border-blue-100 px-3 py-1 rounded-full text-xs font-bold text-blue-700">
+                                        <span>Total Counted:</span>
+                                        <span className="font-black">
+                                            AED {Object.keys(denomCounts).reduce((sum, k) => sum + (parseFloat(k) * (denomCounts[k] || 0)), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div className="bg-slate-50/50 rounded-2xl p-5 border border-slate-200">
+                                    <div className="pce-denom-grid">
+                                        {UAE_DENOMINATIONS.map((d) => {
+                                            const count = denomCounts[d.value] || 0;
+                                            const subtotal = (d.value * count);
+                                            const isNote = d.label.includes('Note');
+
+                                            return (
+                                                <div key={d.value} className={`pce-denom-box ${count > 0 ? 'active' : ''}`}>
+                                                    <div className="pce-denom-header">
+                                                        <span className={`pce-denom-tag ${isNote ? 'note' : 'coin'}`}>
+                                                            {d.value >= 1 ? `${d.value} AED` : `${d.value.toFixed(2)} AED`}
+                                                        </span>
+                                                        <span className={`pce-denom-subtotal ${count === 0 ? 'zero' : ''}`}>
+                                                            = {subtotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                        </span>
+                                                    </div>
+                                                    <div className="pce-denom-input-wrap">
+                                                        <span className="pce-denom-qty-lbl">QTY</span>
+                                                        <input
+                                                            type="number"
+                                                            min="0"
+                                                            placeholder="0"
+                                                            value={denomCounts[d.value] === 0 ? '' : denomCounts[d.value]}
+                                                            onChange={(e) => handleDenomChange(d.value, e.target.value)}
+                                                            className="pce-denom-input"
+                                                        />
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        ))}
+                                            );
+                                        })}
                                     </div>
                                 </div>
                             </div>

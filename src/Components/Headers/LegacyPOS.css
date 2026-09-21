@@ -56,11 +56,11 @@
   background: var(--legacy-surface) !important;
   border-bottom: 1px solid var(--legacy-border) !important;
   height: auto !important;
-  min-height: 56px !important;
+  min-height: 48px !important;
   display: flex !important;
   align-items: center !important;
   justify-content: space-between !important;
-  padding: 0.25rem 1rem !important;
+  padding: 6px 14px !important;
   flex-shrink: 0 !important;
   position: relative !important;
   z-index: 200 !important;
@@ -82,6 +82,9 @@
   gap: 0.5rem !important;
   box-shadow: none !important;
   flex-shrink: 0 !important;
+  position: relative !important;
+  z-index: 1000 !important;
+  overflow: visible !important;
 }
 
 /* Individual shortcut badges — clean pill style */
@@ -154,13 +157,36 @@
   align-items: center !important;
 }
 
-/* Horizontal shortcut badges — compact pill shape */
+/* Horizontal shortcut badges — modern frosted glass shelf card shape */
 .classic-shortcut-guide.horizontal .classic-shortcut-badge {
-  padding: 0.3rem 0.85rem !important;
-  gap: 0.5rem !important;
-  border-radius: 9999px !important;
-  background: #f4fbf9 !important;
-  border: 1.5px solid #bce3da !important;
+  width: 138px !important;
+  min-width: 138px !important;
+  max-width: 138px !important;
+  height: 28px !important;
+  box-sizing: border-box !important;
+  padding: 0 6px !important;
+  gap: 4px !important;
+  border-radius: 8px !important;
+  background: rgba(255, 255, 255, 0.92) !important;
+  border: 1px solid rgba(203, 213, 225, 0.8) !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03), inset 0 1px 0 rgba(255, 255, 255, 0.8) !important;
+  display: inline-flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  flex-shrink: 0 !important;
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.classic-shortcut-guide.horizontal .classic-shortcut-badge:hover {
+  border-color: #10b981 !important;
+  background: #ffffff !important;
+  box-shadow: 0 4px 12px -2px rgba(16, 185, 129, 0.18), 0 0 0 1px rgba(16, 185, 129, 0.25) !important;
+  transform: translateY(-1.5px) !important;
+}
+
+.classic-shortcut-guide.horizontal .classic-shortcut-badge:active {
+  transform: translateY(1px) scale(0.98) !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06) !important;
 }
 
 .so-bill-item.active {
@@ -177,12 +203,27 @@
 }
 
 .classic-shortcut-guide.horizontal .classic-shortcut-key {
-  font-size: 0.6rem !important;
-  padding: 1px 4px !important;
+  font-size: 9px !important;
+  font-weight: 800 !important;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
+  color: #334155 !important;
+  background: linear-gradient(180deg, #ffffff 0%, #f1f5f9 100%) !important;
+  border: 1px solid #cbd5e1 !important;
+  border-bottom: 2px solid #94a3b8 !important;
+  padding: 1px 5px !important;
+  border-radius: 4px !important;
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.05) !important;
+  flex-shrink: 0 !important;
+  line-height: 1 !important;
 }
 
 .classic-shortcut-guide.horizontal .classic-shortcut-label {
-  font-size: 0.62rem !important;
+  font-size: 10.5px !important;
+  font-weight: 700 !important;
+  color: #0f172a !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
 }
 
 /* Inline shortcut keys inside action buttons */
@@ -218,7 +259,7 @@
   align-items: center !important;
   flex-shrink: 0 !important;
   position: relative !important;
-  z-index: 110 !important;
+  z-index: 10 !important;
   height: auto !important;
   min-height: 56px !important;
 }
@@ -784,4 +825,106 @@ table.classic-table tbody tr:hover {
   100% {
     transform: scale(1);
   }
+}
+
+/* =========================================
+   MODERN POS COUNTRY SELECTOR
+   ========================================= */
+
+.pos-country-selector {
+    height: 30px !important;
+    min-width: 72px !important;
+    padding: 0 8px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 6px !important;
+
+    flex: 0 0 auto !important;
+    border: 1px solid #d9e2ec !important;
+    border-radius: 7px !important;
+
+    background: #ffffff !important;
+    color: #0f172a !important;
+
+    cursor: pointer !important;
+    user-select: none !important;
+    outline: none !important;
+
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04) !important;
+
+    transition:
+        background 0.15s ease,
+        border-color 0.15s ease,
+        box-shadow 0.15s ease,
+        transform 0.15s ease !important;
+}
+
+.pos-country-selector:hover {
+    background: #f8fffd !important;
+    border-color: #99d5cb !important;
+    box-shadow: 0 2px 6px rgba(15, 23, 42, 0.07) !important;
+}
+
+.pos-country-selector:focus-visible {
+    border-color: #14b8a6 !important;
+    box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.10) !important;
+}
+
+.pos-country-selector:active {
+    transform: scale(0.98) !important;
+}
+
+/* Content */
+.pos-country-selector-content {
+    min-width: 0 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+}
+
+/* Flag */
+.pos-country-flag {
+    width: 20px !important;
+    height: 20px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex: 0 0 20px !important;
+    font-size: 15px !important;
+    line-height: 1 !important;
+    border-radius: 5px !important;
+    background: #f8fafc !important;
+}
+
+/* Country Code */
+.pos-country-code {
+    color: #1e293b !important;
+    font-family:
+        ui-monospace,
+        SFMono-Regular,
+        Menlo,
+        Monaco,
+        Consolas,
+        monospace !important;
+    font-size: 11px !important;
+    line-height: 1 !important;
+    font-weight: 850 !important;
+    letter-spacing: -0.2px !important;
+    white-space: nowrap !important;
+}
+
+/* Chevron */
+.pos-country-chevron {
+    width: 12px !important;
+    height: 12px !important;
+    flex: 0 0 auto !important;
+    color: #94a3b8 !important;
+    transition:
+        color 0.15s ease,
+        transform 0.15s ease !important;
+}
+
+.pos-country-selector:hover .pos-country-chevron {
+    color: #0d9488 !important;
 }

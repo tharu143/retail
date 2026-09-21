@@ -154,6 +154,30 @@ const CurrentTimeDisplay = ({ variant }) => {
         return () => clearInterval(timer);
     }, []);
 
+    if (variant === 'unified') {
+        return (
+            <span className="text-[9px] font-bold uppercase tracking-tight flex items-center gap-1.5 whitespace-nowrap">
+                <span className="text-slate-400 mr-0.5">DATE:</span>
+                <span className="text-slate-500 font-semibold">{format(currentTime, 'MMM dd, yyyy')}</span>
+                <span className="text-slate-300">|</span>
+                <span style={{
+                    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+                    fontWeight: 800,
+                    color: '#059669',
+                    background: '#ecfdf5',
+                    padding: '1.5px 6px',
+                    borderRadius: '4px',
+                    border: '1px solid #a7f3d0',
+                    fontSize: '10px',
+                    letterSpacing: '0.04em',
+                    lineHeight: '1'
+                }}>
+                    {format(currentTime, 'HH:mm:ss')}
+                </span>
+            </span>
+        );
+    }
+
     if (variant === 'legacy') {
         return (
             <span style={{ fontSize: '8px', fontWeight: 700, textTransform: 'uppercase', marginTop: '1px', color: '#64748b', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -789,25 +813,31 @@ function Home() {
         align-items: center; justify-content: space-between;
         border-bottom: 2px solid ${borderColor}; font-size: 12px; flex-shrink: 0;
       }
-      .classic-nav {
+      .classic-nav, .pos-top-header {
         background: #ffffff !important;
         border-bottom: 1px solid #e2e8f0 !important;
-        height: 85px !important;
+        height: auto !important;
+        min-height: 48px !important;
         display: flex !important;
         align-items: center !important;
         justify-content: space-between !important;
-        padding: 0 1.25rem !important;
+        padding: 6px 14px !important;
         flex-shrink: 0 !important;
         position: relative !important;
         z-index: 200 !important;
         box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
+      }
+      .classic-shortcut-guide, .classic-shortcut-guide.horizontal {
+        position: relative !important;
+        z-index: 1000 !important;
+        overflow: visible !important;
       }
       .classic-header-form {
         background: #ffffff !important;
         border-bottom: 1px solid #e2e8f0 !important;
         flex-shrink: 0 !important;
         position: relative !important;
-        z-index: 110 !important;
+        z-index: 10 !important;
       }
       .classic-field label { color: ${statusBarColor}; font-size: 10px; white-space: nowrap; font-weight: 900; letter-spacing: 0.5px; }
       .classic-field input, .classic-field select {
@@ -862,17 +892,55 @@ function Home() {
         box-shadow: inset 0 -2px 10px rgba(0,0,0,0.2) !important;
       }
       .classic-shortcut-guide.horizontal .classic-shortcut-badge {
-        padding: 2.5px 7px !important;
-        gap: 5px !important;
-        border-radius: 9999px !important;
+        width: 138px !important;
+        min-width: 138px !important;
+        max-width: 138px !important;
+        height: 28px !important;
+        box-sizing: border-box !important;
+        padding: 0 6px !important;
+        gap: 4px !important;
+        border-radius: 8px !important;
+        background: rgba(255, 255, 255, 0.92) !important;
+        border: 1px solid rgba(203, 213, 225, 0.8) !important;
+        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03), inset 0 1px 0 rgba(255, 255, 255, 0.8) !important;
+        display: inline-flex !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+        flex-shrink: 0 !important;
+        transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1) !important;
+      }
+      .classic-shortcut-guide.horizontal .classic-shortcut-badge:hover {
+        border-color: #10b981 !important;
+        background: #ffffff !important;
+        box-shadow: 0 4px 12px -2px rgba(16, 185, 129, 0.18), 0 0 0 1px rgba(16, 185, 129, 0.25) !important;
+        transform: translateY(-1.5px) !important;
+      }
+      .classic-shortcut-guide.horizontal .classic-shortcut-badge:active {
+        transform: translateY(1px) scale(0.98) !important;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06) !important;
       }
       .classic-shortcut-guide.horizontal .classic-shortcut-key {
-        font-size: 9.5px !important;
-        padding: 1px 4.5px !important;
-        border-radius: 9999px !important;
+        font-size: 8.5px !important;
+        font-weight: 800 !important;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
+        color: #334155 !important;
+        background: linear-gradient(180deg, #ffffff 0%, #f1f5f9 100%) !important;
+        border: 1px solid #cbd5e1 !important;
+        border-bottom: 1.5px solid #94a3b8 !important;
+        padding: 1.5px 5px !important;
+        border-radius: 4px !important;
+        box-shadow: 0 1px 1px rgba(0, 0, 0, 0.04) !important;
+        flex-shrink: 0 !important;
+        line-height: 1 !important;
       }
       .classic-shortcut-guide.horizontal .classic-shortcut-label {
-        font-size: 12px !important;
+        font-size: 10.5px !important;
+        font-weight: 700 !important;
+        color: #0f172a !important;
+        letter-spacing: -0.01em !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
       }
       .classic-shortcut-badge {
         display: flex;
@@ -9918,7 +9986,7 @@ function Home() {
                 draggable
                 onDragStart={handleShortcutsDragStart}
                 onDragEnd={handleShortcutsDragEnd}
-                className="so-drag-handle"
+                className="so-drag-handle group hover:bg-white hover:text-slate-900"
                 title="Drag to Top, Bottom, Left, or Right edge of items list to dock"
                 style={{
                     display: 'flex',
@@ -9928,16 +9996,17 @@ function Home() {
                     height: '24px',
                     borderRadius: '6px',
                     cursor: 'grab',
-                    background: '#f8fafc',
-                    border: '1.5px dashed #cbd5e1',
-                    color: '#94a3b8',
-                    transition: 'all 0.2s',
+                    background: '#ffffff',
+                    border: '1px solid rgba(203, 213, 225, 0.8)',
+                    color: '#64748b',
+                    boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
+                    transition: 'all 0.15s ease',
                     flexShrink: 0
                 }}
                 onMouseDown={(e) => { e.currentTarget.style.cursor = 'grabbing'; }}
                 onMouseUp={(e) => { e.currentTarget.style.cursor = 'grab'; }}
             >
-                <Move size={12} />
+                <Move size={11} />
             </div>
         );
     };
@@ -9947,7 +10016,7 @@ function Home() {
             <div
                 ref={posDropdownRef}
                 className="so-pos-selector-container"
-                style={{ position: 'relative', display: 'flex', alignItems: 'center' }}
+                style={{ position: 'relative', display: 'flex', alignItems: 'center', zIndex: 1001 }}
             >
                 <button
                     onClick={(e) => {
@@ -9955,26 +10024,27 @@ function Home() {
                         setShowPosDropdown(prev => !prev);
                     }}
                     onMouseDown={(e) => e.stopPropagation()}
-                    className="so-shortcut-badge slate"
+                    className="so-shortcut-badge slate hover:bg-white hover:text-slate-900"
                     title="Change shortcuts bar position"
                     style={{
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        width: '28px',
-                        height: '28px',
+                        width: '24px',
+                        height: '24px',
                         padding: 0,
                         borderRadius: '6px',
                         cursor: 'pointer',
-                        background: '#f8fafc',
-                        border: '1.5px solid #cbd5e1',
+                        background: '#ffffff',
+                        border: '1px solid rgba(203, 213, 225, 0.8)',
                         color: '#64748b',
-                        boxShadow: 'none',
+                        boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
                         userSelect: 'none',
-                        flexShrink: 0
+                        flexShrink: 0,
+                        transition: 'all 0.15s ease'
                     }}
                 >
-                    <LayoutDashboard size={12} className="text-slate-500" />
+                    <LayoutDashboard size={11} className="text-slate-600" />
                 </button>
                 {showPosDropdown && (
                     <div style={{
@@ -9985,8 +10055,8 @@ function Home() {
                         background: '#ffffff',
                         border: '1px solid #e2e8f0',
                         borderRadius: '10px',
-                        boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
-                        zIndex: 10000,
+                        boxShadow: '0 12px 28px -4px rgba(15, 23, 42, 0.25), 0 4px 12px -2px rgba(15, 23, 42, 0.15)',
+                        zIndex: 999999,
                         minWidth: '120px',
                         padding: '4px',
                         display: 'flex',
@@ -10034,26 +10104,59 @@ function Home() {
     const renderShortcutsHorizontal = () => {
         return (
             <div className="classic-shortcut-guide horizontal" style={{
-                display: 'flex', alignItems: 'center', gap: '8px',
-                padding: '6px 16px', background: '#0f172a',
-                borderBottom: shortcutsPosition === 'top' ? '2px solid #1e293b' : 'none',
-                borderTop: shortcutsPosition === 'bottom' ? '2px solid #1e293b' : 'none',
+                display: 'flex',
+                alignItems: 'center',
+                padding: '6px 12px',
+                background: '#0b0f19',
+                borderBottom: shortcutsPosition === 'top' ? '1px solid #1e293b' : 'none',
+                borderTop: shortcutsPosition === 'bottom' ? '1px solid #1e293b' : 'none',
                 flexShrink: 0,
-                overflow: 'hidden'
+                position: 'relative',
+                zIndex: 130,
+                overflow: 'visible'
             }}>
-                {renderDragHandle()}
-                {renderShortcutsSelector()}
-                <div style={{ height: '32px', width: '1px', background: '#334155', margin: '0 2px', flexShrink: 0 }}></div>
                 <div style={{
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '4px 8px',
-                    flex: 1,
-                    minWidth: 0,
-                    flexWrap: 'wrap',
-                    overflow: 'hidden'
+                    gap: '8px',
+                    width: '100%',
+                    padding: '6px 10px',
+                    background: 'rgba(15, 23, 42, 0.85)',
+                    backdropFilter: 'blur(16px) saturate(180%)',
+                    WebkitBackdropFilter: 'blur(16px) saturate(180%)',
+                    borderRadius: '12px',
+                    border: '1px solid rgba(255, 255, 255, 0.08)',
+                    boxShadow: '0 4px 16px -2px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.06)',
+                    overflow: 'visible'
                 }}>
-                    {renderClassicShortcutsList(false)}
+                    <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        padding: '2px',
+                        background: 'rgba(30, 41, 59, 0.6)',
+                        borderRadius: '8px',
+                        border: '1px solid rgba(255, 255, 255, 0.06)',
+                        flexShrink: 0,
+                        position: 'relative',
+                        zIndex: 140,
+                        overflow: 'visible'
+                    }}>
+                        {renderDragHandle()}
+                        {renderShortcutsSelector()}
+                    </div>
+                    <div style={{ height: '24px', width: '1px', background: 'rgba(255, 255, 255, 0.1)', margin: '0 3px', flexShrink: 0, borderRadius: '9999px' }}></div>
+                    <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '5px 8px',
+                        flex: 1,
+                        minWidth: 0,
+                        flexWrap: 'wrap',
+                        overflow: 'hidden'
+                    }}>
+                        {renderClassicShortcutsList(false)}
+                    </div>
                 </div>
             </div>
         );
@@ -10333,48 +10436,78 @@ function Home() {
         return classicShortcutsData.filter(s => isShortcutShown(s.key)).map((s, idx) => (
             <div
                 key={idx}
-                className="classic-shortcut-badge group hover:border-emerald-500 hover:bg-emerald-50 transition-all cursor-pointer shadow-sm active:scale-95"
+                className="classic-shortcut-badge group hover:border-emerald-500 hover:shadow-md transition-all cursor-pointer active:scale-95"
                 onClick={s.action}
+                title={`${s.label} (${formatKeyLabel(s.key)})`}
                 style={{
                     flexShrink: 0,
-                    width: isVertical ? '100%' : 'auto',
-                    minWidth: isVertical ? '100%' : '125px',
+                    width: isVertical ? '100%' : '138px',
+                    minWidth: isVertical ? '100%' : '138px',
+                    maxWidth: isVertical ? '100%' : '138px',
+                    height: isVertical ? '32px' : '28px',
+                    boxSizing: 'border-box',
                     display: 'flex',
                     justifyContent: 'space-between',
                     alignItems: 'center',
-                    gap: '8px',
-                    padding: '4px 10px',
-                    background: '#f4fbf9',
-                    border: '1.5px solid #bce3da',
-                    borderRadius: '9999px',
-                    boxShadow: '0 1px 2px rgba(0,0,0,0.04)'
+                    gap: isVertical ? '8px' : '4px',
+                    padding: isVertical ? '4px 10px' : '0 6px',
+                    background: 'rgba(255, 255, 255, 0.92)',
+                    border: '1px solid rgba(203, 213, 225, 0.8)',
+                    borderRadius: '8px',
+                    boxShadow: '0 1px 2px rgba(15, 23, 42, 0.03), inset 0 1px 0 rgba(255, 255, 255, 0.8)',
+                    transition: 'all 0.15s cubic-bezier(0.4, 0, 0.2, 1)'
                 }}
             >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '5px', flex: 1, minWidth: 0, overflow: 'hidden' }}>
-                    <div className="classic-shortcut-icon" style={{ display: 'flex', flexShrink: 0, color: s.color || '#0ea5e9' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flex: 1, minWidth: 0, overflow: 'hidden' }}>
+                    <div
+                        className="classic-shortcut-icon"
+                        style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            width: '18px',
+                            height: '18px',
+                            borderRadius: '5px',
+                            background: `${s.color || '#0ea5e9'}16`,
+                            color: s.color || '#0ea5e9',
+                            flexShrink: 0
+                        }}
+                    >
                         {s.icon}
                     </div>
-                    <span className="classic-shortcut-label text-[11px] font-black text-slate-850 whitespace-nowrap" style={{
-                        color: '#0f172a',
-                        fontWeight: 800
-                    }}>
+                    <span
+                        className="classic-shortcut-label text-[10.5px] font-bold text-slate-850 whitespace-nowrap"
+                        style={{
+                            color: '#0f172a',
+                            fontWeight: 700,
+                            fontSize: '10.5px',
+                            letterSpacing: '-0.01em',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap'
+                        }}
+                    >
                         {s.label}
                     </span>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0, marginLeft: '4px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0, marginLeft: '3px' }}>
                     <span
-                        className="classic-shortcut-key font-mono font-black text-slate-900 text-[9.5px]"
+                        className="classic-shortcut-key font-mono font-extrabold text-slate-700 text-[8.5px]"
                         style={{
-                            background: '#ffffff',
-                            border: '1px solid #a7f3d0',
-                            padding: '1px 6px',
-                            borderRadius: '9999px',
+                            background: 'linear-gradient(180deg, #ffffff 0%, #f1f5f9 100%)',
+                            border: '1px solid #cbd5e1',
+                            borderBottom: '1.5px solid #94a3b8',
+                            padding: '1.5px 5px',
+                            borderRadius: '4px',
                             display: 'inline-flex',
                             alignItems: 'center',
                             justifyContent: 'center',
                             lineHeight: 1,
-                            color: '#047857',
-                            fontWeight: 900
+                            color: '#334155',
+                            fontWeight: 800,
+                            fontSize: '8.5px',
+                            boxShadow: '0 1px 1px rgba(0, 0, 0, 0.04)',
+                            flexShrink: 0
                         }}
                     >
                         {formatKeyLabel(s.key)}
@@ -10386,29 +10519,62 @@ function Home() {
 
     const renderClassicShortcutsHorizontal = () => {
         const isGreen = legacySubTheme === 'green';
-        const borderColor = isGreen ? '#10b981' : '#0ea5e9';
         return (
             <div className="classic-shortcut-guide horizontal" style={{
-                display: 'flex', alignItems: 'center', gap: '8px',
-                padding: '6px 16px',
-                background: '#e6f4f1',
-                borderBottom: '1px solid #c2e2da',
+                display: 'flex',
+                alignItems: 'center',
+                padding: '6px 12px',
+                background: isGreen
+                    ? 'linear-gradient(180deg, #e8f5f1 0%, #d8eee7 100%)'
+                    : 'linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%)',
+                borderBottom: isGreen ? '1px solid #b2ddd1' : '1px solid #e2e8f0',
                 flexShrink: 0,
-                overflow: 'hidden'
+                position: 'relative',
+                zIndex: 1000,
+                overflow: 'visible'
             }}>
-                {renderDragHandle()}
-                {renderShortcutsSelector()}
-                <div style={{ height: '32px', width: '2px', background: isGreen ? '#1e7556' : '#235985', margin: '0 2px', flexShrink: 0 }}></div>
                 <div style={{
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '4px 8px',
-                    flex: 1,
-                    minWidth: 0,
-                    flexWrap: 'wrap',
-                    overflow: 'hidden'
+                    gap: '8px',
+                    width: '100%',
+                    padding: '6px 10px',
+                    background: 'rgba(255, 255, 255, 0.85)',
+                    backdropFilter: 'blur(16px) saturate(180%)',
+                    WebkitBackdropFilter: 'blur(16px) saturate(180%)',
+                    borderRadius: '12px',
+                    border: '1px solid rgba(255, 255, 255, 0.9)',
+                    boxShadow: '0 4px 16px -2px rgba(15, 23, 42, 0.06), 0 1px 3px rgba(0, 0, 0, 0.03), inset 0 1px 0 rgba(255, 255, 255, 0.95)',
+                    overflow: 'visible'
                 }}>
-                    {renderClassicShortcutsList(false)}
+                    <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        padding: '2px',
+                        background: 'rgba(241, 245, 249, 0.75)',
+                        borderRadius: '8px',
+                        border: '1px solid rgba(226, 232, 240, 0.8)',
+                        flexShrink: 0,
+                        position: 'relative',
+                        zIndex: 140,
+                        overflow: 'visible'
+                    }}>
+                        {renderDragHandle()}
+                        {renderShortcutsSelector()}
+                    </div>
+                    <div style={{ height: '24px', width: '1px', background: isGreen ? '#a7f3d0' : '#cbd5e1', margin: '0 3px', flexShrink: 0, borderRadius: '9999px' }}></div>
+                    <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '5px 8px',
+                        flex: 1,
+                        minWidth: 0,
+                        flexWrap: 'wrap',
+                        overflow: 'hidden'
+                    }}>
+                        {renderClassicShortcutsList(false)}
+                    </div>
                 </div>
             </div>
         );
@@ -10451,383 +10617,302 @@ function Home() {
         );
     };
 
+    // ---------- UNIFIED TOP NAVBAR RENDERER (SHARED ACROSS ALL THEMES) ----------
+    const renderUnifiedTopNav = () => {
+        return (
+            <header className="pos-top-header classic-nav" style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                width: '100%',
+                height: '48px',
+                minHeight: '48px',
+                padding: '0 16px',
+                background: '#ffffff',
+                borderBottom: '1px solid #e2e8f0',
+                boxShadow: '0 1px 2px rgba(15, 23, 42, 0.03)',
+                boxSizing: 'border-box',
+                flexShrink: 0,
+                position: 'relative',
+                zIndex: 200
+            }}>
+                {/* ── LEFT: Dashboard Button & Branding ── */}
+                <div className="flex items-center gap-3" style={{ flexShrink: 0 }}>
+                    <button
+                        onClick={() => navigate('/dashboard')}
+                        className="px-3 py-1.5 bg-slate-100 hover:bg-emerald-50 text-slate-700 hover:text-emerald-700 border border-slate-200 hover:border-emerald-300 rounded-lg font-black text-[11px] uppercase tracking-wider flex items-center gap-1.5 cursor-pointer transition-all shadow-2xs group"
+                        style={{ height: '34px', boxSizing: 'border-box' }}
+                        title="Back to Admin Dashboard"
+                    >
+                        <ChevronLeft size={15} className="group-hover:-translate-x-0.5 transition-transform" />
+                        <LayoutDashboard size={13} />
+                        <span>DASHBOARD</span>
+                    </button>
+
+                    <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <img src={kyleLogo} alt="Kyle Retail Logo" className="h-8 w-auto max-w-[130px] md:max-w-[160px] object-contain transition-opacity duration-300 hover:opacity-90" />
+                        <div className="flex flex-col">
+                            <span className="font-extrabold text-[13px] tracking-wider text-slate-800 uppercase leading-none">KYLE RETAIL</span>
+                            <span className="text-[8.5px] font-bold text-slate-400 uppercase tracking-widest leading-tight mt-0.5">POINT OF SALE</span>
+                        </div>
+                    </div>
+                </div>
+
+                {/* ── RIGHT: Actions, Utilities, User Profile & Logout ── */}
+                <div className="ml-auto flex items-center" style={{ gap: '12px', flexShrink: 0 }}>
+                    <div className="flex items-center gap-2.5">
+                        {/* 1. POPUP / FULL Window Mode */}
+                        <button
+                            onClick={() => {
+                                const nextMode = posWindowMode === 'popup' ? 'fullscreen' : 'popup';
+                                setPosWindowMode(nextMode);
+                                localStorage.setItem('pos_window_mode', nextMode);
+                            }}
+                            className="h-8 px-3 flex items-center gap-1.5 bg-[#f4fbf9] border border-[#bce3da] text-slate-600 hover:bg-[#e6f4f1] hover:text-emerald-700 hover:border-emerald-300 transition-all cursor-pointer shadow-2xs"
+                            title={posWindowMode === 'popup' ? "Switch to Full Screen (Alt+W)" : "Switch to Mini Popup Window (Alt+W)"}
+                            style={{ borderRadius: '9999px', fontSize: '11px', fontWeight: 800, boxSizing: 'border-box' }}
+                        >
+                            {posWindowMode === 'popup' ? <Maximize2 size={13} className="text-emerald-700" /> : <Minimize2 size={13} />}
+                            <span className="hidden sm:inline">{posWindowMode === 'popup' ? 'FULL' : 'POPUP'}</span>
+                            <span style={{ background: '#dcfce7', color: '#166534', fontSize: '9px', padding: '1px 5px', borderRadius: '4px', fontWeight: 800, lineHeight: 1 }}>
+                                {isMac ? '⌥W' : 'Alt+W'}
+                            </span>
+                        </button>
+
+                        {/* 2. Active Orders */}
+                        <button
+                            onClick={() => setShowDraftsModal(true)}
+                            className="h-8 px-3 flex items-center gap-1.5 bg-[#f0f9ff] border border-[#bae6fd] text-sky-700 hover:bg-[#e0f2fe] hover:text-sky-900 hover:border-sky-300 transition-all cursor-pointer shadow-2xs"
+                            title="Active Orders & Drafts"
+                            style={{ borderRadius: '9999px', fontSize: '11px', fontWeight: 800, boxSizing: 'border-box' }}
+                        >
+                            <Package size={13} className="text-sky-600" />
+                            <span className="hidden sm:inline">Active Orders</span>
+                        </button>
+
+                        {/* 3. Sales Invoice (Quick Switch to Classic UI for Modern & No Image Themes) */}
+                        {theme !== 'legacy' && (
+                            <button
+                                onClick={() => dispatch(setTheme('legacy'))}
+                                className="h-8 px-3 flex items-center gap-1.5 bg-[#ecfdf5] hover:bg-[#d1fae5] border border-[#a7f3d0] hover:border-emerald-400 text-emerald-800 hover:text-emerald-950 transition-all cursor-pointer shadow-2xs"
+                                title="Switch to Sales Invoice (Classic UI)"
+                                style={{ borderRadius: '9999px', fontSize: '11px', fontWeight: 800, boxSizing: 'border-box', whiteSpace: 'nowrap' }}
+                            >
+                                <Receipt size={13} className="text-emerald-600" />
+                                <span>Sales Invoice</span>
+                            </button>
+                        )}
+
+                        {/* 3. ONLINE / OFFLINE Status Indicator */}
+                        <div
+                            className={`flex items-center gap-2 px-3 h-8 ${isOffline ? 'bg-rose-50 border-rose-200' : 'bg-[#f4fbf9] border-[#bce3da]'} border shadow-2xs select-none transition-all hover:bg-[#e6f4f1] cursor-pointer`}
+                            style={{ borderRadius: '9999px', boxSizing: 'border-box' }}
+                        >
+                            <div className={`w-2.5 h-2.5 rounded-full ${isOffline ? 'bg-rose-500 animate-pulse' : 'bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.5)]'}`}></div>
+                            <span className={`text-[10px] font-extrabold uppercase tracking-widest ${isOffline ? 'text-rose-600' : 'text-emerald-700'}`}>
+                                {isOffline ? 'OFFLINE' : 'ONLINE'}
+                            </span>
+                        </div>
+
+                        {/* 4. Notifications */}
+                        <div className="nav-notification-container relative" ref={notificationsContainerRef}>
+                            <button
+                                onClick={() => setShowNotifications(!showNotifications)}
+                                className="w-8 h-8 flex items-center justify-center bg-[#f4fbf9] border border-[#bce3da] text-slate-700 hover:bg-[#e6f4f1] hover:text-emerald-700 transition-all cursor-pointer shadow-2xs relative"
+                                title="Notifications"
+                                style={{ borderRadius: '9999px', boxSizing: 'border-box' }}
+                            >
+                                <Bell size={15} className="text-slate-600" />
+                                {unreadCount > 0 && (
+                                    <span style={{
+                                        position: 'absolute',
+                                        top: '-2px', right: '-2px',
+                                        background: '#ef4444', color: '#ffffff',
+                                        fontSize: '8px', fontWeight: 900,
+                                        borderRadius: '9999px', padding: '1px 4px',
+                                        lineHeight: '1', boxShadow: '0 0 0 2px #ffffff'
+                                    }}>
+                                        {unreadCount}
+                                    </span>
+                                )}
+                            </button>
+                            {renderNotificationDropdown()}
+                        </div>
+
+                        {/* 5. Open POS in New Tab */}
+                        <button
+                            onClick={() => {
+                                if (window.location.protocol === 'file:') {
+                                    window.location.hash = '#/homepage';
+                                } else {
+                                    window.open(window.location.origin + window.location.pathname + '#/homepage', '_blank');
+                                }
+                            }}
+                            className="w-8 h-8 flex items-center justify-center bg-[#f4fbf9] border border-[#bce3da] text-slate-600 hover:bg-[#e6f4f1] hover:text-emerald-700 transition-all cursor-pointer shadow-2xs"
+                            title={window.location.protocol === 'file:' ? "Go to POS Homepage" : "Open POS in New Tab"}
+                            style={{ borderRadius: '9999px', boxSizing: 'border-box' }}
+                        >
+                            <ExternalLink size={15} />
+                        </button>
+
+                        {/* 6. Settings */}
+                        <div className="relative" ref={settingsDropdownRef}>
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setShowSettingsMenu(!showSettingsMenu);
+                                    if (!showSettingsMenu) {
+                                        setShowDropdown(false);
+                                        setShowItemDropdown(false);
+                                    }
+                                }}
+                                onMouseDown={(e) => e.stopPropagation()}
+                                className={`w-8 h-8 flex items-center justify-center bg-[#f4fbf9] border border-[#bce3da] text-slate-600 hover:bg-[#e6f4f1] hover:text-emerald-700 transition-all cursor-pointer shadow-2xs ${showSettingsMenu ? 'bg-[#e6f4f1] border-emerald-400 text-emerald-800' : ''}`}
+                                title="Settings"
+                                style={{ borderRadius: '9999px', boxSizing: 'border-box' }}
+                            >
+                                <Settings size={15} className={showSettingsMenu ? 'animate-spin-slow' : ''} />
+                            </button>
+
+                            {showSettingsMenu && (
+                                <div
+                                    className="absolute right-0 top-full mt-2 w-72 bg-white/98 backdrop-blur-md border border-slate-200 rounded-2xl shadow-2xl z-[999999] p-5 flex flex-col gap-4 animate-in fade-in slide-in-from-top-3 duration-200"
+                                    style={{ borderTop: '4px solid #10b981', boxShadow: '0 20px 40px -10px rgba(0, 0, 0, 0.2)' }}
+                                >
+                                    <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1 leading-none">
+                                        Configuration
+                                    </div>
+
+                                    {/* Dashboard Button */}
+                                    <button
+                                        onClick={() => {
+                                            navigate('/dashboard');
+                                            setShowSettingsMenu(false);
+                                        }}
+                                        className="w-full bg-slate-50/70 hover:bg-slate-100 flex items-center justify-between transition-all group text-left"
+                                        style={{
+                                            height: '44px',
+                                            padding: '8px 14px',
+                                            border: '1px solid #e2e8f0',
+                                            borderRadius: '12px',
+                                            cursor: 'pointer'
+                                        }}
+                                    >
+                                        <div className="flex items-center gap-2.5 font-bold text-[11px] text-slate-700 uppercase tracking-wider">
+                                            <div className="p-1.5 rounded-lg bg-emerald-50 text-emerald-500 group-hover:scale-110 transition-transform flex items-center justify-center">
+                                                <LayoutDashboard size={14} />
+                                            </div>
+                                            Admin Dashboard
+                                        </div>
+                                        <ChevronRight size={14} className="text-slate-400 group-hover:translate-x-0.5 transition-transform" />
+                                    </button>
+
+                                    {/* Theme Switcher Button */}
+                                    <button
+                                        onClick={() => {
+                                            setShowThemeSidebar(true);
+                                            setShowSettingsMenu(false);
+                                        }}
+                                        className="w-full bg-slate-50/70 hover:bg-slate-100 flex items-center justify-between transition-all group text-left"
+                                        style={{
+                                            height: '44px',
+                                            padding: '8px 14px',
+                                            border: '1px solid #e2e8f0',
+                                            borderRadius: '12px',
+                                            cursor: 'pointer'
+                                        }}
+                                    >
+                                        <div className="flex items-center gap-2.5 font-bold text-[11px] text-slate-700 uppercase tracking-wider">
+                                            <div className="p-1.5 rounded-lg bg-emerald-50 text-emerald-500 group-hover:scale-110 transition-transform flex items-center justify-center">
+                                                <Palette size={14} />
+                                            </div>
+                                            Theme Config
+                                        </div>
+                                        <span className="text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-md shadow-sm border border-slate-200/40 bg-emerald-50 text-emerald-600" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                                            {theme === 'legacy' ? legacySubTheme.toUpperCase() : 'MODERN'}
+                                        </span>
+                                    </button>
+
+                                    {/* Hidden Shortcuts Panel */}
+                                    <div className="border-t border-slate-100 pt-3 mt-1 text-left">
+                                        <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1 mb-2">
+                                            Hidden Shortcuts ({hiddenShortcuts.length})
+                                        </div>
+                                        {hiddenShortcuts.length === 0 ? (
+                                            <div className="text-[11px] font-bold text-slate-400 italic px-2">
+                                                No hidden shortcuts
+                                            </div>
+                                        ) : (
+                                            <div className="flex flex-col gap-1.5 max-h-40 overflow-y-auto px-1">
+                                                {allShortcutsList.filter(s => hiddenShortcuts.includes(s.key)).map(s => (
+                                                    <div key={s.key} className="flex items-center justify-between p-2 bg-slate-50 border border-slate-100 rounded-lg">
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="text-[9px] font-black bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded uppercase tracking-wider">{s.key}</span>
+                                                            <span className="text-[11px] font-bold text-slate-600">{s.label}</span>
+                                                        </div>
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                toggleHideShortcut(s.key);
+                                                            }}
+                                                            className="p-1 hover:bg-slate-200 text-slate-400 hover:text-slate-600 rounded transition-all border-none bg-transparent cursor-pointer"
+                                                            title="Show Shortcut"
+                                                        >
+                                                            <Eye size={12} />
+                                                        </button>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Divider */}
+                    <div style={{ width: '1px', height: '24px', background: 'rgb(74, 122, 170)', opacity: 0.4, flexShrink: 0 }} />
+
+                    {/* User Profile + Logout */}
+                    <div className="flex items-center gap-3">
+                        <div
+                            onClick={() => setShowThemeSidebar(true)}
+                            className="flex items-center gap-2.5 cursor-pointer transition-opacity hover:opacity-90"
+                            title="Open Theme Settings Sidebar"
+                        >
+                            <div className="flex flex-col items-end text-right">
+                                <span className="user-name font-black uppercase text-slate-800" style={{ fontSize: '11.5px', fontWeight: 800, color: 'rgb(30, 41, 59)', lineHeight: 1.2 }}>
+                                    {user?.full_name || (typeof user === 'string' ? user : '') || 'CASHIER'}
+                                </span>
+                                <span className="text-[9px] font-bold uppercase mt-1 tracking-tight flex items-center gap-1.5 whitespace-nowrap">
+                                    <span className="text-emerald-600 font-extrabold">{getBranchName(warehouse) || 'MAIN'}</span>
+                                    <span className="text-slate-300">|</span>
+                                    <CurrentTimeDisplay variant="unified" />
+                                </span>
+                            </div>
+                            <div className="w-8 h-8 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-500 shadow-sm shrink-0">
+                                <UserIcon size={15} />
+                            </div>
+                        </div>
+
+                        <button
+                            onClick={handleLogout}
+                            className="w-8 h-8 flex items-center justify-center text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-full cursor-pointer transition-all border border-transparent hover:border-rose-200"
+                            title="Logout"
+                        >
+                            <Power size={16} />
+                        </button>
+                    </div>
+                </div>
+            </header>
+        );
+    };
+
     // ---------- LIGHT THEME RENDERER (Emerald & Slate) ----------
     const renderLightTheme = () => {
         return wrapWindowMode(
             <div className="so-page" style={{ height: '100%', maxHeight: '100%', overflow: 'hidden', display: 'flex', flexDirection: 'column', position: 'relative' }}>
-                {/* MODERN TOOL STRIP — Two-Zone Layout */}
-                <div className="so-tool-strip" style={{
-                    display: 'flex', alignItems: 'center', width: '100%',
-                    maxWidth: '100%', boxSizing: 'border-box', overflow: 'visible',
-                    minHeight: 'fit-content', padding: '0', gap: '0',
-                    borderBottom: '1px solid #e2e8f0', background: '#ffffff',
-                    position: 'relative', zIndex: 150
-                }}>
-                    {/* ── LEFT: Back to Dashboard & Logo ── */}
-                    <div style={{
-                        display: 'flex', alignItems: 'center', gap: '12px',
-                        padding: '6px 14px', flexShrink: 0
-                    }}>
-                        {/* Back to Dashboard Button */}
-                        <button
-                            onClick={() => navigate('/dashboard')}
-                            className="px-3 py-1.5 bg-slate-100 hover:bg-emerald-50 text-slate-700 hover:text-emerald-700 border border-slate-200 hover:border-emerald-300 rounded-lg font-black text-[11px] uppercase tracking-wider flex items-center gap-1.5 cursor-pointer transition-all shadow-2xs group"
-                            title="Back to Admin Dashboard"
-                        >
-                            <ChevronLeft size={15} className="group-hover:-translate-x-0.5 transition-transform" />
-                            <LayoutDashboard size={13} />
-                            <span>DASHBOARD</span>
-                        </button>
-
-                        {/* Kyle Retail Logo */}
-                        <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center' }}>
-                            <img src={kyleLogo} alt="Kyle Retail Logo" className="h-10 w-auto max-w-[120px] md:max-w-[180px] object-contain mix-blend-multiply transition-opacity duration-300 hover:opacity-90" />
-                        </div>
-                    </div>
-
-                    {/* ── RIGHT: Fixed user info + actions (never overflow) ── */}
-                    <div style={{
-                        display: 'flex', alignItems: 'center', gap: '20px',
-                        padding: '4px 14px', flexShrink: 0,
-                        borderLeft: '1px solid #e2e8f0', marginLeft: 'auto',
-                        background: '#ffffff'
-                    }}>
-                        {/* Group 1: Navigation & Shift */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            {/* Screen Mode Switcher: Fullscreen <-> Popup */}
-                            <button
-                                onClick={() => {
-                                    const nextMode = posWindowMode === 'popup' ? 'fullscreen' : 'popup';
-                                    setPosWindowMode(nextMode);
-                                    localStorage.setItem('pos_window_mode', nextMode);
-                                }}
-                                style={{
-                                    display: 'flex', alignItems: 'center', gap: '0.35rem',
-                                    padding: '0 0.65rem', height: '1.85rem',
-                                    background: posWindowMode === 'popup' ? '#ecfdf5' : '#f8fafc',
-                                    border: `1.5px solid ${posWindowMode === 'popup' ? '#6ee7b7' : '#cbd5e1'}`,
-                                    borderRadius: '0.375rem',
-                                    fontSize: '0.65rem', fontWeight: 900,
-                                    color: posWindowMode === 'popup' ? '#047857' : '#334155',
-                                    cursor: 'pointer', textTransform: 'uppercase', flexShrink: 0,
-                                    whiteSpace: 'nowrap',
-                                    boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
-                                    transition: 'all 0.15s ease'
-                                }}
-                                title={posWindowMode === 'popup' ? "Switch to Full Screen (Alt+W)" : "Switch to Mini Popup Window (Alt+W)"}
-                            >
-                                {posWindowMode === 'popup' ? (
-                                    <>
-                                        <Maximize2 size={12} color="#047857" /> FULL SCREEN
-                                    </>
-                                ) : (
-                                    <>
-                                        <Minimize2 size={12} color="#475569" /> POPUP VIEW
-                                    </>
-                                )}
-                                <span style={{ background: posWindowMode === 'popup' ? 'rgba(4, 120, 87, 0.15)' : '#e2e8f0', color: posWindowMode === 'popup' ? '#047857' : '#64748b', fontSize: '9px', padding: '1px 5px', borderRadius: '3px', marginLeft: '2px', fontWeight: 800 }}>
-                                    {isMac ? '⌥W' : 'Alt+W'}
-                                </span>
-                            </button>
-
-                            {/* Active Orders */}
-                            <button
-                                onClick={() => setShowDraftsModal(true)}
-                                style={{
-                                    display: 'flex', alignItems: 'center', gap: '0.35rem',
-                                    padding: '0 0.65rem', height: '1.85rem', background: '#f0f9ff',
-                                    border: '1.5px solid #bae6fd', borderRadius: '0.375rem',
-                                    fontSize: '0.65rem', fontWeight: 850, color: '#0369a1',
-                                    cursor: 'pointer', textTransform: 'uppercase', flexShrink: 0,
-                                    whiteSpace: 'nowrap'
-                                }}
-                            >
-                                <Package size={11} /> Active Orders
-                            </button>
-
-                            {/* Print Job Calculator Header Button */}
-                            <button
-                                onClick={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    console.log("PRINT JOB Header button clicked!");
-                                    setShowPrintJobModal(true);
-                                }}
-                                style={{
-                                    display: 'flex', alignItems: 'center', gap: '0.35rem',
-                                    padding: '0 0.65rem', height: '1.85rem', background: 'linear-gradient(135deg, #0f172a, #1e293b)',
-                                    border: '1.5px solid #334155', borderRadius: '0.375rem',
-                                    fontSize: '0.65rem', fontWeight: 900, color: '#38bdf8',
-                                    cursor: 'pointer', textTransform: 'uppercase', flexShrink: 0,
-                                    whiteSpace: 'nowrap', boxShadow: '0 2px 4px rgba(0,0,0,0.12)'
-                                }}
-                                title="Print Job Calculator & Barcode Generator"
-                            >
-                                <Printer size={12} color="#38bdf8" /> PRINT JOB
-                                <span style={{ background: 'rgba(56, 189, 248, 0.2)', color: '#38bdf8', fontSize: '9px', padding: '1px 5px', borderRadius: '3px', marginLeft: '2px', fontWeight: 800 }}>
-                                    {isMac ? '⌥P' : 'Alt+P'}
-                                </span>
-                            </button>
-
-                            {/* Fast Print Header Button */}
-                            <button
-                                onClick={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    setShowFastPrintModal(true);
-                                }}
-                                style={{
-                                    display: 'flex', alignItems: 'center', gap: '0.35rem',
-                                    padding: '0 0.65rem', height: '1.85rem', background: 'linear-gradient(135deg, #881337, #be123c)',
-                                    border: '1.5px solid #fda4af', borderRadius: '0.375rem',
-                                    fontSize: '0.65rem', fontWeight: 900, color: '#ffffff',
-                                    cursor: 'pointer', textTransform: 'uppercase', flexShrink: 0,
-                                    whiteSpace: 'nowrap', boxShadow: '0 2px 4px rgba(225,29,72,0.2)'
-                                }}
-                                title="Fast Print - Enter Direct Amount & Machine Barcode"
-                            >
-                                <Zap size={12} color="#ffffff" /> FAST PRINT
-                                <span style={{ background: 'rgba(255, 255, 255, 0.25)', color: '#ffffff', fontSize: '9px', padding: '1px 5px', borderRadius: '3px', marginLeft: '2px', fontWeight: 800 }}>
-                                    {isMac ? '⌥F' : 'Alt+F'}
-                                </span>
-                            </button>
-                        </div>
-
-                        {/* Separator */}
-                        <div style={{ width: '1px', height: '24px', background: '#e2e8f0', flexShrink: 0 }} />
-
-                        {/* Group 2: User Profile */}
-                        <div
-                            onClick={() => setShowThemeSidebar(true)}
-                            style={{
-                                display: 'flex', alignItems: 'center', gap: '8px',
-                                padding: '4px 10px', background: '#f8fafc',
-                                border: '1px solid #e2e8f0', borderRadius: '8px',
-                                cursor: 'pointer', flexShrink: 0
-                            }}
-                            title="Open Theme Settings Sidebar"
-                        >
-                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', textAlign: 'right' }}>
-                                <span style={{ fontSize: '9px', fontWeight: 900, textTransform: 'uppercase', lineHeight: 1.2, color: '#0f172a', whiteSpace: 'nowrap' }}>
-                                    <span style={{ color: '#94a3b8', marginRight: '3px' }}>USER:</span>
-                                    {user?.full_name || user || 'CASHIER'}
-                                </span>
-                                <span style={{ fontSize: '9px', fontWeight: 900, textTransform: 'uppercase', lineHeight: 1.2, marginTop: '1px', color: '#10b981', whiteSpace: 'nowrap' }}>
-                                    <span style={{ color: '#94a3b8', marginRight: '3px' }}>BR:</span>
-                                    {getBranchName(warehouse)}
-                                </span>
-                                <CurrentTimeDisplay variant="legacy" />
-                            </div>
-                            <div style={{ width: '28px', height: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#fff', border: '1px solid #e2e8f0', borderRadius: '50%', color: '#94a3b8', flexShrink: 0 }}>
-                                <UserIcon size={13} />
-                            </div>
-                        </div>
-
-                        {/* Separator */}
-                        <div style={{ width: '1px', height: '24px', background: '#e2e8f0', flexShrink: 0 }} />
-
-                        {/* Group 3: Quick Utilities */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                            {/* Notification Bell Dropdown */}
-                            <div className="nav-notification-container" ref={notificationsContainerRef}>
-                                <button
-                                    onClick={() => setShowNotifications(!showNotifications)}
-                                    style={{
-                                        padding: '4px',
-                                        background: 'transparent',
-                                        border: 'none',
-                                        cursor: 'pointer',
-                                        color: '#64748b',
-                                        borderRadius: '50%',
-                                        flexShrink: 0,
-                                        position: 'relative',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center'
-                                    }}
-                                    className={unreadCount > 0 ? "animate-pulse-subtle" : ""}
-                                    title="Notifications"
-                                >
-                                    <Bell size={16} />
-                                    {unreadCount > 0 && (
-                                        <span
-                                            style={{
-                                                position: 'absolute',
-                                                top: '-2px',
-                                                right: '-2px',
-                                                background: '#ef4444',
-                                                color: '#ffffff',
-                                                fontSize: '8px',
-                                                fontWeight: 900,
-                                                borderRadius: '9999px',
-                                                padding: '1px 4px',
-                                                lineHeight: '1',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                justifyContent: 'center',
-                                                boxShadow: '0 0 0 2px #ffffff'
-                                            }}
-                                        >
-                                            {unreadCount}
-                                        </span>
-                                    )}
-                                </button>
-                                {renderNotificationDropdown()}
-                            </div>
-
-                            {/* New Tab */}
-                            <button
-                                onClick={() => {
-                                    if (window.location.protocol === 'file:') {
-                                        window.location.hash = '#/homepage';
-                                    } else {
-                                        window.open(window.location.origin + window.location.pathname + '#/homepage', '_blank');
-                                    }
-                                }}
-                                style={{ padding: '4px', background: 'transparent', border: 'none', cursor: 'pointer', color: '#64748b', borderRadius: '50%', flexShrink: 0 }}
-                                title={window.location.protocol === 'file:' ? "Go to POS Homepage" : "Open POS in New Tab"}
-                            >
-                                <ExternalLink size={16} />
-                            </button>
-
-                            {/* Sales Invoice Quick Button */}
-                            <button
-                                onClick={() => {
-                                    dispatch(setTheme('legacy'));
-                                    navigate('/homepage');
-                                }}
-                                style={{ padding: '4px 8px', background: 'var(--so-primary-light, #f0fdf4)', border: '1px solid var(--so-primary, #10b981)', cursor: 'pointer', color: 'var(--so-primary, #10b981)', borderRadius: '8px', flexShrink: 0, fontSize: '11px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}
-                                title="Sales Invoice (POS Classic)"
-                            >
-                                <Receipt size={14} />
-                                <span>Sales Invoice</span>
-                            </button>
-
-                            {/* Logout */}
-                            <button
-                                onClick={handleLogout}
-                                style={{ padding: '4px', background: 'transparent', border: 'none', cursor: 'pointer', color: '#f43f5e', borderRadius: '50%', flexShrink: 0 }}
-                                title="Logout"
-                            >
-                                <Power size={16} />
-                            </button>
-
-                            {/* Dropdown Settings Button */}
-                            <div className="relative" ref={settingsDropdownRef}>
-                                <button
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        setShowSettingsMenu(!showSettingsMenu);
-                                        if (!showSettingsMenu) {
-                                            setShowDropdown(false);
-                                            setShowItemDropdown(false);
-                                        }
-                                    }}
-                                    onMouseDown={(e) => e.stopPropagation()}
-                                    className={`w-9 h-9 flex items-center justify-center bg-slate-50 border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-100 hover:text-slate-800 transition-all ${showSettingsMenu ? 'bg-slate-100 border-slate-300' : ''}`}
-                                    title="Settings"
-                                    style={{ height: '1.85rem', width: '1.85rem', padding: 0 }}
-                                >
-                                    <Settings size={14} className={showSettingsMenu ? 'animate-spin-slow' : ''} />
-                                </button>
-
-                                {showSettingsMenu && (
-                                    <div
-                                        className="absolute right-0 top-full mt-3 w-72 bg-white border border-slate-200 rounded-2xl shadow-2xl z-[999999] p-5 flex flex-col gap-4 animate-in fade-in slide-in-from-top-4 duration-200"
-                                        style={{ borderTop: `4px solid var(--so-primary)`, boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' }}
-                                    >
-                                        <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1 leading-none">
-                                            Configuration
-                                        </div>
-
-                                        {/* Dashboard Button */}
-                                        <button
-                                            onClick={() => {
-                                                navigate('/dashboard');
-                                                setShowSettingsMenu(false);
-                                            }}
-                                            className="w-full bg-slate-50/50 hover:bg-slate-100/70 flex items-center justify-between transition-all group text-left"
-                                            style={{
-                                                height: '46px',
-                                                padding: '8px 14px',
-                                                border: '1px solid #e2e8f0',
-                                                borderRadius: '12px',
-                                                cursor: 'pointer'
-                                            }}
-                                        >
-                                            <div className="flex items-center gap-2.5 font-bold text-[11px] text-slate-700 uppercase tracking-wider">
-                                                <div className="p-1.5 rounded-lg bg-slate-100 text-slate-600 group-hover:scale-110 transition-transform flex items-center justify-center">
-                                                    <LayoutDashboard size={14} />
-                                                </div>
-                                                Admin Dashboard
-                                            </div>
-                                            <ChevronRight size={14} className="text-slate-400 group-hover:translate-x-0.5 transition-transform" />
-                                        </button>
-
-                                        {/* Theme Switcher Button */}
-                                        <button
-                                            onClick={() => {
-                                                setShowThemeSidebar(true);
-                                                setShowSettingsMenu(false);
-                                            }}
-                                            className="w-full bg-slate-50/50 hover:bg-slate-100/70 flex items-center justify-between transition-all group text-left"
-                                            style={{
-                                                height: '46px',
-                                                padding: '8px 14px',
-                                                border: '1px solid #e2e8f0',
-                                                borderRadius: '12px',
-                                                cursor: 'pointer'
-                                            }}
-                                        >
-                                            <div className="flex items-center gap-2.5 font-bold text-[11px] text-slate-700 uppercase tracking-wider">
-                                                <div className="p-1.5 rounded-lg bg-emerald-50 text-emerald-500 group-hover:scale-110 transition-transform flex items-center justify-center">
-                                                    <Palette size={14} />
-                                                </div>
-                                                Theme Config
-                                            </div>
-                                            <span className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-md shadow-sm border border-slate-200/40 ${isGreen ? 'bg-emerald-50 text-emerald-600' : 'bg-sky-50 text-sky-600'}`} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
-                                                {legacySubTheme.toUpperCase()}
-                                            </span>
-                                        </button>
-
-                                        {/* Hidden Shortcuts Panel */}
-                                        <div className="border-t border-slate-100 pt-3 mt-1 text-left">
-                                            <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1 mb-2">
-                                                Hidden Shortcuts ({hiddenShortcuts.length})
-                                            </div>
-                                            {hiddenShortcuts.length === 0 ? (
-                                                <div className="text-[11px] font-bold text-slate-400 italic px-2">
-                                                    No hidden shortcuts
-                                                </div>
-                                            ) : (
-                                                <div className="flex flex-col gap-1.5 max-h-40 overflow-y-auto px-1">
-                                                    {allShortcutsList.filter(s => hiddenShortcuts.includes(s.key)).map(s => (
-                                                        <div key={s.key} className="flex items-center justify-between p-2 bg-slate-50 border border-slate-100 rounded-lg">
-                                                            <div className="flex items-center gap-2">
-                                                                <span className="text-[9px] font-black bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded uppercase tracking-wider">{s.key}</span>
-                                                                <span className="text-[11px] font-bold text-slate-600">{s.label}</span>
-                                                            </div>
-                                                            <button
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    toggleHideShortcut(s.key);
-                                                                }}
-                                                                className="p-1 hover:bg-slate-200 text-slate-400 hover:text-slate-600 rounded transition-all border-none bg-transparent cursor-pointer"
-                                                                title="Show Shortcut"
-                                                            >
-                                                                <Eye size={12} />
-                                                            </button>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                {renderUnifiedTopNav()}
 
                 {!hideAllShortcuts && shortcutsPosition === 'top' && (
                     <div style={{ flexShrink: 0, width: '100%' }}>
@@ -11951,255 +12036,13 @@ function Home() {
         return wrapWindowMode(
             <div className={`classic-root ${!isGreen ? 'theme-blue' : ''}`} style={{ position: 'relative', height: '100%', maxHeight: '100%' }}>
 
-                {/* CLASSIC NAVBAR */}
-                <nav className="classic-nav">
-                    <div className="flex items-center gap-3 pl-2 py-1">
-                        {/* Back to Dashboard Button */}
-                        <button
-                            onClick={() => navigate('/dashboard')}
-                            className="px-3 py-1.5 bg-slate-100 hover:bg-emerald-50 text-slate-700 hover:text-emerald-700 border border-slate-200 hover:border-emerald-300 rounded-lg font-black text-[11px] uppercase tracking-wider flex items-center gap-1.5 cursor-pointer transition-all shadow-2xs group mr-1"
-                            title="Back to Admin Dashboard"
-                        >
-                            <ChevronLeft size={15} className="group-hover:-translate-x-0.5 transition-transform" />
-                            <LayoutDashboard size={13} />
-                            <span>DASHBOARD</span>
-                        </button>
-
-                        <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
-                            <img src={kyleLogo} alt="Kyle Retail Logo" className="h-9 w-auto max-w-[140px] md:max-w-[180px] object-contain transition-opacity duration-300 hover:opacity-90" />
-                            <div className="flex flex-col">
-                                <span className="font-extrabold text-[13px] tracking-wider text-slate-800 uppercase leading-none">KYLE RETAIL</span>
-                                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest leading-tight">POINT OF SALE</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="ml-auto flex items-center pr-2" style={{ gap: '12px' }}>
-                        {/* Group 3: Utilities in Uniform Iconic Cards */}
-                        <div className="flex items-center gap-2.5">
-                            {/* Screen Mode Switcher Button */}
-                            <button
-                                onClick={() => {
-                                    const nextMode = posWindowMode === 'popup' ? 'fullscreen' : 'popup';
-                                    setPosWindowMode(nextMode);
-                                    localStorage.setItem('pos_window_mode', nextMode);
-                                }}
-                                className={`h-9 px-2.5 flex items-center gap-1.5 bg-[#f4fbf9] border border-[#bce3da] text-slate-600 hover:bg-[#e6f4f1] hover:text-emerald-700 transition-all cursor-pointer shadow-sm ${posWindowMode === 'popup' ? 'bg-emerald-50 text-emerald-700 font-extrabold border-emerald-400' : ''}`}
-                                style={{ borderRadius: '9999px', fontSize: '11px', fontWeight: 800 }}
-                                title={posWindowMode === 'popup' ? "Switch to Full Screen (Alt+W)" : "Switch to Mini Popup Window (Alt+W)"}
-                            >
-                                {posWindowMode === 'popup' ? <Maximize2 size={14} /> : <Minimize2 size={14} />}
-                                <span className="hidden sm:inline">{posWindowMode === 'popup' ? 'FULL' : 'POPUP'}</span>
-                                <span style={{ background: '#dcfce7', color: '#166534', fontSize: '9px', padding: '1px 4px', borderRadius: '3px', fontWeight: 800 }}>
-                                    {isMac ? '⌥W' : 'Alt+W'}
-                                </span>
-                            </button>
-
-                            {/* Connection Status Badge */}
-                            <div className="flex items-center gap-2 px-3 py-1.5 bg-[#f4fbf9] border border-[#bce3da] shadow-sm select-none transition-all hover:bg-[#e6f4f1] cursor-pointer" style={{ borderRadius: '9999px' }}>
-                                <div className={`w-2.5 h-2.5 rounded-full ${isOffline ? 'bg-rose-500 animate-pulse' : 'bg-emerald-500'}`}></div>
-                                <span className={`text-[10px] font-extrabold uppercase tracking-widest ${isOffline ? 'text-rose-600' : 'text-emerald-700'}`}>
-                                    {isOffline ? 'OFFLINE' : 'ONLINE'}
-                                </span>
-                            </div>
-
-                            {/* Notification Bell Dropdown Button */}
-                            <div className="nav-notification-container" ref={notificationsContainerRef}>
-                                <button
-                                    onClick={() => setShowNotifications(!showNotifications)}
-                                    className={`w-9 h-9 flex items-center justify-center bg-[#f4fbf9] border border-[#bce3da] text-slate-700 hover:bg-[#e6f4f1] hover:text-emerald-700 transition-all cursor-pointer shadow-sm relative ${unreadCount > 0 ? "animate-pulse-subtle" : ""}`}
-                                    style={{ borderRadius: '9999px' }}
-                                    title="Notifications"
-                                >
-                                    <Bell size={16} className="text-slate-600" />
-                                    {unreadCount > 0 && (
-                                        <span
-                                            style={{
-                                                position: 'absolute',
-                                                top: '-2px',
-                                                right: '-2px',
-                                                background: '#ef4444',
-                                                color: '#ffffff',
-                                                fontSize: '8px',
-                                                fontWeight: 900,
-                                                borderRadius: '9999px',
-                                                padding: '1px 4px',
-                                                lineHeight: '1',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                justifyContent: 'center',
-                                                boxShadow: '0 0 0 2px #ffffff'
-                                            }}
-                                        >
-                                            {unreadCount}
-                                        </span>
-                                    )}
-                                </button>
-                                {renderNotificationDropdown()}
-                            </div>
-
-                            {/* Open POS in New Tab */}
-                            <button
-                                onClick={() => {
-                                    if (window.location.protocol === 'file:') {
-                                        window.location.hash = '#/homepage';
-                                    } else {
-                                        window.open(window.location.origin + window.location.pathname + '#/homepage', '_blank');
-                                    }
-                                }}
-                                className="w-9 h-9 flex items-center justify-center bg-[#f4fbf9] border border-[#bce3da] text-slate-600 hover:bg-[#e6f4f1] hover:text-emerald-700 transition-all cursor-pointer shadow-sm"
-                                style={{ borderRadius: '9999px' }}
-                                title={window.location.protocol === 'file:' ? "Go to POS Homepage" : "Open POS in New Tab"}
-                            >
-                                <ExternalLink size={16} />
-                            </button>
-
-                            {/* Dropdown Settings Button */}
-                            <div className="relative" ref={settingsDropdownRef}>
-                                <button
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        setShowSettingsMenu(!showSettingsMenu);
-                                        if (!showSettingsMenu) {
-                                            setShowDropdown(false);
-                                            setShowItemDropdown(false);
-                                        }
-                                    }}
-                                    onMouseDown={(e) => e.stopPropagation()}
-                                    className={`w-9 h-9 flex items-center justify-center bg-[#f4fbf9] border border-[#bce3da] text-slate-600 hover:bg-[#e6f4f1] hover:text-emerald-700 transition-all cursor-pointer shadow-sm ${showSettingsMenu ? 'bg-[#e6f4f1] border-emerald-400' : ''}`}
-                                    style={{ borderRadius: '9999px' }}
-                                    title="Settings"
-                                >
-                                    <Settings size={16} className={showSettingsMenu ? 'animate-spin-slow' : ''} />
-                                </button>
-
-                                {showSettingsMenu && (
-                                    <div
-                                        className="absolute right-0 top-full mt-3 w-72 bg-white/95 backdrop-blur-md border border-slate-200/80 rounded-2xl shadow-2xl z-[9999] p-5 flex flex-col gap-4 animate-in fade-in slide-in-from-top-4 duration-200"
-                                        style={{ borderTop: `4px solid ${isGreen ? '#10b981' : '#0ea5e9'}` }}
-                                    >
-                                        <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1 leading-none">
-                                            Configuration
-                                        </div>
-
-                                        {/* Dashboard Button */}
-                                        <button
-                                            onClick={() => {
-                                                navigate('/dashboard');
-                                                setShowSettingsMenu(false);
-                                            }}
-                                            className="w-full bg-slate-50/50 hover:bg-slate-100/70 flex items-center justify-between transition-all group text-left"
-                                            style={{
-                                                height: '46px',
-                                                padding: '8px 14px',
-                                                border: '1px solid #e2e8f0',
-                                                borderRadius: '12px',
-                                                cursor: 'pointer'
-                                            }}
-                                        >
-                                            <div className="flex items-center gap-2.5 font-bold text-[11px] text-slate-700 uppercase tracking-wider">
-                                                <div className={`p-1.5 rounded-lg ${isGreen ? 'bg-emerald-50 text-emerald-500' : 'bg-sky-50 text-sky-505'} group-hover:scale-110 transition-transform flex items-center justify-center`}>
-                                                    <LayoutDashboard size={14} />
-                                                </div>
-                                                Admin Dashboard
-                                            </div>
-                                            <ChevronRight size={14} className="text-slate-400 group-hover:translate-x-0.5 transition-transform" />
-                                        </button>
-
-                                        {/* Theme Switcher Button */}
-                                        <button
-                                            onClick={() => {
-                                                setShowThemeSidebar(true);
-                                                setShowSettingsMenu(false);
-                                            }}
-                                            className="w-full bg-slate-50/50 hover:bg-slate-100/70 flex items-center justify-between transition-all group text-left"
-                                            style={{
-                                                height: '46px',
-                                                padding: '8px 14px',
-                                                border: '1px solid #e2e8f0',
-                                                borderRadius: '12px',
-                                                cursor: 'pointer'
-                                            }}
-                                        >
-                                            <div className="flex items-center gap-2.5 font-bold text-[11px] text-slate-700 uppercase tracking-wider">
-                                                <div className={`p-1.5 rounded-lg ${isGreen ? 'bg-emerald-50 text-emerald-500' : 'bg-sky-50 text-sky-550'} group-hover:scale-110 transition-transform flex items-center justify-center`}>
-                                                    <Palette size={14} />
-                                                </div>
-                                                Theme Config
-                                            </div>
-                                            <span className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-md shadow-sm border border-slate-200/40 ${isGreen ? 'bg-emerald-50 text-emerald-600' : 'bg-sky-50 text-sky-600'}`} style={{ display: 'inline-flex', alignItems: 'center', justifycontent: 'center' }}>
-                                                {legacySubTheme.toUpperCase()}
-                                            </span>
-                                        </button>
-
-                                        {/* Hidden Shortcuts Panel */}
-                                        <div className="border-t border-slate-100 pt-3 mt-1 text-left">
-                                            <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1 mb-2">
-                                                Hidden Shortcuts ({hiddenShortcuts.length})
-                                            </div>
-                                            {hiddenShortcuts.length === 0 ? (
-                                                <div className="text-[11px] font-bold text-slate-400 italic px-2">
-                                                    No hidden shortcuts
-                                                </div>
-                                            ) : (
-                                                <div className="flex flex-col gap-1.5 max-h-40 overflow-y-auto px-1">
-                                                    {allShortcutsList.filter(s => hiddenShortcuts.includes(s.key)).map(s => (
-                                                        <div key={s.key} className="flex items-center justify-between p-2 bg-slate-50 border border-slate-100 rounded-lg">
-                                                            <div className="flex items-center gap-2">
-                                                                <span className="text-[9px] font-black bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded uppercase tracking-wider">{s.key}</span>
-                                                                <span className="text-[11px] font-bold text-slate-600">{s.label}</span>
-                                                            </div>
-                                                            <button
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    toggleHideShortcut(s.key);
-                                                                }}
-                                                                className="p-1 hover:bg-slate-200 text-slate-400 hover:text-slate-600 rounded transition-all border-none bg-transparent cursor-pointer"
-                                                                title="Show Shortcut"
-                                                            >
-                                                                <Eye size={12} />
-                                                            </button>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-
-                        <div style={{ width: '1px', height: '24px', background: isGreen ? '#4a9a72' : '#4a7aaa', opacity: 0.5, flexShrink: 0 }} />
-
-                        {/* Group 2: Cashier Profile Info */}
-                        <div className="flex items-center gap-3">
-                            <div
-                                onClick={() => setShowThemeSidebar(true)}
-                                className="flex items-center gap-2.5 cursor-pointer"
-                                title="Open Theme Settings Sidebar"
-                            >
-                                <div className="flex flex-col items-end text-right">
-                                    <span className="user-name font-black uppercase text-slate-800" style={{ fontSize: '12px', fontWeight: 800, color: '#1e293b', lineHeight: '1.2' }}>
-                                        {user?.full_name || (typeof user === 'string' ? user : '') || 'CASHIER'}
-                                    </span>
-                                    <CurrentTimeDisplay variant="modern" />
-                                </div>
-                                <div className="w-8 h-8 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-500 shadow-sm shrink-0">
-                                    <UserIcon size={16} />
-                                </div>
-                            </div>
-                            <button onClick={handleLogout} className="text-rose-500 hover:text-rose-700 transition-all p-1 hover:bg-rose-50 rounded-full cursor-pointer border-none bg-transparent flex items-center justify-center animate-in fade-in" title="Logout">
-                                <Power size={18} />
-                            </button>
-                        </div>
-                    </div>
-                </nav>
+                {renderUnifiedTopNav()}
 
                 {/* CLASSIC SHORTCUTS GUIDE - RELOCATED TO TOP */}
                 {!hideAllShortcuts && shortcutsPosition === 'top' && renderClassicShortcutsHorizontal()}
 
                 {/* CLASSIC HEADER FORM - 4 MODERN PREMIUM CARDS */}
-                <div className="classic-header-form flex items-stretch gap-2.5 w-full bg-slate-100/60 p-2 border-b border-slate-200/90">
+                <div className="classic-header-form flex items-stretch gap-2.5 w-full bg-slate-100/60 p-2 border-b border-slate-200/90" style={{ position: 'relative', zIndex: 10 }}>
                     {/* Card 1: Customer Phone */}
                     <div className="bg-white/95 backdrop-blur-sm border border-slate-200/90 hover:border-slate-300 focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/20 focus-within:shadow-[0_2px_12px_rgba(16,185,129,0.12)] rounded-xl px-3 py-2 shadow-[0_1px_3px_rgba(0,0,0,0.04)] hover:shadow-xs transition-all duration-200 flex-[0.8] min-w-[170px] flex items-center gap-2.5 relative" ref={dropdownRef}>
                         <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-emerald-500/15 to-teal-500/25 text-emerald-700 border border-emerald-500/20 flex items-center justify-center shrink-0 shadow-2xs">

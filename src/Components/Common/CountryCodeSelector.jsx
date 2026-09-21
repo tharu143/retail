@@ -160,39 +160,59 @@ const CountryCodeSelector = ({
   return (
     <>
       {/* Trigger Button */}
-      <button
-        ref={buttonRef}
-        type="button"
-        onClick={handleToggle}
-        className={`flex items-center justify-between gap-1.5 outline-none transition-all duration-200 cursor-pointer select-none font-bold text-[11px] shrink-0 ${
-          variant === 'classic'
-            ? 'h-[26px] px-2.5 bg-white hover:bg-emerald-50 text-slate-700 hover:text-emerald-700 border border-slate-200 hover:border-emerald-300 shadow-[0_1px_2px_rgba(0,0,0,0.05)] hover:shadow-sm'
-            : variant === 'modal'
-            ? 'h-10 px-2 bg-slate-50/80 hover:bg-slate-100 text-slate-800 border border-slate-300 rounded-lg shadow-2xs'
-            : 'h-full px-2 bg-slate-50/90 hover:bg-slate-100 text-slate-700 border-r border-slate-200'
-        } ${className}`}
-        style={{
-          borderRadius: variant === 'classic' ? '9999px' : undefined,
-          minWidth: variant === 'classic' ? '74px' : '98px',
-          width: variant === 'classic' ? 'auto' : '98px',
-          height: variant === 'modal' ? '40px' : variant === 'classic' ? '26px' : '100%',
-          ...style,
-        }}
-        title={`Country Code: ${selectedCountry.country} (${selectedCountry.code}) - Press F4 to toggle`}
-      >
-        <div className="flex items-center gap-1.5 min-w-0">
-          <span className="text-base leading-none drop-shadow-xs">{selectedCountry.flag || '🌐'}</span>
-          <span className="font-mono font-black text-[12.5px] text-slate-800 tracking-tight">
-            {selectedCountry.code}
+      {variant === 'classic' || variant === 'chip' ? (
+        <button
+          ref={buttonRef}
+          type="button"
+          onClick={handleToggle}
+          className={`pos-country-selector ${isOpen ? 'active' : ''} ${className}`}
+          style={style}
+          title={`Country Code: ${selectedCountry.country} (${selectedCountry.code}) - Press F4 to toggle`}
+        >
+          <span className="pos-country-selector-content">
+            <span className="pos-country-flag">{selectedCountry.flag || '🌐'}</span>
+            <span className="pos-country-code">{selectedCountry.code}</span>
           </span>
-        </div>
-        <ChevronDown
-          size={14}
-          className={`text-slate-400 transition-transform duration-200 flex-shrink-0 ${
-            isOpen ? 'rotate-180 text-emerald-600' : ''
-          }`}
-        />
-      </button>
+
+          <ChevronDown
+            size={12}
+            className={`pos-country-chevron transition-transform duration-200 ${
+              isOpen ? 'rotate-180 text-teal-600' : ''
+            }`}
+          />
+        </button>
+      ) : (
+        <button
+          ref={buttonRef}
+          type="button"
+          onClick={handleToggle}
+          className={`flex items-center justify-between gap-1.5 outline-none transition-all duration-200 cursor-pointer select-none font-bold text-[11px] shrink-0 ${
+            variant === 'modal'
+              ? 'h-10 px-2 bg-slate-50/80 hover:bg-slate-100 text-slate-800 border border-slate-300 rounded-lg shadow-2xs'
+              : 'h-full px-2 bg-slate-50/90 hover:bg-slate-100 text-slate-700 border-r border-slate-200'
+          } ${className}`}
+          style={{
+            minWidth: '98px',
+            width: '98px',
+            height: variant === 'modal' ? '40px' : '100%',
+            ...style,
+          }}
+          title={`Country Code: ${selectedCountry.country} (${selectedCountry.code}) - Press F4 to toggle`}
+        >
+          <div className="flex items-center gap-1.5 min-w-0">
+            <span className="text-base leading-none drop-shadow-xs">{selectedCountry.flag || '🌐'}</span>
+            <span className="font-mono font-black text-[12.5px] text-slate-800 tracking-tight">
+              {selectedCountry.code}
+            </span>
+          </div>
+          <ChevronDown
+            size={14}
+            className={`text-slate-400 transition-transform duration-200 flex-shrink-0 ${
+              isOpen ? 'rotate-180 text-emerald-600' : ''
+            }`}
+          />
+        </button>
+      )}
 
       {/* Spacious, Premium & Beautiful Dropdown Portal */}
       {isOpen &&
