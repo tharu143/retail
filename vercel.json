@@ -1,16 +1,16 @@
 {
-  "rewrites": [
+  "routes": [
     {
-      "source": "/api/:path*",
-      "destination": "http://75.119.130.59:8089/api/:path*"
+      "src": "/api/(.*)",
+      "dest": "http://75.119.130.59:8089/api/$1"
     },
     {
-      "source": "/files/:path*",
-      "destination": "http://75.119.130.59:8089/files/:path*"
+      "src": "/files/(.*)",
+      "dest": "http://75.119.130.59:8089/files/$1"
     },
     {
-      "source": "/assets/:path*",
-      "destination": "http://75.119.130.59:8089/assets/:path*"
+      "src": "/assets/(.*)",
+      "dest": "http://75.119.130.59:8089/assets/$1"
     }
   ]
 }
