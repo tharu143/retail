@@ -11,8 +11,10 @@ import {
 import './Login.css';
 import packageJson from '../../../package.json';
 
-const FRAPPE_BASE_URL = (import.meta.env.VITE_FRAPPE_URL || 'http://75.119.130.59:8089').replace(/\/$/, '');
-const LOGIN_ENDPOINT = `${FRAPPE_BASE_URL}/api/method/custom_retailpos.custom_retailpos.retail_api.retail.user_login`;
+const FRAPPE_BASE_URL = (import.meta.env.VITE_FRAPPE_URL || '').replace(/\/$/, '');
+const LOGIN_PATH = '/api/method/custom_retailpos.custom_retailpos.retail_api.retail.user_login';
+// Keep preview requests same-origin so Vite can proxy them to Frappe without a redirect.
+const LOGIN_ENDPOINT = FRAPPE_BASE_URL ? `${FRAPPE_BASE_URL}${LOGIN_PATH}` : LOGIN_PATH;
 
 function Login() {
   const [username, setUsername] = useState("");
