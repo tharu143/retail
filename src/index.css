@@ -134,3 +134,222 @@ input[type="number"] {
     transform: translateY(0);
   }
 }
+
+/* ============================================================
+   Unified Retail Workspace
+   Visual-only layer: keeps existing routes, handlers and APIs intact.
+   ============================================================ */
+:root {
+  --ui-primary: #10b981;
+  --ui-primary-dark: #059669;
+  --ui-ink: #0f172a;
+  --ui-muted: #64748b;
+  --ui-line: #e2e8f0;
+  --ui-surface: #ffffff;
+  --ui-canvas: #f8fafc;
+  --ui-radius: 12px;
+  --ui-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+}
+
+html, body, #root {
+  background: var(--ui-canvas);
+  color: var(--ui-ink);
+}
+
+button, input, select, textarea {
+  font-family: inherit;
+}
+
+.right-content-panel {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  background: var(--ui-canvas) !important;
+}
+
+.dashboard-layout-wrapper {
+  background: var(--ui-canvas) !important;
+}
+
+.sidebar-nav {
+  width: 252px !important;
+  min-width: 252px !important;
+  padding: 18px 12px !important;
+  background: var(--ui-surface) !important;
+  border-right: 1px solid var(--ui-line) !important;
+  box-shadow: 8px 0 28px rgba(15, 23, 42, 0.035) !important;
+}
+
+.sidebar-header {
+  padding: 8px 12px 20px !important;
+  margin-bottom: 14px !important;
+  border-bottom: 1px solid #f1f5f9 !important;
+}
+
+.sidebar-menu { gap: 4px !important; }
+.sidebar-home-link,
+.sidebar-section-toggle,
+.sidebar-sub-item {
+  min-height: 38px !important;
+  border-radius: 9px !important;
+  font-size: 0.78rem !important;
+}
+.sidebar-home-link { padding: 9px 12px !important; }
+.sidebar-section-toggle { padding: 8px 12px !important; }
+.sidebar-sub-links { gap: 3px !important; margin-top: 3px !important; }
+.sidebar-sub-item { padding: 8px 12px !important; }
+.sidebar-sub-item.active {
+  background: #ecfdf5 !important;
+  color: var(--ui-primary-dark) !important;
+  box-shadow: inset 3px 0 0 var(--ui-primary) !important;
+}
+.sidebar-sub-item.active svg { color: var(--ui-primary-dark) !important; }
+
+.so-page,
+.purchase-container,
+.supplier-list-page,
+.dashboard-modern-container {
+  background: var(--ui-canvas) !important;
+  color: var(--ui-ink) !important;
+}
+
+.so-page-header,
+.so-page-header-container,
+.po-header-container,
+.supplier-header-container,
+.exec-header-row {
+  min-height: 68px;
+  padding: 16px 24px !important;
+  background: var(--ui-surface) !important;
+  border-bottom: 1px solid var(--ui-line) !important;
+}
+
+.so-page-title,
+.po-card-title,
+.exec-title {
+  font-family: inherit !important;
+  color: var(--ui-ink) !important;
+  letter-spacing: -0.02em !important;
+  text-transform: none !important;
+}
+
+.so-layout,
+.po-layout-container,
+.so-content,
+.dashboard-modern-container {
+  padding: 20px 24px !important;
+}
+
+.so-content,
+.po-card,
+.exec-chart-card,
+.exec-income-card,
+.exec-table-card,
+.stacked-kpi-card,
+.supplier-table-wrapper,
+.so-table-wrapper,
+.purchase-table-container {
+  background: var(--ui-surface) !important;
+  border: 1px solid var(--ui-line) !important;
+  border-radius: var(--ui-radius) !important;
+  box-shadow: var(--ui-shadow) !important;
+}
+
+.po-card { overflow: hidden !important; margin-bottom: 16px !important; }
+.po-card-header { padding: 14px 18px !important; background: #fbfefd !important; }
+.po-card-body { padding: 18px !important; }
+
+.so-input,
+.po-input,
+.summary-select,
+.so-search-input,
+.exec-search-input,
+.supplier-search-input,
+input:not([type="checkbox"]):not([type="radio"]),
+select,
+textarea {
+  min-height: 38px;
+  border: 1px solid var(--ui-line) !important;
+  border-radius: 8px !important;
+  background: var(--ui-surface) !important;
+  color: var(--ui-ink) !important;
+  font-size: 0.78rem !important;
+  box-shadow: none !important;
+}
+
+.so-input:focus,
+.po-input:focus,
+.summary-select:focus,
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: var(--ui-primary) !important;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.14) !important;
+  outline: none !important;
+}
+
+.so-btn-primary,
+.po-btn-primary,
+button[class*="primary"],
+button[class*="save"],
+button[class*="submit"] {
+  min-height: 38px !important;
+  padding: 0 14px !important;
+  border-radius: 8px !important;
+  background: var(--ui-primary) !important;
+  border-color: var(--ui-primary) !important;
+  font-size: 0.75rem !important;
+  font-weight: 700 !important;
+  box-shadow: none !important;
+}
+.so-btn-primary:hover,
+.po-btn-primary:hover,
+button[class*="primary"]:hover { background: var(--ui-primary-dark) !important; }
+.so-btn-secondary,
+.po-btn-secondary,
+.so-page-btn {
+  min-height: 38px !important;
+  border-radius: 8px !important;
+  background: var(--ui-surface) !important;
+  border: 1px solid var(--ui-line) !important;
+  color: var(--ui-muted) !important;
+}
+
+table { border-collapse: separate !important; border-spacing: 0 !important; }
+th, .purchase-th {
+  height: 42px;
+  padding: 10px 14px !important;
+  background: #f8fafc !important;
+  color: var(--ui-muted) !important;
+  border-bottom: 1px solid var(--ui-line) !important;
+  font-size: 0.68rem !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+td, .purchase-td {
+  padding: 11px 14px !important;
+  border-bottom: 1px solid #f1f5f9 !important;
+  color: #334155 !important;
+  font-size: 0.76rem !important;
+}
+tbody tr:hover { background: #f8fffb !important; }
+
+.badge, [class*="status"], [class*="badge"] {
+  border-radius: 999px;
+}
+
+@media (max-width: 900px) {
+  .sidebar-nav { width: 72px !important; min-width: 72px !important; }
+  .sidebar-brand, .sidebar-brand-subtitle, .sidebar-section-toggle span, .sidebar-sub-item span { display: none !important; }
+  .sidebar-home-link, .sidebar-section-toggle, .sidebar-sub-item { justify-content: center !important; padding: 9px !important; }
+  .right-content-panel { width: calc(100vw - 72px); }
+  .so-page-header, .po-header-container, .so-layout, .po-layout-container, .so-content { padding: 14px !important; }
+}
+
+@media (max-width: 640px) {
+  .sidebar-nav { display: none !important; }
+  .right-content-panel { width: 100vw; }
+}
+
