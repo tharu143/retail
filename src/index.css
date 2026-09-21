@@ -353,3 +353,159 @@ tbody tr:hover { background: #f8fffb !important; }
   .right-content-panel { width: 100vw; }
 }
 
+/* ============================================================
+   Responsive safety layer
+   Keeps the viewport stable while allowing wide data surfaces to scroll
+   inside their own containers only.
+   ============================================================ */
+html,
+body,
+#root {
+  width: 100%;
+  max-width: 100%;
+  min-height: 100%;
+  overflow-x: hidden !important;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+img,
+svg,
+video,
+canvas {
+  max-width: 100%;
+}
+
+button,
+input,
+select,
+textarea {
+  max-width: 100%;
+}
+
+main,
+section,
+article,
+header,
+footer,
+form,
+[class*="container"],
+[class*="content"],
+[class*="layout"],
+[class*="wrapper"] {
+  min-width: 0;
+}
+
+/* Wide tables stay usable without pushing the page itself sideways. */
+.table-responsive,
+.table-container,
+.table-wrapper,
+.data-table-wrapper,
+.purchase-table-container,
+.so-table-wrapper,
+.classic-table-wrapper,
+[class*="table-scroll"],
+[class*="table-wrapper"] {
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: visible;
+  -webkit-overflow-scrolling: touch;
+}
+
+.table-responsive table,
+.table-container table,
+.table-wrapper table,
+.data-table-wrapper table,
+.purchase-table-container table,
+.so-table-wrapper table,
+.classic-table-wrapper table {
+  min-width: 680px;
+}
+
+/* Dialogs and popups use the viewport as their boundary and scroll internally. */
+[role="dialog"],
+.modal,
+.modal-content,
+.drawer,
+[class*="modal-content"],
+[class*="dialog-content"],
+[class*="drawer-content"] {
+  max-width: min(100% - 24px, 960px);
+}
+
+[role="dialog"],
+.modal,
+.drawer,
+[class*="dialog-content"],
+[class*="drawer-content"] {
+  max-height: calc(100dvh - 24px);
+  overflow: hidden;
+}
+
+[role="dialog"] > form,
+.modal-content > form,
+[class*="dialog-content"] > form,
+[class*="modal-body"],
+[class*="dialog-body"],
+[class*="drawer-body"] {
+  min-height: 0;
+  max-height: calc(100dvh - 150px);
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* Long labels and actions wrap instead of stretching the application chrome. */
+.so-page-header,
+.so-page-header-container,
+.po-header-container,
+.supplier-header-container,
+.exec-header-row,
+.page-header,
+[class*="page-header"] {
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.so-page-header > *,
+.so-page-header-container > *,
+.po-header-container > *,
+.supplier-header-container > *,
+.exec-header-row > *,
+.page-header > *,
+[class*="page-header"] > * {
+  min-width: 0;
+}
+
+@media (max-width: 640px) {
+  .so-layout,
+  .po-layout-container,
+  .dashboard-modern-container,
+  .purchase-container,
+  .so-content {
+    padding: 12px !important;
+  }
+
+  .so-page-header,
+  .so-page-header-container,
+  .po-header-container,
+  .supplier-header-container,
+  .exec-header-row,
+  .page-header,
+  [class*="page-header"] {
+    align-items: stretch;
+  }
+
+  .so-page-header button,
+  .so-page-header-container button,
+  .po-header-container button,
+  .page-header button,
+  [class*="page-header"] button {
+    width: 100%;
+  }
+}
+
