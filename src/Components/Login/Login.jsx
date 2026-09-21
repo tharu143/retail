@@ -11,6 +11,9 @@ import {
 import './Login.css';
 import packageJson from '../../../package.json';
 
+const FRAPPE_BASE_URL = (import.meta.env.VITE_FRAPPE_URL || 'http://75.119.130.59:8089').replace(/\/$/, '');
+const LOGIN_ENDPOINT = `${FRAPPE_BASE_URL}/api/method/custom_retailpos.custom_retailpos.retail_api.retail.user_login`;
+
 function Login() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -35,7 +38,7 @@ function Login() {
     setErrorMessage("");
 
     try {
-      const response = await fetch("/api/method/custom_retailpos.custom_retailpos.retail_api.retail.user_login", {
+      const response = await fetch(LOGIN_ENDPOINT, {
         method: "POST",
         headers: { "Accept": "application/json", "Content-Type": "application/json" },
         body: JSON.stringify({ username, password, usr: username, pwd: password }),
