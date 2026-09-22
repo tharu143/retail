@@ -1,3 +1,4 @@
+import PageHeader from '../UI/PageHeader';
 // src/Components/Admin/SupplierList.jsx
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
@@ -17,12 +18,12 @@ import { useLegacyTheme } from '../../hooks/useLegacyTheme';
 /* ==================== STATUS BADGE COMPONENT ==================== */
 const StatusBadge = ({ supplier }) => {
   if (supplier.disabled || supplier.is_frozen) {
-    return <span className="supplier-status-badge frozen">FROZEN</span>;
+    return <span className="erp-status supplier-status-badge frozen">FROZEN</span>;
   }
   if (supplier.on_hold || supplier.status === 'Restricted' || supplier.supplier_type === 'Individual') {
-    return <span className="supplier-status-badge restricted">RESTRICTED</span>;
+    return <span className="erp-status supplier-status-badge restricted">RESTRICTED</span>;
   }
-  return <span className="supplier-status-badge operational">OPERATIONAL</span>;
+  return <span className="erp-status supplier-status-badge operational">OPERATIONAL</span>;
 };
 
 export default function SupplierList() {
@@ -251,7 +252,7 @@ export default function SupplierList() {
   };
 
   return (
-    <div className="supplier-list-page">
+    <div className="erp-page supplier-list-page">
       {/* 1. Top Sub-Tabs */}
       <div className="supplier-top-tabs-bar">
         <button className="supplier-tab-btn active">Supplier</button>
@@ -259,7 +260,7 @@ export default function SupplierList() {
       </div>
 
       {/* 2. Main Header */}
-      <div className="supplier-header-container">
+      <PageHeader className="supplier-header-container">
         <div className="supplier-title-group">
           <h1>SUPPLIER MANAGEMENT</h1>
           <p>Manage procurement and vendor records</p>
@@ -317,15 +318,15 @@ export default function SupplierList() {
               boxSizing: 'border-box'
             }}
           />
-          <button className="supplier-btn-create" onClick={() => navigate('/supplier-edit/new')}>
+          <button className="erp-button erp-button-primary supplier-btn-create" onClick={() => navigate('/supplier-edit/new')}>
             <Plus size={16} />
             <span>CREATE SUPPLIER</span>
           </button>
         </div>
-      </div>
+      </PageHeader>
 
       {/* 3. Filter Bar */}
-      <div className="supplier-filter-bar">
+      <div className="erp-filter-bar supplier-filter-bar">
         <div className="supplier-filter-group" style={{ flex: '1 1 320px' }}>
           <label className="supplier-filter-label">Search Supplier</label>
           <div className="supplier-search-wrapper">
@@ -400,9 +401,9 @@ export default function SupplierList() {
       </div>
 
       {/* 5. Main Directory Table */}
-      <div className="supplier-table-card">
-        <div className="supplier-table-wrapper">
-          <table className="supplier-directory-table">
+      <div className="erp-table-card supplier-table-card">
+        <div className="erp-table-scroll supplier-table-wrapper">
+          <table className="erp-table supplier-directory-table">
             <thead>
               <tr>
                 <th>Organization Profile</th>

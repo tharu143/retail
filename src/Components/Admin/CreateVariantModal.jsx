@@ -152,14 +152,14 @@ export default function CreateVariantModal({ isOpen, onClose, onVariantCreated, 
   if (!isOpen) return null;
 
   return (
-    <div className="variant-modal-overlay">
-      <div className="variant-modal-content">
-        <div className="variant-modal-header">
+    <div className="erp-overlay variant-modal-overlay">
+      <div className="erp-dialog variant-modal-content">
+        <div className="erp-dialog-edge variant-modal-header">
           <h3>📦 Create Item Variant</h3>
           <button className="close-btn" onClick={onClose}>×</button>
         </div>
 
-        <form onSubmit={handleSubmit} className="variant-modal-body">
+        <form onSubmit={handleSubmit} className="erp-dialog-body variant-modal-body">
           {error && <div className="alert alert-danger">{error}</div>}
           {successMsg && <div className="alert alert-success">{successMsg}</div>}
 
@@ -260,7 +260,7 @@ export default function CreateVariantModal({ isOpen, onClose, onVariantCreated, 
             </>
           )}
 
-          <div className="variant-modal-footer">
+          <div className="erp-dialog-edge variant-modal-footer">
             <button type="button" className="btn-cancel" onClick={onClose}>Cancel</button>
             <button type="submit" className="btn-submit" disabled={loading || !templateDetails}>
               {loading ? 'Creating...' : 'Create Variant'}

@@ -1,3 +1,4 @@
+import PageHeader from '../UI/PageHeader';
 // src/pages/PosOpeningentryList.jsx
 import React, { useState, useEffect } from 'react';
 import {
@@ -71,9 +72,9 @@ function PosOpeningentryList() {
 
   return (
     <>
-      <div className="so-page">
+      <div className="erp-page so-page">
         {/* 1. Page Header (Matching CustomerList exactly) */}
-        <div className="so-page-header" style={{ padding: '1.25rem 2rem', background: '#ffffff', borderBottom: '1px solid #e2e8f0' }}>
+        <PageHeader className="so-page-header" style={{ padding: '1.25rem 2rem', background: '#ffffff', borderBottom: '1px solid #e2e8f0' }}>
           <div>
             <h1 className="so-page-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
               <Layers size={22} style={{ color: themeColor }} />
@@ -96,7 +97,7 @@ function PosOpeningentryList() {
               <Palette size={14} /> {polTheme.toUpperCase()}
             </button>
             <button
-              className="so-btn-primary"
+              className="erp-button erp-button-primary so-btn-primary"
               onClick={fetchOpenings}
               style={{
                 display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem',
@@ -110,13 +111,13 @@ function PosOpeningentryList() {
               <RefreshCw size={16} className={loading ? "animate-spin" : ""} /> REFRESH
             </button>
           </div>
-        </div>
+        </PageHeader>
 
         {/* 2. Layout Wrap (Direct Port of CustomerList Structure) */}
         <div className="so-layout" style={{ flexDirection: 'column', background: '#f8fafc', padding: '1.5rem 2rem' }}>
 
           {/* Top Filter Bar (Transparent, Aligned with Content Card) */}
-          <div className="so-filter-bar" style={{
+          <div className="erp-filter-bar so-filter-bar" style={{
             padding: '0 0 1.25rem 0',
             background: 'transparent',
             border: 'none',
@@ -167,9 +168,9 @@ function PosOpeningentryList() {
           <div className="so-content" style={{ padding: 0, flex: 1, background: 'transparent' }}>
             <p className="so-list-meta" style={{ marginBottom: '0.75rem', fontWeight: 600, color: '#64748b', fontSize: '13px' }}>{total} record(s) found</p>
 
-            <div className="so-table-card" style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)' }}>
-              <div className="so-table-wrapper">
-                <table className="so-table">
+            <div className="erp-table-card so-table-card" style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)' }}>
+              <div className="erp-table-scroll so-table-wrapper">
+                <table className="erp-table so-table">
                   <thead>
                     <tr>
                       <th className="w-12 px-6 py-3"><input type="checkbox" /></th>
@@ -182,11 +183,11 @@ function PosOpeningentryList() {
                   </thead>
                   <tbody>
                     {loading ? (
-                      <tr><td colSpan="6" className="so-empty">
+                      <tr><td colSpan="6" className="erp-empty so-empty">
                         <Loader2 size={24} className="so-spinner" style={{ margin: '0 auto' }} />
                       </td></tr>
                     ) : openings.length === 0 ? (
-                      <tr><td colSpan="6" className="so-empty">No shift logs found</td></tr>
+                      <tr><td colSpan="6" className="erp-empty so-empty">No shift logs found</td></tr>
                     ) : (
                       openings.map(entry => (
                         <tr key={entry.name} className="cursor-pointer hover:bg-slate-50" onClick={() => navigate(`/pos-opening/${entry.name}`)}>
@@ -226,7 +227,7 @@ function PosOpeningentryList() {
 
               {/* Pagination */}
               {!loading && total > 0 && (
-                <div className="so-pagination" style={{ padding: '1rem 1.25rem', borderTop: '1px solid var(--so-border)', marginTop: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div className="erp-pagination so-pagination" style={{ padding: '1rem 1.25rem', borderTop: '1px solid var(--so-border)', marginTop: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <span style={{ color: 'var(--so-text-muted)', fontSize: '0.75rem' }}>
                     Showing {(currentPage - 1) * pageSize + 1}–{Math.min(currentPage * pageSize, total)} of {total} Members
                   </span>

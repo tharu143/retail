@@ -1,3 +1,4 @@
+import PageHeader from '../UI/PageHeader';
 import React, { useState, useEffect, useRef } from 'react';
 import { useSelector } from 'react-redux';
 import { createPortal } from 'react-dom';
@@ -133,8 +134,8 @@ function PurchaseReturn() {
 
   if (viewMode === 'list') {
     return (
-      <div className="so-page animate-in fade-in duration-300">
-        <div className="so-page-header">
+      <div className="erp-page so-page animate-in fade-in duration-300">
+        <PageHeader className="so-page-header">
           <div>
             <h1 className="so-page-title">
               <ArrowRightLeft size={20} className="text-orange-500" />
@@ -144,12 +145,12 @@ function PurchaseReturn() {
           </div>
           <button
             onClick={() => {/* TODO: Implement Create Return from Original PR */ }}
-            className="so-btn-primary"
+            className="erp-button erp-button-primary so-btn-primary"
           >
             <Plus size={16} />
             New Purchase Return
           </button>
-        </div>
+        </PageHeader>
 
         <div className="so-content">
           {loading ? (
@@ -158,9 +159,9 @@ function PurchaseReturn() {
               <p className="text-slate-400 font-black text-[10px] uppercase tracking-tighter">Syncing directory...</p>
             </div>
           ) : (
-            <div className="so-table-card">
-              <div className="so-table-wrapper">
-                <table className="so-table">
+            <div className="erp-table-card so-table-card">
+              <div className="erp-table-scroll so-table-wrapper">
+                <table className="erp-table so-table">
                   <thead>
                     <tr>
                       <th>Identity</th>
@@ -222,11 +223,11 @@ function PurchaseReturn() {
 
   // Detail View (Similar to PO but for Returns)
   return (
-    <div className="so-page animate-in fade-in duration-500">
+    <div className="erp-page so-page animate-in fade-in duration-500">
       {/* 1. Page Header */}
-      <div className="so-page-header">
+      <PageHeader className="so-page-header">
         <div className="flex items-center gap-4">
-          <button onClick={() => setViewMode('list')} className="so-btn-secondary" style={{ padding: '0.5rem', minWidth: 'auto' }}>
+          <button onClick={() => setViewMode('list')} className="erp-button erp-button-secondary so-btn-secondary" style={{ padding: '0.5rem', minWidth: 'auto' }}>
             <ArrowLeft size={18} />
           </button>
           <div className="flex flex-col text-left">
@@ -246,13 +247,13 @@ function PurchaseReturn() {
           </div>
           <button
             onClick={() => setViewMode('list')}
-            className="so-btn-secondary"
+            className="erp-button erp-button-secondary so-btn-secondary"
             style={{ color: '#475569' }}
           >
             Back
           </button>
         </div>
-      </div>
+      </PageHeader>
 
       {/* 2. Main Page Layout */}
       <div className="so-layout" style={{ paddingTop: '1.5rem', paddingBottom: '5rem' }}>
@@ -297,8 +298,8 @@ function PurchaseReturn() {
 
           {/* Main Detail Grid */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
-            <div className="so-card">
-              <div className="so-card-header">
+            <div className="erp-card so-card">
+              <div className="erp-section-header so-card-header">
                 <h5 className="so-card-title">Debit Properties</h5>
               </div>
               <div className="so-card-body" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
@@ -317,8 +318,8 @@ function PurchaseReturn() {
               </div>
             </div>
 
-            <div className="so-card">
-              <div className="so-card-header">
+            <div className="erp-card so-card">
+              <div className="erp-section-header so-card-header">
                 <h5 className="so-card-title">Linked Records</h5>
               </div>
               <div className="so-card-body" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
@@ -331,15 +332,15 @@ function PurchaseReturn() {
           </div>
 
           {/* Items Table Presentation */}
-          <div className="so-table-card">
-            <div className="so-card-header" style={{ padding: '0.75rem 1.25rem' }}>
+          <div className="erp-table-card so-table-card">
+            <div className="erp-section-header so-card-header" style={{ padding: '0.75rem 1.25rem' }}>
               <h5 className="so-card-title">Debit Item Matrix</h5>
               <span style={{ fontSize: '0.65rem', fontWeight: 600, color: '#94a3b8' }}>
                 {formData.items ? formData.items.length : 0} ACTIVE ITEMS
               </span>
             </div>
-            <div className="so-table-wrapper" style={{ maxHeight: 'none' }}>
-              <table className="so-table">
+            <div className="erp-table-scroll so-table-wrapper" style={{ maxHeight: 'none' }}>
+              <table className="erp-table so-table">
                 <thead>
                   <tr>
                     <th>Asset Specification</th>

@@ -1,3 +1,4 @@
+import PageHeader from '../UI/PageHeader';
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
@@ -1690,7 +1691,7 @@ const DeliveryNoteDetails = () => {
                 <div className="flex-1 flex flex-col overflow-hidden bg-slate-100 p-2">
 
                     {/* Table container */}
-                    <div className="flex-1 min-h-0 overflow-y-auto overflow-x-auto bg-white rounded-xl border border-slate-200 shadow-2xs">
+                    <div className="erp-scroll-region flex-1 min-h-0 overflow-y-auto overflow-x-auto bg-white rounded-xl border border-slate-200 shadow-2xs">
 
                         {/* Barcode scanner bar */}
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.5rem 1rem', borderBottom: '1px solid #e2e8f0', background: '#ffffff', flexShrink: 0 }}>
@@ -1726,7 +1727,7 @@ const DeliveryNoteDetails = () => {
                         {(() => {
                             const hasAnyBox = form.items.some(i => i.use_box_entry);
                             return (
-                                <table className="classic-table" style={{ width: 'max-content', minWidth: '100%', borderCollapse: 'collapse', background: '#ffffff', tableLayout: 'fixed' }}>
+                                <table className="erp-table classic-table" style={{ width: 'max-content', minWidth: '100%', borderCollapse: 'collapse', background: '#ffffff', tableLayout: 'fixed' }}>
                                     <thead>
                                         <tr style={{ background: '#f8fafc', borderBottom: '1.5px solid #cbd5e1' }}>
                                             <th style={{ width: '40px', minWidth: '40px', maxWidth: '40px', textAlign: 'center', padding: '10px 4px', fontSize: '11px', fontWeight: 900, color: '#475569', textTransform: 'uppercase', borderRight: '1px solid #e2e8f0' }}>#</th>
@@ -2355,7 +2356,7 @@ const DeliveryNoteDetails = () => {
     }
 
     return (
-        <div className="so-page">
+        <div className="erp-page so-page">
             {/* 1. Premium Keyboard Shortcuts Guide Banner — Matching POS Classic Theme */}
             <div className="so-shortcut-guide-banner">
                 <div className="so-shortcut-banner-title">
@@ -2408,7 +2409,7 @@ const DeliveryNoteDetails = () => {
             </div>
 
             {/* 2. Page Header */}
-            <div className="so-page-header">
+            <PageHeader className="so-page-header">
                 <div>
                     <h1 className="so-page-title">
                         <Package size={20} />
@@ -2439,7 +2440,7 @@ const DeliveryNoteDetails = () => {
                         <>
                             <button
                                 onClick={() => isNew ? navigate('/deliverynote') : setIsViewOnly(true)}
-                                className="so-btn-secondary"
+                                className="erp-button erp-button-secondary so-btn-secondary"
                             >
                                 <X size={16} /> Discard
                             </button>
@@ -2447,7 +2448,7 @@ const DeliveryNoteDetails = () => {
                                 <button
                                     onClick={() => handleDocAction('save')}
                                     disabled={saving}
-                                    className="so-btn-primary"
+                                    className="erp-button erp-button-primary so-btn-primary"
                                 >
                                     {saving ? <Loader2 size={16} className="so-spinner" /> : <Save size={16} />} Save Draft
                                 </button>
@@ -2456,7 +2457,7 @@ const DeliveryNoteDetails = () => {
                                 <button
                                     onClick={() => handleDocAction('submit')}
                                     disabled={saving}
-                                    className="so-btn-primary"
+                                    className="erp-button erp-button-primary so-btn-primary"
                                     style={{ background: '#10b981', borderColor: '#10b981' }}
                                 >
                                     {saving ? <Loader2 size={16} className="so-spinner" /> : <CheckCircle2 size={16} />} Submit Delivery
@@ -2469,7 +2470,7 @@ const DeliveryNoteDetails = () => {
                                 <>
                                     <button
                                         onClick={() => setIsViewOnly(false)}
-                                        className="so-btn-primary"
+                                        className="erp-button erp-button-primary so-btn-primary"
                                     >
                                         <Edit3 size={16} /> Modify Detail
                                     </button>
@@ -2477,7 +2478,7 @@ const DeliveryNoteDetails = () => {
                                         <button
                                             onClick={() => handleDocAction('submit')}
                                             disabled={saving}
-                                            className="so-btn-primary"
+                                            className="erp-button erp-button-primary so-btn-primary"
                                             style={{ background: '#10b981', borderColor: '#10b981' }}
                                         >
                                             {saving ? <Loader2 size={16} className="so-spinner" /> : <CheckCircle2 size={16} />} Submit Delivery
@@ -2513,7 +2514,7 @@ const DeliveryNoteDetails = () => {
                                 <div className="relative" ref={createDropdownRef}>
                                     <button
                                         onClick={() => setShowCreateDropdown(!showCreateDropdown)}
-                                        className="so-btn-secondary"
+                                        className="erp-button erp-button-secondary so-btn-secondary"
                                         style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#f8fafc', color: '#475569', border: '1px solid #cbd5e1', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '0.375rem', transition: 'all 0.2s' }}
                                     >
                                         <Plus size={14} /> CREATE <ChevronDown size={14} />
@@ -2583,7 +2584,7 @@ const DeliveryNoteDetails = () => {
                                 <button
                                     onClick={() => handleDocAction('amend')}
                                     disabled={saving}
-                                    className="so-btn-primary"
+                                    className="erp-button erp-button-primary so-btn-primary"
                                     style={{ background: '#0ea5e9', borderColor: '#0ea5e9' }}
                                 >
                                     <Edit3 size={16} /> Amend DN
@@ -2601,13 +2602,13 @@ const DeliveryNoteDetails = () => {
 
                     <button
                         onClick={() => navigate('/deliverynote')}
-                        className="so-btn-secondary"
+                        className="erp-button erp-button-secondary so-btn-secondary"
                         style={{ color: '#475569' }}
                     >
                         Back
                     </button>
                 </div>
-            </div>
+            </PageHeader>
 
             {/* Premium Keyboard Shortcuts Guide Banner */}
             <div className="so-shortcut-guide-banner">
@@ -2846,7 +2847,7 @@ const DeliveryNoteDetails = () => {
                                 </div>
 
                                 <div style={{ overflowX: 'auto' }}>
-                                    <table style={{ width: 'max-content', minWidth: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }} className="so-table">
+                                    <table style={{ width: 'max-content', minWidth: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }} className="erp-table so-table">
                                         <thead>
                                             <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
                                                 {(() => {

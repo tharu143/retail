@@ -196,7 +196,7 @@ function PurchaseReport() {
   };
 
   return (
-    <div className="pr-container">
+    <div className="erp-page pr-container">
 
       {/* 1. Header */}
       <header className="pr-header no-print">
@@ -214,14 +214,14 @@ function PurchaseReport() {
         <div className="pr-actions">
           <button
             onClick={handlePrint}
-            className="pr-btn-secondary"
+            className="erp-button erp-button-secondary pr-btn-secondary"
           >
             <Printer size={15} />
             <span>Print</span>
           </button>
           <button
             onClick={handleExportCSV}
-            className="pr-btn-primary"
+            className="erp-button erp-button-primary pr-btn-primary"
           >
             <Download size={15} />
             <span>Export CSV</span>
@@ -261,7 +261,7 @@ function PurchaseReport() {
       <main className="pr-main-body">
 
         {/* 2. Filters Bar */}
-        <div className="pr-filter-card no-print">
+        <div className="erp-filter-bar pr-filter-card no-print">
           <div className="pr-filter-inputs">
             {/* From Date */}
             <div className="pr-field-block">
@@ -422,7 +422,7 @@ function PurchaseReport() {
         </div>
 
         {/* 4. Table Card */}
-        <div className="pr-table-card">
+        <div className="erp-table-card pr-table-card">
           <div className="pr-table-header">
             <h3 className="pr-table-heading">
               <FileText size={18} color="#2563eb" />
@@ -438,8 +438,8 @@ function PurchaseReport() {
             </div>
           </div>
 
-          <div className="pr-table-wrapper">
-            <table className="pr-table">
+          <div className="erp-table-scroll pr-table-wrapper">
+            <table className="erp-table pr-table">
               <thead>
                 <tr>
                   {columnConfig.filter(c => c.visible).map((col) => (
@@ -570,7 +570,7 @@ function PurchaseReport() {
                   <span>per page</span>
                 </div>
 
-                <div className="ssr-pagination" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                <div className="erp-pagination ssr-pagination" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
                   <button
                     className="ssr-page-btn"
                     disabled={currentPage <= 1 || pageSize === -1}

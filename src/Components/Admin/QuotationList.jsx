@@ -414,7 +414,7 @@ export default function QuotationList() {
       <div className="so-layout" style={{ background: '#f8fafc', padding: '1.25rem 2rem' }}>
         {/* Search Order Matrix */}
         <div
-          className="so-filter-bar"
+          className="erp-filter-bar so-filter-bar"
           style={{
             background: '#f8fafc',
             padding: '0 0 1.25rem 0',
@@ -582,9 +582,9 @@ export default function QuotationList() {
             {totalRecords} record(s) found
           </div>
 
-          <div className="so-card" style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
-            <div className="so-table-wrapper" style={{ overflowX: 'auto' }}>
-              <table className="so-table" style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+          <div className="erp-card so-card" style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+            <div className="erp-table-scroll so-table-wrapper" style={{ overflowX: 'auto' }}>
+              <table className="erp-table so-table" style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
                 <thead>
                   <tr style={{ background: '#ffffff', borderBottom: '1px solid #e2e8f0', fontSize: '11px', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                     {!hiddenDefaults.includes('name') && (
@@ -816,7 +816,7 @@ export default function QuotationList() {
 
             {/* Pagination Controls */}
             <div
-              className="so-pagination"
+              className="erp-pagination so-pagination"
               style={{
                 display: 'flex',
                 alignItems: 'center',

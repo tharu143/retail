@@ -1,3 +1,4 @@
+import PageHeader from '../UI/PageHeader';
 import React, { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import {
@@ -85,9 +86,9 @@ const PurchaseOrderList = ({ onNew }) => {
   const STATUS_TABS = ['All', 'Draft', 'Submitted', 'To Bill', 'To Receive and Bill', 'Completed', 'Cancelled'];
 
   return (
-    <div className="so-page" style={{ minHeight: '100vh' }}>
+    <div className="erp-page so-page" style={{ minHeight: '100vh' }}>
       {/* Page Header */}
-      <div className="so-page-header">
+      <PageHeader className="so-page-header">
         <div>
           <h1 className="so-page-title">
             <ShoppingCart size={20} /> Purchase Directory
@@ -128,11 +129,11 @@ const PurchaseOrderList = ({ onNew }) => {
             {polTheme.toUpperCase()}
           </button>
 
-          <button className="so-btn-primary" onClick={onNew}>
+          <button className="erp-button erp-button-primary so-btn-primary" onClick={onNew}>
             <Plus size={16} /> Create New PO
           </button>
         </div>
-      </div>
+      </PageHeader>
 
       {/* Status Filter Tabs */}
       <div style={{
@@ -166,8 +167,8 @@ const PurchaseOrderList = ({ onNew }) => {
 
       {/* Main Content */}
       <div style={{ padding: '1.5rem 2rem' }}>
-        <div className="so-table-card">
-          <table className="so-table">
+        <div className="erp-table-card so-table-card">
+          <table className="erp-table so-table">
             <thead>
               <tr>
                 <th>Identity #</th>
@@ -183,7 +184,7 @@ const PurchaseOrderList = ({ onNew }) => {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan="8" className="so-empty">
+                  <td colSpan="8" className="erp-empty so-empty">
                     <Loader2 size={28} className="so-spinner" style={{ margin: '0 auto 0.5rem' }} />
                     <div style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
                       Processing Directory...
@@ -192,7 +193,7 @@ const PurchaseOrderList = ({ onNew }) => {
                 </tr>
               ) : error ? (
                 <tr>
-                  <td colSpan="8" className="so-empty">
+                  <td colSpan="8" className="erp-empty so-empty">
                     <AlertCircle size={36} style={{ margin: '0 auto 0.5rem', color: '#ef4444' }} />
                     <div style={{ fontWeight: 700, color: '#1e293b' }}>{error}</div>
                     <button
@@ -205,13 +206,13 @@ const PurchaseOrderList = ({ onNew }) => {
                 </tr>
               ) : orders.length === 0 ? (
                 <tr>
-                  <td colSpan="8" className="so-empty">
+                  <td colSpan="8" className="erp-empty so-empty">
                     <FileText size={36} style={{ margin: '0 auto 0.75rem', color: '#e2e8f0' }} />
                     <div style={{ fontWeight: 700, fontSize: '1rem', color: '#1e293b' }}>No Transactions Found</div>
                     <div style={{ fontSize: '0.8rem', color: '#94a3b8', marginTop: '0.3rem' }}>
                       No purchase orders match your current filter criteria.
                     </div>
-                    <button className="so-btn-primary" onClick={onNew} style={{ marginTop: '1rem' }}>
+                    <button className="erp-button erp-button-primary so-btn-primary" onClick={onNew} style={{ marginTop: '1rem' }}>
                       <Plus size={14} /> Start New Purchase
                     </button>
                   </td>

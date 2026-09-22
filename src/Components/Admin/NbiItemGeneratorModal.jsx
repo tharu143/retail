@@ -186,14 +186,14 @@ export default function NbiItemGeneratorModal({ isOpen, onClose, onItemCreated, 
   const currentSubgroups = groupHierarchy.find(h => h.main_group === mainGroup)?.subgroups || [];
 
   return (
-    <div className="nbi-modal-overlay">
-      <div className="nbi-modal-content">
-        <div className="nbi-modal-header">
+    <div className="erp-overlay nbi-modal-overlay">
+      <div className="erp-dialog nbi-modal-content">
+        <div className="erp-dialog-edge nbi-modal-header">
           <h3>🏷️ Create No Barcode Item (NBI)</h3>
           <button className="close-btn" onClick={onClose}>×</button>
         </div>
 
-        <form onSubmit={handleSubmit} className="nbi-modal-body">
+        <form onSubmit={handleSubmit} className="erp-dialog-body nbi-modal-body">
           {error && <div className="alert alert-danger">{error}</div>}
           {successMsg && <div className="alert alert-success">{successMsg}</div>}
 
@@ -375,7 +375,7 @@ export default function NbiItemGeneratorModal({ isOpen, onClose, onItemCreated, 
             </div>
           </div>
 
-          <div className="nbi-modal-footer">
+          <div className="erp-dialog-edge nbi-modal-footer">
             <button type="button" className="btn-cancel" onClick={onClose}>Cancel</button>
             <button type="submit" className="btn-submit" disabled={loading || !nbiCode}>
               {loading ? 'Creating...' : 'Create & Assign NBI'}

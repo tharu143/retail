@@ -1,3 +1,4 @@
+import PageHeader from '../UI/PageHeader';
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import {
@@ -178,8 +179,8 @@ const StatusBadge = ({ status, themeColor }) => {
 };
 
 const ConnectionCard = ({ title, links, onTransistion, loadingLinks, themeColor }) => (
-    <div className="so-card" style={{ height: '100%' }}>
-        <div className="so-card-header">
+    <div className="erp-card so-card" style={{ height: '100%' }}>
+        <div className="erp-section-header so-card-header">
             <h5 className="so-card-title">{title}</h5>
         </div>
         <div className="so-card-body">
@@ -202,7 +203,7 @@ const ConnectionCard = ({ title, links, onTransistion, loadingLinks, themeColor 
                         <button
                             onClick={onTransistion}
                             disabled={loadingLinks}
-                            className="so-btn-primary"
+                            className="erp-button erp-button-primary so-btn-primary"
                             style={{ fontSize: '0.7rem', padding: '0.4rem 1rem' }}
                         >
                             {loadingLinks ? 'Syncing...' : `Generate ${title.split(' ')[0]}`}
@@ -1777,7 +1778,7 @@ export default function SalesOrderDetails() {
                 <div className="flex-1 flex flex-col overflow-hidden bg-slate-100 p-2">
 
                     {/* Table container (occupies all remaining vertical space) */}
-                    <div className="flex-1 min-h-0 overflow-y-auto overflow-x-auto bg-white rounded-xl border border-slate-200 shadow-2xs">
+                    <div className="erp-scroll-region flex-1 min-h-0 overflow-y-auto overflow-x-auto bg-white rounded-xl border border-slate-200 shadow-2xs">
 
                         {/* Barcode scan bar */}
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.5rem 1rem', borderBottom: '1px solid #e2e8f0', background: '#ffffff', flexShrink: 0 }}>
@@ -1826,7 +1827,7 @@ export default function SalesOrderDetails() {
                             </button>
                         </div>
 
-                        <table className="classic-table" style={{ width: 'max-content', minWidth: '100%', borderCollapse: 'collapse', background: '#ffffff', tableLayout: 'fixed' }}>
+                        <table className="erp-table classic-table" style={{ width: 'max-content', minWidth: '100%', borderCollapse: 'collapse', background: '#ffffff', tableLayout: 'fixed' }}>
                             <thead>
                                 <tr style={{ background: '#f8fafc', borderBottom: '1.5px solid #cbd5e1' }}>
                                     <th style={{ width: '40px', minWidth: '40px', maxWidth: '40px', textAlign: 'center', padding: '10px 4px', fontSize: '11px', fontWeight: 900, color: '#475569', textTransform: 'uppercase', borderRight: '1px solid #e2e8f0' }}>#</th>
@@ -2499,7 +2500,7 @@ export default function SalesOrderDetails() {
             )}
 
             {/* 2. Page Header */}
-            <div className="so-page-header">
+            <PageHeader className="so-page-header">
                 <div>
                     <h1 className="so-page-title">
                         <Package size={20} />
@@ -2550,14 +2551,14 @@ export default function SalesOrderDetails() {
                         <>
                             <button
                                 onClick={() => isNew ? navigate('/salesorderlist') : setIsEditing(false)}
-                                className="so-btn-secondary"
+                                className="erp-button erp-button-secondary so-btn-secondary"
                             >
                                 <X size={16} /> Discard
                             </button>
                             <button
                                 onClick={() => handleSave(false)}
                                 disabled={saving}
-                                className="so-btn-primary"
+                                className="erp-button erp-button-primary so-btn-primary"
                             >
                                 {saving ? <Loader2 size={16} className="so-spinner" /> : <Save size={16} />} Save Draft
                             </button>
@@ -2565,7 +2566,7 @@ export default function SalesOrderDetails() {
                                 <button
                                     onClick={() => handleSave(true)}
                                     disabled={saving}
-                                    className="so-btn-primary"
+                                    className="erp-button erp-button-primary so-btn-primary"
                                     style={{ background: '#4f46e5', borderColor: '#4f46e5' }}
                                 >
                                     <CheckCircle2 size={16} /> Submit Order
@@ -2578,14 +2579,14 @@ export default function SalesOrderDetails() {
                                 <>
                                     <button
                                         onClick={() => setIsEditing(true)}
-                                        className="so-btn-primary"
+                                        className="erp-button erp-button-primary so-btn-primary"
                                     >
                                         <Edit2 size={16} /> Modify Detail
                                     </button>
                                     <button
                                         onClick={() => handleSave(true)}
                                         disabled={saving}
-                                        className="so-btn-primary"
+                                        className="erp-button erp-button-primary so-btn-primary"
                                         style={{ background: '#4f46e5', borderColor: '#4f46e5' }}
                                     >
                                         {saving ? <Loader2 size={16} className="so-spinner" /> : <CheckCircle2 size={16} />} Submit Order
@@ -2596,7 +2597,7 @@ export default function SalesOrderDetails() {
                                 <div className="relative" ref={createDropdownRef}>
                                     <button
                                         onClick={() => setShowCreateDropdown(!showCreateDropdown)}
-                                        className="so-btn-secondary"
+                                        className="erp-button erp-button-secondary so-btn-secondary"
                                         style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#f8fafc', color: '#475569', border: '1px solid #cbd5e1', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '0.375rem', transition: 'all 0.2s' }}
                                     >
                                         <Plus size={14} /> CREATE <ChevronDown size={14} />
@@ -2679,7 +2680,7 @@ export default function SalesOrderDetails() {
                         </>
                     )}
                 </div>
-            </div>
+            </PageHeader>
 
             <div className="so-layout">
                 <div className="so-content" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', width: '100%' }}>
@@ -2687,8 +2688,8 @@ export default function SalesOrderDetails() {
                     {isEditing ? (
                         /* EDITING / CREATION VIEW */
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', width: '100%' }}>
-                            <div className="so-card">
-                                <div className="so-card-header">
+                            <div className="erp-card so-card">
+                                <div className="erp-section-header so-card-header">
                                     <h5 className="so-card-title">Order Context & Timeline</h5>
                                 </div>
                                 <div className="so-card-body">
@@ -2837,8 +2838,8 @@ export default function SalesOrderDetails() {
                                 </div>
                             </div>
 
-                            <div className="so-card">
-                                <div className="so-card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div className="erp-card so-card">
+                                <div className="erp-section-header so-card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
 
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
                                         <div style={{ display: 'flex', flexDirection: 'column', minWidth: '220px' }}>
@@ -2909,8 +2910,8 @@ export default function SalesOrderDetails() {
                                         <Settings size={14} style={{ color: '#94a3b8' }} />
                                     </button>
                                 </div>
-                                <div className="so-table-wrapper" style={{ maxHeight: 'none' }}>
-                                    <table className="so-table" style={{ tableLayout: 'fixed', width: 'max-content', minWidth: '100%' }}>
+                                <div className="erp-table-scroll so-table-wrapper" style={{ maxHeight: 'none' }}>
+                                    <table className="erp-table so-table" style={{ tableLayout: 'fixed', width: 'max-content', minWidth: '100%' }}>
                                         <thead>
                                             <tr>
                                                 {(() => {
@@ -3245,8 +3246,8 @@ export default function SalesOrderDetails() {
                             </div>
 
                             {/* Tax & Charges Area */}
-                            <div className="so-card">
-                                <div className="so-card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div className="erp-card so-card">
+                                <div className="erp-section-header so-card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                     <h5 className="so-card-title">Sales Taxes and Charges</h5>
                                     <div style={{ minWidth: '300px' }}>
                                         <select
@@ -3299,8 +3300,8 @@ export default function SalesOrderDetails() {
                                         </select>
                                     </div>
                                 </div>
-                                <div className="so-table-wrapper" style={{ maxHeight: 'none' }}>
-                                    <table className="so-table">
+                                <div className="erp-table-scroll so-table-wrapper" style={{ maxHeight: 'none' }}>
+                                    <table className="erp-table so-table">
                                         <thead>
                                             <tr>
                                                 <th style={{ width: '5%' }}>No.</th>
@@ -3420,8 +3421,8 @@ export default function SalesOrderDetails() {
 
                             {/* Main Detail Grid (2-Column Layout, Connection Cards Removed) */}
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
-                                <div className="so-card">
-                                    <div className="so-card-header">
+                                <div className="erp-card so-card">
+                                    <div className="erp-section-header so-card-header">
                                         <h5 className="so-card-title">Order Properties</h5>
                                     </div>
                                     <div className="so-card-body" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
@@ -3490,13 +3491,13 @@ export default function SalesOrderDetails() {
                                     </div>
                                 </div>
 
-                                <div className="so-card">
-                                    <div className="so-card-header">
+                                <div className="erp-card so-card">
+                                    <div className="erp-section-header so-card-header">
                                         <h5 className="so-card-title">Applied Taxes & Charges</h5>
                                     </div>
                                     <div className="so-card-body" style={{ padding: '0' }}>
-                                        <div className="so-table-wrapper" style={{ maxHeight: 'none', border: 'none' }}>
-                                            <table className="so-table">
+                                        <div className="erp-table-scroll so-table-wrapper" style={{ maxHeight: 'none', border: 'none' }}>
+                                            <table className="erp-table so-table">
                                                 <thead>
                                                     <tr>
                                                         <th>Account Head</th>
@@ -3531,8 +3532,8 @@ export default function SalesOrderDetails() {
                             </div>
 
                             {/* Items Table Presentation */}
-                            <div className="so-table-card">
-                                <div className="so-card-header" style={{ padding: '0.75rem 1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div className="erp-table-card so-table-card">
+                                <div className="erp-section-header so-card-header" style={{ padding: '0.75rem 1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                                         <span style={{ fontSize: '0.65rem', fontWeight: 600, color: '#94a3b8' }}>{form.items.length} ACTIVE ITEMS</span>
                                     </div>
@@ -3545,8 +3546,8 @@ export default function SalesOrderDetails() {
                                         <Settings size={14} style={{ color: '#94a3b8' }} />
                                     </button>
                                 </div>
-                                <div className="so-table-wrapper" style={{ maxHeight: 'none' }}>
-                                    <table className="so-table" style={{ tableLayout: 'fixed', width: 'max-content', minWidth: '100%' }}>
+                                <div className="erp-table-scroll so-table-wrapper" style={{ maxHeight: 'none' }}>
+                                    <table className="erp-table so-table" style={{ tableLayout: 'fixed', width: 'max-content', minWidth: '100%' }}>
                                         <thead>
                                             <tr>
                                                 {(() => {
@@ -3743,16 +3744,16 @@ export default function SalesOrderDetails() {
 
             {/* Quick Customer Creation Modal */}
             {isCustomerModalOpen && (
-                <div className="so-modal-overlay" style={{ zIndex: 20000 }}>
+                <div className="erp-overlay so-modal-overlay" style={{ zIndex: 20000 }}>
                     <div className="so-modal" style={{ width: '450px', background: '#fff', borderRadius: '1rem', overflow: 'hidden' }}>
-                        <div className="so-modal-header" style={{ background: themeColor, color: '#fff', padding: '1rem 1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div className="erp-dialog-edge so-modal-header" style={{ background: themeColor, color: '#fff', padding: '1rem 1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                                 <User size={18} />
                                 <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Create Customer</h3>
                             </div>
                             <X size={20} className="so-close-btn" onClick={() => setIsCustomerModalOpen(false)} style={{ color: '#fff', cursor: 'pointer' }} />
                         </div>
-                        <div className="so-modal-body" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                        <div className="erp-dialog-body so-modal-body" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
                             <div className="so-field">
                                 <label className="so-label">Customer Name *</label>
                                 <input className="so-input" value={newCustomer.customer_name} onChange={e => setNewCustomer({ ...newCustomer, customer_name: e.target.value })} placeholder="Enter customer name..." />
@@ -3762,9 +3763,9 @@ export default function SalesOrderDetails() {
                                 <input className="so-input" value={newCustomer.mobile_no} onChange={e => setNewCustomer({ ...newCustomer, mobile_no: e.target.value })} placeholder="Enter mobile number..." />
                             </div>
                         </div>
-                        <div className="so-modal-footer" style={{ padding: '1rem 1.5rem', background: '#f8fafc', borderTop: '1px solid #e2e8f0', display: 'flex', gap: '1rem' }}>
-                            <button className="so-btn-secondary" style={{ flex: 1 }} onClick={() => setIsCustomerModalOpen(false)}>Cancel</button>
-                            <button className="so-btn-primary" style={{ flex: 1 }} disabled={savingCustomer} onClick={submitQuickCustomer}>
+                        <div className="erp-dialog-edge so-modal-footer" style={{ padding: '1rem 1.5rem', background: '#f8fafc', borderTop: '1px solid #e2e8f0', display: 'flex', gap: '1rem' }}>
+                            <button className="erp-button erp-button-secondary so-btn-secondary" style={{ flex: 1 }} onClick={() => setIsCustomerModalOpen(false)}>Cancel</button>
+                            <button className="erp-button erp-button-primary so-btn-primary" style={{ flex: 1 }} disabled={savingCustomer} onClick={submitQuickCustomer}>
                                 {savingCustomer ? <Loader2 className="so-spinner" /> : 'Save & Select'}
                             </button>
                         </div>

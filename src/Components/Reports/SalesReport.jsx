@@ -330,14 +330,14 @@ function SalesReport() {
           <button className="ssr-btn-outline" onClick={handlePrint}>
             <Printer size={14} /> Print
           </button>
-          <button className="ssr-btn-primary" onClick={handleExportCSV}>
+          <button className="erp-button erp-button-primary ssr-btn-primary" onClick={handleExportCSV}>
             <Download size={14} /> Export CSV
           </button>
         </div>
       </div>
 
       {/* 2. FILTER CARD */}
-      <div className="ssr-filter-card no-print">
+      <div className="erp-filter-bar ssr-filter-card no-print">
         {/* From Date */}
         <div className="ssr-field-block">
           <label className="ssr-label">From Date</label>
@@ -663,7 +663,7 @@ function SalesReport() {
       </div>
 
       {/* 4. TABLE SECTION ("SALES TRANSACTIONS") */}
-      <div className="ssr-table-card">
+      <div className="erp-table-card ssr-table-card">
         <div className="ssr-table-header">
           <div className="ssr-table-title-group">
             <h2 className="ssr-table-heading">
@@ -690,8 +690,8 @@ function SalesReport() {
           </div>
         </div>
 
-        <div className="ssr-table-wrapper">
-          <table className="ssr-table">
+        <div className="erp-table-scroll ssr-table-wrapper">
+          <table className="erp-table ssr-table">
             <thead>
               <tr>
                 <th style={{ width: '40px', textAlign: 'center' }}>
@@ -796,7 +796,7 @@ function SalesReport() {
             <span>per page</span>
           </div>
 
-          <div className="ssr-pagination">
+          <div className="erp-pagination ssr-pagination">
             <button
               className="ssr-page-btn"
               disabled={currentPage <= 1}

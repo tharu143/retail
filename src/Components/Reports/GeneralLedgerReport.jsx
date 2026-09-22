@@ -312,11 +312,11 @@ function GeneralLedgerReport() {
         </div>
 
         <div className="glr-actions">
-          <button onClick={() => window.print()} className="glr-btn-secondary">
+          <button onClick={() => window.print()} className="erp-button erp-button-secondary glr-btn-secondary">
             <Printer size={15} /> 
             <span>Print</span>
           </button>
-          <button onClick={exportCSV} disabled={data.length === 0} className="glr-btn-primary">
+          <button onClick={exportCSV} disabled={data.length === 0} className="erp-button erp-button-primary glr-btn-primary">
             <Download size={15} /> 
             <span>Export CSV</span>
           </button>
@@ -437,7 +437,7 @@ function GeneralLedgerReport() {
         </div>
 
         {/* 3. Filters Bar */}
-        <div className="glr-filter-card no-print">
+        <div className="erp-filter-bar glr-filter-card no-print">
           <div className="glr-filter-inputs">
             {/* From Date */}
             <div className="glr-field-block">
@@ -532,7 +532,7 @@ function GeneralLedgerReport() {
         )}
 
         {/* 4. Table Card */}
-        <div className="glr-table-card">
+        <div className="erp-table-card glr-table-card">
           <div className="glr-table-header">
             <h3 className="glr-table-heading">
               <FileText size={18} color="#2563eb" />
@@ -548,8 +548,8 @@ function GeneralLedgerReport() {
             </div>
           </div>
 
-          <div className="glr-table-wrapper">
-            <table className="glr-table">
+          <div className="erp-table-scroll glr-table-wrapper">
+            <table className="erp-table glr-table">
               <thead>
                 <tr>
                   {visibleColumns.map(col => (
@@ -683,7 +683,7 @@ function GeneralLedgerReport() {
                   <span>per page</span>
                 </div>
 
-                <div className="ssr-pagination" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                <div className="erp-pagination ssr-pagination" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
                   <button
                     className="ssr-page-btn"
                     disabled={currentPage <= 1 || pageSize === -1}

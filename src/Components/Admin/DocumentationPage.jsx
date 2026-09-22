@@ -1,3 +1,4 @@
+import PageHeader from '../UI/PageHeader';
 import React, { useState } from 'react';
 import { 
   Terminal, Keyboard, Clock, ShieldCheck, ShoppingCart, 
@@ -87,7 +88,7 @@ export default function DocumentationPage() {
   });
 
   return (
-    <div className="so-page" style={{ height: 'auto', minHeight: '100vh', overflow: 'visible' }}>
+    <div className="erp-page so-page" style={{ height: 'auto', minHeight: '100vh', overflow: 'visible' }}>
       
       {/* Page Header aligned natively with ERPNext/Kyle dashboard headers */}
       <div className="so-page-header-container">
@@ -95,19 +96,19 @@ export default function DocumentationPage() {
           <span className="so-page-tab active">Documentation</span>
           <span className="so-page-tab" style={{ cursor: 'pointer' }} onClick={() => setSelectedSection('pos_home')}>POS Guide</span>
         </div>
-        <div className="so-page-header">
+        <PageHeader className="so-page-header">
           <div>
             <h1 className="so-page-title">System Knowledge Base</h1>
             <p className="so-page-subtitle">User Manuals, Keyboard Shortcuts & Operational Guides</p>
           </div>
-        </div>
+        </PageHeader>
       </div>
 
       {/* Main content body in standard so-content width */}
       <div className="so-content" style={{ padding: '1.25rem 1.5rem' }}>
         
         {/* Unified Card layout containing both sidebar navigation and reader panel */}
-        <div className="so-table-card" style={{ display: 'flex', minHeight: '680px', background: '#ffffff' }}>
+        <div className="erp-table-card so-table-card" style={{ display: 'flex', minHeight: '680px', background: '#ffffff' }}>
           
           {/* Left navigation sidebar */}
           <div style={{ width: '280px', borderRight: '1px solid #f1f5f9', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem', flexShrink: 0, background: '#fafbfc' }}>

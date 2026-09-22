@@ -210,18 +210,18 @@ export default function BarcodePrintModal({ isOpen, onClose, selectedItem }) {
   if (!isOpen || !selectedItem) return null;
 
   return (
-    <div className="barcode-modal-overlay">
-      <div className="barcode-modal-content">
-        <div className="barcode-modal-header">
+    <div className="erp-overlay barcode-modal-overlay">
+      <div className="erp-dialog barcode-modal-content">
+        <div className="erp-dialog-edge barcode-modal-header">
           <h3>🖨️ Barcode Generator & Thermal Label Print</h3>
           <button className="close-btn" onClick={onClose}>×</button>
         </div>
 
-        <div className="barcode-modal-body">
+        <div className="erp-dialog-body barcode-modal-body">
           {error && <div className="alert alert-danger">{error}</div>}
           {successMsg && <div className="alert alert-success">{successMsg}</div>}
 
-          <div className="item-info-card">
+          <div className="erp-card item-info-card">
             <strong>Item:</strong> {selectedItem.item_code} - {selectedItem.item_name}
           </div>
 
@@ -252,7 +252,7 @@ export default function BarcodePrintModal({ isOpen, onClose, selectedItem }) {
             <label>Assigned UOM Barcode *</label>
             <div className="barcode-input-row">
               <input type="text" value={barcode} onChange={(e) => setBarcode(e.target.value)} />
-              <button className="btn-secondary" onClick={handleSaveBarcode} disabled={loading}>
+              <button className="erp-button erp-button-secondary btn-secondary" onClick={handleSaveBarcode} disabled={loading}>
                 Save Barcode
               </button>
               <button className="btn-attach-erp" onClick={handleAttachToERPNext} disabled={attachLoading || !barcode}>
@@ -371,7 +371,7 @@ export default function BarcodePrintModal({ isOpen, onClose, selectedItem }) {
             </div>
           </div>
 
-          <div className="barcode-modal-footer">
+          <div className="erp-dialog-edge barcode-modal-footer">
             <button className="btn-cancel" onClick={onClose}>Close</button>
             <button className="btn-print-action" onClick={handleTriggerPrint}>
               🖨️ Print Label ({printQty})

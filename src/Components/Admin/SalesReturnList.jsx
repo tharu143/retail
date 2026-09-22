@@ -1,3 +1,4 @@
+import PageHeader from '../UI/PageHeader';
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useSelector } from 'react-redux';
 import { useLocation } from 'react-router-dom';
@@ -1111,8 +1112,8 @@ function SalesReturnList() {
 
       {/* ────────────────────── LIST VIEW ────────────────────── */}
       {view === 'list' && (
-        <div className="so-page animate-in fade-in duration-300" style={{ background: '#851515', padding: '1.5rem', color: '#ffffff', borderRadius: '12px' }}>
-          <div className="so-page-header" style={{ background: '#751010', color: '#ffffff', border: '1px solid rgba(255, 255, 255, 0.3)', borderLeft: '6px solid #ffffff', borderRadius: '12px', padding: '1.25rem 2rem' }}>
+        <div className="erp-page so-page animate-in fade-in duration-300" style={{ background: '#851515', padding: '1.5rem', color: '#ffffff', borderRadius: '12px' }}>
+          <PageHeader className="so-page-header" style={{ background: '#751010', color: '#ffffff', border: '1px solid rgba(255, 255, 255, 0.3)', borderLeft: '6px solid #ffffff', borderRadius: '12px', padding: '1.25rem 2rem' }}>
             <div>
               <h1 className="so-page-title" style={{ color: '#ffffff' }}>
                 <RotateCcw size={20} style={{ color: '#ffffff' }} />
@@ -1122,7 +1123,7 @@ function SalesReturnList() {
             </div>
             <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
               <button
-                className="so-btn-primary"
+                className="erp-button erp-button-primary so-btn-primary"
                 onClick={() => setView('create')}
                 style={{
                   display: 'inline-flex',
@@ -1144,7 +1145,7 @@ function SalesReturnList() {
                 <Plus size={16} /> Initiate Credit Note
               </button>
             </div>
-          </div>
+          </PageHeader>
 
           <div className="so-content" style={{ background: '#751010', padding: '1.25rem', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.3)' }}>
             <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-end', marginBottom: '1.25rem', flexWrap: 'wrap' }}>
@@ -1209,9 +1210,9 @@ function SalesReturnList() {
               </div>
             </div>
 
-            <div className="so-table-card" style={{ background: '#751010', color: '#ffffff', border: '1px solid rgba(255, 255, 255, 0.3)' }}>
-              <div className="so-table-wrapper" style={{ background: '#751010' }}>
-                <table className="so-table" style={{ background: '#751010', color: '#ffffff' }}>
+            <div className="erp-table-card so-table-card" style={{ background: '#751010', color: '#ffffff', border: '1px solid rgba(255, 255, 255, 0.3)' }}>
+              <div className="erp-table-scroll so-table-wrapper" style={{ background: '#751010' }}>
+                <table className="erp-table so-table" style={{ background: '#751010', color: '#ffffff' }}>
                   <thead>
                     <tr>
                       {!hiddenDefaults.includes('customer_name') && (
@@ -1392,7 +1393,7 @@ function SalesReturnList() {
 
               {/* Pagination Section */}
               {totalPages > 1 && (
-                <div className="so-pagination" style={{ padding: '1rem 1.5rem', borderTop: '1px solid var(--so-border)' }}>
+                <div className="erp-pagination so-pagination" style={{ padding: '1rem 1.5rem', borderTop: '1px solid var(--so-border)' }}>
                   <span>
                     Showing {Math.min(filtered.length, (currentPage - 1) * pageSize + 1)} to {Math.min(filtered.length, currentPage * pageSize)} of {filtered.length} entries
                   </span>
@@ -1430,11 +1431,11 @@ function SalesReturnList() {
 
       {/* ────────────────────── CREATE VIEW (WORKSPACE) ────────────────────── */}
       {view === 'create' && (
-        <div className="so-page animate-in fade-in duration-300" style={{ background: '#851515', padding: '1.5rem', color: '#ffffff', borderRadius: '12px' }}>
+        <div className="erp-page so-page animate-in fade-in duration-300" style={{ background: '#851515', padding: '1.5rem', color: '#ffffff', borderRadius: '12px' }}>
           {/* Header & Filter Controls */}
-          <div className="so-page-header" style={{ background: '#751010', color: '#ffffff', border: '1px solid rgba(255, 255, 255, 0.3)', borderLeft: '6px solid #ffffff', borderRadius: '12px', padding: '1.25rem 2rem' }}>
+          <PageHeader className="so-page-header" style={{ background: '#751010', color: '#ffffff', border: '1px solid rgba(255, 255, 255, 0.3)', borderLeft: '6px solid #ffffff', borderRadius: '12px', padding: '1.25rem 2rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-              <button onClick={() => setView('list')} className="so-btn-secondary" style={{ padding: '0.5rem', minWidth: 'auto', color: '#ffffff', borderColor: 'rgba(255, 255, 255, 0.7)' }}>
+              <button onClick={() => setView('list')} className="erp-button erp-button-secondary so-btn-secondary" style={{ padding: '0.5rem', minWidth: 'auto', color: '#ffffff', borderColor: 'rgba(255, 255, 255, 0.7)' }}>
                 <ArrowLeft size={18} />
               </button>
               <div className="flex flex-col text-left">
@@ -1443,23 +1444,23 @@ function SalesReturnList() {
               </div>
             </div>
             <div style={{ display: 'flex', gap: '0.75rem' }}>
-              <button onClick={clearFilters} className="so-btn-secondary" style={{ color: '#ffffff', borderColor: 'rgba(255, 255, 255, 0.7)' }}>
+              <button onClick={clearFilters} className="erp-button erp-button-secondary so-btn-secondary" style={{ color: '#ffffff', borderColor: 'rgba(255, 255, 255, 0.7)' }}>
                 Clear Filters (F5)
               </button>
               <button
                 onClick={() => handleSaveReturn(false)}
                 disabled={saving || returnQueue.length === 0}
-                className="so-btn-primary"
+                className="erp-button erp-button-primary so-btn-primary"
                 style={{ background: '#ffffff', color: '#751010', borderColor: '#ffffff', fontWeight: 900 }}
               >
                 {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />} Save Draft (F7)
               </button>
             </div>
-          </div>
+          </PageHeader>
 
           <div className="so-content" style={{ background: '#751010', padding: '1.25rem', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.3)' }}>
             {/* Filters grid */}
-            <div className="so-card mb-6" style={{ background: '#751010', color: '#ffffff', border: '1px solid rgba(255, 255, 255, 0.3)', borderRadius: '12px' }}>
+            <div className="erp-card so-card mb-6" style={{ background: '#751010', color: '#ffffff', border: '1px solid rgba(255, 255, 255, 0.3)', borderRadius: '12px' }}>
               <div className="so-card-body" style={{ background: '#751010', color: '#ffffff' }}>
                 <div className="so-form-grid-4">
                   <div className="so-field">
@@ -1526,7 +1527,7 @@ function SalesReturnList() {
             {/* Workspace Area */}
             <div className="w-full">
               {returnQueue.length === 0 ? (
-                <div className="so-card" style={{ height: '350px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '3rem', textAlign: 'center', background: '#751010', color: '#ffffff', border: '1px solid rgba(255, 255, 255, 0.3)', borderRadius: '12px' }}>
+                <div className="erp-card so-card" style={{ height: '350px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '3rem', textAlign: 'center', background: '#751010', color: '#ffffff', border: '1px solid rgba(255, 255, 255, 0.3)', borderRadius: '12px' }}>
                   <Receipt size={48} className="text-white mb-4 animate-bounce" />
                   <h2 className="text-base font-black text-white mb-1" style={{ color: '#ffffff' }}>Return Queue Empty</h2>
                   <p className="text-xs font-medium text-white/80 max-w-sm mb-4" style={{ color: 'rgba(255, 255, 255, 0.8)' }}>Search/select items or click "Show All Customer Items" above to add return items to your queue.</p>
@@ -1543,8 +1544,8 @@ function SalesReturnList() {
               ) : (
                 <div className="flex flex-col gap-6">
                   {/* Return Queue Summary Basket */}
-                  <div className="so-table-card animate-in fade-in duration-300">
-                    <div className="so-card-header" style={{ padding: '0.75rem 1.25rem' }}>
+                  <div className="erp-table-card so-table-card animate-in fade-in duration-300">
+                    <div className="erp-section-header so-card-header" style={{ padding: '0.75rem 1.25rem' }}>
                       <h5 className="so-card-title">Return Items Queue ({returnQueue.length})</h5>
                       <button
                         onClick={() => { setReturnQueue([]); setReturnSelection({}); }}
@@ -1553,8 +1554,8 @@ function SalesReturnList() {
                         Clear Queue
                       </button>
                     </div>
-                    <div className="so-table-wrapper">
-                      <table className="so-table">
+                    <div className="erp-table-scroll so-table-wrapper">
+                      <table className="erp-table so-table">
                         <thead>
                           <tr>
                             <th>Invoice</th>
@@ -1625,8 +1626,8 @@ function SalesReturnList() {
 
                   {/* Financial vector totals summary */}
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
-                    <div className="so-card">
-                      <div className="so-card-header">
+                    <div className="erp-card so-card">
+                      <div className="erp-section-header so-card-header">
                         <h5 className="so-card-title">Fiscal Tax Reversals</h5>
                       </div>
                       <div className="so-card-body" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
@@ -1650,8 +1651,8 @@ function SalesReturnList() {
                       </div>
                     </div>
 
-                    <div className="so-card" style={{ background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)', color: '#ffffff', borderColor: '#334155', boxShadow: '0 8px 24px rgba(15, 23, 42, 0.15)' }}>
-                      <div className="so-card-header" style={{ borderColor: '#334155' }}>
+                    <div className="erp-card so-card" style={{ background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)', color: '#ffffff', borderColor: '#334155', boxShadow: '0 8px 24px rgba(15, 23, 42, 0.15)' }}>
+                      <div className="erp-section-header so-card-header" style={{ borderColor: '#334155' }}>
                         <h5 className="so-card-title" style={{ color: '#f43f5e', fontWeight: 900 }}>Credit Impact Summary</h5>
                       </div>
                       <div className="so-card-body" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
@@ -1692,9 +1693,9 @@ function SalesReturnList() {
 
       {/* ────────────────────── DETAIL VIEW (SUBMITTED / DRAFT DETAILS) ────────────────────── */}
       {view === 'detail' && selectedReturnDoc && (
-        <div className="so-page so-detail-page animate-in fade-in duration-500">
+        <div className="erp-page so-page so-detail-page animate-in fade-in duration-500">
           {/* 1. Page Header */}
-          <div className="so-page-header">
+          <PageHeader className="so-page-header">
             <div>
               <h1 className="so-page-title">
                 <RotateCcw size={20} />
@@ -1719,14 +1720,14 @@ function SalesReturnList() {
                   <button
                     onClick={() => handleDocumentAction('save')}
                     disabled={saving}
-                    className="so-btn-secondary"
+                    className="erp-button erp-button-secondary so-btn-secondary"
                   >
                     {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />} Sync Draft
                   </button>
                   <button
                     onClick={() => handleDocumentAction('submit')}
                     disabled={saving}
-                    className="so-btn-primary"
+                    className="erp-button erp-button-primary so-btn-primary"
                     style={{ background: themeColor, borderColor: themeColor }}
                   >
                     {saving ? <Loader2 size={16} className="animate-spin" /> : <ShieldCheck size={16} />} Finalize Return
@@ -1753,13 +1754,13 @@ function SalesReturnList() {
 
               <button
                 onClick={() => setView('list')}
-                className="so-btn-secondary"
+                className="erp-button erp-button-secondary so-btn-secondary"
                 style={{ color: '#475569' }}
               >
                 Back
               </button>
             </div>
-          </div>
+          </PageHeader>
 
           {/* 2. Main Page Layout */}
           <div className="so-layout">
@@ -1806,8 +1807,8 @@ function SalesReturnList() {
 
               {/* Main Detail Grid */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
-                <div className="so-card">
-                  <div className="so-card-header">
+                <div className="erp-card so-card">
+                  <div className="erp-section-header so-card-header">
                     <h5 className="so-card-title">Credit Properties</h5>
                   </div>
                   <div className="so-card-body" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
@@ -1826,8 +1827,8 @@ function SalesReturnList() {
                   </div>
                 </div>
 
-                <div className="so-card">
-                  <div className="so-card-header">
+                <div className="erp-card so-card">
+                  <div className="erp-section-header so-card-header">
                     <h5 className="so-card-title">Credit Summary Impact</h5>
                   </div>
                   <div className="so-card-body" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
@@ -1857,15 +1858,15 @@ function SalesReturnList() {
               </div>
 
               {/* Items Table Presentation */}
-              <div className="so-table-card">
-                <div className="so-card-header" style={{ padding: '0.75rem 1.25rem' }}>
+              <div className="erp-table-card so-table-card">
+                <div className="erp-section-header so-card-header" style={{ padding: '0.75rem 1.25rem' }}>
                   <h5 className="so-card-title">Credit Item Matrix</h5>
                   <span style={{ fontSize: '0.65rem', fontWeight: 600, color: '#94a3b8' }}>
                     {selectedReturnDoc.items ? selectedReturnDoc.items.length : 0} ACTIVE ITEMS
                   </span>
                 </div>
-                <div className="so-table-wrapper" style={{ maxHeight: 'none' }}>
-                  <table className="so-table">
+                <div className="erp-table-scroll so-table-wrapper" style={{ maxHeight: 'none' }}>
+                  <table className="erp-table so-table">
                     <thead>
                       <tr>
                         <th>Asset Specification</th>
@@ -1938,7 +1939,7 @@ function SalesReturnList() {
                 </div>
               ) : (
                 <div className="p-4">
-                  <table className="w-full text-left border-collapse bg-white rounded-xl overflow-hidden shadow-sm border border-slate-100">
+                  <table className="erp-table w-full text-left border-collapse bg-white rounded-xl overflow-hidden shadow-sm border border-slate-100">
                     <thead className="bg-slate-50">
                       <tr>
                         <th className="w-12 py-3 px-4 border-b border-slate-100 text-center">

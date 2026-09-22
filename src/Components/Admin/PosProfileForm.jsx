@@ -1,3 +1,4 @@
+import PageHeader from '../UI/PageHeader';
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { 
@@ -272,7 +273,7 @@ export default function PosProfileForm() {
 
   if (loading) {
     return (
-      <div className="ppf-page-wrapper" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
+      <div className="erp-form-page ppf-page-wrapper" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
         <Loader2 size={32} className="animate-spin" style={{ color: '#0082f6' }} />
         <span style={{ marginLeft: '0.75rem', fontWeight: 600, color: '#475569' }}>Loading POS Profile...</span>
       </div>
@@ -280,9 +281,9 @@ export default function PosProfileForm() {
   }
 
   return (
-    <div className="ppf-page-wrapper">
+    <div className="erp-form-page ppf-page-wrapper">
       {/* 1. STICKY HEADER */}
-      <div className="ppf-header-bar">
+      <PageHeader className="ppf-header-bar">
         <div className="ppf-header-left">
           <div className="ppf-title-group">
             <h1>{isEdit ? `EDIT POS PROFILE: ${formData.name}` : 'CREATE NEW POS PROFILE'}</h1>
@@ -291,30 +292,30 @@ export default function PosProfileForm() {
         </div>
 
         <div className="ppf-header-right">
-          <button className="ppf-btn-secondary" onClick={() => navigate('/posprofilelist')}>
+          <button className="erp-button erp-button-secondary ppf-btn-secondary" onClick={() => navigate('/posprofilelist')}>
             Cancel
           </button>
-          <button className="ppf-btn-primary" onClick={handleSave} disabled={saving}>
+          <button className="erp-button erp-button-primary ppf-btn-primary" onClick={handleSave} disabled={saving}>
             {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
             {saving ? 'Saving...' : isEdit ? 'Update Profile' : 'Save Profile'}
           </button>
         </div>
-      </div>
+      </PageHeader>
 
       {/* 2. FORM CONTENT */}
       <div className="ppf-container">
         <div className="ppf-form-grid">
 
           {/* CARD 1: BASIC INFORMATION */}
-          <div className="ppf-card">
-            <div className="ppf-card-header">
+          <div className="erp-card ppf-card">
+            <div className="erp-section-header ppf-card-header">
               <div className="ppf-card-title">
                 <Store className="ppf-card-icon" size={20} /> BASIC PROFILE DETAILS
               </div>
             </div>
             
-            <div className="ppf-card-body">
-              <div className="ppf-fields-row-4">
+            <div className="erp-section-body ppf-card-body">
+              <div className="erp-fields-grid ppf-fields-row-4">
                 {/* Profile Name */}
                 <div className="ppf-field">
                   <label className="ppf-label">
@@ -390,15 +391,15 @@ export default function PosProfileForm() {
           </div>
 
           {/* CARD 2: ACCOUNTING & RECONCILIATIONS */}
-          <div className="ppf-card">
-            <div className="ppf-card-header">
+          <div className="erp-card ppf-card">
+            <div className="erp-section-header ppf-card-header">
               <div className="ppf-card-title">
                 <DollarSign className="ppf-card-icon" size={20} /> ACCOUNTING & WRITE-OFF SETTINGS
               </div>
             </div>
 
-            <div className="ppf-card-body">
-              <div className="ppf-fields-row-3">
+            <div className="erp-section-body ppf-card-body">
+              <div className="erp-fields-grid ppf-fields-row-3">
                 {/* Write Off Account */}
                 <div className="ppf-field">
                   <label className="ppf-label">
@@ -454,8 +455,8 @@ export default function PosProfileForm() {
           </div>
 
           {/* CARD 3: APPLICABLE USERS */}
-          <div className="ppf-card">
-            <div className="ppf-card-header">
+          <div className="erp-card ppf-card">
+            <div className="erp-section-header ppf-card-header">
               <div className="ppf-card-title">
                 <Users className="ppf-card-icon" size={20} /> APPLICABLE USERS
               </div>
@@ -464,11 +465,11 @@ export default function PosProfileForm() {
               </button>
             </div>
 
-            <div className="ppf-card-body">
+            <div className="erp-section-body ppf-card-body">
               {formErrors.users && <div className="ppf-error-text" style={{ marginBottom: '1rem' }}>{formErrors.users}</div>}
 
-              <div className="ppf-table-container">
-                <table className="ppf-table">
+              <div className="erp-table-scroll ppf-table-container">
+                <table className="erp-table ppf-table">
                   <thead>
                     <tr>
                       <th>USER ID / EMAIL</th>
@@ -529,8 +530,8 @@ export default function PosProfileForm() {
           </div>
 
           {/* CARD 4: PAYMENT METHODS */}
-          <div className="ppf-card">
-            <div className="ppf-card-header">
+          <div className="erp-card ppf-card">
+            <div className="erp-section-header ppf-card-header">
               <div className="ppf-card-title">
                 <CreditCard className="ppf-card-icon" size={20} /> MODES OF PAYMENT
               </div>
@@ -539,11 +540,11 @@ export default function PosProfileForm() {
               </button>
             </div>
 
-            <div className="ppf-card-body">
+            <div className="erp-section-body ppf-card-body">
               {formErrors.payments && <div className="ppf-error-text" style={{ marginBottom: '1rem' }}>{formErrors.payments}</div>}
 
-              <div className="ppf-table-container">
-                <table className="ppf-table">
+              <div className="erp-table-scroll ppf-table-container">
+                <table className="erp-table ppf-table">
                   <thead>
                     <tr>
                       <th>MODE OF PAYMENT</th>

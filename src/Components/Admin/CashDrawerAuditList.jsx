@@ -50,8 +50,8 @@ const CashDrawerAuditList = () => {
 
       {/* Logs Table */}
       <div className="bg-white border border-slate-200/80 rounded-2xl overflow-hidden shadow-xs">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse text-xs">
+        <div className="erp-scroll-region overflow-x-auto">
+          <table className="erp-table w-full text-left border-collapse text-xs">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200/80 text-[10px] font-bold uppercase tracking-wider text-slate-500">
                 <th className="py-3 px-4">Event ID</th>

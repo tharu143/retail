@@ -1,3 +1,4 @@
+import PageHeader from '../UI/PageHeader';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useSearchParams } from "react-router-dom";
 import {
@@ -323,10 +324,10 @@ function ItemPriceList() {
 
    /* ═══════════════════════════════════════════════════════ */
    return (
-      <div className="so-page" style={{ background: '#f1f5f9', overflowY: 'auto', display: 'block', minHeight: '100vh' }}>
+      <div className="erp-page so-page" style={{ background: '#f1f5f9', overflowY: 'auto', display: 'block', minHeight: '100vh' }}>
 
          {/* ── Header ──────────────────────────────────────── */}
-         <div className="so-page-header" style={{ background: 'white', borderBottom: '1px solid #e2e8f0', padding: '1.25rem 2rem' }}>
+         <PageHeader className="so-page-header" style={{ background: 'white', borderBottom: '1px solid #e2e8f0', padding: '1.25rem 2rem' }}>
             <div>
                <h1 className="so-page-title" style={{ display: 'flex', alignItems: 'center', gap: '10px', margin: 0 }}>
                   <Package size={22} style={{ color: themeColor || '#0082f6' }} strokeWidth={2.5} />
@@ -366,12 +367,12 @@ function ItemPriceList() {
                >
                   <RefreshCw size={14} /> REFRESH
                </button>
-               <button className="so-btn-primary" style={{ background: themeColor || '#0082f6', height: '38px', borderRadius: '8px', padding: '0 16px', fontSize: '12px', fontWeight: 800, textTransform: 'uppercase', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+               <button className="erp-button erp-button-primary so-btn-primary" style={{ background: themeColor || '#0082f6', height: '38px', borderRadius: '8px', padding: '0 16px', fontSize: '12px', fontWeight: 800, textTransform: 'uppercase', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
                   onClick={() => { setForm({ item_code: '', item_name: '', uom: 'Nos', price_list: 'Standard Selling', buying: 0, selling: 1, price_list_rate: 0, currency: 'AED' }); setIsEditMode(false); setShowForm(true); }}>
                   <Plus size={16} /> NEW RATE
                </button>
             </div>
-         </div>
+         </PageHeader>
 
          <div style={{ padding: '1.5rem 2rem' }}>
 
@@ -524,8 +525,8 @@ function ItemPriceList() {
             )}
 
             {/* ── Table ───────────────────────────────────── */}
-            <div className="so-table-card" style={{ marginBottom: '4rem', borderRadius: '0.75rem', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.07)' }}>
-               <table className="so-table">
+            <div className="erp-table-card so-table-card" style={{ marginBottom: '4rem', borderRadius: '0.75rem', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.07)' }}>
+               <table className="erp-table so-table">
                   <thead>
                      <tr style={{ background: '#f8fafc' }}>
                         <th style={{ width: '35%' }}>Item</th>
@@ -545,12 +546,12 @@ function ItemPriceList() {
                   </thead>
                   <tbody>
                      {loading ? (
-                        <tr><td colSpan={6 + customColumns.length} className="so-empty">
+                        <tr><td colSpan={6 + customColumns.length} className="erp-empty so-empty">
                            <Loader2 size={28} className="so-spinner" style={{ margin: '0 auto 0.5rem' }} />
                            <div style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase' }}>Loading prices...</div>
                         </td></tr>
                      ) : prices.length === 0 ? (
-                        <tr><td colSpan={6 + customColumns.length} className="so-empty">
+                        <tr><td colSpan={6 + customColumns.length} className="erp-empty so-empty">
                            <Calculator size={36} style={{ margin: '0 auto 0.75rem', color: '#e2e8f0' }} />
                            <div style={{ fontWeight: 700, fontSize: '1rem', color: '#1e293b' }}>No price records found</div>
                            <div style={{ fontSize: '0.8rem', color: '#94a3b8', marginTop: '0.3rem' }}>
@@ -770,13 +771,13 @@ function ItemPriceList() {
 
          {/* ═══ Edit / New Modal ═══════════════════════════ */}
          {showForm && (
-            <div className="so-modal-overlay">
+            <div className="erp-overlay so-modal-overlay">
                <div className="so-modal" style={{ maxWidth: '580px', borderRadius: '1rem' }}>
-                  <div className="so-modal-header">
+                  <div className="erp-dialog-edge so-modal-header">
                      <h3 className="so-modal-title">{isEditMode ? 'Edit Price Record' : 'New Price Record'}</h3>
                      <button onClick={() => setShowForm(false)} className="so-modal-close"><X size={20} /></button>
                   </div>
-                  <div className="so-modal-body" style={{ gap: '1.25rem', padding: '1.75rem' }}>
+                  <div className="erp-dialog-body so-modal-body" style={{ gap: '1.25rem', padding: '1.75rem' }}>
 
                      {/* Item selector */}
                      <div className="so-field">
@@ -874,9 +875,9 @@ function ItemPriceList() {
                      </div>
                   </div>
 
-                  <div className="so-modal-footer">
-                     <button onClick={() => setShowForm(false)} className="so-btn-secondary" style={{ padding: '0 1.5rem', height: '2.5rem' }}>Cancel</button>
-                     <button onClick={handleSave} className="so-btn-primary" style={{ padding: '0 1.5rem', height: '2.5rem', background: themeColor }} disabled={saving}>
+                  <div className="erp-dialog-edge so-modal-footer">
+                     <button onClick={() => setShowForm(false)} className="erp-button erp-button-secondary so-btn-secondary" style={{ padding: '0 1.5rem', height: '2.5rem' }}>Cancel</button>
+                     <button onClick={handleSave} className="erp-button erp-button-primary so-btn-primary" style={{ padding: '0 1.5rem', height: '2.5rem', background: themeColor }} disabled={saving}>
                         {saving ? 'Saving...' : 'Save Price'}
                      </button>
                   </div>

@@ -1,3 +1,4 @@
+import PageHeader from '../UI/PageHeader';
 import React, { useState, useEffect, useMemo } from 'react';
 import { useSelector } from 'react-redux';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -241,9 +242,9 @@ function PurchaseOrderLists() {
 
   return (
     <>
-      <div className="so-page">
+      <div className="erp-page so-page">
         {/* Page Header */}
-        <div className="so-page-header" style={{ background: '#fff', padding: '0.85rem 2rem 1.25rem 2rem', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <PageHeader className="so-page-header" style={{ background: '#fff', padding: '0.85rem 2rem 1.25rem 2rem', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
             <h1 className="so-page-title" style={{ display: 'flex', alignItems: 'center', gap: '10px', margin: 0 }}>
               <Package size={22} style={{ color: themeColor || '#0082f6' }} strokeWidth={2.5} />
@@ -345,12 +346,12 @@ function PurchaseOrderLists() {
               <span>ADD PURCHASE ORDER</span>
             </button>
           </div>
-        </div>
+        </PageHeader>
 
         <div className="so-layout" style={{ background: '#f8fafc', padding: '1.5rem 2rem' }}>
           {/* Top Filters Bar */}
           {showFilters && (
-            <div className="so-filter-bar animate-in fade-in duration-200" style={{
+            <div className="erp-filter-bar so-filter-bar animate-in fade-in duration-200" style={{
               background: '#f8fafc',
               padding: '0 0 1.25rem 0',
               borderBottom: 'none',
@@ -446,9 +447,9 @@ function PurchaseOrderLists() {
 
           <div className="so-content" style={{ padding: 0 }}>
             <p className="so-list-meta" style={{ marginBottom: '0.75rem', fontWeight: 600, color: '#64748b', fontSize: '13px' }}>{total} record(s) found</p>
-            <div className="so-table-card" style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)' }}>
-            <div className="so-table-wrapper">
-              <table className="so-table">
+            <div className="erp-table-card so-table-card" style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)' }}>
+            <div className="erp-table-scroll so-table-wrapper">
+              <table className="erp-table so-table">
                 <thead>
                   <tr>
                     {!hiddenDefaults.includes('name') && (
@@ -541,13 +542,13 @@ function PurchaseOrderLists() {
                 <tbody>
                   {loading ? (
                     <tr>
-                      <td colSpan={DEFAULT_PO_LIST_COLUMNS.length - hiddenDefaults.length + customColumns.length + 1} className="so-empty">
+                      <td colSpan={DEFAULT_PO_LIST_COLUMNS.length - hiddenDefaults.length + customColumns.length + 1} className="erp-empty so-empty">
                         <Loader2 size={28} className="so-spinner" style={{ margin: '0 auto' }} />
                       </td>
                     </tr>
                   ) : paginated.length === 0 ? (
                     <tr>
-                      <td colSpan={DEFAULT_PO_LIST_COLUMNS.length - hiddenDefaults.length + customColumns.length + 1} className="so-empty">
+                      <td colSpan={DEFAULT_PO_LIST_COLUMNS.length - hiddenDefaults.length + customColumns.length + 1} className="erp-empty so-empty">
                         <Package size={36} style={{ margin: '0 auto 0.75rem', color: '#cbd5e1' }} />
                         No purchase orders found
                       </td>
@@ -719,7 +720,7 @@ function PurchaseOrderLists() {
             </div>
 
             {!loading && total > 0 && (
-              <div className="so-pagination" style={{ padding: '1rem 1.25rem', borderTop: '1px solid var(--so-border)', marginTop: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div className="erp-pagination so-pagination" style={{ padding: '1rem 1.25rem', borderTop: '1px solid var(--so-border)', marginTop: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <span style={{ color: 'var(--so-text-muted)', fontSize: '0.75rem' }}>
                   Showing {Math.min((currentPage - 1) * pageSize + 1, total)}–{Math.min(currentPage * pageSize, total)} of {total}
                 </span>

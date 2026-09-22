@@ -1,3 +1,4 @@
+import PageHeader from '../UI/PageHeader';
 import React, { useState, useEffect, useRef } from 'react';
 import { 
     Plus, Calendar, User, Search, 
@@ -225,9 +226,9 @@ function PosClosingEntryList() {
   const endCount = Math.min(currentPage * pageSize, total);
 
   return (
-    <div className="cel-page-wrapper">
+    <div className="erp-page cel-page-wrapper">
       {/* 1. TOP HEADER BAR */}
-      <div className="cel-top-header">
+      <PageHeader className="cel-top-header">
         <div>
           <h1 className="cel-header-title">
             <Receipt size={22} style={{ color: themeColor }} />
@@ -248,19 +249,19 @@ function PosClosingEntryList() {
           </button>
 
           <button 
-            className="cel-btn-primary" 
+            className="erp-button erp-button-primary cel-btn-primary"
             onClick={() => navigate('/closingentry')}
             style={{ backgroundColor: themeColor }}
           >
             <Plus size={16} /> NEW CLOSING ENTRY
           </button>
         </div>
-      </div>
+      </PageHeader>
 
       {/* 2. MAIN CONTENT AREA */}
-      <div className="cel-container">
+      <div className="erp-page cel-container">
         {/* TOP FILTERS ROW (POS Profile removed as requested) */}
-        <div className="cel-filters-card">
+        <div className="erp-filter-bar cel-filters-card">
           <div className="cel-filters-row">
             
             {/* FROM DATE */}
@@ -335,9 +336,9 @@ function PosClosingEntryList() {
         </div>
 
         {/* MAIN TABLE CARD */}
-        <div className="cel-table-card">
-          <div className="cel-table-wrapper">
-            <table className="cel-table">
+        <div className="erp-table-card cel-table-card">
+          <div className="erp-table-scroll cel-table-wrapper">
+            <table className="erp-table cel-table">
               <thead>
                 <tr>
                   <th style={{ width: '40px', textAlign: 'center' }}>
@@ -362,14 +363,14 @@ function PosClosingEntryList() {
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan="9" className="cel-empty-state">
+                    <td colSpan="9" className="erp-empty cel-empty-state">
                       <Loader2 size={24} className="animate-spin" style={{ margin: '0 auto', color: themeColor }} />
                       <p style={{ marginTop: '0.5rem', fontWeight: 500 }}>Loading closing entries...</p>
                     </td>
                   </tr>
                 ) : closings.length === 0 ? (
                   <tr>
-                    <td colSpan="9" className="cel-empty-state">
+                    <td colSpan="9" className="erp-empty cel-empty-state">
                       No closing entries match your filter criteria.
                     </td>
                   </tr>
@@ -495,7 +496,7 @@ function PosClosingEntryList() {
         </div>
 
         {/* PAGINATION */}
-        <div className="cel-pagination-container">
+        <div className="erp-pagination cel-pagination-container">
           <div className="cel-pagination-list">
             <button
               className="cel-page-btn"

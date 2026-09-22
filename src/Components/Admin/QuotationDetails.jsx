@@ -938,9 +938,9 @@ export default function QuotationDetails() {
           </div>
 
           {/* Center Table Area (Only this scrolls) */}
-          <div className="flex-1 min-h-0 overflow-y-auto overflow-x-auto">
+          <div className="erp-scroll-region flex-1 min-h-0 overflow-y-auto overflow-x-auto">
             <table
-              className="classic-table"
+              className="erp-table classic-table"
               style={{ width: 'max-content', minWidth: '100%', borderCollapse: 'collapse', background: '#ffffff', tableLayout: 'fixed' }}
             >
               <thead>

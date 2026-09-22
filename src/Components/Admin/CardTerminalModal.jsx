@@ -116,8 +116,8 @@ export default function CardTerminalModal({
   if (!isOpen) return null;
 
   return (
-    <div className="card-terminal-modal-overlay">
-      <div className="card-terminal-modal-content">
+    <div className="erp-overlay card-terminal-modal-overlay">
+      <div className="erp-dialog card-terminal-modal-content">
         <div className="card-terminal-header">
           <h3>💳 Credit Card Terminal Payment</h3>
           <button className="close-btn" onClick={onClose}>×</button>

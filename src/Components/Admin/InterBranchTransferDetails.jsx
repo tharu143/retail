@@ -174,8 +174,8 @@ const AcceptTransferModal = ({ isOpen, onClose, items, sourceWarehouse, onConfir
                         <div className="space-y-6">
                             {/* Items Table Card */}
                             <div className="bg-white rounded-2xl border border-slate-100 shadow-xs overflow-hidden">
-                                <div className="overflow-x-auto">
-                                    <table className="w-full text-left border-collapse">
+                                <div className="erp-scroll-region overflow-x-auto">
+                                    <table className="erp-table w-full text-left border-collapse">
                                         <thead>
                                             <tr className="border-b border-slate-150 bg-slate-50/75">
                                                 <th className="px-4 py-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider text-center" style={{ width: '50px' }}>#</th>
@@ -412,9 +412,9 @@ const BranchAvailabilityModal = ({ isOpen, onClose, itemCode, itemName, currentW
     if (!isOpen) return null;
 
     return (
-        <div className="ibt-modal-overlay">
+        <div className="erp-overlay ibt-modal-overlay">
             <div className="ibt-modal-box">
-                <div className="ibt-modal-header">
+                <div className="erp-dialog-edge ibt-modal-header">
                     <div>
                         <h2 className="ibt-modal-title">Available Nearby</h2>
                         <p className="ibt-modal-subtitle">
@@ -426,7 +426,7 @@ const BranchAvailabilityModal = ({ isOpen, onClose, itemCode, itemName, currentW
                     </button>
                 </div>
 
-                <div className="ibt-modal-body">
+                <div className="erp-dialog-body ibt-modal-body">
                     {loading ? (
                         <div style={{ padding: '3rem 1rem', textAlign: 'center', color: 'var(--ibt-text-muted)' }}>
                             <Loader2 className="animate-spin" size={28} style={{ margin: '0 auto 0.75rem auto', color: 'var(--ibt-primary)' }} />
@@ -451,7 +451,7 @@ const BranchAvailabilityModal = ({ isOpen, onClose, itemCode, itemName, currentW
                                             onSelectBranch(b.warehouse, b.qty, b.price);
                                             onClose();
                                         }}
-                                        className="ibt-btn ibt-btn-primary"
+                                        className="erp-button erp-button-primary ibt-btn ibt-btn-primary"
                                         style={{ height: '2rem', padding: '0 0.85rem', fontSize: '0.75rem' }}
                                     >
                                         Select
@@ -467,7 +467,7 @@ const BranchAvailabilityModal = ({ isOpen, onClose, itemCode, itemName, currentW
                     )}
                 </div>
 
-                <div className="ibt-modal-footer">
+                <div className="erp-dialog-edge ibt-modal-footer">
                     <p className="ibt-modal-footer-text">
                         Select a branch to set as source warehouse
                     </p>
@@ -1283,7 +1283,7 @@ function InterBranchTransferDetails() {
                     {!isNew && (
                         <button
                             onClick={handleDuplicate}
-                            className="ibt-btn ibt-btn-secondary"
+                            className="erp-button erp-button-secondary ibt-btn ibt-btn-secondary"
                         >
                             <Copy size={13} /> Duplicate
                         </button>
@@ -1304,7 +1304,7 @@ function InterBranchTransferDetails() {
                     {!isNew && doc.docstatus === 0 && isViewOnly && (
                         <button
                             onClick={() => setIsViewOnly(false)}
-                            className="ibt-btn ibt-btn-secondary"
+                            className="erp-button erp-button-secondary ibt-btn ibt-btn-secondary"
                         >
                             <Edit3 size={13} /> Edit Request
                         </button>
@@ -1316,7 +1316,7 @@ function InterBranchTransferDetails() {
                             <button
                                 onClick={handleSaveDraft}
                                 disabled={saving}
-                                className="ibt-btn ibt-btn-secondary"
+                                className="erp-button erp-button-secondary ibt-btn ibt-btn-secondary"
                             >
                                 {saving ? <Loader2 className="animate-spin" size={13} /> : <Save size={13} />}
                                 {isNew ? 'Save Draft' : 'Save Changes'}
@@ -1326,7 +1326,7 @@ function InterBranchTransferDetails() {
                                 <button
                                     onClick={handleSubmitRequest}
                                     disabled={saving}
-                                    className="ibt-btn ibt-btn-primary"
+                                    className="erp-button erp-button-primary ibt-btn ibt-btn-primary"
                                 >
                                     <CheckCircle2 size={13} /> Submit Request
                                 </button>
@@ -1349,7 +1349,7 @@ function InterBranchTransferDetails() {
                                     <button
                                         onClick={() => handleDecision('accept')}
                                         disabled={decisionLoading}
-                                        className="ibt-btn ibt-btn-primary"
+                                        className="erp-button erp-button-primary ibt-btn ibt-btn-primary"
                                     >
                                         <CheckCircle2 size={13} /> Accept & Transfer
                                     </button>
@@ -1374,7 +1374,7 @@ function InterBranchTransferDetails() {
                                 <button
                                     onClick={handleAcceptStock}
                                     disabled={acceptingStock}
-                                    className="ibt-btn ibt-btn-primary"
+                                    className="erp-button erp-button-primary ibt-btn ibt-btn-primary"
                                 >
                                     {acceptingStock ? <Loader2 className="animate-spin" size={13} /> : <CheckCircle2 size={13} />}
                                     Received
@@ -1395,7 +1395,7 @@ function InterBranchTransferDetails() {
                     {!isNew && doc.custom_stock_entry && (
                         <button
                             onClick={() => navigate(`/stock-entry/${doc.custom_stock_entry}`)}
-                            className="ibt-btn ibt-btn-secondary"
+                            className="erp-button erp-button-secondary ibt-btn ibt-btn-secondary"
                         >
                             <FileText size={13} /> View Stock Entry: {doc.custom_stock_entry}
                         </button>
@@ -1404,7 +1404,7 @@ function InterBranchTransferDetails() {
                     {!isNew && (doc.status === 'Dispatched' || doc.status === 'Transferred') && doc.set_warehouse === currentWarehouse && (
                         <button
                             onClick={() => setShowDispatchPrices(true)}
-                            className="ibt-btn ibt-btn-secondary"
+                            className="erp-button erp-button-secondary ibt-btn ibt-btn-secondary"
                         >
                             <Info size={13} /> View Dispatch Prices
                         </button>
@@ -1543,7 +1543,7 @@ function InterBranchTransferDetails() {
                         {(isNew || (doc.docstatus === 0 && !isViewOnly)) && (
                             <button
                                 onClick={handleAddItemRow}
-                                className="ibt-btn ibt-btn-secondary"
+                                className="erp-button erp-button-secondary ibt-btn ibt-btn-secondary"
                                 style={{ height: '2rem', padding: '0 0.75rem', fontSize: '0.75rem' }}
                             >
                                 <Plus size={13} /> Add Product
@@ -1552,7 +1552,7 @@ function InterBranchTransferDetails() {
                     </div>
 
                     <div className="ibt-table-wrap">
-                        <table className="ibt-items-table">
+                        <table className="erp-table ibt-items-table">
                             <thead>
                                 <tr>
                                     <th>Product Details</th>
@@ -1685,7 +1685,7 @@ function InterBranchTransferDetails() {
                             <button
                                 onClick={handleUpdateSellingPrices}
                                 disabled={updatingPrices}
-                                className="ibt-btn ibt-btn-primary"
+                                className="erp-button erp-button-primary ibt-btn ibt-btn-primary"
                             >
                                 {updatingPrices ? <Loader2 className="animate-spin" size={14} /> : <CheckCircle2 size={14} />}
                                 Update Price List

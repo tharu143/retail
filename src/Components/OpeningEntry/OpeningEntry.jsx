@@ -525,10 +525,10 @@ function OpeningEntry({ company: propCompany, posProfile: propPosProfile, user: 
                     </div>
 
                     <div className="pos-ope-header-right">
-                        <button className="pos-ope-btn-secondary" onClick={() => window.print()}>
+                        <button className="erp-button erp-button-secondary pos-ope-btn-secondary" onClick={() => window.print()}>
                             <Printer size={14} /> Print
                         </button>
-                        <button className="pos-ope-btn-secondary" onClick={() => navigate('/posopeningentrylist')}>
+                        <button className="erp-button erp-button-secondary pos-ope-btn-secondary" onClick={() => navigate('/posopeningentrylist')}>
                             <ArrowLeft size={14} /> Back to List
                         </button>
                     </div>
@@ -608,8 +608,8 @@ function OpeningEntry({ company: propCompany, posProfile: propPosProfile, user: 
                                 </div>
                             </div>
                             <div className="pos-ope-card-body">
-                                <div className="pos-ope-table-container">
-                                    <table className="pos-ope-table">
+                                <div className="erp-table-scroll pos-ope-table-container">
+                                    <table className="erp-table pos-ope-table">
                                         <thead>
                                             <tr>
                                                 <th>MODE OF PAYMENT</th>

@@ -298,7 +298,7 @@ export default function SupplierFormModal({
   const formContent = (
     <div className={containerClass}>
       {/* 1. Modal Top Header */}
-      <div className="bg-white border-b border-slate-200/80 px-7 py-4 shrink-0">
+      <div className="erp-form-heading bg-white border-b border-slate-200/80 px-7 py-4 shrink-0">
         <div className="max-w-[1600px] w-full mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center border border-slate-200/80 shrink-0">
@@ -325,7 +325,7 @@ export default function SupplierFormModal({
               type="button"
               onClick={handleSave}
               disabled={saving}
-              className="supplier-save-btn flex items-center gap-2 px-5 py-2 bg-[#0082f6] hover:bg-[#0070f3] text-white rounded-full text-[13px] font-semibold shadow-xs transition-all cursor-pointer"
+              className="erp-button erp-button-primary supplier-save-btn flex items-center gap-2 px-5 py-2 bg-[#0082f6] hover:bg-[#0070f3] text-white rounded-full text-[13px] font-semibold shadow-xs transition-all cursor-pointer"
               style={{ borderRadius: '9999px' }}
             >
               {saving ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
@@ -336,7 +336,7 @@ export default function SupplierFormModal({
       </div>
 
       {/* 2. Interactive Stepper Bar */}
-      <div className="stepper-bar-container overflow-x-auto shrink-0">
+      <div className="erp-scroll-region stepper-bar-container overflow-x-auto shrink-0">
         <div className="max-w-[1600px] w-full mx-auto flex items-center gap-3 min-w-max">
           {tabs.map((tab, idx) => {
             const isActive = activeTab === tab.id;
@@ -369,7 +369,7 @@ export default function SupplierFormModal({
       </div>
 
       {/* 3. Main Two-Column Content Area */}
-      <div className="p-6 sm:p-7 bg-[#f1f5f9] flex-1 overflow-y-auto">
+      <div className="erp-form-workspace p-6 sm:p-7 bg-[#f1f5f9] flex-1 overflow-y-auto">
         <div className="max-w-[1600px] w-full mx-auto flex flex-col lg:flex-row gap-7 items-start">
 
           {/* Left Column: Form Cards for Active Tab */}
@@ -929,7 +929,7 @@ export default function SupplierFormModal({
 
           {/* Right Column: Live Summary Sidebar */}
           <div className="w-full lg:w-[360px] xl:w-[380px] shrink-0">
-            <div className="live-summary-card">
+            <div className="erp-card live-summary-card">
               <div className="flex items-center justify-between pb-3 mb-3 border-b border-slate-100">
                 <div className="flex items-center gap-2">
                   <Sparkles size={16} className="text-sky-600" />

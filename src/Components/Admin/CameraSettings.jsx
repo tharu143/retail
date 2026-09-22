@@ -196,7 +196,7 @@ const CameraSettings = () => {
             <p className="text-xs text-slate-300 mb-3 font-medium">
               Run this 1-line Python command on your Shop POS Computer connected to the <strong>192.168.29.1</strong> Wi-Fi network to stream live camera photos directly to ERPNext:
             </p>
-            <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 font-mono text-[11px] text-emerald-300 overflow-x-auto select-all">
+            <div className="erp-scroll-region bg-slate-950 p-3 rounded-xl border border-slate-800 font-mono text-[11px] text-emerald-300 overflow-x-auto select-all">
               curl -s http://75.119.130.59:8089/files/pos_local_camera_agent.py | python3
             </div>
           </div>

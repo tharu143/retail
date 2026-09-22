@@ -269,9 +269,9 @@ export default function CreateMultipleVariantsModal({ isOpen, onClose, onVariant
   }, (templateDetails?.attributes || []).length > 0 ? 1 : 0);
 
   return (
-    <div className="variant-modal-overlay" style={{ background: 'rgba(15, 23, 42, 0.75)', zIndex: 10000 }}>
+    <div className="erp-overlay variant-modal-overlay" style={{ background: 'rgba(15, 23, 42, 0.75)', zIndex: 10000 }}>
       <div 
-        className="variant-modal-content" 
+        className="erp-dialog variant-modal-content"
         style={{ 
           maxWidth: '920px', 
           width: '95vw', 

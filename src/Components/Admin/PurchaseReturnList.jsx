@@ -1,3 +1,4 @@
+import PageHeader from '../UI/PageHeader';
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useSelector } from 'react-redux';
 import {
@@ -1141,8 +1142,8 @@ function PurchaseReturnList() {
 
       {/* ────────────────────── LIST VIEW ────────────────────── */}
       {view === 'list' && (
-        <div className="so-page animate-in fade-in duration-300">
-          <div className="so-page-header">
+        <div className="erp-page so-page animate-in fade-in duration-300">
+          <PageHeader className="so-page-header">
             <div>
               <h1 className="so-page-title">
                 <RotateCw size={20} style={{ color: themeColor }} />
@@ -1152,7 +1153,7 @@ function PurchaseReturnList() {
             </div>
             <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
               <button
-                className="so-btn-primary"
+                className="erp-button erp-button-primary so-btn-primary"
                 onClick={() => setView('create')}
                 style={{
                   display: 'inline-flex',
@@ -1174,7 +1175,7 @@ function PurchaseReturnList() {
                 <Plus size={16} /> Initiate Debit Note
               </button>
             </div>
-          </div>
+          </PageHeader>
 
           <div className="so-content" style={{ background: '#751010', padding: '1.25rem', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.3)' }}>
             <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-end', marginBottom: '1.25rem', flexWrap: 'wrap' }}>
@@ -1239,9 +1240,9 @@ function PurchaseReturnList() {
               </div>
             </div>
 
-            <div className="so-table-card">
-              <div className="so-table-wrapper">
-                <table className="so-table">
+            <div className="erp-table-card so-table-card">
+              <div className="erp-table-scroll so-table-wrapper">
+                <table className="erp-table so-table">
                   <thead>
                     <tr>
                       {!hiddenDefaults.includes('supplier_name') && (
@@ -1422,7 +1423,7 @@ function PurchaseReturnList() {
 
               {/* Pagination Section */}
               {totalPages > 1 && (
-                <div className="so-pagination" style={{ padding: '1rem 1.5rem', borderTop: '1px solid var(--so-border)' }}>
+                <div className="erp-pagination so-pagination" style={{ padding: '1rem 1.5rem', borderTop: '1px solid var(--so-border)' }}>
                   <span>
                     Showing {Math.min(filtered.length, (currentPage - 1) * pageSize + 1)} to {Math.min(filtered.length, currentPage * pageSize)} of {filtered.length} entries
                   </span>
@@ -1460,11 +1461,11 @@ function PurchaseReturnList() {
 
       {/* ────────────────────── CREATE VIEW (WORKSPACE) ────────────────────── */}
       {view === 'create' && (
-        <div className="so-page animate-in fade-in duration-300">
+        <div className="erp-page so-page animate-in fade-in duration-300">
           {/* Header & Filter Controls */}
-          <div className="so-page-header">
+          <PageHeader className="so-page-header">
             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-              <button onClick={() => setView('list')} className="so-btn-secondary" style={{ padding: '0.5rem', minWidth: 'auto' }}>
+              <button onClick={() => setView('list')} className="erp-button erp-button-secondary so-btn-secondary" style={{ padding: '0.5rem', minWidth: 'auto' }}>
                 <ArrowLeft size={18} />
               </button>
               <div className="flex flex-col text-left">
@@ -1473,23 +1474,23 @@ function PurchaseReturnList() {
               </div>
             </div>
             <div style={{ display: 'flex', gap: '0.75rem' }}>
-              <button onClick={clearFilters} className="so-btn-secondary">
+              <button onClick={clearFilters} className="erp-button erp-button-secondary so-btn-secondary">
                 Clear Filters (F5)
               </button>
               <button
                 onClick={() => handleSaveReturn(false)}
                 disabled={saving || returnQueue.length === 0}
-                className="so-btn-primary"
+                className="erp-button erp-button-primary so-btn-primary"
                 style={{ background: themeColor, borderColor: themeColor }}
               >
                 {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />} Save Draft (F7)
               </button>
             </div>
-          </div>
+          </PageHeader>
 
           <div className="so-content">
             {/* Filters grid */}
-            <div className="so-card mb-6">
+            <div className="erp-card so-card mb-6">
               <div className="so-card-body">
                 <div className="so-form-grid-4">
                   <div className="so-field">
@@ -1556,7 +1557,7 @@ function PurchaseReturnList() {
             {/* Workspace Area */}
             <div className="w-full">
               {returnQueue.length === 0 ? (
-                <div className="so-card" style={{ height: '350px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '3rem', textAlign: 'center' }}>
+                <div className="erp-card so-card" style={{ height: '350px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '3rem', textAlign: 'center' }}>
                   <Receipt size={48} className="text-slate-300 mb-4 animate-bounce" />
                   <h2 className="text-base font-black text-slate-800 mb-1">Return Queue Empty</h2>
                   <p className="text-xs font-medium text-slate-400 max-w-sm mb-4">Search/select items or click "Show All Supplier Items" above to add return items to your queue.</p>
@@ -1572,8 +1573,8 @@ function PurchaseReturnList() {
               ) : (
                 <div className="flex flex-col gap-6">
                   {/* Return Queue Summary Basket */}
-                  <div className="so-table-card animate-in fade-in duration-300">
-                    <div className="so-card-header" style={{ padding: '0.75rem 1.25rem' }}>
+                  <div className="erp-table-card so-table-card animate-in fade-in duration-300">
+                    <div className="erp-section-header so-card-header" style={{ padding: '0.75rem 1.25rem' }}>
                       <h5 className="so-card-title">Return Items Queue ({returnQueue.length})</h5>
                       <button
                         onClick={() => { setReturnQueue([]); setReturnSelection({}); }}
@@ -1582,8 +1583,8 @@ function PurchaseReturnList() {
                         Clear Queue
                       </button>
                     </div>
-                    <div className="so-table-wrapper">
-                      <table className="so-table">
+                    <div className="erp-table-scroll so-table-wrapper">
+                      <table className="erp-table so-table">
                         <thead>
                           <tr>
                             <th>Invoice</th>
@@ -1654,8 +1655,8 @@ function PurchaseReturnList() {
 
                   {/* Financial vector totals summary */}
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
-                    <div className="so-card">
-                      <div className="so-card-header">
+                    <div className="erp-card so-card">
+                      <div className="erp-section-header so-card-header">
                         <h5 className="so-card-title">Fiscal Tax Reversals</h5>
                       </div>
                       <div className="so-card-body" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
@@ -1679,8 +1680,8 @@ function PurchaseReturnList() {
                       </div>
                     </div>
 
-                    <div className="so-card" style={{ background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)', color: '#ffffff', borderColor: '#334155', boxShadow: '0 8px 24px rgba(15, 23, 42, 0.15)' }}>
-                      <div className="so-card-header" style={{ borderColor: '#334155' }}>
+                    <div className="erp-card so-card" style={{ background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)', color: '#ffffff', borderColor: '#334155', boxShadow: '0 8px 24px rgba(15, 23, 42, 0.15)' }}>
+                      <div className="erp-section-header so-card-header" style={{ borderColor: '#334155' }}>
                         <h5 className="so-card-title" style={{ color: '#f43f5e', fontWeight: 900 }}>Debit Impact Summary</h5>
                       </div>
                       <div className="so-card-body" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
@@ -1749,7 +1750,7 @@ function PurchaseReturnList() {
                     </div>
                   ) : (
                     <div className="p-4">
-                      <table className="w-full text-left border-collapse bg-white rounded-xl overflow-hidden shadow-sm border border-slate-100">
+                      <table className="erp-table w-full text-left border-collapse bg-white rounded-xl overflow-hidden shadow-sm border border-slate-100">
                         <thead className="bg-slate-50">
                           <tr>
                             <th className="w-12 py-3 px-4 border-b border-slate-100 text-center">
@@ -1899,9 +1900,9 @@ function PurchaseReturnList() {
 
       {/* ────────────────────── DETAIL VIEW (SUBMITTED / DRAFT DETAILS) ────────────────────── */}
       {view === 'detail' && selectedReturnDoc && (
-        <div className="so-page so-detail-page animate-in fade-in duration-500">
+        <div className="erp-page so-page so-detail-page animate-in fade-in duration-500">
           {/* 1. Page Header */}
-          <div className="so-page-header">
+          <PageHeader className="so-page-header">
             <div>
               <h1 className="so-page-title">
                 <RotateCw size={20} />
@@ -1926,14 +1927,14 @@ function PurchaseReturnList() {
                   <button
                     onClick={() => handleDocumentAction('save')}
                     disabled={saving}
-                    className="so-btn-secondary"
+                    className="erp-button erp-button-secondary so-btn-secondary"
                   >
                     {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />} Sync Draft
                   </button>
                   <button
                     onClick={() => handleDocumentAction('submit')}
                     disabled={saving}
-                    className="so-btn-primary"
+                    className="erp-button erp-button-primary so-btn-primary"
                     style={{ background: themeColor, borderColor: themeColor }}
                   >
                     {saving ? <Loader2 size={16} className="animate-spin" /> : <ShieldCheck size={16} />} Finalize Debit
@@ -1960,13 +1961,13 @@ function PurchaseReturnList() {
 
               <button
                 onClick={() => setView('list')}
-                className="so-btn-secondary"
+                className="erp-button erp-button-secondary so-btn-secondary"
                 style={{ color: '#475569' }}
               >
                 Back
               </button>
             </div>
-          </div>
+          </PageHeader>
 
           {/* 2. Main Page Layout */}
           <div className="so-layout">
@@ -2013,8 +2014,8 @@ function PurchaseReturnList() {
 
               {/* Main Detail Grid */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
-                <div className="so-card">
-                  <div className="so-card-header">
+                <div className="erp-card so-card">
+                  <div className="erp-section-header so-card-header">
                     <h5 className="so-card-title">Debit Properties</h5>
                   </div>
                   <div className="so-card-body" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
@@ -2033,8 +2034,8 @@ function PurchaseReturnList() {
                   </div>
                 </div>
 
-                <div className="so-card">
-                  <div className="so-card-header">
+                <div className="erp-card so-card">
+                  <div className="erp-section-header so-card-header">
                     <h5 className="so-card-title">Debit Summary Impact</h5>
                   </div>
                   <div className="so-card-body" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
@@ -2064,15 +2065,15 @@ function PurchaseReturnList() {
               </div>
 
               {/* Items Table Presentation */}
-              <div className="so-table-card">
-                <div className="so-card-header" style={{ padding: '0.75rem 1.25rem' }}>
+              <div className="erp-table-card so-table-card">
+                <div className="erp-section-header so-card-header" style={{ padding: '0.75rem 1.25rem' }}>
                   <h5 className="so-card-title">Debit Item Matrix</h5>
                   <span style={{ fontSize: '0.65rem', fontWeight: 600, color: '#94a3b8' }}>
                     {selectedReturnDoc.items ? selectedReturnDoc.items.length : 0} ACTIVE ITEMS
                   </span>
                 </div>
-                <div className="so-table-wrapper" style={{ maxHeight: 'none' }}>
-                  <table className="so-table">
+                <div className="erp-table-scroll so-table-wrapper" style={{ maxHeight: 'none' }}>
+                  <table className="erp-table so-table">
                     <thead>
                       <tr>
                         <th>Asset Specification</th>

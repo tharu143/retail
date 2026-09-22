@@ -1,3 +1,4 @@
+import PageHeader from '../UI/PageHeader';
 // src/Components/Admin/SalesOrder.jsx
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
@@ -1018,10 +1019,10 @@ function SalesOrder() {
   /* ================================================================ */
   return (
     <>
-      <div className="so-page">
+      <div className="erp-page so-page">
 
         {/* ---- Page Header ---- */}
-        <div className="so-page-header">
+        <PageHeader className="so-page-header">
           <div>
             <h1 className="so-page-title">
               <Package size={20} />
@@ -1051,15 +1052,15 @@ function SalesOrder() {
               <Palette size={13} />
               {soTheme.toUpperCase()}
             </button>
-            <button className="so-btn-primary" onClick={openNew}>
+            <button className="erp-button erp-button-primary so-btn-primary" onClick={openNew}>
               <Plus size={16} /> New Sales Order
             </button>
           </div>
-        </div>
+        </PageHeader>
 
         <div className="so-layout">
           {/* ---- Horizontal Filter Bar ---- */}
-          <div className="so-filter-bar">
+          <div className="erp-filter-bar so-filter-bar">
             <div style={{ flex: '1 1 200px' }}>
               <label className="so-filter-label">Search Orders</label>
               <input
@@ -1109,8 +1110,8 @@ function SalesOrder() {
           {/* ---- Main Content ---- */}
           <div className="so-content">
             <p className="so-list-meta">{filteredOrders.length} record(s) found</p>
-            <div className="so-table-card">
-              <table className="so-table">
+            <div className="erp-table-card so-table-card">
+              <table className="erp-table so-table">
                 <thead>
                   <tr>
                     <th>Order ID</th>
@@ -1123,13 +1124,13 @@ function SalesOrder() {
                 <tbody>
                   {loading ? (
                     <tr>
-                      <td colSpan={5} className="so-empty">
+                      <td colSpan={5} className="erp-empty so-empty">
                         <Loader2 size={28} className="so-spinner" style={{ margin: '0 auto' }} />
                       </td>
                     </tr>
                   ) : filteredOrders.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="so-empty">No sales orders found</td>
+                      <td colSpan={5} className="erp-empty so-empty">No sales orders found</td>
                     </tr>
                   ) : (
                     filteredOrders.map(order => (
@@ -1162,7 +1163,7 @@ function SalesOrder() {
                 </tbody>
               </table>
             </div>
-            <div className="so-pagination">
+            <div className="erp-pagination so-pagination">
               <span>Showing {filteredOrders.length} of {orders.length} records</span>
               <div className="so-pagination-btns">
                 <button className="so-page-btn" disabled><ChevronLeft size={14} /></button>
@@ -1178,13 +1179,13 @@ function SalesOrder() {
         {/* ================================================================ */}
         {showModal && (
           <div
-            className="so-modal-overlay"
+            className="erp-overlay so-modal-overlay"
             onClick={e => e.target === e.currentTarget && closeModal()}
           >
             <div className="so-modal">
 
               {/* Modal Header */}
-              <div className="so-modal-header">
+              <div className="erp-dialog-edge so-modal-header">
                 <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                   <button onClick={closeModal} className="so-modal-close" style={{ background: '#f8fafc' }}>
                     <ChevronLeft size={20} />
@@ -1200,7 +1201,7 @@ function SalesOrder() {
                   {isViewMode && form.docstatus === 0 && (
                     <button
                       onClick={() => setIsViewMode(false)}
-                      className="so-btn-primary"
+                      className="erp-button erp-button-primary so-btn-primary"
                       style={{ padding: '0.4rem 1rem', fontSize: '0.75rem' }}
                     >
                       <Plus size={14} /> Edit Order
@@ -1216,13 +1217,13 @@ function SalesOrder() {
               </div>
 
               {/* Modal Body */}
-              <div className="so-modal-body">
+              <div className="erp-dialog-body so-modal-body">
                 {isViewMode ? (
                   <div style={{ maxWidth: '1100px', margin: '0 auto', width: '100%' }}>
 
                     {/* Dashboard Connections */}
-                    <div className="so-card" style={{ marginBottom: '2rem', border: `1px solid ${themeColor}30`, background: 'white' }}>
-                      <div className="so-card-header" style={{ borderBottom: '1px solid #f1f5f9' }}>
+                    <div className="erp-card so-card" style={{ marginBottom: '2rem', border: `1px solid ${themeColor}30`, background: 'white' }}>
+                      <div className="erp-section-header so-card-header" style={{ borderBottom: '1px solid #f1f5f9' }}>
                         <p className="so-card-title" style={{ fontSize: '0.7rem', color: themeColor, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Dashboard / Connections</p>
                       </div>
                       <div className="so-card-body">
@@ -1238,10 +1239,10 @@ function SalesOrder() {
                         </div>
                         {form.docstatus === 1 && (
                           <div style={{ display: 'flex', gap: '0.75rem', borderTop: '1px solid #f1f5f9', paddingTop: '1.25rem' }}>
-                            <button onClick={() => handleTransition('delivery_note')} disabled={loadingLinks} className="so-btn-primary" style={{ padding: '0.5rem 1.25rem', fontSize: '0.75rem' }}>
+                            <button onClick={() => handleTransition('delivery_note')} disabled={loadingLinks} className="erp-button erp-button-primary so-btn-primary" style={{ padding: '0.5rem 1.25rem', fontSize: '0.75rem' }}>
                               Create Delivery Note
                             </button>
-                            <button onClick={() => handleTransition('sales_invoice')} disabled={loadingLinks} className="so-btn-secondary" style={{ padding: '0.5rem 1.25rem', fontSize: '0.75rem' }}>
+                            <button onClick={() => handleTransition('sales_invoice')} disabled={loadingLinks} className="erp-button erp-button-secondary so-btn-secondary" style={{ padding: '0.5rem 1.25rem', fontSize: '0.75rem' }}>
                               Create Sales Invoice
                             </button>
                           </div>
@@ -1259,8 +1260,8 @@ function SalesOrder() {
 
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 350px', gap: '2rem' }}>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-                        <div className="so-card">
-                          <div className="so-card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div className="erp-card so-card">
+                          <div className="erp-section-header so-card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                               <p className="so-card-title">Order Summary</p>
                               <button
@@ -1274,8 +1275,8 @@ function SalesOrder() {
                             </div>
                           </div>
                           <div className="so-card-body">
-                            <div className="so-table-wrapper" style={{ maxHeight: 'none', border: '1px solid #f1f5f9' }}>
-                              <table className="so-table">
+                            <div className="erp-table-scroll so-table-wrapper" style={{ maxHeight: 'none', border: '1px solid #f1f5f9' }}>
+                              <table className="erp-table so-table">
                                 <thead>
                                   <tr>
                                     {(() => {
@@ -1412,8 +1413,8 @@ function SalesOrder() {
                         </div>
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-                        <div className="so-card">
-                          <div className="so-card-header"><p className="so-card-title">Order Info</p></div>
+                        <div className="erp-card so-card">
+                          <div className="erp-section-header so-card-header"><p className="so-card-title">Order Info</p></div>
                           <div className="so-card-body" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                               <span style={{ fontSize: '0.7rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase' }}>Date</span>
@@ -1454,8 +1455,8 @@ function SalesOrder() {
                   <div style={{ maxWidth: '1100px', margin: '0 auto', width: '100%' }}>
 
                     {form.docstatus === 1 && (
-                      <div className="so-card" style={{ border: `1.5px solid ${themeColor}`, background: themeLight }}>
-                        <div className="so-card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div className="erp-card so-card" style={{ border: `1.5px solid ${themeColor}`, background: themeLight }}>
+                        <div className="erp-section-header so-card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                           <span className="so-card-title" style={{ color: themeColor, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                             <Zap size={14} fill={themeColor} /> Transition & Quick Actions
                           </span>
@@ -1463,10 +1464,10 @@ function SalesOrder() {
                         </div>
                         <div className="so-card-body">
                           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '1rem' }}>
-                            <button className="so-btn-primary" onClick={() => handleTransition('delivery_note')} disabled={loadingLinks} style={{ height: '36px', fontSize: '0.75rem' }}>
+                            <button className="erp-button erp-button-primary so-btn-primary" onClick={() => handleTransition('delivery_note')} disabled={loadingLinks} style={{ height: '36px', fontSize: '0.75rem' }}>
                               Create Delivery Note
                             </button>
-                            <button className="so-btn-secondary" onClick={() => handleTransition('sales_invoice')} disabled={loadingLinks} style={{ height: '36px', fontSize: '0.75rem', background: '#fff' }}>
+                            <button className="erp-button erp-button-secondary so-btn-secondary" onClick={() => handleTransition('sales_invoice')} disabled={loadingLinks} style={{ height: '36px', fontSize: '0.75rem', background: '#fff' }}>
                               Create Sales Invoice
                             </button>
                           </div>
@@ -1491,8 +1492,8 @@ function SalesOrder() {
                     )}
 
                     {/* Core Details Card */}
-                    <div className="so-card">
-                      <div className="so-card-header">
+                    <div className="erp-card so-card">
+                      <div className="erp-section-header so-card-header">
                         <span className="so-card-title">Order Details</span>
                       </div>
                       <div className="so-card-body">
@@ -1580,8 +1581,8 @@ function SalesOrder() {
                       </button>
                     </div>
 
-                    <div className="so-card">
-                      <div className="so-card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div className="erp-card so-card">
+                      <div className="erp-section-header so-card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                           <span className="so-card-title">Product Items</span>
                           <button
@@ -1596,7 +1597,7 @@ function SalesOrder() {
                         <button className="so-btn-ghost" onClick={addItemRow}><Plus size={14} /> Add Item</button>
                       </div>
                       <div className="so-items-table-wrap">
-                        <table className="so-items-table">
+                        <table className="erp-table so-items-table">
                           <thead>
                             <tr>
                               {(() => {
@@ -1640,7 +1641,7 @@ function SalesOrder() {
                           <tbody>
                             {form.items.length === 0 ? (
                               <tr>
-                                <td colSpan={6} className="so-empty">No items yet — scan a barcode or click <strong>Add Item</strong></td>
+                                <td colSpan={6} className="erp-empty so-empty">No items yet — scan a barcode or click <strong>Add Item</strong></td>
                               </tr>
                             ) : (
                               form.items.map((item, i) => (
@@ -1924,8 +1925,8 @@ function SalesOrder() {
                     </div>
 
                     {/* Taxes Card */}
-                    <div className="so-card">
-                      <div className="so-card-header">
+                    <div className="erp-card so-card">
+                      <div className="erp-section-header so-card-header">
                         <span className="so-card-title">Taxes & Charges</span>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                           <select className="so-select"
@@ -1943,7 +1944,7 @@ function SalesOrder() {
                       </div>
                       {form.taxes.length > 0 && (
                         <div className="so-items-table-wrap">
-                          <table className="so-taxes-table">
+                          <table className="erp-table so-taxes-table">
                             <thead>
                               <tr>
                                 <th style={{ width: '5%' }}>Add</th>
@@ -2024,7 +2025,7 @@ function SalesOrder() {
               </div>
               {/* Modal Footer */}
               {!isViewMode && (
-                <div className="so-modal-footer">
+                <div className="erp-dialog-edge so-modal-footer">
                   <div style={{ display: 'flex', gap: '0.75rem' }}>
                     {editingDocName && form.docstatus === 0 && (
                       <button className="so-btn-danger" onClick={() => deleteOrder(editingDocName)}>
@@ -2033,14 +2034,14 @@ function SalesOrder() {
                     )}
                   </div>
                   <div style={{ display: 'flex', gap: '0.75rem' }}>
-                    <button className="so-btn-secondary" onClick={closeModal}>Cancel</button>
+                    <button className="erp-button erp-button-secondary so-btn-secondary" onClick={closeModal}>Cancel</button>
                     {form.docstatus !== 1 && (
-                      <button className="so-btn-primary" onClick={() => handleSave(false)} disabled={saving || isSubmitting}>
+                      <button className="erp-button erp-button-primary so-btn-primary" onClick={() => handleSave(false)} disabled={saving || isSubmitting}>
                         {saving ? <><Loader2 size={14} className="so-spinner" /> Saving...</> : 'Save Draft'}
                       </button>
                     )}
                     {form.docstatus !== 1 && (
-                      <button className="so-btn-primary" onClick={() => handleSave(true)} disabled={saving || isSubmitting} style={{ background: themeColor }}>
+                      <button className="erp-button erp-button-primary so-btn-primary" onClick={() => handleSave(true)} disabled={saving || isSubmitting} style={{ background: themeColor }}>
                         {isSubmitting ? <><Loader2 size={14} className="so-spinner" /> Submitting...</> : 'Submit'}
                       </button>
                     )}

@@ -1,3 +1,4 @@
+import PageHeader from '../UI/PageHeader';
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import axios from 'axios';
@@ -2224,14 +2225,14 @@ const SalesInvoiceList = () => {
   return (
     <>
       {!showModal && (
-        <div className="so-page">
+        <div className="erp-page so-page">
         {/* Page Header */}
         <div className="so-page-header-container">
           <div className="so-page-tabs">
             <span className="so-page-tab active">Sales Invoice</span>
             <span className="so-page-tab" onClick={() => navigate('/salesreport')} style={{ cursor: 'pointer' }}>Reports</span>
           </div>
-          <div className="so-page-header">
+          <PageHeader className="so-page-header">
             <div>
               <h1 className="so-page-title" style={{ display: 'flex', alignItems: 'center', gap: '10px', margin: 0 }}>
                 <Package size={22} style={{ color: themeColor || '#0082f6' }} strokeWidth={2.5} />
@@ -2305,12 +2306,12 @@ const SalesInvoiceList = () => {
                 <span>CREATE INVOICE</span>
               </button>
             </div>
-          </div>
+          </PageHeader>
         </div>
 
         <div className="so-layout" style={{ flexDirection: 'column', background: '#f8fafc', padding: '1.5rem 2rem' }}>
           {/* Top Filters Bar */}
-          <div className="so-filter-bar" style={{
+          <div className="erp-filter-bar so-filter-bar" style={{
             background: 'transparent',
             padding: '0 0 0.5rem 0',
             border: 'none',
@@ -2413,9 +2414,9 @@ const SalesInvoiceList = () => {
 
           <div className="so-content" style={{ padding: 0 }}>
             <p className="so-list-meta" style={{ marginBottom: '1rem', fontWeight: 600, color: '#64748b', fontSize: '13px' }}>{sortedInvoices.length} record(s) found</p>
-            <div className="so-table-card" style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)' }}>
-              <div className="so-table-wrapper">
-                <table className="so-table">
+            <div className="erp-table-card so-table-card" style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)' }}>
+              <div className="erp-table-scroll so-table-wrapper">
+                <table className="erp-table so-table">
                   <thead>
                     <tr>
                       {orderedColumns.map(colKey => renderHeaderCol(colKey))}
@@ -2437,9 +2438,9 @@ const SalesInvoiceList = () => {
                   </thead>
                   <tbody>
                     {loading ? (
-                      <tr><td colSpan={orderedColumns.length + 1} className="so-empty" style={{ padding: '3rem' }}><Loader2 size={28} className="so-spinner" style={{ margin: '0 auto' }} /></td></tr>
+                      <tr><td colSpan={orderedColumns.length + 1} className="erp-empty so-empty" style={{ padding: '3rem' }}><Loader2 size={28} className="so-spinner" style={{ margin: '0 auto' }} /></td></tr>
                     ) : paginated.length === 0 ? (
-                      <tr><td colSpan={orderedColumns.length + 1} className="so-empty" style={{ padding: '3rem' }}>No invoices found</td></tr>
+                      <tr><td colSpan={orderedColumns.length + 1} className="erp-empty so-empty" style={{ padding: '3rem' }}>No invoices found</td></tr>
                     ) : (
                       paginated.map(inv => (
                         <tr key={inv.name} onClick={() => loadInvoiceForEdit(inv.name)} style={{ cursor: 'pointer', transition: 'all 0.15s ease' }}>
@@ -2465,7 +2466,7 @@ const SalesInvoiceList = () => {
               </div>
 
               {filteredInvoices.length > 0 && (
-                <div className="so-pagination" style={{ padding: '1rem 1.25rem', borderTop: '1px solid var(--so-border)', marginTop: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div className="erp-pagination so-pagination" style={{ padding: '1rem 1.25rem', borderTop: '1px solid var(--so-border)', marginTop: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <span style={{ color: 'var(--so-text-muted)', fontSize: '0.75rem' }}>
                     Showing {Math.min((currentPage - 1) * pageSize + 1, filteredInvoices.length)}–{Math.min(currentPage * pageSize, filteredInvoices.length)} of {filteredInvoices.length}
                   </span>
@@ -2729,7 +2730,7 @@ const SalesInvoiceList = () => {
             <div className="flex-1 flex flex-col overflow-hidden bg-slate-100 p-2">
 
               {/* Table container */}
-              <div className="flex-1 min-h-0 overflow-y-auto overflow-x-auto bg-white rounded-xl border border-slate-200 shadow-2xs">
+              <div className="erp-scroll-region flex-1 min-h-0 overflow-y-auto overflow-x-auto bg-white rounded-xl border border-slate-200 shadow-2xs">
 
                 {/* Barcode / scan / bundles bar */}
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.5rem 1rem', borderBottom: '1px solid #e2e8f0', background: '#ffffff', flexShrink: 0 }}>
@@ -2793,7 +2794,7 @@ const SalesInvoiceList = () => {
                   });
 
                   return (
-                    <table className="classic-table" style={{ width: 'max-content', minWidth: '100%', borderCollapse: 'collapse', background: '#ffffff', tableLayout: 'fixed' }}>
+                    <table className="erp-table classic-table" style={{ width: 'max-content', minWidth: '100%', borderCollapse: 'collapse', background: '#ffffff', tableLayout: 'fixed' }}>
                       <thead>
                         <tr style={{ background: '#f8fafc', borderBottom: '1.5px solid #cbd5e1' }}>
                           <th style={{ width: '40px', minWidth: '40px', maxWidth: '40px', textAlign: 'center', padding: '10px 4px', fontSize: '11px', fontWeight: 900, color: '#475569', textTransform: 'uppercase', borderRight: '1px solid #e2e8f0' }}>#</th>
@@ -3451,11 +3452,11 @@ const SalesInvoiceList = () => {
             </div>
           </div>
         ) : (
-          <div className="so-page font-sans bg-[#f8fafc] min-h-screen flex flex-col" style={{ flex: 1 }}>
+          <div className="erp-page so-page font-sans bg-[#f8fafc] min-h-screen flex flex-col" style={{ flex: 1 }}>
           <div className="so-modal" style={{ maxWidth: 'none', width: '100%', margin: 0, borderRadius: 0, display: 'flex', flexDirection: 'column', background: '#f8fafc', flex: 1 }}>
 
               {/* Header */}
-              <div className="so-modal-header" style={{ padding: '1rem 1.5rem', background: 'white', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div className="erp-dialog-edge so-modal-header" style={{ padding: '1rem 1.5rem', background: 'white', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <h2 className="so-modal-title" style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700, color: '#1e293b' }}>
                   {isReturnMode ? (
                     <><ArrowLeft size={16} style={{ display: 'inline', marginRight: '0.4rem' }} /> Credit Note — Return Against: {returnAgainst}</>
@@ -3470,7 +3471,7 @@ const SalesInvoiceList = () => {
                         <div className="relative" ref={createDropdownRef}>
                           <button
                             onClick={() => setShowCreateDropdown(!showCreateDropdown)}
-                            className="so-btn-secondary"
+                            className="erp-button erp-button-secondary so-btn-secondary"
                             style={{ padding: '0.45rem 0.9rem', fontSize: '0.75rem', background: '#f8fafc', color: '#475569', border: '1px solid #cbd5e1', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '0.375rem', transition: 'all 0.2s' }}
                           >
                             <Plus size={14} /> CREATE <ChevronDown size={14} />
@@ -3544,7 +3545,7 @@ const SalesInvoiceList = () => {
                         </div>
                       )}
                       <button
-                        className="so-btn-secondary"
+                        className="erp-button erp-button-secondary so-btn-secondary"
                         onClick={() => handlePrint(form)}
                         style={{ background: 'white', border: '1px solid #cbd5e1', color: '#475569', fontWeight: 600, padding: '0.45rem 0.9rem', fontSize: '0.75rem' }}
                       >
@@ -3552,7 +3553,7 @@ const SalesInvoiceList = () => {
                       </button>
                       {(form.docstatus === 0 || form.status === 'Draft') && (
                         <button
-                          className="so-btn-primary"
+                          className="erp-button erp-button-primary so-btn-primary"
                           onClick={() => setIsViewOnly(false)}
                           style={{ minWidth: '120px', backgroundColor: themeColor, padding: '0.45rem 0.9rem', fontSize: '0.75rem', fontWeight: 700 }}
                         >
@@ -3563,7 +3564,7 @@ const SalesInvoiceList = () => {
                   ) : (
                     <>
                       <button 
-                        className="so-btn-secondary" 
+                        className="erp-button erp-button-secondary so-btn-secondary"
                         onClick={() => createSalesInvoice(false)} 
                         disabled={saving}
                         style={{ padding: '0.45rem 0.9rem', fontSize: '0.75rem', fontWeight: 700 }}
@@ -3571,7 +3572,7 @@ const SalesInvoiceList = () => {
                         {saving ? 'Saving...' : 'Save Draft'}
                       </button>
                       <button 
-                        className="so-btn-primary" 
+                        className="erp-button erp-button-primary so-btn-primary"
                         onClick={() => createSalesInvoice(true)} 
                         disabled={saving}
                         style={{ padding: '0.45rem 0.9rem', fontSize: '0.75rem', fontWeight: 700, backgroundColor: themeColor }}
@@ -3581,7 +3582,7 @@ const SalesInvoiceList = () => {
                     </>
                   )}
                   <button
-                    className="so-btn-secondary"
+                    className="erp-button erp-button-secondary so-btn-secondary"
                     onClick={() => { setShowModal(false); resetForm(); }}
                     style={{ padding: '0.45rem 0.9rem', fontSize: '0.75rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.25rem' }}
                   >
@@ -3652,7 +3653,7 @@ const SalesInvoiceList = () => {
               </div>
 
               {/* Body - Alignment Fix Here */}
-              <div className="so-modal-body" style={{ flex: 1, overflowY: "auto", padding: "1.5rem", display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+              <div className="erp-dialog-body so-modal-body" style={{ flex: 1, overflowY: "auto", padding: "1.5rem", display: "flex", flexDirection: "column", gap: "1.5rem" }}>
                 <AttachmentSection doctype="Sales Invoice" docname={form.name} />
 
                 {isViewOnly ? (
@@ -3966,8 +3967,8 @@ const SalesInvoiceList = () => {
                   /* PREMIUM SALES INVOICE EDIT FORM */
                   <>
                     {/* Basic Info Card */}
-                    <div className="so-card" style={{ background: 'white', borderRadius: '0.75rem', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
-                      <div className="so-card-header" style={{ padding: '1rem 1.25rem', borderBottom: '1px solid #e2e8f0' }}>
+                    <div className="erp-card so-card" style={{ background: 'white', borderRadius: '0.75rem', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+                      <div className="erp-section-header so-card-header" style={{ padding: '1rem 1.25rem', borderBottom: '1px solid #e2e8f0' }}>
                         <p className="so-card-title" style={{ margin: 0, fontWeight: 700, color: '#334155' }}>Basic Information</p>
                       </div>
                       <div className="so-card-body" style={{ padding: '1.25rem' }}>
@@ -4025,7 +4026,7 @@ const SalesInvoiceList = () => {
                     </div>
 
                     {/* Barcode Area */}
-                    <div className="so-card" style={{ background: isGreen ? '#f0fdf4' : '#f0f9ff', border: `2px dashed ${themeColor}`, borderRadius: '0.75rem' }}>
+                    <div className="erp-card so-card" style={{ background: isGreen ? '#f0fdf4' : '#f0f9ff', border: `2px dashed ${themeColor}`, borderRadius: '0.75rem' }}>
                       <div className="so-card-body" style={{ padding: '1.25rem' }}>
                         <div className="so-barcode-area" style={{ background: 'white', border: '1px solid #cbd5e1', borderRadius: '0.5rem', display: 'flex', alignItems: 'center', padding: '0.75rem 1rem', gap: '1rem' }}>
                           <Search size={20} style={{ color: themeColor }} />
@@ -4043,8 +4044,8 @@ const SalesInvoiceList = () => {
                     </div>
 
                     {/* Items Card */}
-                    <div className="so-card">
-                      <div className="so-card-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div className="erp-card so-card">
+                      <div className="erp-section-header so-card-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                         <p className="so-card-title">Items Information</p>
                         {!isReturnMode && !isViewOnly && (
                           <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
@@ -4067,11 +4068,11 @@ const SalesInvoiceList = () => {
                         )}
                       </div>
                       <div className="so-card-body" style={{ padding: 0 }}>
-                        <div className="so-table-wrapper" style={{ boxShadow: 'none', borderRadius: 0, border: 'none' }}>
+                        <div className="erp-table-scroll so-table-wrapper" style={{ boxShadow: 'none', borderRadius: 0, border: 'none' }}>
                           {(() => {
                             const hasAnyBox = form.items?.some(it => it.use_box_entry);
                             return (
-                              <table className="so-items-table">
+                              <table className="erp-table so-items-table">
                                 <thead>
                                   <tr>
                                     <th style={{ paddingLeft: '1.5rem', textTransform: 'uppercase' }}>ITEM DETAILS</th>
@@ -4385,8 +4386,8 @@ const SalesInvoiceList = () => {
                     {/* Bottom Section: Taxes & Summary */}
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '1.5rem', alignItems: 'stretch' }}>
                       {/* Taxes Card */}
-                      <div className="so-card" style={{ background: 'white', borderRadius: '0.75rem', border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column' }}>
-                        <div className="so-card-header" style={{ padding: '1rem 1.25rem', borderBottom: '1px solid #e2e8f0' }}>
+                      <div className="erp-card so-card" style={{ background: 'white', borderRadius: '0.75rem', border: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column' }}>
+                        <div className="erp-section-header so-card-header" style={{ padding: '1rem 1.25rem', borderBottom: '1px solid #e2e8f0' }}>
                           <p className="so-card-title" style={{ margin: 0, fontWeight: 700, textTransform: 'uppercase' }}>TAXES & CHARGES</p>
                         </div>
                         <div className="so-card-body" style={{ padding: '1.25rem' }}>
@@ -4399,7 +4400,7 @@ const SalesInvoiceList = () => {
                       </div>
 
                       {/* Summary Card */}
-                      <div className="so-card" style={{ borderRadius: '0.75rem', background: isGreen ? 'linear-gradient(135deg, #064e3b 0%, #065f46 100%)' : 'linear-gradient(135deg, #0c4a6e 0%, #075985 100%)', color: 'white', padding: '1.5rem', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                      <div className="erp-card so-card" style={{ borderRadius: '0.75rem', background: isGreen ? 'linear-gradient(135deg, #064e3b 0%, #065f46 100%)' : 'linear-gradient(135deg, #0c4a6e 0%, #075985 100%)', color: 'white', padding: '1.5rem', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                         <p className="so-card-title" style={{ color: 'white', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '0.75rem', marginBottom: '1rem', textTransform: 'uppercase' }}>FINAL SUMMARY</p>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', opacity: 0.9 }}>

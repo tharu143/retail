@@ -1,3 +1,4 @@
+import PageHeader from '../UI/PageHeader';
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -300,7 +301,7 @@ const DetailRow = ({ label, value, icon: Icon, themeColor }) => (
 );
 
 const SectionHeader = ({ text, themeColor, icon: Icon }) => (
-  <div className="info-panel-header">
+  <div className="erp-section-header info-panel-header">
     {Icon ? <Icon size={18} style={{ color: themeColor || '#0082f6' }} strokeWidth={2.5} /> : <div className="w-1 h-3 rounded-full" style={{ backgroundColor: themeColor || '#0082f6' }} />}
     <h5 className="info-panel-title">{text}</h5>
   </div>
@@ -310,7 +311,7 @@ const CollapsibleSectionHeader = ({ text, themeColor, isOpen, onToggle, icon: Ic
   const ChevronIcon = isOpen ? ChevronUp : ChevronDown;
   return (
     <div
-      className="info-panel-header justify-between cursor-pointer select-none"
+      className="erp-section-header info-panel-header justify-between cursor-pointer select-none"
       onClick={onToggle}
     >
       <div className="flex items-center gap-2.5">
@@ -573,9 +574,9 @@ const CustomerDetails = () => {
   const activeCont = contacts?.[0] || {};
 
   return (
-    <div className="sd-container">
+    <div className="erp-detail-page sd-container">
       {/* 1. TOP HEADER CARD */}
-      <div className="sd-header-card">
+      <PageHeader className="sd-header-card">
         <div className="sd-header-left">
           {/* Avatar Box */}
           <div className="sd-avatar-box">
@@ -698,7 +699,7 @@ const CustomerDetails = () => {
             </>
           )}
         </div>
-      </div>
+      </PageHeader>
 
       {/* 2. NAVIGATION TABS BAR */}
       {viewMode === 'view' && !isNew && (
@@ -781,9 +782,9 @@ const CustomerDetails = () => {
             </div>
 
             {/* ROW 1 LEFT: Panel 1 - Legal Identity details */}
-            <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-50px" }} transition={{ duration: 0.4 }} className="lg:col-span-1 info-panel-card h-full flex flex-col justify-between">
+            <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-50px" }} transition={{ duration: 0.4 }} className="erp-card lg:col-span-1 info-panel-card h-full flex flex-col justify-between">
               <SectionHeader text="Legal Identity Profile" themeColor={themeColor} icon={User} />
-              <div className="info-panel-body info-fields-grid flex-1">
+              <div className="erp-section-body info-panel-body info-fields-grid flex-1">
                 <DetailRow label="Legal Identity Name" value={customer?.customer_name} icon={User} themeColor={themeColor} />
                 <DetailRow label="Salutation" value={customer?.salutation} icon={UserPlus} themeColor={themeColor} />
                 <DetailRow label="Corporate Type" value={customer?.customer_type} icon={Building2} themeColor={themeColor} />
@@ -796,7 +797,7 @@ const CustomerDetails = () => {
             </motion.div>
 
             {/* ROW 1 RIGHT: Panel 2 - Location and Geography details */}
-            <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-50px" }} transition={{ duration: 0.4, delay: 0.1 }} className="lg:col-span-1 info-panel-card h-full flex flex-col justify-between">
+            <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-50px" }} transition={{ duration: 0.4, delay: 0.1 }} className="erp-card lg:col-span-1 info-panel-card h-full flex flex-col justify-between">
               <CollapsibleSectionHeader
                 text="Deal & Spatial Information"
                 themeColor={themeColor}
@@ -805,7 +806,7 @@ const CustomerDetails = () => {
                 onToggle={() => setIsSpatialOpen(!isSpatialOpen)}
               />
               {isSpatialOpen && (
-                <div className="info-panel-body info-fields-grid flex-1 animate-in fade-in duration-200">
+                <div className="erp-section-body info-panel-body info-fields-grid flex-1 animate-in fade-in duration-200">
                   <DetailRow label="Email Id" value={customer?.email_id} icon={Mail} themeColor={themeColor} />
                   <DetailRow label="Mobile No" value={customer?.mobile_no} icon={Phone} themeColor={themeColor} />
                   <DetailRow label="Address Type" value={activeAddr.address_type} icon={Tag} themeColor={themeColor} />
@@ -819,9 +820,9 @@ const CustomerDetails = () => {
             </motion.div>
 
             {/* ROW 2 LEFT: Panel 5 - Financial rules & assignments */}
-            <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-50px" }} transition={{ duration: 0.4, delay: 0.2 }} className="lg:col-span-1 info-panel-card h-full flex flex-col justify-between">
+            <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-50px" }} transition={{ duration: 0.4, delay: 0.2 }} className="erp-card lg:col-span-1 info-panel-card h-full flex flex-col justify-between">
               <SectionHeader text="Financials & Governance" themeColor={themeColor} icon={Receipt} />
-              <div className="info-panel-body info-fields-grid flex-1">
+              <div className="erp-section-body info-panel-body info-fields-grid flex-1">
                 <DetailRow label="Tax Id" value={customer?.tax_id} icon={Receipt} themeColor={themeColor} />
                 <DetailRow label="TRN" value={customer?.custom_trn} icon={Hash} themeColor={themeColor} />
                 <DetailRow label="Tax Category" value={customer?.tax_category} icon={Percent} themeColor={themeColor} />
@@ -835,7 +836,7 @@ const CustomerDetails = () => {
             </motion.div>
 
             {/* ROW 2 RIGHT: Panel 6 - Primary Contact assigned */}
-            <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-50px" }} transition={{ duration: 0.4, delay: 0.3 }} className="lg:col-span-1 info-panel-card h-full flex flex-col justify-between">
+            <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-50px" }} transition={{ duration: 0.4, delay: 0.3 }} className="erp-card lg:col-span-1 info-panel-card h-full flex flex-col justify-between">
               <CollapsibleSectionHeader
                 text="Primary Contact Person"
                 themeColor={themeColor}
@@ -844,7 +845,7 @@ const CustomerDetails = () => {
                 onToggle={() => setIsContactOpen(!isContactOpen)}
               />
               {isContactOpen && (
-                <div className="info-panel-body info-fields-grid flex-1 animate-in fade-in duration-200">
+                <div className="erp-section-body info-panel-body info-fields-grid flex-1 animate-in fade-in duration-200">
                   <DetailRow label="Contact Full Name" value={activeCont.first_name ? `${activeCont.first_name} ${activeCont.middle_name || ''} ${activeCont.last_name || ''}`.trim() : ''} icon={User} themeColor={themeColor} />
                   <DetailRow label="Designation" value={activeCont.designation} icon={Briefcase} themeColor={themeColor} />
                   <DetailRow label="Contact Email" value={activeCont.email_id} icon={Mail} themeColor={themeColor} />
@@ -857,9 +858,9 @@ const CustomerDetails = () => {
             {/* BOTTOM FULL WIDTH ROW: Regional Branch Availability */}
             <div className="lg:col-span-2 mt-2">
               {/* Panel 3: Branch availability */}
-              <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-50px" }} transition={{ duration: 0.4, delay: 0.4 }} className="info-panel-card">
+              <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, margin: "-50px" }} transition={{ duration: 0.4, delay: 0.4 }} className="erp-card info-panel-card">
                 <SectionHeader text="Regional Branch Availability" themeColor={themeColor} icon={Warehouse} />
-                <div className="info-panel-body">
+                <div className="erp-section-body info-panel-body">
                   {customer?.branch_availability?.length > 0 ? (
                     <div className="flex flex-wrap gap-2">
                       {customer.branch_availability.map((b, idx) => (
@@ -891,7 +892,7 @@ const CustomerDetails = () => {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true, margin: "-50px" }}
                 transition={{ duration: 0.4, delay: 0.5 }}
-                className="info-panel-card"
+                className="erp-card info-panel-card"
               >
                 <SectionHeader text="Transactions Dashboard" themeColor={themeColor} icon={ShoppingCart} />
                 <div className="p-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4">
@@ -1076,8 +1077,8 @@ const CustomerDetails = () => {
                         </div>
                       ) : (
                         <div className="bg-white rounded-xl border border-slate-100 overflow-hidden shadow-sm">
-                          <div className="overflow-x-auto">
-                            <table className="w-full text-left border-collapse text-xs font-medium">
+                          <div className="erp-scroll-region overflow-x-auto">
+                            <table className="erp-table w-full text-left border-collapse text-xs font-medium">
                               <thead>
                                 <tr className="bg-slate-50/80 border-b border-slate-100 text-[9px] font-bold uppercase tracking-wider text-slate-400">
                                   <th className="py-2.5 px-4">Transaction ID</th>
@@ -1232,8 +1233,8 @@ const CustomerDetails = () => {
                 </p>
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse customer-loyalty-table">
+              <div className="erp-scroll-region overflow-x-auto">
+                <table className="erp-table w-full text-left border-collapse customer-loyalty-table">
                   <thead>
                     <tr className="bg-[#f0f7ff] border-b border-slate-200 text-[10px] font-extrabold uppercase tracking-wider text-slate-600">
                       <th className="py-3 px-4">Posting Date</th>

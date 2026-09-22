@@ -1,3 +1,4 @@
+import PageHeader from '../UI/PageHeader';
 import React, { useState, useEffect, useCallback } from 'react';
 import { useSelector } from 'react-redux';
 import {
@@ -72,7 +73,7 @@ const POSHealth = () => {
     const isOutOfSync = syncStatus.label === 'OUTDATED';
 
     const DashboardCard = ({ title, value, subtitle, icon: Icon, color, trend }) => (
-        <div className="so-table-card" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', height: '100%', minHeight: '140px', borderTop: `4px solid ${color || themeColor}`, boxSizing: 'border-box' }}>
+        <div className="erp-table-card so-table-card" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', height: '100%', minHeight: '140px', borderTop: `4px solid ${color || themeColor}`, boxSizing: 'border-box' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div>
                     <p style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--so-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.25rem' }}>{title}</p>
@@ -94,7 +95,7 @@ const POSHealth = () => {
     );
 
     if (loading && !healthData) return (
-        <div className="so-page" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div className="erp-page so-page" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <div style={{ textAlign: 'center' }}>
                 <RefreshCw size={40} className="animate-spin" style={{ color: themeColor, margin: '0 auto' }} />
                 <p style={{ marginTop: '1rem', fontWeight: 700, color: 'var(--so-text-muted)', letterSpacing: '0.05em' }}>DIAGNOSING SYSTEM HEALTH...</p>
@@ -103,8 +104,8 @@ const POSHealth = () => {
     );
 
     return (
-        <div className="so-page">
-            <div className="so-page-header">
+        <div className="erp-page so-page">
+            <PageHeader className="so-page-header">
                 <div>
                     <h1 className="so-page-title">
                         <ShieldCheck size={20} color={themeColor} />
@@ -138,7 +139,7 @@ const POSHealth = () => {
                     >
                         <Palette size={14} /> {healthTheme.toUpperCase()}
                     </button>
-                    <button className="so-btn-primary" 
+                    <button className="erp-button erp-button-primary so-btn-primary"
                             style={{
                                 height: '38px', display: 'inline-flex', alignItems: 'center', gap: '6px',
                                 padding: '0 1.25rem', background: themeColor, borderColor: themeColor,
@@ -150,7 +151,7 @@ const POSHealth = () => {
                         <RefreshCw size={15} className={loading ? "animate-spin" : ""} /> Run Diagnostic
                     </button>
                 </div>
-            </div>
+            </PageHeader>
 
             <div className="so-layout">
                 <main className="so-content" style={{ padding: '2rem' }}>
@@ -197,8 +198,8 @@ const POSHealth = () => {
                     </div>
 
                     <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '2rem' }}>
-                        <div className="so-table-card">
-                            <div className="so-card-header" style={{ background: '#f8fafc' }}>
+                        <div className="erp-table-card so-table-card">
+                            <div className="erp-section-header so-card-header" style={{ background: '#f8fafc' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                                     <Database size={16} color={themeColor} />
                                     <h3 style={{ fontSize: '0.85rem', fontWeight: 800, color: '#1e293b', margin: 0 }}>DATA INTEGRITY ENGINE</h3>

@@ -1,3 +1,4 @@
+import PageHeader from '../UI/PageHeader';
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Plus, Search, X, Save, MapPin, ChevronLeft, 
@@ -178,8 +179,8 @@ const AddressList = () => {
   const paginatedData = filteredAddresses.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   return (
-    <div className="so-page">
-      <div className="so-page-header">
+    <div className="erp-page so-page">
+      <PageHeader className="so-page-header">
         <div className="so-page-left">
           <h1 className="so-page-title">
             <MapPin size={20} /> GLOBALLY MANAGED ADDRESSES
@@ -187,14 +188,14 @@ const AddressList = () => {
           <p className="so-page-subtitle">CENTRALIZED LOGISTICS & LOCATION REGISTRY</p>
         </div>
         <div style={{ display: 'flex', gap: '0.75rem' }}>
-          <button className="so-btn-primary" onClick={() => { setIsEditMode(false); setIsViewMode(false); setShowModal(true); }}>
+          <button className="erp-button erp-button-primary so-btn-primary" onClick={() => { setIsEditMode(false); setIsViewMode(false); setShowModal(true); }}>
             <Plus size={16} /> NEW LOCATION
           </button>
         </div>
-      </div>
+      </PageHeader>
 
       <div className="so-layout" style={{ flexDirection: 'column', background: '#f8fafc', padding: '1.5rem 2rem' }}>
-        <div className="so-filter-bar" style={{ padding: '0 0 1.25rem 0', background: 'transparent', border: 'none', boxShadow: 'none', display: 'flex', gap: '1.25rem', alignItems: 'flex-end', marginBottom: '0.5rem' }}>
+        <div className="erp-filter-bar so-filter-bar" style={{ padding: '0 0 1.25rem 0', background: 'transparent', border: 'none', boxShadow: 'none', display: 'flex', gap: '1.25rem', alignItems: 'flex-end', marginBottom: '0.5rem' }}>
           <div style={{ flex: 1 }}>
             <label className="so-filter-label">SEARCH ENTRY</label>
             <input 
@@ -223,9 +224,9 @@ const AddressList = () => {
         </div>
 
         <div className="so-content" style={{ padding: 0, flex: 1, background: 'transparent' }}>
-          <div className="so-table-card">
-            <div className="so-table-wrapper">
-              <table className="so-table">
+          <div className="erp-table-card so-table-card">
+            <div className="erp-table-scroll so-table-wrapper">
+              <table className="erp-table so-table">
                 <thead>
                   <tr>
                     <th>ADDRESS TITLE & REFERENCE</th>
@@ -237,9 +238,9 @@ const AddressList = () => {
                 </thead>
                 <tbody>
                   {loading ? (
-                    <tr><td colSpan="5" className="so-empty"><Loader2 className="so-spinner" /></td></tr>
+                    <tr><td colSpan="5" className="erp-empty so-empty"><Loader2 className="so-spinner" /></td></tr>
                   ) : paginatedData.length === 0 ? (
-                    <tr><td colSpan="5" className="so-empty">NO ADDRESS DEFINITIONS FOUND.</td></tr>
+                    <tr><td colSpan="5" className="erp-empty so-empty">NO ADDRESS DEFINITIONS FOUND.</td></tr>
                   ) : (
                     paginatedData.map(addr => (
                       <tr key={addr.name} onClick={() => handleView(addr)}>
@@ -351,17 +352,17 @@ const AddressList = () => {
       </div>
 
       {showModal && (
-        <div className="so-modal-overlay">
+        <div className="erp-overlay so-modal-overlay">
           <div className="so-modal" style={{ maxWidth: '800px' }}>
-            <div className="so-modal-header">
+            <div className="erp-dialog-edge so-modal-header">
               <h2 className="so-modal-title">
                 {isViewMode ? 'VIEW GLOBAL ADDRESS' : isEditMode ? 'MODIFY REGISTRY ENTRY' : 'DEFINE NEW ADDRESS'}
               </h2>
               <button className="so-modal-close" onClick={closeModal}><X size={20} /></button>
             </div>
-            <div className="so-modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-              <div className="so-card" style={{ marginBottom: 0 }}>
-                <div className="so-card-header"><p className="so-card-title">IDENTITY & CLASSIFICATION</p></div>
+            <div className="erp-dialog-body so-modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+              <div className="erp-card so-card" style={{ marginBottom: 0 }}>
+                <div className="erp-section-header so-card-header"><p className="so-card-title">IDENTITY & CLASSIFICATION</p></div>
                 <div className="so-card-body">
                   <div className="so-form-grid">
                     <div className="so-field">
@@ -388,8 +389,8 @@ const AddressList = () => {
                 </div>
               </div>
 
-              <div className="so-card" style={{ marginBottom: 0 }}>
-                <div className="so-card-header"><p className="so-card-title">PHYSICAL LOGISTICS</p></div>
+              <div className="erp-card so-card" style={{ marginBottom: 0 }}>
+                <div className="erp-section-header so-card-header"><p className="so-card-title">PHYSICAL LOGISTICS</p></div>
                 <div className="so-card-body">
                   <div className="so-field" style={{ marginBottom: '1.25rem' }}>
                     <label className="so-label">ADDRESS LINE 1 (STREET/BUILDING) *</label>
@@ -435,9 +436,9 @@ const AddressList = () => {
               </div>
             </div>
             {!isViewMode && (
-              <div className="so-modal-footer">
-                <button className="so-btn-secondary" onClick={closeModal} disabled={saving}>CANCEL REVISION</button>
-                <button className="so-btn-primary" onClick={handleSave} disabled={saving}>
+              <div className="erp-dialog-edge so-modal-footer">
+                <button className="erp-button erp-button-secondary so-btn-secondary" onClick={closeModal} disabled={saving}>CANCEL REVISION</button>
+                <button className="erp-button erp-button-primary so-btn-primary" onClick={handleSave} disabled={saving}>
                   {saving ? <Loader2 size={16} className="so-spinner" /> : <Save size={16} />}
                   SAVE LOCATION MATRIX
                 </button>

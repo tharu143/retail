@@ -1,3 +1,4 @@
+import PageHeader from '../UI/PageHeader';
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
@@ -46,7 +47,7 @@ const StockEntryDetails = () => {
 
     if (loading) {
         return (
-            <div className="so-page flex items-center justify-center min-h-[400px]">
+            <div className="erp-page so-page flex items-center justify-center min-h-[400px]">
                 <div className="flex flex-col items-center gap-3 text-slate-500">
                     <Loader2 size={32} className="animate-spin" style={{ color: themeColor }} />
                     <p className="text-sm font-semibold tracking-wider">Loading Stock Entry...</p>
@@ -57,15 +58,15 @@ const StockEntryDetails = () => {
 
     if (error || !entry) {
         return (
-            <div className="so-page">
-                <div className="so-page-header">
+            <div className="erp-page so-page">
+                <PageHeader className="so-page-header">
                     <div className="flex items-center gap-3">
                         <button onClick={() => navigate(-1)} className="p-2 hover:bg-slate-100 rounded-lg text-slate-500 transition-colors">
                             <ArrowLeft size={20} />
                         </button>
                         <h1 className="so-page-title">Stock Entry Not Found</h1>
                     </div>
-                </div>
+                </PageHeader>
                 <div className="p-6">
                     <div className="p-4 bg-red-50 text-red-600 rounded-xl flex items-center gap-2 font-medium">
                         <AlertCircle size={18} /> {error || 'Record does not exist.'}
@@ -205,8 +206,8 @@ const StockEntryDetails = () => {
                                 </span>
                             </div>
                             
-                            <div className="overflow-x-auto">
-                                <table className="w-full border-collapse">
+                            <div className="erp-scroll-region overflow-x-auto">
+                                <table className="erp-table w-full border-collapse">
                                     <thead>
                                         <tr className="border-b border-slate-100 bg-slate-55/10 bg-slate-50 text-left">
                                             <th className="px-5 py-3.5 text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Item Details</th>

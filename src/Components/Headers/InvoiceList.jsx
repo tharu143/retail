@@ -1,3 +1,4 @@
+import PageHeader from '../UI/PageHeader';
 import { useEffect, useState, useMemo } from "react";
 import {
     AlertCircle, Search, Calendar, Clock, CreditCard,
@@ -320,8 +321,8 @@ function InvoiceList() {
     };
 
     return (
-        <div className="so-page">
-            <div className="so-page-header">
+        <div className="erp-page so-page">
+            <PageHeader className="so-page-header">
                 <div>
                     <h1 className="so-page-title"><FileText size={20} /> POS Invoice Journal</h1>
                     <p className="so-page-subtitle">{filteredInvoices.length} transaction(s) available</p>
@@ -347,20 +348,20 @@ function InvoiceList() {
                         themeColor={themeColor}
                     />
                     <button 
-                        className="so-btn-primary" 
+                        className="erp-button erp-button-primary so-btn-primary"
                         onClick={() => navigate('/homepage')}
                         style={{ border: 'none' }}
                     >
                         <Plus size={16} /> Create Invoice
                     </button>
-                    <button className="so-btn-secondary" onClick={loadData} disabled={loading} style={{ border: 'none', background: '#f1f5f9', color: '#475569' }}>
+                    <button className="erp-button erp-button-secondary so-btn-secondary" onClick={loadData} disabled={loading} style={{ border: 'none', background: '#f1f5f9', color: '#475569' }}>
                         <RefreshCw size={16} className={loading ? "animate-spin" : ""} /> Sync Store
                     </button>
                 </div>
-            </div>
+            </PageHeader>
 
             <div className="so-layout">
-                <div className="so-filter-bar" style={{ background: 'white' }}>
+                <div className="erp-filter-bar so-filter-bar" style={{ background: 'white' }}>
                     <div style={{ flex: '1 1 200px', position: 'relative' }}>
                         <label className="so-filter-label" style={{ textTransform: 'uppercase' }}>SEARCH ID</label>
                         <input
@@ -424,9 +425,9 @@ function InvoiceList() {
                 </div>
 
                 <div className="so-content">
-                    <div className="so-table-card">
-                        <div className="so-table-wrapper" style={{ overflowX: 'auto' }}>
-                            <table className="so-table">
+                    <div className="erp-table-card so-table-card">
+                        <div className="erp-table-scroll so-table-wrapper" style={{ overflowX: 'auto' }}>
+                            <table className="erp-table so-table">
                                 <thead>
                                     <tr>
                                         <th style={{ textTransform: 'uppercase' }}>INVOICE REFERENCE</th>
@@ -443,14 +444,14 @@ function InvoiceList() {
                                 <tbody>
                                     {loading && filteredInvoices.length === 0 ? (
                                         <tr>
-                                            <td colSpan={6 + customColumns.length} className="so-empty">
+                                            <td colSpan={6 + customColumns.length} className="erp-empty so-empty">
                                                 <Loader2 size={24} className="animate-spin" style={{ margin: '0 auto', color: themeColor }} />
                                                 <p style={{ marginTop: '0.5rem' }}>Synchronizing journals...</p>
                                             </td>
                                         </tr>
                                     ) : filteredInvoices.length === 0 ? (
                                         <tr>
-                                            <td colSpan={6 + customColumns.length} className="so-empty">No invoices found for the selected criteria.</td>
+                                            <td colSpan={6 + customColumns.length} className="erp-empty so-empty">No invoices found for the selected criteria.</td>
                                         </tr>
                                     ) : (
                                         filteredInvoices.map((inv, idx) => (
@@ -627,8 +628,8 @@ function InvoiceList() {
                                             {(selectedInvoice.items || []).length} ITEMS
                                         </span>
                                     </div>
-                                    <div className="overflow-x-auto">
-                                        <table className="w-full text-left border-collapse">
+                                    <div className="erp-scroll-region overflow-x-auto">
+                                        <table className="erp-table w-full text-left border-collapse">
                                             <thead>
                                                 <tr className="bg-slate-50/50">
                                                     <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">Item</th>

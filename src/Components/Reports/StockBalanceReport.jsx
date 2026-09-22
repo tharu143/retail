@@ -381,7 +381,7 @@ function StockBalanceReport() {
   };
 
   return (
-    <div className="sbr-container">
+    <div className="erp-page sbr-container">
 
       {/* 1. Header */}
       <header className="sbr-header no-print">
@@ -397,11 +397,11 @@ function StockBalanceReport() {
         </div>
 
         <div className="sbr-actions">
-          <button onClick={printReport} className="sbr-btn-secondary">
+          <button onClick={printReport} className="erp-button erp-button-secondary sbr-btn-secondary">
             <Printer size={15} />
             <span>Print</span>
           </button>
-          <button onClick={exportCSV} className="sbr-btn-primary">
+          <button onClick={exportCSV} className="erp-button erp-button-primary sbr-btn-primary">
             <Download size={15} />
             <span>Export CSV</span>
           </button>
@@ -518,7 +518,7 @@ function StockBalanceReport() {
         </div>
 
         {/* 3. Filters Card */}
-        <div className="sbr-filter-card no-print">
+        <div className="erp-filter-bar sbr-filter-card no-print">
           <div className="sbr-filter-inputs">
             {/* From Date */}
             <div className="sbr-field-block">
@@ -661,7 +661,7 @@ function StockBalanceReport() {
         )}
 
         {/* 4. Table viewport */}
-        <div className="sbr-table-container">
+        <div className="erp-table-scroll sbr-table-container">
           <div className="sbr-table-header-meta">
             <span className="sbr-meta-text">Found <b>{data.length}</b> stock record entries</span>
             {loading && (
@@ -671,8 +671,8 @@ function StockBalanceReport() {
             )}
           </div>
 
-          <div className="sbr-table-wrapper">
-            <table className="sbr-table">
+          <div className="erp-table-scroll sbr-table-wrapper">
+            <table className="erp-table sbr-table">
               <thead>
                 <tr>
                   {stockColumns.filter(c => c.visible).map(col => (
@@ -860,7 +860,7 @@ function StockBalanceReport() {
                   <span>per page</span>
                 </div>
 
-                <div className="ssr-pagination" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                <div className="erp-pagination ssr-pagination" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
                   <button
                     className="ssr-page-btn"
                     disabled={currentPage <= 1 || pageSize === -1}

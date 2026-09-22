@@ -13,8 +13,8 @@ const DataTable = ({ columns, data, title = 'Report', loading = false, onRowClic
     ) : data.length === 0 ? (
       <p className="text-center text-slate-500 py-8">No records found</p>
     ) : (
-      <div className="overflow-x-auto">
-        <table className="w-full">
+      <div className="erp-scroll-region overflow-x-auto">
+        <table className="erp-table w-full">
           <thead className="bg-slate-50">
             <tr>
               {columns.map((col, i) => (

@@ -140,12 +140,12 @@ const ScrollReveal = ({ children, delay = 0, className = '', style = {} }) => {
 };
 
 const InfoSection = ({ title, children, icon: Icon, themeColor, style }) => (
-  <div className="info-panel-card" style={style}>
-    <div className="info-panel-header">
+  <div className="erp-card info-panel-card" style={style}>
+    <div className="erp-section-header info-panel-header">
       <Icon size={18} style={{ color: themeColor }} strokeWidth={2.5} />
       <h5 className="info-panel-title">{title}</h5>
     </div>
-    <div className="info-panel-body">
+    <div className="erp-section-body info-panel-body">
       {children}
     </div>
   </div>
@@ -298,9 +298,9 @@ const ItemDetails = () => {
   const isActive = item.disabled === 0;
 
   return (
-    <div className="supplier-page-container">
+    <div className="erp-detail-page supplier-page-container">
       {/* Profile Header Overlay Card */}
-      <div className="profile-header-container">
+      <div className="erp-profile-header profile-header-container">
         <div className="header-actions-row">
           <div className="left-controls-group">
             <button onClick={() => navigate('/itemlist')} className="btn-modern-ghost" title="Go Back">
@@ -396,7 +396,7 @@ const ItemDetails = () => {
             )}
             <button
               onClick={toggleTheme}
-              className="btn-modern-secondary"
+              className="erp-button erp-button-secondary btn-modern-secondary"
               style={{ borderColor: themeColor, color: themeColor }}
             >
               <Palette size={14} />
@@ -406,7 +406,7 @@ const ItemDetails = () => {
         </div>
 
         {/* Item Header Content */}
-        <div className="profile-header-content">
+        <div className="erp-profile-summary profile-header-content">
           <div className="supplier-avatar-container" style={{ borderLeft: `5px solid ${themeColor}` }}>
             <Package size={48} style={{ color: '#0f172a' }} />
           </div>
@@ -591,8 +591,8 @@ const ItemDetails = () => {
             {productBundleData && (
               <div className="lg:col-span-2">
                 <ScrollReveal delay={150}>
-                  <div className="info-panel-card" style={{ margin: 0 }}>
-                    <div className="info-panel-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div className="erp-card info-panel-card" style={{ margin: 0 }}>
+                    <div className="erp-section-header info-panel-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         <Boxes size={18} style={{ color: '#059669' }} strokeWidth={2.5} />
                         <h5 className="info-panel-title">
@@ -608,7 +608,7 @@ const ItemDetails = () => {
                         </span>
                       </div>
                     </div>
-                    <div className="info-panel-body" style={{ padding: 0 }}>
+                    <div className="erp-section-body info-panel-body" style={{ padding: 0 }}>
                       <div style={{ overflowX: 'auto' }}>
                         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                           <thead>
@@ -695,8 +695,8 @@ const ItemDetails = () => {
             {item.has_variants === 1 && (
               <div className="lg:col-span-2">
                 <ScrollReveal delay={200}>
-                  <div className="info-panel-card" style={{ margin: 0 }}>
-                    <div className="info-panel-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div className="erp-card info-panel-card" style={{ margin: 0 }}>
+                    <div className="erp-section-header info-panel-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         <Layers size={18} style={{ color: themeColor }} strokeWidth={2.5} />
                         <h5 className="info-panel-title">Variants of this Template ({variantsList.length})</h5>
@@ -718,7 +718,7 @@ const ItemDetails = () => {
                         </button>
                       </div>
                     </div>
-                    <div className="info-panel-body" style={{ padding: 0 }}>
+                    <div className="erp-section-body info-panel-body" style={{ padding: 0 }}>
                       {variantsList.length > 0 ? (
                         <div style={{ overflowX: 'auto' }}>
                           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>

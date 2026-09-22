@@ -1,3 +1,4 @@
+import PageHeader from '../UI/PageHeader';
 import React, { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { 
@@ -67,9 +68,9 @@ function StockEntryList() {
     };
 
     return (
-        <div className="so-page" style={{ background: '#f1f5f9', overflowY: 'auto', display: 'block', minHeight: '100vh' }}>
+        <div className="erp-page so-page" style={{ background: '#f1f5f9', overflowY: 'auto', display: 'block', minHeight: '100vh' }}>
             {/* Page Header */}
-            <div className="so-page-header" style={{ background: 'white', borderBottom: '1px solid #e2e8f0', padding: '1.25rem 2rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <PageHeader className="so-page-header" style={{ background: 'white', borderBottom: '1px solid #e2e8f0', padding: '1.25rem 2rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div>
                     <h1 className="so-page-title" style={{ display: 'flex', alignItems: 'center', gap: '10px', margin: 0 }}>
                         <Package size={22} style={{ color: themeColor || '#0082f6' }} strokeWidth={2.5} />
@@ -92,7 +93,7 @@ function StockEntryList() {
                         <RefreshCw size={14} className={loading ? 'animate-spin' : ''} /> REFRESH
                     </button>
                 </div>
-            </div>
+            </PageHeader>
 
             <div style={{ padding: '1.5rem 2rem' }}>
                 {/* Filter Bar */}
@@ -142,9 +143,9 @@ function StockEntryList() {
                     </div>
 
                     {/* Table Card */}
-                    <div className="so-table-card">
-                        <div className="so-table-wrapper">
-                            <table className="so-table">
+                    <div className="erp-table-card so-table-card">
+                        <div className="erp-table-scroll so-table-wrapper">
+                            <table className="erp-table so-table">
                                 <thead>
                                     <tr>
                                         <th>Stock Entry ID</th>
@@ -238,7 +239,7 @@ function StockEntryList() {
                                                     {/* Actions */}
                                                     <td style={{ textAlign: 'center' }}>
                                                         <button 
-                                                            className="so-btn-secondary"
+                                                            className="erp-button erp-button-secondary so-btn-secondary"
                                                             style={{ fontSize: '0.65rem', padding: '0.35rem 0.75rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
                                                             onClick={(e) => { e.stopPropagation(); navigate(`/stock-entry/${entry.name}`); }}
                                                         >

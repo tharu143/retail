@@ -1,3 +1,4 @@
+import PageHeader from '../UI/PageHeader';
 import React, { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { useSearchParams } from 'react-router-dom';
@@ -523,7 +524,7 @@ function DashboardHome({ user, sections, setActiveItem, allMetrics, loading, sta
     <div className={`dashboard-modern-container ${isDark ? 'dark' : ''}`}>
         
         {/* Top Header Block matching vnivesh layout */}
-        <div className="exec-header-row">
+        <PageHeader className="exec-header-row">
           <h1 className="exec-title">Dashboard</h1>
           
           <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', flexWrap: 'wrap' }}>
@@ -590,7 +591,7 @@ function DashboardHome({ user, sections, setActiveItem, allMetrics, loading, sta
               </div>
             </div>
           </div>
-        </div>
+        </PageHeader>
 
         {/* Global Admin Branch Selector if admin */}
         <FilterBar
@@ -761,7 +762,7 @@ function DashboardHome({ user, sections, setActiveItem, allMetrics, loading, sta
             <div className="exec-grid-row2">
               
               {/* Trending Items List */}
-              <div className="exec-table-card">
+              <div className="erp-table-card exec-table-card">
                 <div className="exec-table-header-row">
                   <span className="exec-table-title">Trending Items</span>
                   <select className="exec-income-select">
@@ -769,7 +770,7 @@ function DashboardHome({ user, sections, setActiveItem, allMetrics, loading, sta
                   </select>
                 </div>
 
-                <table className="exec-table">
+                <table className="erp-table exec-table">
                   <thead>
                     <tr>
                       <th>Items</th>
@@ -812,7 +813,7 @@ function DashboardHome({ user, sections, setActiveItem, allMetrics, loading, sta
               </div>
 
               {/* Best Employees / Cashiers List */}
-              <div className="exec-table-card">
+              <div className="erp-table-card exec-table-card">
                 <div className="exec-table-header-row">
                   <span className="exec-table-title">Best Employees</span>
                   <select className="exec-income-select">
@@ -820,7 +821,7 @@ function DashboardHome({ user, sections, setActiveItem, allMetrics, loading, sta
                   </select>
                 </div>
 
-                <table className="exec-table">
+                <table className="erp-table exec-table">
                   <thead>
                     <tr>
                       <th>Employee</th>

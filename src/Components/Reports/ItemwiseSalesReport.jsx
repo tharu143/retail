@@ -256,14 +256,14 @@ function ItemWiseSalesReport() {
         <div className="iws-actions">
           <button 
             onClick={handlePrint}
-            className="iws-btn-secondary"
+            className="erp-button erp-button-secondary iws-btn-secondary"
           >
             <Printer size={15} /> 
             <span>Print Report</span>
           </button>
           <button 
             onClick={handleExportCSV}
-            className="iws-btn-primary"
+            className="erp-button erp-button-primary iws-btn-primary"
           >
             <Download size={15} /> 
             <span>Export CSV</span>
@@ -304,7 +304,7 @@ function ItemWiseSalesReport() {
       <main className="iws-main-body">
         
         {/* 2. Filters Bar */}
-        <div className="iws-filter-card no-print">
+        <div className="erp-filter-bar iws-filter-card no-print">
           <div className="iws-filter-inputs">
             {/* From Date */}
             <div className="iws-field-block">
@@ -406,7 +406,7 @@ function ItemWiseSalesReport() {
               Reset
             </button>
             <button 
-              className="iws-btn-primary"
+              className="erp-button erp-button-primary iws-btn-primary"
               onClick={() => fetchReport(filters)}
               disabled={loading}
               style={{ height: '42px' }}
@@ -513,7 +513,7 @@ function ItemWiseSalesReport() {
         </div>
 
         {/* 4. Table Card */}
-        <div className="iws-table-card">
+        <div className="erp-table-card iws-table-card">
           <div className="iws-table-header">
             <h3 className="iws-table-heading">
               <FileText size={18} color="#2563eb" />
@@ -529,8 +529,8 @@ function ItemWiseSalesReport() {
             </div>
           </div>
 
-          <div className="iws-table-wrapper">
-            <table className="iws-table">
+          <div className="erp-table-scroll iws-table-wrapper">
+            <table className="erp-table iws-table">
               <thead>
                 <tr>
                   {columnConfig.filter(c => c.visible && selectedPrintColumns.includes(c.id)).map((col) => (
@@ -656,7 +656,7 @@ function ItemWiseSalesReport() {
                   <span>per page</span>
                 </div>
 
-                <div className="ssr-pagination" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                <div className="erp-pagination ssr-pagination" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
                   <button
                     className="ssr-page-btn"
                     disabled={currentPage <= 1 || pageSize === -1}

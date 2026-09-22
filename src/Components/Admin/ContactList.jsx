@@ -1,3 +1,4 @@
+import PageHeader from '../UI/PageHeader';
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Plus, Search, X, Save, User, ChevronLeft, 
@@ -209,8 +210,8 @@ const ContactList = () => {
   const paginatedData = filteredContacts.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   return (
-    <div className="so-page">
-      <div className="so-page-header">
+    <div className="erp-page so-page">
+      <PageHeader className="so-page-header">
         <div className="so-page-left">
           <h1 className="so-page-title">
             <User size={20} /> PERSONNEL & CONTACTS
@@ -218,14 +219,14 @@ const ContactList = () => {
           <p className="so-page-subtitle">MANAGED COMMUNICATIONS & REPRESENTATIVE REGISTRY</p>
         </div>
         <div style={{ display: 'flex', gap: '0.75rem' }}>
-          <button className="so-btn-primary" onClick={() => { setIsEditMode(false); setIsViewMode(false); setShowModal(true); }}>
+          <button className="erp-button erp-button-primary so-btn-primary" onClick={() => { setIsEditMode(false); setIsViewMode(false); setShowModal(true); }}>
             <Plus size={16} /> ADD PERSONNEL
           </button>
         </div>
-      </div>
+      </PageHeader>
 
       <div className="so-layout" style={{ flexDirection: 'column', background: '#f8fafc', padding: '1.5rem 2rem' }}>
-        <div className="so-filter-bar" style={{ padding: '0 0 1.25rem 0', background: 'transparent', border: 'none', boxShadow: 'none', display: 'flex', gap: '1.25rem', alignItems: 'flex-end', marginBottom: '0.5rem' }}>
+        <div className="erp-filter-bar so-filter-bar" style={{ padding: '0 0 1.25rem 0', background: 'transparent', border: 'none', boxShadow: 'none', display: 'flex', gap: '1.25rem', alignItems: 'flex-end', marginBottom: '0.5rem' }}>
           <div style={{ flex: 1 }}>
             <label className="so-filter-label">SEARCH IDENTITY</label>
             <input 
@@ -245,9 +246,9 @@ const ContactList = () => {
         </div>
 
         <div className="so-content" style={{ padding: 0, flex: 1, background: 'transparent' }}>
-          <div className="so-table-card">
-            <div className="so-table-wrapper">
-              <table className="so-table">
+          <div className="erp-table-card so-table-card">
+            <div className="erp-table-scroll so-table-wrapper">
+              <table className="erp-table so-table">
                 <thead>
                   <tr>
                     <th>CONTACT IDENTITY</th>
@@ -258,9 +259,9 @@ const ContactList = () => {
                 </thead>
                 <tbody>
                   {loading ? (
-                    <tr><td colSpan="4" className="so-empty"><Loader2 className="so-spinner" /></td></tr>
+                    <tr><td colSpan="4" className="erp-empty so-empty"><Loader2 className="so-spinner" /></td></tr>
                   ) : paginatedData.length === 0 ? (
-                    <tr><td colSpan="4" className="so-empty">NO PERSONNEL REGISTRATIONS FOUND.</td></tr>
+                    <tr><td colSpan="4" className="erp-empty so-empty">NO PERSONNEL REGISTRATIONS FOUND.</td></tr>
                   ) : (
                     paginatedData.map(c => (
                       <tr key={c.name} onClick={() => handleView(c)}>
@@ -377,17 +378,17 @@ const ContactList = () => {
       </div>
 
       {showModal && (
-        <div className="so-modal-overlay">
+        <div className="erp-overlay so-modal-overlay">
           <div className="so-modal" style={{ maxWidth: '850px' }}>
-            <div className="so-modal-header">
+            <div className="erp-dialog-edge so-modal-header">
               <h2 className="so-modal-title">
                 {isViewMode ? 'PERSONNEL PROFILE' : isEditMode ? 'MODIFY IDENTITY PARAMETERS' : 'REGISTER NEW PERSONNEL'}
               </h2>
               <button className="so-modal-close" onClick={closeModal}><X size={20} /></button>
             </div>
-            <div className="so-modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-              <div className="so-card" style={{ marginBottom: 0 }}>
-                <div className="so-card-header"><p className="so-card-title">CORE IDENTITY</p></div>
+            <div className="erp-dialog-body so-modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+              <div className="erp-card so-card" style={{ marginBottom: 0 }}>
+                <div className="erp-section-header so-card-header"><p className="so-card-title">CORE IDENTITY</p></div>
                 <div className="so-card-body">
                   <div className="so-form-grid" style={{ gridTemplateColumns: '1fr 2fr 2fr' }}>
                     <div className="so-field">
@@ -448,16 +449,16 @@ const ContactList = () => {
                 </div>
               </div>
 
-              <div className="so-card" style={{ marginBottom: 0 }}>
-                <div className="so-card-header"><p className="so-card-title">COMMUNICATION FRAMEWORK</p></div>
+              <div className="erp-card so-card" style={{ marginBottom: 0 }}>
+                <div className="erp-section-header so-card-header"><p className="so-card-title">COMMUNICATION FRAMEWORK</p></div>
                 <div className="so-card-body">
                    <div style={{ marginBottom: '1.5rem' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
                          <label className="so-label" style={{ margin: 0 }}>DIGITAL CHANNELS (EMAILS)</label>
                          {!isViewMode && <button onClick={addEmail} className="so-btn-ghost" style={{ padding: '0.2rem 0.5rem', fontSize: '0.65rem' }}><Plus size={12} /> ADD CHANNEL</button>}
                       </div>
-                      <div className="so-table-wrapper" style={{ border: '1px solid var(--so-border)', borderRadius: '0.5rem' }}>
-                         <table className="so-table">
+                      <div className="erp-table-scroll so-table-wrapper" style={{ border: '1px solid var(--so-border)', borderRadius: '0.5rem' }}>
+                         <table className="erp-table so-table">
                             <thead>
                                <tr>
                                   <th>EMAIL ADDRESS</th>
@@ -502,8 +503,8 @@ const ContactList = () => {
                          <label className="so-label" style={{ margin: 0 }}>VOICE CHANNELS (PHONE/MOBILE)</label>
                          {!isViewMode && <button onClick={addPhone} className="so-btn-ghost" style={{ padding: '0.2rem 0.5rem', fontSize: '0.65rem' }}><Plus size={12} /> ADD LINE</button>}
                       </div>
-                      <div className="so-table-wrapper" style={{ border: '1px solid var(--so-border)', borderRadius: '0.5rem' }}>
-                         <table className="so-table">
+                      <div className="erp-table-scroll so-table-wrapper" style={{ border: '1px solid var(--so-border)', borderRadius: '0.5rem' }}>
+                         <table className="erp-table so-table">
                             <thead>
                                <tr>
                                   <th>PHONE NUMBER</th>
@@ -555,9 +556,9 @@ const ContactList = () => {
               </div>
             </div>
             {!isViewMode && (
-              <div className="so-modal-footer">
-                <button className="so-btn-secondary" onClick={closeModal} disabled={saving}>DISCARD REVISION</button>
-                <button className="so-btn-primary" onClick={handleSave} disabled={saving}>
+              <div className="erp-dialog-edge so-modal-footer">
+                <button className="erp-button erp-button-secondary so-btn-secondary" onClick={closeModal} disabled={saving}>DISCARD REVISION</button>
+                <button className="erp-button erp-button-primary so-btn-primary" onClick={handleSave} disabled={saving}>
                   {saving ? <Loader2 size={16} className="so-spinner" /> : <Save size={16} />}
                   AUTHORIZE REGISTRY SAVE
                 </button>

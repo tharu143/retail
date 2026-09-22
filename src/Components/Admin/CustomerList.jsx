@@ -1,3 +1,4 @@
+import PageHeader from '../UI/PageHeader';
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
@@ -807,7 +808,7 @@ function CustomerList() {
 
   /* ────────────────────── STYLES ────────────────────── */
   return (
-    <div className="customer-list-page">
+    <div className="erp-page customer-list-page">
       {/* ────────────────────── LIST VIEW ────────────────────── */}
       {view === 'list' && (
         <div className="animate-in fade-in duration-300">
@@ -818,7 +819,7 @@ function CustomerList() {
           </div>
 
           {/* 2. Main Header */}
-          <div className="customer-header-container">
+          <PageHeader className="customer-header-container">
             <div className="customer-title-group">
               <h1>CUSTOMER MANAGEMENT</h1>
               <p>Manage customer and account records</p>
@@ -876,15 +877,15 @@ function CustomerList() {
                   boxSizing: 'border-box'
                 }}
               />
-              <button className="customer-btn-create" onClick={() => navigate('/customer-edit/new')}>
+              <button className="erp-button erp-button-primary customer-btn-create" onClick={() => navigate('/customer-edit/new')}>
                 <Plus size={16} />
                 <span>CREATE CUSTOMER</span>
               </button>
             </div>
-          </div>
+          </PageHeader>
 
           {/* 3. Filter Bar */}
-          <div className="customer-filter-bar">
+          <div className="erp-filter-bar customer-filter-bar">
             <div className="customer-filter-group" style={{ flex: '1 1 320px' }}>
               <label className="customer-filter-label">Search Customer</label>
               <div className="customer-search-wrapper">
@@ -967,9 +968,9 @@ function CustomerList() {
           </div>
 
           {/* 5. Main Directory Table */}
-          <div className="customer-table-card">
-            <div className="customer-table-wrapper">
-              <table className="customer-directory-table">
+          <div className="erp-table-card customer-table-card">
+            <div className="erp-table-scroll customer-table-wrapper">
+              <table className="erp-table customer-directory-table">
                 <thead>
                   <tr>
                     <th>Customer Profile</th>
@@ -1077,11 +1078,11 @@ function CustomerList() {
                         {/* Status */}
                         <td>
                           {c.is_global ? (
-                            <span className="customer-status-badge restricted">OTHER BRANCH</span>
+                            <span className="erp-status customer-status-badge restricted">OTHER BRANCH</span>
                           ) : c.disabled === 1 ? (
-                            <span className="customer-status-badge frozen">RESTRICTED</span>
+                            <span className="erp-status customer-status-badge frozen">RESTRICTED</span>
                           ) : (
-                            <span className="customer-status-badge operational">OPERATIONAL</span>
+                            <span className="erp-status customer-status-badge operational">OPERATIONAL</span>
                           )}
                         </td>
 

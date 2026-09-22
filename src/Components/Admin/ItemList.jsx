@@ -275,7 +275,7 @@ const DashboardDocRow = ({ title, count, docs, search, fromDate, toDate, navigat
         <div style={{ padding: 0, borderTop: `1px solid ${T.borderLight}`, background: '#fff' }}>
           {filteredDocs.length > 0 ? (
             <div style={{ overflowX: 'auto' }}>
-              <table className="il-table" style={{ border: 'none' }}>
+              <table className="erp-table il-table" style={{ border: 'none' }}>
                 <thead>
                   <tr style={{ background: T.bg }}>
                     <th style={{ paddingLeft: 20 }}>Ref ID</th>
@@ -2702,10 +2702,10 @@ export default function ItemList() {
               </div>
             </div>
             <div className="il-action-group">
-              <button className="il-btn il-btn-secondary" onClick={() => navigate('/itempricelist')}>
+              <button className="erp-button erp-button-secondary il-btn il-btn-secondary" onClick={() => navigate('/itempricelist')}>
                 <Scale size={14} />Price Master
               </button>
-              <button type="button" className="il-btn il-btn-secondary il-btn-icon-only" onClick={fetchItems} title="Refresh">
+              <button type="button" className="erp-button erp-button-secondary il-btn il-btn-secondary il-btn-icon-only" onClick={fetchItems} title="Refresh">
                 <RefreshCw size={16} strokeWidth={2.2} style={{ width: 16, height: 16, color: '#334155', flexShrink: 0 }} />
               </button>
               <ListCustomizer
@@ -2721,7 +2721,7 @@ export default function ItemList() {
               >
                 <Warehouse size={14} />Sync Items to Branch
               </button>
-              <button className="il-btn il-btn-primary" onClick={() => {
+              <button className="erp-button erp-button-primary il-btn il-btn-primary" onClick={() => {
                 resetForm();
                 const myWh = localStorage.getItem('warehouse');
                 if (myWh) setForm(p => ({ ...p, branch_availability: [{ warehouse: myWh }] }));
@@ -2751,7 +2751,7 @@ export default function ItemList() {
 
         {/* SEARCH & FILTER CARDS */}
         <div className="il-filter-container">
-          <div className="il-filter-card">
+          <div className="erp-filter-bar il-filter-card">
             <div className="il-filter-grid">
               <div className="il-field-group" style={{ flex: 1, minWidth: 220 }}>
                 <span className="il-section-label">BARCODE / SCAN</span>
@@ -2813,7 +2813,7 @@ export default function ItemList() {
                 </div>
               </div>
               {hasFilters && (
-                <button className="il-btn il-btn-secondary" onClick={clearFilters} style={{ color: T.red, alignSelf: 'flex-end' }}><X size={13} />CLEAR</button>
+                <button className="erp-button erp-button-secondary il-btn il-btn-secondary" onClick={clearFilters} style={{ color: T.red, alignSelf: 'flex-end' }}><X size={13} />CLEAR</button>
               )}
             </div>
 
@@ -2837,8 +2837,8 @@ export default function ItemList() {
                 {paginatedItems.map(item => <ItemCard key={item.item_code} item={item} onClick={handleRowClick} />)}
               </div>
             ) : (
-              <div className="il-table-card">
-                <table className="il-table">
+              <div className="erp-table-card il-table-card">
+                <table className="erp-table il-table">
                   <thead>
                     <tr>
                       <th style={{ width: 44, paddingLeft: 18 }}>
@@ -2928,10 +2928,10 @@ export default function ItemList() {
                 }
               </p>
               <div style={{ display: 'flex', gap: 12, marginTop: 32, flexWrap: 'wrap', justifyContent: 'center' }}>
-                {hasFilters && <button className="il-btn il-btn-secondary" onClick={clearFilters} style={{ height: 44, borderRadius: 12, padding: '0 24px' }}>Clear Local Filters</button>}
+                {hasFilters && <button className="erp-button erp-button-secondary il-btn il-btn-secondary" onClick={clearFilters} style={{ height: 44, borderRadius: 12, padding: '0 24px' }}>Clear Local Filters</button>}
                 <button
                   onClick={() => handleGlobalSearchMaster(barcodeFilter || filterName)}
-                  className="il-btn il-btn-secondary"
+                  className="erp-button erp-button-secondary il-btn il-btn-secondary"
                   style={{ padding: '0 28px', fontSize: 13, height: 44, borderRadius: 12 }}
                 >
                   <Search size={15} style={{ marginRight: 8 }} />
@@ -2939,7 +2939,7 @@ export default function ItemList() {
                 </button>
                 <button
                   onClick={openSyncModal}
-                  className="il-btn il-btn-primary"
+                  className="erp-button erp-button-primary il-btn il-btn-primary"
                   style={{ padding: '0 28px', fontSize: 13, height: 44, borderRadius: 12, background: 'linear-gradient(135deg,#0082f6,#0066cc)', boxShadow: '0 8px 24px rgba(0,130,246,0.3)' }}
                 >
                   <Warehouse size={15} style={{ marginRight: 8 }} />
@@ -3163,12 +3163,12 @@ export default function ItemList() {
       {/* ========== ITEM MODAL ========== */}
       {showForm && (
         <div className="il-modal-panel anim-in">
-          <div className="il-modal-header" style={{ height: 'auto', minHeight: 64, padding: '12px 28px', flexWrap: 'wrap', gap: 20 }}>
+          <div className="erp-dialog-edge il-modal-header" style={{ height: 'auto', minHeight: 64, padding: '12px 28px', flexWrap: 'wrap', gap: 20 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 'fit-content' }}>
               <button
                 type="button"
                 onClick={handleCloseForm}
-                className="il-btn il-btn-secondary"
+                className="erp-button erp-button-secondary il-btn il-btn-secondary"
                 style={{
                   height: 36,
                   padding: '0 12px',
@@ -3242,7 +3242,7 @@ export default function ItemList() {
               {isViewMode && (
                 <div style={{ display: 'flex', gap: 8 }}>
                   <button
-                    className="il-btn il-btn-secondary"
+                    className="erp-button erp-button-secondary il-btn il-btn-secondary"
                     style={{ height: 36, padding: '0 16px', borderRadius: 10, background: '#fff', display: 'flex', alignItems: 'center', gap: 4 }}
                     onClick={() => navigate(`/stockledgerreport?item_code=${editingItemCode}`)}
                     title="Stock Ledger Report"
@@ -3250,7 +3250,7 @@ export default function ItemList() {
                     <Activity size={14} /> <span style={{ fontSize: 11, fontWeight: 800 }}>Stock Ledger</span>
                   </button>
                   <button
-                    className="il-btn il-btn-secondary"
+                    className="erp-button erp-button-secondary il-btn il-btn-secondary"
                     style={{ height: 36, padding: '0 16px', borderRadius: 10, background: '#fff', display: 'flex', alignItems: 'center', gap: 4 }}
                     onClick={() => navigate(`/stockbalancereport?item_code=${editingItemCode}`)}
                     title="Stock Balance Report"
@@ -3258,7 +3258,7 @@ export default function ItemList() {
                     <Warehouse size={14} /> <span style={{ fontSize: 11, fontWeight: 800 }}>Stock Balance</span>
                   </button>
                   <button
-                    className="il-btn il-btn-secondary"
+                    className="erp-button erp-button-secondary il-btn il-btn-secondary"
                     style={{ height: 36, padding: '0 16px', borderRadius: 10, background: '#f0f9ff', color: '#0369a1', borderColor: '#bae6fd', display: 'flex', alignItems: 'center', gap: 6 }}
                     onClick={() => {
                       setSelectedBarcodeItem(itemDoc || { item_code: editingItemCode, item_name: form.item_name, stock_uom: form.stock_uom, standard_rate: form.standard_rate });
@@ -3268,7 +3268,7 @@ export default function ItemList() {
                     <Barcode size={14} /> <span style={{ fontSize: 11, fontWeight: 800 }}>Print Barcode</span>
                   </button>
                   <button
-                    className="il-btn il-btn-secondary"
+                    className="erp-button erp-button-secondary il-btn il-btn-secondary"
                     style={{ height: 36, padding: '0 16px', borderRadius: 10, background: '#fff' }}
                     onClick={() => { setIsViewMode(false); setIsEditMode(true); }}
                   >
@@ -3329,7 +3329,7 @@ export default function ItemList() {
               <button
                 type="button"
                 onClick={handleCloseForm}
-                className="il-btn il-btn-secondary"
+                className="erp-button erp-button-secondary il-btn il-btn-secondary"
                 style={{ height: 36, width: 36, padding: 0, borderRadius: 10, background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', border: `1.5px solid ${T.border}` }}
                 title="Close"
               >
@@ -3339,7 +3339,7 @@ export default function ItemList() {
           </div>
 
           {/* Body */}
-          <div className="il-modal-body">
+          <div className="erp-dialog-body il-modal-body">
 
             {/* ===== VIEW MODE ===== */}
             {isViewMode && (
@@ -3375,7 +3375,7 @@ export default function ItemList() {
                         >
                           <div style={{ padding: 0 }}>
                             <div style={{ overflowX: 'auto' }}>
-                              <table className="il-table" style={{ border: 'none', width: '100%' }}>
+                              <table className="erp-table il-table" style={{ border: 'none', width: '100%' }}>
                                 <thead>
                                   <tr style={{ background: '#f8fafc' }}>
                                     <th style={{ paddingLeft: 20, width: 45, textAlign: 'center' }}>#</th>
@@ -3443,7 +3443,7 @@ export default function ItemList() {
                                               handleRowClick({ item_code: child.item_code, item_name: child.item_name, stock_uom: child.uom, standard_rate: child.rate });
                                             }
                                           }}
-                                          className="il-btn il-btn-secondary"
+                                          className="erp-button erp-button-secondary il-btn il-btn-secondary"
                                           style={{ padding: '4px 10px', fontSize: 11, fontWeight: 700, borderRadius: 6, background: '#fff' }}
                                         >
                                           View →
@@ -3607,7 +3607,7 @@ export default function ItemList() {
                             icon={<Layers size={14} style={{ color: '#0082f6' }} />}
                             action={
                               <button
-                                className="il-btn il-btn-secondary"
+                                className="erp-button erp-button-secondary il-btn il-btn-secondary"
                                 style={{ padding: '4px 10px', fontSize: 11, background: '#f0f2fe', color: '#0082f6', borderColor: '#c3cde4', fontWeight: 700 }}
                                 onClick={() => { setIsViewMode(false); setIsEditMode(true); }}
                               >
@@ -3796,7 +3796,7 @@ export default function ItemList() {
                           </div>
 
                           <div style={{ maxHeight: 380, overflowY: 'auto' }}>
-                            <table className="il-table" style={{ margin: 0 }}>
+                            <table className="erp-table il-table" style={{ margin: 0 }}>
                               <thead style={{ position: 'sticky', top: 0, background: '#fafafa', zIndex: 2 }}>
                                 <tr>
                                   <th style={{ padding: '10px 14px', fontSize: 11, fontWeight: 800, color: '#475569' }}>Invoice No.</th>
@@ -3900,7 +3900,7 @@ export default function ItemList() {
                           </div>
 
                           <div style={{ maxHeight: 380, overflowY: 'auto' }}>
-                            <table className="il-table" style={{ margin: 0 }}>
+                            <table className="erp-table il-table" style={{ margin: 0 }}>
                               <thead style={{ position: 'sticky', top: 0, background: '#fafafa', zIndex: 2 }}>
                                 <tr>
                                   <th style={{ padding: '10px 14px', fontSize: 11, fontWeight: 800, color: '#475569' }}>Invoice No.</th>
@@ -4062,12 +4062,12 @@ export default function ItemList() {
                             <div style={{ fontSize: 16, fontWeight: 700 }}>Price Registry</div>
                             <div style={{ fontSize: 12, color: T.textMuted, marginTop: 2 }}>{priceData.prices?.length || 0} definitions for {editingItemCode}</div>
                           </div>
-                          <button className="il-btn il-btn-primary" onClick={() => { setPriceForm({ price_list: 'Standard Selling', uom: form.default_uom, price_list_rate: 0, buying: 0, selling: 1, name: '' }); setIsPriceDetailView(true); }}>
+                          <button className="erp-button erp-button-primary il-btn il-btn-primary" onClick={() => { setPriceForm({ price_list: 'Standard Selling', uom: form.default_uom, price_list_rate: 0, buying: 0, selling: 1, name: '' }); setIsPriceDetailView(true); }}>
                             <Plus size={14} />New Price
                           </button>
                         </div>
                         <div className="il-card" style={{ overflow: 'hidden' }}>
-                          <table className="il-table">
+                          <table className="erp-table il-table">
                             <thead><tr><th>Price List</th><th>UOM</th><th>Type</th><th style={{ textAlign: 'right' }}><span className="flex items-center justify-end gap-1">Rate (<DirhamIcon size={10} />)</span></th><th style={{ width: 36 }}></th></tr></thead>
                             <tbody>
                               {loadingPrices ? (
@@ -4095,7 +4095,7 @@ export default function ItemList() {
                     ) : (
                       <div className="anim-in">
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
-                          <button className="il-btn il-btn-secondary" style={{ padding: '7px 9px' }} onClick={() => setIsPriceDetailView(false)}><ChevronLeft size={17} /></button>
+                          <button className="erp-button erp-button-secondary il-btn il-btn-secondary" style={{ padding: '7px 9px' }} onClick={() => setIsPriceDetailView(false)}><ChevronLeft size={17} /></button>
                           <div>
                             <div style={{ fontSize: 15, fontWeight: 700 }}>Price Configuration</div>
                             <div style={{ fontSize: 11, color: T.textMuted, fontFamily: "'DM Mono', monospace" }}>{priceForm.name || 'NEW RECORD'}</div>
@@ -4137,8 +4137,8 @@ export default function ItemList() {
                             </button>
                           </div>
                           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', paddingTop: 6, borderTop: `1.5px solid ${T.borderLight}` }}>
-                            <button className="il-btn il-btn-secondary" onClick={() => setIsPriceDetailView(false)}>Cancel</button>
-                            <button className="il-btn il-btn-primary" onClick={handleSavePrice} disabled={saving}>{saving ? 'Saving...' : (priceForm.name ? 'Update' : 'Create')}</button>
+                            <button className="erp-button erp-button-secondary il-btn il-btn-secondary" onClick={() => setIsPriceDetailView(false)}>Cancel</button>
+                            <button className="erp-button erp-button-primary il-btn il-btn-primary" onClick={handleSavePrice} disabled={saving}>{saving ? 'Saving...' : (priceForm.name ? 'Update' : 'Create')}</button>
                           </div>
                         </div>
                       </div>
@@ -4154,7 +4154,7 @@ export default function ItemList() {
                       <div style={{ fontSize: 12, color: T.textMuted, marginTop: 2 }}>Real-time inventory by location</div>
                     </div>
                     <div className="il-card" style={{ overflow: 'hidden' }}>
-                      <table className="il-table">
+                      <table className="erp-table il-table">
                         <thead><tr><th>Warehouse</th><th style={{ textAlign: 'center' }}>On Hand</th><th style={{ textAlign: 'center' }}>Avg Buy Price</th><th style={{ textAlign: 'right' }}>Stock Value</th></tr></thead>
                         <tbody>
                           {loadingPrices ? (
@@ -4193,7 +4193,7 @@ export default function ItemList() {
                     {/* Check All Branches Button */}
                     <div style={{ marginTop: 20, display: 'flex', justifyContent: 'center' }}>
                       <button
-                        className="il-btn il-btn-secondary"
+                        className="erp-button erp-button-secondary il-btn il-btn-secondary"
                         style={{ height: 44, padding: '0 24px', borderRadius: 12, display: 'flex', alignItems: 'center', gap: 10 }}
                         onClick={() => {
                           const html = `
@@ -4464,10 +4464,10 @@ export default function ItemList() {
                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 5 }}>
                             <label className="il-form-label" style={{ margin: 0 }}>Barcode</label>
                             <div style={{ display: 'flex', gap: 4 }}>
-                              <button type="button" tabIndex={-1} className="il-btn il-btn-secondary" style={{ padding: '2px 7px', fontSize: 11, height: 22 }} onClick={() => setShowCameraScanner(true)} title="Camera Scan">
+                              <button type="button" tabIndex={-1} className="erp-button erp-button-secondary il-btn il-btn-secondary" style={{ padding: '2px 7px', fontSize: 11, height: 22 }} onClick={() => setShowCameraScanner(true)} title="Camera Scan">
                                 <Camera size={11} /> Camera
                               </button>
-                              <button type="button" tabIndex={-1} className="il-btn il-btn-secondary" style={{ padding: '2px 7px', fontSize: 11, height: 22, color: isScanning ? T.blue : T.textSub, borderColor: isScanning ? T.blue : T.border }} onClick={() => setIsScanning(s => !s)} title="Hardware Scan">
+                              <button type="button" tabIndex={-1} className="erp-button erp-button-secondary il-btn il-btn-secondary" style={{ padding: '2px 7px', fontSize: 11, height: 22, color: isScanning ? T.blue : T.textSub, borderColor: isScanning ? T.blue : T.border }} onClick={() => setIsScanning(s => !s)} title="Hardware Scan">
                                 {isScanning ? '● Scanning' : 'HW Scan'}
                               </button>
                             </div>
@@ -6189,7 +6189,7 @@ export default function ItemList() {
                             <div style={{ fontSize: 11, color: T.textMuted, marginBottom: 8, fontStyle: 'italic' }}>
                               * Generated automatically from <b>Base UOM ({form.default_uom || 'Nos'})</b> and <b>Pieces Per Box ({form.custom_pieces_per_box || 0})</b>.
                             </div>
-                            <table className="il-table" style={{ width: '100%' }}>
+                            <table className="erp-table il-table" style={{ width: '100%' }}>
                               <thead>
                                 <tr style={{ background: T.bg }}>
                                   <th style={{ padding: '8px 10px', fontSize: 11, fontWeight: 700, color: T.textMuted }}>UOM UNIT</th>
@@ -6232,7 +6232,7 @@ export default function ItemList() {
                           action={<button className="il-btn il-btn-ghost" style={{ padding: '4px 9px', fontSize: 12 }} onClick={addBranchRow}><Plus size={12} />Add Branch</button>}
                         >
                           {form.branch_availability.length > 0 ? (
-                            <table className="il-table">
+                            <table className="erp-table il-table">
                               <thead><tr><th>Target Warehouse</th><th style={{ width: 40 }}></th></tr></thead>
                               <tbody>
                                 {form.branch_availability.map((b, i) => (
@@ -6258,7 +6258,7 @@ export default function ItemList() {
                         action={<button className="il-btn il-btn-ghost" style={{ padding: '4px 9px', fontSize: 12 }} onClick={addSupplierRow}><Plus size={12} />Add</button>}
                       >
                         {form.supplier_items.length > 0 ? (
-                          <table className="il-table">
+                          <table className="erp-table il-table">
                             <thead><tr><th>Supplier</th><th>Part No</th><th style={{ width: 40 }}></th></tr></thead>
                             <tbody>
                               {form.supplier_items.map((s, i) => (
@@ -6290,7 +6290,7 @@ export default function ItemList() {
                       {form.imagePreview ? <img src={form.imagePreview} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <Package size={24} style={{ color: '#D1D9E6' }} />}
                     </div>
                     <div style={{ display: 'flex', gap: 8 }}>
-                      <button className="il-btn il-btn-secondary" onClick={() => fileInputRef.current?.click()}><Upload size={13} />Upload Image</button>
+                      <button className="erp-button erp-button-secondary il-btn il-btn-secondary" onClick={() => fileInputRef.current?.click()}><Upload size={13} />Upload Image</button>
                       {form.imagePreview && <button className="il-btn il-btn-danger" onClick={() => setForm({ ...form, image: null, imagePreview: null })}><X size={13} />Remove</button>}
                     </div>
                     <input ref={fileInputRef} type="file" hidden accept="image/*" onChange={handleImageChange} />
@@ -6303,9 +6303,9 @@ export default function ItemList() {
 
           {/* Footer (edit/create only) */}
           {!isViewMode && (
-            <div className="il-modal-footer">
-              <button className="il-btn il-btn-secondary" onClick={handleCloseForm}>Discard</button>
-              <button className="il-btn il-btn-primary" onClick={handleSave} disabled={saving} style={{ minWidth: 110 }}>
+            <div className="erp-dialog-edge il-modal-footer">
+              <button className="erp-button erp-button-secondary il-btn il-btn-secondary" onClick={handleCloseForm}>Discard</button>
+              <button className="erp-button erp-button-primary il-btn il-btn-primary" onClick={handleSave} disabled={saving} style={{ minWidth: 110 }}>
                 {saving ? <><Loader2 size={13} className="spin" />Saving...</> : (isEditMode ? 'Update Item' : 'Create Item')}
               </button>
             </div>
@@ -6632,7 +6632,7 @@ export default function ItemList() {
               }}>
                 <button
                   type="button"
-                  className="il-btn il-btn-secondary"
+                  className="erp-button erp-button-secondary il-btn il-btn-secondary"
                   onClick={() => setShowItemGroupModal(false)}
                   disabled={savingItemGroup}
                   style={{ height: '40px', padding: '0 18px' }}
@@ -6641,7 +6641,7 @@ export default function ItemList() {
                 </button>
                 <button
                   type="submit"
-                  className="il-btn il-btn-primary"
+                  className="erp-button erp-button-primary il-btn il-btn-primary"
                   disabled={savingItemGroup || !itemGroupModalForm.item_group_name.trim()}
                   style={{ height: '40px', padding: '0 22px', minWidth: '120px' }}
                 >

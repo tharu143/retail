@@ -231,8 +231,8 @@ export default function PurchaseTools() {
             </button>
           </div>
 
-          <div className="purchase-table-container">
-            <table className="purchase-table">
+          <div className="erp-table-scroll purchase-table-container">
+            <table className="erp-table purchase-table">
               <thead>
                 <tr>
                   <th className="purchase-th min-w-[300px]">Item & Calculation</th>

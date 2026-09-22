@@ -1,3 +1,4 @@
+import PageHeader from '../UI/PageHeader';
 import React, { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
@@ -79,9 +80,9 @@ function InterBranchTransferList() {
   });
 
   return (
-    <div className="so-page">
+    <div className="erp-page so-page">
       {/* Page Header */}
-      <div className="so-page-header" style={{ padding: '1.25rem 2rem', background: '#ffffff', borderBottom: '1px solid #e2e8f0' }}>
+      <PageHeader className="so-page-header" style={{ padding: '1.25rem 2rem', background: '#ffffff', borderBottom: '1px solid #e2e8f0' }}>
         <div>
           <h1 className="so-page-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
             <ArrowRightLeft size={22} style={{ color: themeColor }} />
@@ -105,7 +106,7 @@ function InterBranchTransferList() {
           </button>
           <button 
             onClick={() => navigate('/newinterbranchrequest')}
-            className="so-btn-primary"
+            className="erp-button erp-button-primary so-btn-primary"
             style={{
               display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem',
               height: '38px', padding: '0 1rem', background: themeColor,
@@ -118,7 +119,7 @@ function InterBranchTransferList() {
             <Plus size={16} /> New Request
           </button>
         </div>
-      </div>
+      </PageHeader>
 
       {/* Tab Controls */}
       <div style={{ 
@@ -183,9 +184,9 @@ function InterBranchTransferList() {
           </div>
 
           {/* Table Card */}
-          <div className="so-table-card" style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)' }}>
-          <div className="so-table-wrapper">
-            <table className="so-table">
+          <div className="erp-table-card so-table-card" style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)' }}>
+          <div className="erp-table-scroll so-table-wrapper">
+            <table className="erp-table so-table">
               <thead>
                 <tr>
                   <th>Request ID</th>
@@ -288,7 +289,7 @@ function InterBranchTransferList() {
                         {/* 7. Manage Action */}
                         <td style={{ textAlign: 'center' }}>
                            <button 
-                             className="so-btn-secondary"
+                             className="erp-button erp-button-secondary so-btn-secondary"
                              style={{ fontSize: '0.65rem', padding: '0.35rem 0.75rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
                              onClick={(e) => { e.stopPropagation(); navigate(`/interbranchrequest/${req.name}`); }}
                            >

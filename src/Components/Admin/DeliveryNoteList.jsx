@@ -1,3 +1,4 @@
+import PageHeader from '../UI/PageHeader';
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -884,13 +885,13 @@ const DeliveryNoteList = () => {
 
     return (
         <>
-            <div className="so-page">
+            <div className="erp-page so-page">
                 <div className="so-page-header-container">
                     <div className="so-page-tabs">
                         <span className="so-page-tab active">Delivery Note</span>
                         <span className="so-page-tab" onClick={() => navigate('/salesreport')} style={{ cursor: 'pointer' }}>Reports</span>
                     </div>
-                    <div className="so-page-header">
+                    <PageHeader className="so-page-header">
                         <div>
                             <h1 className="so-page-title" style={{ display: 'flex', alignItems: 'center', gap: '10px', margin: 0 }}>
                                 <Package size={22} style={{ color: themeColor || '#0082f6' }} strokeWidth={2.5} />
@@ -959,11 +960,11 @@ const DeliveryNoteList = () => {
                                 <span>NEW DELIVERY NOTE</span>
                             </button>
                         </div>
-                    </div>
+                    </PageHeader>
                 </div>
 
                 <div className="so-layout" style={{ flexDirection: 'column', background: '#f8fafc', padding: '1.5rem 2rem' }}>
-                    <div className="so-filter-bar" style={{ background: '#f8fafc', padding: '0 0 1.25rem 0', borderBottom: 'none', display: 'flex', flexWrap: 'wrap', gap: '1.25rem', alignItems: 'flex-end', marginBottom: '0.5rem' }}>
+                    <div className="erp-filter-bar so-filter-bar" style={{ background: '#f8fafc', padding: '0 0 1.25rem 0', borderBottom: 'none', display: 'flex', flexWrap: 'wrap', gap: '1.25rem', alignItems: 'flex-end', marginBottom: '0.5rem' }}>
                         <div className="so-filter-group" style={{ minWidth: '200px', flex: 1 }}>
                             <label className="so-filter-label" style={{ fontSize: '12px', fontWeight: 800, color: '#334155', textTransform: 'uppercase', letterSpacing: '0.01em', display: 'block', marginBottom: '6px' }}>SEARCH</label>
                             <div style={{ position: 'relative' }}>
@@ -1033,9 +1034,9 @@ const DeliveryNoteList = () => {
 
                     <div className="so-content" style={{ padding: 0 }}>
                         <p className="so-list-meta" style={{ marginBottom: '0.75rem', fontWeight: 600, color: '#64748b', fontSize: '13px' }}>{sortedNotes.length} record(s) found</p>
-                        <div className="so-table-card" style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)' }}>
-                            <div className="so-table-wrapper">
-                                <table className="so-table">
+                        <div className="erp-table-card so-table-card" style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)' }}>
+                            <div className="erp-table-scroll so-table-wrapper">
+                                <table className="erp-table so-table">
                                     <thead>
                                         <tr>
                                             {!hiddenDefaults.includes('title') && (
@@ -1103,7 +1104,7 @@ const DeliveryNoteList = () => {
                                     </thead>
                                     <tbody>
                                         {loading ? (
-                                            <tr><td colSpan={DEFAULT_DN_LIST_COLUMNS.length - hiddenDefaults.length + customColumns.length + 1} className="so-empty"><Loader2 size={28} className="so-spinner" style={{ margin: '0 auto' }} /></td></tr>
+                                            <tr><td colSpan={DEFAULT_DN_LIST_COLUMNS.length - hiddenDefaults.length + customColumns.length + 1} className="erp-empty so-empty"><Loader2 size={28} className="so-spinner" style={{ margin: '0 auto' }} /></td></tr>
                                         ) : paginatedNotes.map(dn => (
                                             <tr key={dn.name} onClick={() => navigate(`/deliverynote-details/${encodeURIComponent(dn.name)}`)} style={{ cursor: 'pointer' }}>
                                                 {!hiddenDefaults.includes('title') && (

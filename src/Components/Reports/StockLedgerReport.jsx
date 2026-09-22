@@ -386,7 +386,7 @@ function StockLedgerReport() {
   };
 
   return (
-    <div className="slr-container">
+    <div className="erp-page slr-container">
 
       {/* 1. Header */}
       <header className="slr-header no-print">
@@ -402,11 +402,11 @@ function StockLedgerReport() {
         </div>
 
         <div className="slr-actions">
-          <button onClick={() => window.print()} className="slr-btn-secondary">
+          <button onClick={() => window.print()} className="erp-button erp-button-secondary slr-btn-secondary">
             <Printer size={15} />
             <span>Print</span>
           </button>
-          <button onClick={exportCSV} className="slr-btn-primary">
+          <button onClick={exportCSV} className="erp-button erp-button-primary slr-btn-primary">
             <Download size={15} />
             <span>Export CSV</span>
           </button>
@@ -519,7 +519,7 @@ function StockLedgerReport() {
         </div>
 
         {/* 3. Filters Card */}
-        <div className="slr-filter-card no-print">
+        <div className="erp-filter-bar slr-filter-card no-print">
           <div className="slr-filter-inputs">
             {/* From Date */}
             <div className="slr-field-block">
@@ -663,7 +663,7 @@ function StockLedgerReport() {
         )}
 
         {/* 4. Table Viewport */}
-        <div className="slr-table-container">
+        <div className="erp-table-scroll slr-table-container">
           <div className="slr-table-header-meta">
             <span className="slr-meta-text">Found <b>{data.length}</b> stock ledger rows</span>
             {loading && (
@@ -673,8 +673,8 @@ function StockLedgerReport() {
             )}
           </div>
 
-          <div className="slr-table-wrapper">
-            <table className="slr-table">
+          <div className="erp-table-scroll slr-table-wrapper">
+            <table className="erp-table slr-table">
               <thead>
                 <tr>
                   {ledgerColumns.filter(c => c.visible).map(col => (
@@ -872,7 +872,7 @@ function StockLedgerReport() {
                   <span>per page</span>
                 </div>
 
-                <div className="ssr-pagination" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                <div className="erp-pagination ssr-pagination" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
                   <button
                     className="ssr-page-btn"
                     disabled={currentPage <= 1 || pageSize === -1}

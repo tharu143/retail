@@ -1,3 +1,4 @@
+import PageHeader from '../UI/PageHeader';
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
   Plus, X, Trash2, Building2, Search, Calendar, Filter, MoreVertical, Package,
@@ -1896,8 +1897,8 @@ function PurchaseInvoiceList() {
     };
 
     return (
-      <div className="so-card" style={{ marginBottom: '1.5rem', border: `1px solid ${themeColor}20`, background: `${themeColor}05` }}>
-        <div className="so-card-header" style={{ borderBottom: `1px solid ${themeColor}10`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <div className="erp-card so-card" style={{ marginBottom: '1.5rem', border: `1px solid ${themeColor}20`, background: `${themeColor}05` }}>
+        <div className="erp-section-header so-card-header" style={{ borderBottom: `1px solid ${themeColor}10`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <Zap size={14} style={{ color: themeColor }} />
             <span style={{ fontSize: '0.7rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.05em', color: themeColor }}>Connections & Dashboard</span>
@@ -1931,7 +1932,7 @@ function PurchaseInvoiceList() {
                   <button
                     onClick={handleCreatePayment}
                     disabled={saving}
-                    className="so-btn-primary"
+                    className="erp-button erp-button-primary so-btn-primary"
                     style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.375rem', padding: '0.5rem 1rem', fontSize: '0.7rem', background: '#eab308', borderColor: '#eab308' }}
                   >
                     <Plus size={14} /> Create Payment Entry
@@ -1939,7 +1940,7 @@ function PurchaseInvoiceList() {
                   <button
                     onClick={handleCreateReturn}
                     disabled={saving}
-                    className="so-btn-secondary"
+                    className="erp-button erp-button-secondary so-btn-secondary"
                     style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.375rem', padding: '0.5rem 1rem', fontSize: '0.7rem', color: '#ef4444', borderColor: '#ef4444' }}
                   >
                     <Link size={14} /> Create Debit Note
@@ -4060,8 +4061,8 @@ function PurchaseInvoiceList() {
 
         {/* CLASSIC MAIN BODY: TABLE AREA */}
         <div className="flex-1 flex flex-col overflow-hidden bg-slate-100">
-          <div className="flex-1 min-h-0 overflow-y-auto overflow-x-auto">
-            <table className="classic-table" style={{ width: 'max-content', minWidth: '100%', borderCollapse: 'collapse', background: '#ffffff', tableLayout: 'fixed' }}>
+          <div className="erp-scroll-region flex-1 min-h-0 overflow-y-auto overflow-x-auto">
+            <table className="erp-table classic-table" style={{ width: 'max-content', minWidth: '100%', borderCollapse: 'collapse', background: '#ffffff', tableLayout: 'fixed' }}>
               <thead>
                 <tr style={{ background: '#f8fafc', borderBottom: '1.5px solid #cbd5e1' }}>
                   <th style={{ width: '40px', minWidth: '40px', maxWidth: '40px', textAlign: 'center', padding: '8px 4px', fontSize: '11px', fontWeight: 900, color: '#475569', textTransform: 'uppercase', borderRight: '1px solid #e2e8f0' }}>#</th>
@@ -4853,7 +4854,7 @@ function PurchaseInvoiceList() {
   if (isModalOpen) {
     return (
       <>
-        <div className="so-page font-sans bg-[#f8fafc] min-h-screen flex flex-col" style={{ height: '100vh', overflowY: 'auto' }}>
+        <div className="erp-page so-page font-sans bg-[#f8fafc] min-h-screen flex flex-col" style={{ height: '100vh', overflowY: 'auto' }}>
           {/* Premium Glassmorphic Keyboard Shortcuts Guide Banner */}
           <div className="so-shortcut-guide-banner">
             <style>{`
@@ -5216,7 +5217,7 @@ function PurchaseInvoiceList() {
             </div>
           </div>
 
-          <div className="so-page-header" style={{ padding: '0.85rem 2rem', background: '#fff', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, zIndex: 100 }}>
+          <PageHeader className="so-page-header" style={{ padding: '0.85rem 2rem', background: '#fff', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, zIndex: 100 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
               <div>
                 <h2 style={{ fontSize: '1.1rem', fontWeight: 900, margin: 0, tracking: 'tight', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -5245,7 +5246,7 @@ function PurchaseInvoiceList() {
                 <button
                   type="button"
                   onClick={() => dispatch(toggleTheme())}
-                  className="so-btn-secondary"
+                  className="erp-button erp-button-secondary so-btn-secondary"
                   style={{
                     padding: '0.45rem 1rem',
                     fontSize: '0.75rem',
@@ -5273,7 +5274,7 @@ function PurchaseInvoiceList() {
                     <button
                       type="button"
                       onClick={() => handlePrintPDF(docName)}
-                      className="so-btn-secondary"
+                      className="erp-button erp-button-secondary so-btn-secondary"
                       style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#f0f9ff', color: '#0284c7', border: '1px solid #bae6fd', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '0.375rem', transition: 'all 0.2s' }}
                     >
                       <Printer size={14} /> PRINT PDF
@@ -5281,7 +5282,7 @@ function PurchaseInvoiceList() {
 
                     <button
                       onClick={handleDuplicate}
-                      className="so-btn-secondary"
+                      className="erp-button erp-button-secondary so-btn-secondary"
                       style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#f8fafc', color: '#475569', border: '1px solid #cbd5e1', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '0.375rem', transition: 'all 0.2s' }}
                     >
                       <Copy size={14} /> DUPLICATE
@@ -5307,7 +5308,7 @@ function PurchaseInvoiceList() {
                     {docName && isViewMode && (
                       <button
                         onClick={() => { setIsViewMode(false); setSearchParams({ name: docName, mode: 'edit' }); }}
-                        className="so-btn-secondary"
+                        className="erp-button erp-button-secondary so-btn-secondary"
                         style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#f1f5f9', color: '#475569', border: '1px solid #e2e8f0', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '0.375rem', transition: 'all 0.2s' }}
                       >
                         <Edit2 size={14} /> EDIT DRAFT
@@ -5320,7 +5321,7 @@ function PurchaseInvoiceList() {
                       <button
                         onClick={() => handleDocAction('save')}
                         disabled={saving}
-                        className="so-btn-primary"
+                        className="erp-button erp-button-primary so-btn-primary"
                         style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#10b981', color: 'white', border: 'none', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)', transition: 'all 0.2s' }}
                       >
                         {saving ? <Loader2 size={14} className="so-spinner" /> : 'SAVE DRAFT'}
@@ -5332,7 +5333,7 @@ function PurchaseInvoiceList() {
                           <button
                             onClick={() => handleDocAction('save')}
                             disabled={saving}
-                            className="so-btn-secondary"
+                            className="erp-button erp-button-secondary so-btn-secondary"
                             style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#f1f5f9', color: '#475569', border: '1px solid #e2e8f0', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', transition: 'all 0.2s' }}
                           >
                             {saving ? <Loader2 size={14} className="so-spinner" /> : 'SAVE DRAFT'}
@@ -5342,7 +5343,7 @@ function PurchaseInvoiceList() {
                             <button
                               onClick={() => handleDocAction('submit')}
                               disabled={saving}
-                              className="so-btn-primary"
+                              className="erp-button erp-button-primary so-btn-primary"
                               style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#10b981', color: 'white', border: 'none', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)', transition: 'all 0.2s' }}
                             >
                               {saving ? <Loader2 size={14} className="so-spinner" /> : 'SUBMIT'}
@@ -5365,7 +5366,7 @@ function PurchaseInvoiceList() {
                       <button
                         onClick={() => handleDocAction('cancel')}
                         disabled={saving}
-                        className="so-btn-primary"
+                        className="erp-button erp-button-primary so-btn-primary"
                         style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#ef4444', color: 'white', border: 'none', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', boxShadow: '0 4px 12px rgba(239, 68, 68, 0.25)', transition: 'all 0.2s' }}
                       >
                         {saving ? <Loader2 size={14} className="so-spinner" /> : 'CANCEL'}
@@ -5395,7 +5396,7 @@ function PurchaseInvoiceList() {
                       <button
                         onClick={() => handleDocAction('amend')}
                         disabled={saving}
-                        className="so-btn-primary"
+                        className="erp-button erp-button-primary so-btn-primary"
                         style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#0ea5e9', color: 'white', border: 'none', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', boxShadow: '0 4px 12px rgba(14, 165, 233, 0.25)', transition: 'all 0.2s' }}
                       >
                         {saving ? <Loader2 size={14} className="so-spinner" /> : 'AMEND'}
@@ -5408,7 +5409,7 @@ function PurchaseInvoiceList() {
                   <div className="relative" ref={createDropdownRef}>
                     <button
                       onClick={() => setShowCreateDropdown(!showCreateDropdown)}
-                      className="so-btn-secondary"
+                      className="erp-button erp-button-secondary so-btn-secondary"
                       style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#f8fafc', color: '#475569', border: '1px solid #cbd5e1', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '0.375rem', transition: 'all 0.2s' }}
                     >
                       <Plus size={14} /> CREATE <ChevronDown size={14} />
@@ -5485,13 +5486,13 @@ function PurchaseInvoiceList() {
                   </div>
                 )}
               </div>
-              <button onClick={closeModal} className="so-btn-secondary" style={{ padding: '0.5rem 1.25rem', borderRadius: '0.5rem', fontWeight: 900, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+              <button onClick={closeModal} className="erp-button erp-button-secondary so-btn-secondary" style={{ padding: '0.5rem 1.25rem', borderRadius: '0.5rem', fontWeight: 900, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
                 <ChevronLeft size={16} /> Back to List
               </button>
             </div>
-          </div>
+          </PageHeader>
 
-          <div className="so-modal-body" style={{ flex: 1, overflowY: 'auto', padding: '1.25rem 2rem' }}>
+          <div className="erp-dialog-body so-modal-body" style={{ flex: 1, overflowY: 'auto', padding: '1.25rem 2rem' }}>
             <div className="w-full flex flex-col gap-6">
 
               {/* STOCK UPDATE HIGHLIGHT BANNER */}
@@ -5596,8 +5597,8 @@ function PurchaseInvoiceList() {
               )}
 
               {/* Basic Details Card (Collapsible) */}
-              <div className="so-card">
-                <div className="so-card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div className="erp-card so-card">
+                <div className="erp-section-header so-card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <p className="so-card-title">Basic Details (Supplier & Invoice Info)</p>
                   <button
                     type="button"
@@ -5838,8 +5839,8 @@ function PurchaseInvoiceList() {
 
 
               {/* Items Card */}
-              <div className="so-card">
-                <div className="so-card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div className="erp-card so-card">
+                <div className="erp-section-header so-card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div className="flex items-center gap-4">
                     <p className="so-card-title">Items</p>
                     {!isViewMode && (
@@ -5878,8 +5879,8 @@ function PurchaseInvoiceList() {
                   </div>
                 </div>
                 <div className="so-card-body">
-                  <div className="purchase-table-container" style={{ borderRadius: '0.4rem', border: '1px solid var(--so-border)', boxShadow: 'none' }}>
-                    <table className="purchase-table">
+                  <div className="erp-table-scroll purchase-table-container" style={{ borderRadius: '0.4rem', border: '1px solid var(--so-border)', boxShadow: 'none' }}>
+                    <table className="erp-table purchase-table">
                       <thead>
                         <tr>
                           <th style={{ width: '40px', textAlign: 'center', position: 'sticky', left: 0, zIndex: 20, backgroundColor: '#f8fafc' }}>No.</th>
@@ -6544,8 +6545,8 @@ function PurchaseInvoiceList() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', alignItems: 'start' }}>
                 {/* Left Column: Discounts & Tax Selection */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                  <div className="so-card">
-                    <div className="so-card-header">
+                  <div className="erp-card so-card">
+                    <div className="erp-section-header so-card-header">
                       <p className="so-card-title">Discounts & Rounding</p>
                     </div>
                     <div className="so-card-body">
@@ -6604,13 +6605,13 @@ function PurchaseInvoiceList() {
 
                   {/* Taxes Table Card */}
                   {taxPreview.length > 0 && (
-                    <div className="so-card">
-                      <div className="so-card-header">
+                    <div className="erp-card so-card">
+                      <div className="erp-section-header so-card-header">
                         <p className="so-card-title">Taxes & Charges</p>
                       </div>
                       <div className="so-card-body">
-                        <div className="purchase-table-container" style={{ boxShadow: 'none', border: '1px solid var(--so-border)', marginTop: 0 }}>
-                          <table className="purchase-table">
+                        <div className="erp-table-scroll purchase-table-container" style={{ boxShadow: 'none', border: '1px solid var(--so-border)', marginTop: 0 }}>
+                          <table className="erp-table purchase-table">
                             <thead>
                               <tr>
                                 <th>Type</th>
@@ -6639,14 +6640,14 @@ function PurchaseInvoiceList() {
                 </div>
 
                 {/* Right Column: Totals Summary */}
-                <div className="so-card" style={{
+                <div className="erp-card so-card" style={{
                   background: isGreen
                     ? 'linear-gradient(135deg, #064e3b 0%, #065f46 100%)'
                     : 'linear-gradient(135deg, #0c4a6e 0%, #075985 100%)',
                   color: 'white',
                   height: '100%'
                 }}>
-                  <div className="so-card-header" style={{ borderBottomColor: 'rgba(255,255,255,0.1)' }}>
+                  <div className="erp-section-header so-card-header" style={{ borderBottomColor: 'rgba(255,255,255,0.1)' }}>
                     <p className="so-card-title" style={{ color: 'white' }}>Final Summary</p>
                   </div>
                   <div className="so-card-body" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -6759,14 +6760,14 @@ function PurchaseInvoiceList() {
 
   return (
     <>
-      <div className="so-page">
+      <div className="erp-page so-page">
         {/* Header */}
         <div className="so-page-header-container" style={{ display: isModalOpen ? 'none' : 'block' }}>
           <div className="so-page-tabs">
             <span className="so-page-tab active">Purchase Invoice</span>
             <span className="so-page-tab" onClick={() => navigate('/purchasereport')} style={{ cursor: 'pointer' }}>Reports</span>
           </div>
-          <div className="so-page-header">
+          <PageHeader className="so-page-header">
             <div>
               <h1 className="so-page-title" style={{ display: 'flex', alignItems: 'center', gap: '10px', margin: 0 }}>
                 <Package size={22} style={{ color: themeColor || '#0082f6' }} strokeWidth={2.5} />
@@ -6837,12 +6838,12 @@ function PurchaseInvoiceList() {
                 <span>CREATE INVOICE</span>
               </button>
             </div>
-          </div>
+          </PageHeader>
         </div>
 
         <div className="so-layout" style={{ flexDirection: 'column', display: isModalOpen ? 'none' : 'flex', background: '#f8fafc', padding: '1.5rem 2rem' }}>
           {/* Top Filters Bar */}
-          <div className="so-filter-bar" style={{
+          <div className="erp-filter-bar so-filter-bar" style={{
             background: '#f8fafc',
             padding: '0 0 1.25rem 0',
             borderBottom: 'none',
@@ -6954,7 +6955,7 @@ function PurchaseInvoiceList() {
           {/* Table Area */}
           <div className="so-content" style={{ padding: 0 }}>
             <p className="so-list-meta" style={{ marginBottom: '0.75rem', fontWeight: 600, color: '#64748b', fontSize: '13px' }}>{total} record(s) found</p>
-            <div className="so-table-card" style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)' }}>
+            <div className="erp-table-card so-table-card" style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)' }}>
               {loading ? (
                 <div style={{ padding: '4rem', textAlign: 'center' }}>
                   <Loader2 size={32} className="so-spinner" style={{ margin: '0 auto' }} />
@@ -6962,8 +6963,8 @@ function PurchaseInvoiceList() {
                 </div>
               ) : (
                 <>
-                  <div className="purchase-table-container">
-                    <table className="so-table">
+                  <div className="erp-table-scroll purchase-table-container">
+                    <table className="erp-table so-table">
                       <thead>
                         <tr>
                           {!hiddenDefaults.includes('name') && (
@@ -7040,7 +7041,7 @@ function PurchaseInvoiceList() {
                       <tbody>
                         {paginated.length === 0 ? (
                           <tr>
-                            <td colSpan={DEFAULT_PI_LIST_COLUMNS.length - hiddenDefaults.length + customColumns.length + 1} className="so-empty">
+                            <td colSpan={DEFAULT_PI_LIST_COLUMNS.length - hiddenDefaults.length + customColumns.length + 1} className="erp-empty so-empty">
                               <Package size={48} style={{ margin: '0 auto 1rem', opacity: 0.2 }} />
                               <p>No invoices found</p>
                               <button onClick={openCreateModal} style={{ color: themeColor, fontWeight: 700, background: 'none', border: 'none', cursor: 'pointer' }}>
@@ -7227,7 +7228,7 @@ function PurchaseInvoiceList() {
                   </div>
 
                   {total > 0 && (
-                    <div className="so-pagination" style={{ padding: '1rem 1.25rem', borderTop: '1px solid var(--so-border)', marginTop: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div className="erp-pagination so-pagination" style={{ padding: '1rem 1.25rem', borderTop: '1px solid var(--so-border)', marginTop: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                       <span style={{ color: 'var(--so-text-muted)', fontSize: '0.75rem' }}>
                         Showing {(currentPage - 1) * pageSize + 1} to {Math.min(currentPage * pageSize, total)} of {total}
                       </span>

@@ -1264,9 +1264,9 @@ function Home() {
                 theme={theme}
             />
             {showOpeningModal && (
-                <div className="home-modal-overlay" style={{ zIndex: 9999 }}>
+                <div className="erp-overlay home-modal-overlay" style={{ zIndex: 9999 }}>
                     <div className="home-modal" style={{ maxWidth: '1450px', width: '98vw', maxHeight: '98vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
-                        <div className="home-modal-header bg-slate-50/80 border-b border-slate-100 p-5 flex justify-between items-center">
+                        <div className="erp-dialog-edge home-modal-header bg-slate-50/80 border-b border-slate-100 p-5 flex justify-between items-center">
                             <div className="flex items-center gap-3">
                                 <div className="w-10 h-10 bg-emerald-600 text-white rounded-xl flex items-center justify-center shadow-lg shadow-emerald-200">
                                     <DirhamIcon size={20} />
@@ -1283,7 +1283,7 @@ function Home() {
                                 <X size={20} />
                             </button>
                         </div>
-                        <div className="home-modal-body" style={{ padding: 0, flex: 1, overflowY: 'auto', background: '#f8fafc' }}>
+                        <div className="erp-dialog-body home-modal-body" style={{ padding: 0, flex: 1, overflowY: 'auto', background: '#f8fafc' }}>
                             <OpeningEntryPage onOpeningEntrySuccess={handleOpeningSuccess} isModal={true} onCancel={handleLogout} />
                         </div>
                     </div>
@@ -1353,13 +1353,13 @@ function Home() {
                 </div>
             )}
             {showPurchaseModal && (
-                <div className="home-modal-overlay" onClick={() => setShowPurchaseModal(false)}>
+                <div className="erp-overlay home-modal-overlay" onClick={() => setShowPurchaseModal(false)}>
                     <div className="home-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '480px' }}>
-                        <div className="home-modal-header">
+                        <div className="erp-dialog-edge home-modal-header">
                             <h3>Purchase Tools: {purchaseForm.item_code}</h3>
                             <button className="home-modal-close" onClick={() => setShowPurchaseModal(false)}><X size={20} /></button>
                         </div>
-                        <div className="home-modal-body">
+                        <div className="erp-dialog-body home-modal-body">
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                                 <label style={{ fontSize: '13px', fontWeight: 700 }}>Supplier</label>
                                 <input type="text" placeholder="Enter Supplier Name" value={purchaseForm.supplier} onChange={e => setPurchaseForm({ ...purchaseForm, supplier: e.target.value })} className="home-customer-input" />
@@ -1395,7 +1395,7 @@ function Home() {
                                 </div>
                             </div>
                         </div>
-                        <div className="home-modal-footer">
+                        <div className="erp-dialog-edge home-modal-footer">
                             <button className="home-modal-cancel" onClick={() => setShowPurchaseModal(false)}>Cancel</button>
                             <button className="home-modal-apply" onClick={handlePurchaseSubmit} style={{ background: '#10b981' }}>Submit Purchase</button>
                         </div>
@@ -1403,13 +1403,13 @@ function Home() {
                 </div>
             )}
             {showDraftsModal && (
-                <div className="home-modal-overlay" style={{ zIndex: 9999 }} onClick={() => setShowDraftsModal(false)}>
+                <div className="erp-overlay home-modal-overlay" style={{ zIndex: 9999 }} onClick={() => setShowDraftsModal(false)}>
                     <div className="home-modal" style={{ maxWidth: '800px', maxHeight: '85vh', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
-                        <div className="home-modal-header">
+                        <div className="erp-dialog-edge home-modal-header">
                             <h3>Active Saved Orders (Drafts)</h3>
                             <button className="home-modal-close" onClick={() => setShowDraftsModal(false)}><X size={20} /></button>
                         </div>
-                        <div className="home-modal-body" style={{ flex: 1, overflowY: 'auto', padding: '20px' }}>
+                        <div className="erp-dialog-body home-modal-body" style={{ flex: 1, overflowY: 'auto', padding: '20px' }}>
                             {draftOrders.length === 0 ? (
                                 <div style={{ textAlign: 'center', padding: '40px', color: '#94a3b8' }}>
                                     <Package size={48} style={{ margin: '0 auto 15px', opacity: 0.5 }} />
@@ -6122,7 +6122,7 @@ function Home() {
 
         return (
             <div
-                className="home-modal-overlay"
+                className="erp-overlay home-modal-overlay"
                 onClick={() => setShowItemDetailModal(false)}
                 style={{
                     position: 'fixed',
@@ -6547,7 +6547,7 @@ function Home() {
 
         return (
             <div
-                className="home-modal-overlay"
+                className="erp-overlay home-modal-overlay"
                 onClick={() => setShowDiscountModal(false)}
                 style={{
                     position: 'fixed',
@@ -6561,7 +6561,7 @@ function Home() {
                 }}
             >
                 <div
-                    className="home-modal"
+                    className="erp-dialog erp-inline-dialog home-modal"
                     onClick={e => e.stopPropagation()}
                     style={{
                         width: '100%',
@@ -6577,7 +6577,7 @@ function Home() {
                     }}
                 >
                     {/* Header */}
-                    <div style={{ padding: '18px 24px', background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div className="erp-dialog-edge erp-dialog-heading" style={{ padding: '18px 24px', background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                             <div style={{ width: '38px', height: '38px', background: '#2563eb', color: '#ffffff', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 12px rgba(37,99,235,0.4)' }}>
                                 <Percent size={18} />
@@ -6596,7 +6596,7 @@ function Home() {
                         </button>
                     </div>
 
-                    <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: '16px', background: '#f8fafc' }}>
+                    <div className="erp-dialog-body erp-inline-dialog-body" style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: '16px', background: '#f8fafc' }}>
 
                         {/* Summary Metrics Box Layout */}
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
@@ -6810,7 +6810,7 @@ function Home() {
 
     const renderCreateModal = () => (
         <div
-            className="home-modal-overlay"
+            className="erp-overlay home-modal-overlay"
             onClick={(e) => { if (e.target === e.currentTarget) setShowCreateModal(false); }}
             style={{
                 position: 'fixed',
@@ -7170,7 +7170,7 @@ function Home() {
 
         return (
             <div
-                className="home-modal-overlay"
+                className="erp-overlay home-modal-overlay"
                 onClick={(e) => { if (e.target === e.currentTarget) setShowGroupChangeModal(false); }}
                 style={{
                     position: 'fixed',
@@ -7508,7 +7508,7 @@ function Home() {
         const redeemedValue = points * 1.0;
         return (
             <div
-                className="home-modal-overlay"
+                className="erp-overlay home-modal-overlay"
                 onClick={() => setShowLoyaltyModal(false)}
                 style={{
                     position: 'fixed',
@@ -7536,7 +7536,7 @@ function Home() {
                         margin: '16px'
                     }}
                 >
-                    <div className="home-modal-header bg-slate-50/80 border-b border-slate-100 px-6 py-4 flex justify-between items-center shrink-0">
+                    <div className="erp-dialog-edge home-modal-header bg-slate-50/80 border-b border-slate-100 px-6 py-4 flex justify-between items-center shrink-0">
                         <div className="flex items-center gap-3">
                             <div className="w-9 h-9 bg-emerald-600 text-white rounded-xl flex items-center justify-center shadow-md shadow-emerald-200">
                                 <Award size={18} />
@@ -7551,7 +7551,7 @@ function Home() {
                         </button>
                     </div>
 
-                    <div className="home-modal-body p-6 flex flex-col gap-4">
+                    <div className="erp-dialog-body home-modal-body p-6 flex flex-col gap-4">
                         {/* Customer Loyalty Profile Card */}
                         <div className="bg-gradient-to-br from-emerald-600 to-teal-700 text-white p-5 rounded-2xl shadow-lg relative overflow-hidden">
                             <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-2xl"></div>
@@ -7656,7 +7656,7 @@ function Home() {
                         </div>
                     </div>
 
-                    <div className="home-modal-footer p-5 bg-slate-50 flex gap-3 items-center border-t border-slate-100">
+                    <div className="erp-dialog-edge home-modal-footer p-5 bg-slate-50 flex gap-3 items-center border-t border-slate-100">
                         <button
                             className="flex-1 py-3 text-slate-400 font-black uppercase tracking-widest hover:text-slate-600 transition-all text-xs"
                             onClick={clearLoyaltyPoints}
@@ -7678,7 +7678,7 @@ function Home() {
 
     const renderPaymentModal = () => (
         <div
-            className="home-modal-overlay"
+            className="erp-overlay home-modal-overlay"
             onClick={() => { setShowPaymentModal(false); setSelectedPaymentMode(''); setPayments([]); }}
             style={{
                 position: 'fixed',
@@ -7707,7 +7707,7 @@ function Home() {
                     maxHeight: '95vh'
                 }}
             >
-                <div className="home-modal-header bg-slate-50/80 border-b border-slate-100 px-6 py-5 flex justify-between items-center">
+                <div className="erp-dialog-edge home-modal-header bg-slate-50/80 border-b border-slate-100 px-6 py-5 flex justify-between items-center">
                     <div className="flex items-center gap-3.5">
                         <div className="w-10 h-10 bg-sky-600 text-white rounded-xl flex items-center justify-center shadow-lg shadow-sky-200">
                             <CreditCard size={20} />
@@ -7722,7 +7722,7 @@ function Home() {
                     </button>
                 </div>
 
-                <div className="home-modal-body p-6 flex flex-col gap-5 overflow-y-auto">
+                <div className="erp-dialog-body home-modal-body p-6 flex flex-col gap-5 overflow-y-auto">
                     {/* Summary Cards */}
                     <div className="grid grid-cols-3 gap-3 payment-status-blocks">
                         {/* Total Bill Card */}
@@ -8025,7 +8025,7 @@ function Home() {
 
                 </div>
 
-                <div className="home-modal-footer p-6 bg-white border-t border-slate-100 flex flex-col gap-3">
+                <div className="erp-dialog-edge home-modal-footer p-6 bg-white border-t border-slate-100 flex flex-col gap-3">
                     {/* Complete Payment Button */}
                     <button
                         onClick={completePayment}
@@ -10659,7 +10659,7 @@ function Home() {
                 </div>
 
                 {/* ── RIGHT: Actions, Utilities, User Profile & Logout ── */}
-                <div className="ml-auto flex items-center" style={{ gap: '12px', flexShrink: 0 }}>
+                <div className="erp-pos-utilities ml-auto flex items-center" style={{ gap: '12px', flexShrink: 0 }}>
                     <div className="flex items-center gap-2.5">
                         {/* 1. POPUP / FULL Window Mode */}
                         <button
@@ -10911,7 +10911,7 @@ function Home() {
     // ---------- LIGHT THEME RENDERER (Emerald & Slate) ----------
     const renderLightTheme = () => {
         return wrapWindowMode(
-            <div className="so-page" style={{ height: '100%', maxHeight: '100%', overflow: 'hidden', display: 'flex', flexDirection: 'column', position: 'relative' }}>
+            <div className={`erp-page so-page erp-pos-modern ${theme === 'modern_no_image' ? 'erp-pos-compact' : 'erp-pos-photo'}`} style={{ height: '100%', maxHeight: '100%', overflow: 'hidden', display: 'flex', flexDirection: 'column', position: 'relative' }}>
                 {renderUnifiedTopNav()}
 
                 {!hideAllShortcuts && shortcutsPosition === 'top' && (
@@ -12034,7 +12034,7 @@ function Home() {
         const accentColor = '#e8c84a';
 
         return wrapWindowMode(
-            <div className={`classic-root ${!isGreen ? 'theme-blue' : ''}`} style={{ position: 'relative', height: '100%', maxHeight: '100%' }}>
+            <div className={`classic-root erp-pos-classic ${!isGreen ? 'theme-blue' : ''}`} style={{ position: 'relative', height: '100%', maxHeight: '100%' }}>
 
                 {renderUnifiedTopNav()}
 
@@ -12258,13 +12258,13 @@ function Home() {
                 </div>
 
                 {/* CLASSIC MAIN BODY */}
-                <div className="flex-1 flex overflow-hidden">
+                <div className="erp-pos-classic-body flex-1 flex overflow-hidden">
                     {!hideAllShortcuts && shortcutsPosition === 'left' && renderClassicShortcutsVertical('left')}
 
                     <div className="classic-entry-area">
                         {/* GRID SECTION */}
-                        <div className="flex-1 min-h-0 overflow-y-auto overflow-x-auto bg-slate-100">
-                            <table className="classic-table">
+                        <div className="erp-scroll-region flex-1 min-h-0 overflow-y-auto overflow-x-auto bg-slate-100">
+                            <table className="erp-table classic-table">
                                 <colgroup>
                                     <col style={{ width: 40 }} />
                                     {visibleClassicCols.map(col => (
@@ -12622,7 +12622,7 @@ function Home() {
                         </div>
 
                         {/* BOTTOM SECTION — REDESIGNED TO MATCH IMAGE 2 EXACTLY */}
-                        <div className="p-2.5 bg-[#e6f4f1] border-t border-[#d1e5e0]">
+                        <div className="erp-pos-checkout p-2.5 bg-[#e6f4f1] border-t border-[#d1e5e0]">
                             <div className="grid grid-cols-1 xl:grid-cols-12 gap-3 items-stretch">
 
                                 {/* 2. ACTION BUTTON GRID (LEFT SIDE - ~55% width) */}
@@ -13507,4 +13507,3 @@ function Home() {
     );
 }
 export default Home;
-

@@ -36,7 +36,7 @@ export const FilterBar = ({
   setEndDate
 }) => {
   return (
-    <div className="dashboard-filter-bar flex-wrap">
+    <div className="erp-filter-bar dashboard-filter-bar flex-wrap">
       {isAdmin ? (
         <>
           <div className="filter-group">
@@ -574,8 +574,8 @@ export const DeadStockWidget = ({ selectedBranch }) => {
         </select>
       </div>
 
-      <div className="overflow-x-auto">
-        <table className="w-full text-left border-collapse">
+      <div className="erp-scroll-region overflow-x-auto">
+        <table className="erp-table w-full text-left border-collapse">
           <thead>
             <tr className="bg-slate-50 border-b border-slate-100">
               <th className="py-3 px-4 text-xs font-black text-slate-400 uppercase">Item Code</th>

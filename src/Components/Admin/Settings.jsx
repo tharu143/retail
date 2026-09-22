@@ -1,3 +1,4 @@
+import PageHeader from '../UI/PageHeader';
 import React, { useState, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import axios from 'axios';
@@ -354,7 +355,7 @@ const Settings = () => {
     };
 
     if (loading) return (
-        <div className="so-page" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div className="erp-page so-page" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <div style={{ textAlign: 'center' }}>
                 <Loader2 size={40} className="animate-spin" style={{ color: themeColor, margin: '0 auto' }} />
                 <p style={{ marginTop: '1rem', fontWeight: 700, color: 'var(--so-text-muted)', letterSpacing: '0.05em' }}>LOADING CONFIGURATION...</p>
@@ -363,9 +364,9 @@ const Settings = () => {
     );
 
     return (
-        <div className="so-page">
+        <div className="erp-page so-page">
             {/* Header */}
-            <div className="so-page-header">
+            <PageHeader className="so-page-header">
                 <div>
                     <h1 className="so-page-title">
                         <SettingsIcon size={20} color={themeColor} />
@@ -390,7 +391,7 @@ const Settings = () => {
                     </button>
                     <div style={{ width: '1px', height: '24px', background: '#e2e8f0', margin: '0 0.25rem' }}></div>
                     <button
-                        className="so-btn-primary"
+                        className="erp-button erp-button-primary so-btn-primary"
                         onClick={handleSave}
                         style={{
                             height: '38px', display: 'inline-flex', alignItems: 'center', gap: '6px',
@@ -403,7 +404,7 @@ const Settings = () => {
                         <Save size={15} /> Apply Changes
                     </button>
                 </div>
-            </div>
+            </PageHeader>
 
             <div className="so-layout">
                 <main className="so-content" style={{ padding: '2rem', display: 'grid', gridTemplateColumns: 'repeat(12, 1fr)', gap: '2rem' }}>
@@ -412,7 +413,7 @@ const Settings = () => {
                     <div style={{ gridColumn: 'span 7', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                         
                         {/* Warehouse Mapping Card */}
-                        <div className="so-table-card" style={{ padding: '1.5rem' }}>
+                        <div className="erp-table-card so-table-card" style={{ padding: '1.5rem' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '1.5rem' }}>
                                 <div style={{ background: `${themeColor}15`, color: themeColor, padding: '8px', borderRadius: '10px' }}>
                                     <MapPin size={18} />
@@ -445,7 +446,7 @@ const Settings = () => {
                         </div>
 
                         {/* Purchase Stock Workflow Configuration Card */}
-                        <div className="so-table-card" style={{ padding: '1.5rem', border: `1.5px solid ${purchaseWorkflow === 'PR_FIRST' ? '#10b98130' : '#3b82f630'}` }}>
+                        <div className="erp-table-card so-table-card" style={{ padding: '1.5rem', border: `1.5px solid ${purchaseWorkflow === 'PR_FIRST' ? '#10b98130' : '#3b82f630'}` }}>
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                     <div style={{ background: purchaseWorkflow === 'PR_FIRST' ? '#10b98115' : '#3b82f615', color: purchaseWorkflow === 'PR_FIRST' ? '#10b981' : '#3b82f6', padding: '8px', borderRadius: '10px' }}>
@@ -517,7 +518,7 @@ const Settings = () => {
                         </div>
 
                         {/* Loyalty Program Configuration Card */}
-                        <div className="so-table-card" style={{ padding: '1.5rem', border: `1.5px solid ${themeColor}30` }}>
+                        <div className="erp-table-card so-table-card" style={{ padding: '1.5rem', border: `1.5px solid ${themeColor}30` }}>
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                     <div style={{ background: `${themeColor}15`, color: themeColor, padding: '8px', borderRadius: '10px' }}>
@@ -591,7 +592,7 @@ const Settings = () => {
                         </div>
 
                         {/* Base UOM Master Filter Card */}
-                        <div className="so-table-card" style={{ padding: '1.5rem', border: `1.5px solid ${filterPackingUomsOnly ? '#10b98130' : '#e2e8f0'}` }}>
+                        <div className="erp-table-card so-table-card" style={{ padding: '1.5rem', border: `1.5px solid ${filterPackingUomsOnly ? '#10b98130' : '#e2e8f0'}` }}>
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                     <div style={{ background: filterPackingUomsOnly ? '#10b98115' : '#64748b15', color: filterPackingUomsOnly ? '#10b981' : '#64748b', padding: '8px', borderRadius: '10px' }}>
@@ -661,7 +662,7 @@ const Settings = () => {
                         </div>
 
                         {/* Table Column Customizer Card (Sales Invoice & POS Classic) */}
-                        <div className="so-table-card" style={{ padding: '1.5rem' }}>
+                        <div className="erp-table-card so-table-card" style={{ padding: '1.5rem' }}>
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                     <div style={{ background: `${themeColor}15`, color: themeColor, padding: '8px', borderRadius: '10px' }}>
@@ -801,7 +802,7 @@ const Settings = () => {
                         </div>
 
                         {/* Keyboard Shortcuts Customization Card */}
-                        <div className="so-table-card" style={{ padding: '1.5rem' }}>
+                        <div className="erp-table-card so-table-card" style={{ padding: '1.5rem' }}>
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                     <div style={{ background: `${themeColor}15`, color: themeColor, padding: '8px', borderRadius: '10px' }}>
@@ -918,7 +919,7 @@ const Settings = () => {
 
 
                         {/* System Summary Card */}
-                        <div className="so-table-card" style={{ padding: '1.5rem', background: '#f8fafc' }}>
+                        <div className="erp-table-card so-table-card" style={{ padding: '1.5rem', background: '#f8fafc' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#64748b', marginBottom: '1rem' }}>
                                 <Cpu size={16} />
                                 <h4 style={{ fontSize: '0.75rem', fontWeight: 800, margin: 0, textTransform: 'uppercase' }}>Environmental Metadata</h4>
@@ -941,7 +942,7 @@ const Settings = () => {
                     <div style={{ gridColumn: 'span 5', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                         
                         {/* Maintenance / Danger Zone */}
-                        <div className="so-table-card" style={{ border: '1.5px solid #fee2e2', overflow: 'hidden' }}>
+                        <div className="erp-table-card so-table-card" style={{ border: '1.5px solid #fee2e2', overflow: 'hidden' }}>
                             <div style={{ background: '#fef2f2', padding: '1.25rem', borderBottom: '1px solid #fee2e2', display: 'flex', alignItems: 'center', gap: '10px' }}>
                                 <ShieldAlert size={20} color="#dc2626" />
                                 <h3 style={{ fontSize: '0.85rem', fontWeight: 800, color: '#991b1b', margin: 0 }}>CORE MAINTENANCE</h3>

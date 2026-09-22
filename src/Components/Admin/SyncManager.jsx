@@ -1,3 +1,4 @@
+import PageHeader from '../UI/PageHeader';
 import React, { useState, useEffect } from 'react';
 import { db } from '../../db';
 import {
@@ -241,7 +242,7 @@ const SyncManager = () => {
     };
 
     if (loading) return (
-        <div className="so-page" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div className="erp-page so-page" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <div style={{ textAlign: 'center' }}>
                 <Loader2 size={40} className="so-spinner" style={{ color: 'var(--so-primary)' }} />
                 <p style={{ marginTop: '1rem', fontWeight: 600, color: 'var(--so-text-muted)' }}>Initializing Sync Manager...</p>
@@ -250,8 +251,8 @@ const SyncManager = () => {
     );
 
     return (
-        <div className="so-page">
-            <div className="so-page-header">
+        <div className="erp-page so-page">
+            <PageHeader className="so-page-header">
                 <div>
                     <h1 className="so-page-title">
                         <Activity size={20} color={themeColor} /> DATA SYNC MANAGER
@@ -285,7 +286,7 @@ const SyncManager = () => {
                         <Palette size={14} /> {isGreen ? 'BLUE' : 'GREEN'}
                     </button>
                     <button
-                        className="so-btn-primary"
+                        className="erp-button erp-button-primary so-btn-primary"
                         onClick={fetchData}
                         disabled={loading}
                         style={{
@@ -299,7 +300,7 @@ const SyncManager = () => {
                         <RefreshCw size={16} className={loading ? "animate-spin" : ""} /> REFRESH DATA
                     </button>
                 </div>
-            </div>
+            </PageHeader>
 
             <div className="so-layout" style={{ padding: '1.5rem' }}>
                 <div style={{ width: '100%' }}>
@@ -323,7 +324,7 @@ const SyncManager = () => {
                                             </div>
                                             <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '2px' }}>{entry.company} | {entry.pos_profile}</div>
                                         </div>
-                                        <button className="so-btn-primary" style={{ background: '#6366f1', borderColor: '#6366f1' }} onClick={() => syncOpeningEntry(entry)} disabled={syncingId === `open-${entry.id}`}>
+                                        <button className="erp-button erp-button-primary so-btn-primary" style={{ background: '#6366f1', borderColor: '#6366f1' }} onClick={() => syncOpeningEntry(entry)} disabled={syncingId === `open-${entry.id}`}>
                                             {syncingId === `open-${entry.id}` ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />} Post Shift
                                         </button>
                                     </div>
@@ -341,7 +342,7 @@ const SyncManager = () => {
                                                 <span>{entry.grand_total?.toFixed(2)}</span>
                                             </div>
                                         </div>
-                                        <button className="so-btn-primary" style={{ background: '#4338ca', borderColor: '#4338ca' }} onClick={() => syncClosingEntry(entry)} disabled={syncingId === `close-${entry.id}`}>
+                                        <button className="erp-button erp-button-primary so-btn-primary" style={{ background: '#4338ca', borderColor: '#4338ca' }} onClick={() => syncClosingEntry(entry)} disabled={syncingId === `close-${entry.id}`}>
                                             {syncingId === `close-${entry.id}` ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />} Close Shift
                                         </button>
                                     </div>
@@ -353,21 +354,21 @@ const SyncManager = () => {
                     <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '2rem', alignItems: 'start' }}>
 
                         {/* Pending Invoices Table */}
-                        <div className="so-table-card">
-                            <div className="so-card-header" style={{ background: '#f8fafc' }}>
+                        <div className="erp-table-card so-table-card">
+                            <div className="erp-section-header so-card-header" style={{ background: '#f8fafc' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                                     <h3 style={{ margin: 0, fontSize: '0.9rem', fontWeight: 800, color: '#1e293b' }}>
                                         PENDING INVOICES ({pendingInvoices.length})
                                     </h3>
                                     {pendingInvoices.length > 0 && (
-                                        <button className="so-btn-primary" style={{ padding: '0.35rem 0.85rem', fontSize: '0.7rem' }} onClick={() => bulkSync(pendingInvoices)}>
+                                        <button className="erp-button erp-button-primary so-btn-primary" style={{ padding: '0.35rem 0.85rem', fontSize: '0.7rem' }} onClick={() => bulkSync(pendingInvoices)}>
                                             <FastForward size={14} /> Bulk Sync
                                         </button>
                                     )}
                                 </div>
                             </div>
-                            <div className="so-table-wrapper">
-                                <table className="so-table">
+                            <div className="erp-table-scroll so-table-wrapper">
+                                <table className="erp-table so-table">
                                     <thead>
                                         <tr>
                                             <th>Ref & ID</th>
@@ -380,7 +381,7 @@ const SyncManager = () => {
                                     <tbody>
                                         {pendingInvoices.length === 0 ? (
                                             <tr>
-                                                <td colSpan="5" className="so-empty" style={{ padding: '4rem' }}>
+                                                <td colSpan="5" className="erp-empty so-empty" style={{ padding: '4rem' }}>
                                                     <CheckCircle2 size={40} style={{ color: 'var(--so-primary)', marginBottom: '1rem' }} />
                                                     <div style={{ fontWeight: 700, fontSize: '1rem', color: '#1e293b' }}>Everything Up to Date</div>
                                                     <p>All local invoices have been successfully pushed to the server.</p>
@@ -421,15 +422,15 @@ const SyncManager = () => {
                         </div>
 
                         {/* Recent Activity Logs */}
-                        <div className="so-table-card">
-                            <div className="so-card-header" style={{ background: '#f8fafc' }}>
+                        <div className="erp-table-card so-table-card">
+                            <div className="erp-section-header so-card-header" style={{ background: '#f8fafc' }}>
                                 <h3 style={{ margin: 0, fontSize: '0.75rem', fontWeight: 800, color: 'var(--so-text-muted)' }}>
                                     RECENT ACTIVITY LOGS
                                 </h3>
                             </div>
                             <div style={{ maxHeight: '600px', overflowY: 'auto' }}>
                                 {syncLogs.length === 0 ? (
-                                    <div className="so-empty" style={{ padding: '3rem' }}>No activity records found.</div>
+                                    <div className="erp-empty so-empty" style={{ padding: '3rem' }}>No activity records found.</div>
                                 ) : (
                                     syncLogs.map(log => (
                                         <div key={log.id} style={{ padding: '1rem', borderBottom: '1px solid #f1f5f9', display: 'flex', gap: '0.75rem' }}>

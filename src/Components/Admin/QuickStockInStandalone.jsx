@@ -1,3 +1,4 @@
+import PageHeader from '../UI/PageHeader';
 import React, { useState, useEffect, useRef } from 'react';
 import {
     Package, Save, X, Trash2, Search, Scan, Palette, Loader2,
@@ -398,10 +399,10 @@ const QuickStockInStandalone = () => {
     };
 
     return (
-        <div className="so-page" style={{ height: '100vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+        <div className="erp-page so-page" style={{ height: '100vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
             
             {/* 1. PREMIUM HEADER */}
-            <div className="so-page-header" style={{ padding: '0.75rem 1.5rem', flexShrink: 0 }}>
+            <PageHeader className="so-page-header" style={{ padding: '0.75rem 1.5rem', flexShrink: 0 }}>
                 <div>
                     <h1 className="so-page-title" style={{ fontSize: '1.1rem' }}>
                         <Package size={20} /> Quick Stock-In
@@ -431,7 +432,7 @@ const QuickStockInStandalone = () => {
                     </button>
 
                     <button 
-                        className="so-btn-primary" 
+                        className="erp-button erp-button-primary so-btn-primary"
                         onClick={handleCommit} 
                         disabled={submitting || itemsToSubmit.length === 0}
                         style={{ height: '38px', background: themeColor, borderColor: themeColor }}
@@ -440,10 +441,10 @@ const QuickStockInStandalone = () => {
                         {submitting ? 'Processing...' : 'Commit Batch'}
                     </button>
                 </div>
-            </div>
+            </PageHeader>
 
             {/* 2. CONFIGURATION BAR (Like Filter Bar) */}
-            <div className="so-filter-bar" style={{ 
+            <div className="erp-filter-bar so-filter-bar" style={{
                 background: 'white', 
                 padding: '1rem 1.5rem', 
                 borderBottom: '1px solid var(--so-border)',
@@ -574,9 +575,9 @@ const QuickStockInStandalone = () => {
                         <span>Current processing batch: <b>{itemsToSubmit.length} items</b></span>
                     </div>
 
-                    <div className="so-table-card" style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+                    <div className="erp-table-card so-table-card" style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
                         <div style={{ overflowY: 'auto', flex: 1 }}>
-                            <table className="so-table">
+                            <table className="erp-table so-table">
                                 <thead style={{ position: 'sticky', top: 0, zIndex: 10 }}>
                                     <tr>
                                         <th>Product Details</th>
@@ -628,7 +629,7 @@ const QuickStockInStandalone = () => {
                                     {itemsToSubmit.length === 0 && (
                                         <tr>
                                             <td colSpan="6" style={{ padding: '6rem 0' }}>
-                                                <div className="so-empty">
+                                                <div className="erp-empty so-empty">
                                                     <ShoppingCart size={40} style={{ opacity: 0.1, marginBottom: '1rem' }} />
                                                     <p style={{ fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em', fontSize: '0.65rem' }}>Queue is empty. Select a product to begin.</p>
                                                 </div>
@@ -643,7 +644,7 @@ const QuickStockInStandalone = () => {
 
                 {/* RIGHT: ENTRY FORM / MODIFIER */}
                 <div style={{ width: '380px', display: 'flex', flexDirection: 'column', gap: '1.25rem', shrink: 0 }}>
-                    <div className="so-table-card" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'visible' }}>
+                    <div className="erp-table-card so-table-card" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'visible' }}>
                         <div style={{ padding: '1rem 1.25rem', borderBottom: '1px solid #f1f5f9', background: '#f8fafc', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                             <Filter size={14} style={{ color: '#64748b' }} />
                             <span style={{ fontSize: '0.65rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Entry Details</span>
@@ -745,7 +746,7 @@ const QuickStockInStandalone = () => {
                                     </div>
 
                                     <button 
-                                        className="so-btn-primary" 
+                                        className="erp-button erp-button-primary so-btn-primary"
                                         style={{ width: '100%', height: '48px', fontSize: '0.85rem', background: '#0f172a', borderColor: '#0f172a' }}
                                         onClick={addToQueue}
                                     >
@@ -776,7 +777,7 @@ const QuickStockInStandalone = () => {
                                         </div>
                                     </div>
                                     <button 
-                                        className="so-btn-primary" 
+                                        className="erp-button erp-button-primary so-btn-primary"
                                         style={{ background: themeColor, borderColor: themeColor }}
                                         onClick={handleCommit}
                                         disabled={submitting}

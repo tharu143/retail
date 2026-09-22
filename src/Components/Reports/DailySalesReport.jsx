@@ -276,7 +276,7 @@ function DailySalesReport() {
     });
 
     return (
-        <div className="dsr-container">
+        <div className="erp-page dsr-container">
             {/* Top Bar / Header */}
             <header className="dsr-header no-print">
                 <div className="dsr-header-title-box">
@@ -337,7 +337,7 @@ function DailySalesReport() {
 
             <main className="dsr-main-body">
                 {/* Independent Filter Controls */}
-                <div className="dsr-filter-card no-print">
+                <div className="erp-filter-bar dsr-filter-card no-print">
                     <div className="dsr-filter-inputs">
                         {/* Date Input */}
                         <div className="dsr-field-block">
@@ -807,8 +807,8 @@ function DailySalesReport() {
 
                         {/* ==================== TAB 1: SALES INVOICES ==================== */}
                         {activeTab === 'invoices' && (
-                            <div className="dsr-section-card">
-                                <div className="dsr-section-header">
+                            <div className="erp-card dsr-section-card">
+                                <div className="erp-section-header dsr-section-header">
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                         <h3 className="dsr-section-heading">
                                             <FileText size={18} color="#10b981" />
@@ -832,8 +832,8 @@ function DailySalesReport() {
                                         No sales invoices found for this date.
                                     </div>
                                 ) : (
-                                    <div className="dsr-table-wrapper">
-                                        <table className="dsr-table">
+                                    <div className="erp-table-scroll dsr-table-wrapper">
+                                        <table className="erp-table dsr-table">
                                             <thead>
                                                 <tr>
                                                     <th style={{ width: '40px', textAlign: 'center' }}>#</th>
@@ -914,8 +914,8 @@ function DailySalesReport() {
                         {activeTab === 'receipts_payments' && (
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: '1.5rem' }}>
                                 {/* Receipts (Collections) */}
-                                <div className="dsr-section-card">
-                                    <div className="dsr-section-header">
+                                <div className="erp-card dsr-section-card">
+                                    <div className="erp-section-header dsr-section-header">
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                             <ArrowDownLeft size={18} color="#0d9488" />
                                             <h3 className="dsr-section-heading">Customer Receipts / Cash In</h3>
@@ -926,8 +926,8 @@ function DailySalesReport() {
                                     {data.receipts?.length === 0 ? (
                                         <div className="dsr-empty-box">No customer receipts recorded for this date.</div>
                                     ) : (
-                                        <div className="dsr-table-wrapper">
-                                            <table className="dsr-table">
+                                        <div className="erp-table-scroll dsr-table-wrapper">
+                                            <table className="erp-table dsr-table">
                                                 <thead>
                                                     <tr>
                                                         <th>Receipt #</th>
@@ -955,8 +955,8 @@ function DailySalesReport() {
                                 </div>
 
                                 {/* Payments (Expenses / Payouts) */}
-                                <div className="dsr-section-card">
-                                    <div className="dsr-section-header">
+                                <div className="erp-card dsr-section-card">
+                                    <div className="erp-section-header dsr-section-header">
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                             <ArrowUpRight size={18} color="#e11d48" />
                                             <h3 className="dsr-section-heading">Supplier Payments & Expenses / Cash Out</h3>
@@ -967,8 +967,8 @@ function DailySalesReport() {
                                     {data.payments?.length === 0 ? (
                                         <div className="dsr-empty-box">No expense or supplier payments recorded for this date.</div>
                                     ) : (
-                                        <div className="dsr-table-wrapper">
-                                            <table className="dsr-table">
+                                        <div className="erp-table-scroll dsr-table-wrapper">
+                                            <table className="erp-table dsr-table">
                                                 <thead>
                                                     <tr>
                                                         <th>Payment #</th>
@@ -999,8 +999,8 @@ function DailySalesReport() {
 
                         {/* ==================== TAB 3: INTER-BRANCH TRANSFERS ==================== */}
                         {activeTab === 'transfers' && (
-                            <div className="dsr-section-card">
-                                <div className="dsr-section-header">
+                            <div className="erp-card dsr-section-card">
+                                <div className="erp-section-header dsr-section-header">
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                         <ArrowRightLeft size={18} color="#4f46e5" />
                                         <h3 className="dsr-section-heading">Inter-Branch Stock Transfers</h3>
@@ -1011,8 +1011,8 @@ function DailySalesReport() {
                                 {data.transfers?.length === 0 ? (
                                     <div className="dsr-empty-box">No inter-branch transfers recorded for this date.</div>
                                 ) : (
-                                    <div className="dsr-table-wrapper">
-                                        <table className="dsr-table">
+                                    <div className="erp-table-scroll dsr-table-wrapper">
+                                        <table className="erp-table dsr-table">
                                             <thead>
                                                 <tr>
                                                     <th>Transfer ID</th>
@@ -1055,8 +1055,8 @@ function DailySalesReport() {
 
                         {/* ==================== TAB 4: >10% DISCOUNTS AUDIT ==================== */}
                         {activeTab === 'discounts' && (
-                            <div className="dsr-section-card">
-                                <div className="dsr-section-header">
+                            <div className="erp-card dsr-section-card">
+                                <div className="erp-section-header dsr-section-header">
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                         <Percent size={18} color="#db2777" />
                                         <h3 className="dsr-section-heading">&gt; 10% High Discount Bills Audit</h3>
@@ -1067,8 +1067,8 @@ function DailySalesReport() {
                                 {data.high_discount_invoices?.length === 0 ? (
                                     <div className="dsr-empty-box">No invoices with &gt; 10% discount recorded on this date.</div>
                                 ) : (
-                                    <div className="dsr-table-wrapper">
-                                        <table className="dsr-table">
+                                    <div className="erp-table-scroll dsr-table-wrapper">
+                                        <table className="erp-table dsr-table">
                                             <thead>
                                                 <tr>
                                                     <th>Invoice ID</th>
@@ -1117,8 +1117,8 @@ function DailySalesReport() {
 
                         {/* ==================== TAB 5: MODIFIED & RETURN BILLS ==================== */}
                         {activeTab === 'modified' && (
-                            <div className="dsr-section-card">
-                                <div className="dsr-section-header">
+                            <div className="erp-card dsr-section-card">
+                                <div className="erp-section-header dsr-section-header">
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                         <Edit3 size={18} color="#ea580c" />
                                         <h3 className="dsr-section-heading">Modified, Return & Cancelled Bills</h3>
@@ -1129,8 +1129,8 @@ function DailySalesReport() {
                                 {data.modified_invoices?.length === 0 ? (
                                     <div className="dsr-empty-box">No modified, cancelled, or return bills recorded on this date.</div>
                                 ) : (
-                                    <div className="dsr-table-wrapper">
-                                        <table className="dsr-table">
+                                    <div className="erp-table-scroll dsr-table-wrapper">
+                                        <table className="erp-table dsr-table">
                                             <thead>
                                                 <tr>
                                                     <th>Invoice ID</th>
@@ -1179,8 +1179,8 @@ function DailySalesReport() {
                         {activeTab === 'shifts' && (
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                                 {/* Shifts Opened */}
-                                <div className="dsr-section-card">
-                                    <div className="dsr-section-header">
+                                <div className="erp-card dsr-section-card">
+                                    <div className="erp-section-header dsr-section-header">
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                             <Clock size={18} color="#10b981" />
                                             <h3 className="dsr-section-heading">Register Shifts Opened & Starting Cash Float</h3>
@@ -1265,8 +1265,8 @@ function DailySalesReport() {
                                 </div>
 
                                 {/* Shifts Closed */}
-                                <div className="dsr-section-card">
-                                    <div className="dsr-section-header">
+                                <div className="erp-card dsr-section-card">
+                                    <div className="erp-section-header dsr-section-header">
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                             <CheckCircle2 size={18} color="#10b981" />
                                             <h3 className="dsr-section-heading">Register Shifts Closed & Reconciliations</h3>
@@ -1290,7 +1290,7 @@ function DailySalesReport() {
                                                                 {cl.name}
                                                                 <ExternalLink size={14} color="#10b981" />
                                                             </span>
-                                                            <span className="dsr-status-badge closed">CLOSED</span>
+                                                            <span className="erp-status dsr-status-badge closed">CLOSED</span>
                                                         </div>
                                                         <div className="dsr-meta-group">
                                                             <div className="dsr-meta-pill">
@@ -1310,8 +1310,8 @@ function DailySalesReport() {
                                                         </div>
                                                     </div>
 
-                                                    <div className="dsr-table-wrapper">
-                                                        <table className="dsr-table">
+                                                    <div className="erp-table-scroll dsr-table-wrapper">
+                                                        <table className="erp-table dsr-table">
                                                             <thead>
                                                                 <tr>
                                                                     <th>Mode</th>
@@ -1346,8 +1346,8 @@ function DailySalesReport() {
 
                         {/* TAB 7: BRANCH CLOSING COLLECTIONS */}
                         {activeTab === 'collections' && (
-                            <div className="dsr-section-card">
-                                <div className="dsr-section-header">
+                            <div className="erp-card dsr-section-card">
+                                <div className="erp-section-header dsr-section-header">
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                         <Wallet size={18} color="#059669" />
                                         <h3 className="dsr-section-heading">Branch Closing Collections</h3>
@@ -1358,8 +1358,8 @@ function DailySalesReport() {
                                 {(!data.branch_collections || data.branch_collections.length === 0) ? (
                                     <div className="dsr-empty-box">No closing collections recorded for this branch on this date.</div>
                                 ) : (
-                                    <div className="dsr-table-wrapper">
-                                        <table className="dsr-table">
+                                    <div className="erp-table-scroll dsr-table-wrapper">
+                                        <table className="erp-table dsr-table">
                                             <thead>
                                                 <tr>
                                                     <th>Doc No</th>
@@ -1418,7 +1418,7 @@ function DailySalesReport() {
             {showThermalPreview && (
                 <div className="dsr-modal-backdrop" onClick={() => setShowThermalPreview(false)}>
                     <div className="dsr-modal-card" onClick={e => e.stopPropagation()}>
-                        <div className="dsr-modal-header">
+                        <div className="erp-dialog-edge dsr-modal-header">
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                 <Receipt size={20} color="#059669" />
                                 <h3>POS Thermal Day Summary</h3>
@@ -1428,7 +1428,7 @@ function DailySalesReport() {
                             </button>
                         </div>
 
-                        <div className="dsr-modal-body">
+                        <div className="erp-dialog-body dsr-modal-body">
                             {/* Thermal Paper Slip UI Replicating User's Spreadsheet Reference */}
                             <div className="dsr-thermal-slip" id="thermal-day-summary-slip">
                                 <div className="thermal-top-row">
@@ -1560,7 +1560,7 @@ function DailySalesReport() {
                             </div>
                         </div>
 
-                        <div className="dsr-modal-footer">
+                        <div className="erp-dialog-edge dsr-modal-footer">
                             <button
                                 onClick={handlePrintThermal}
                                 className="dsr-btn-print-modal"

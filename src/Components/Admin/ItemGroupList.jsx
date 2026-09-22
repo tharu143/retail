@@ -330,7 +330,7 @@ export default function ItemGroupList() {
     };
 
     return (
-        <div className="so-page min-h-screen bg-slate-50/50">
+        <div className="erp-page so-page min-h-screen bg-slate-50/50">
             {/* 1. Header */}
             <div className="bg-white border-b border-slate-200 px-6 py-4 flex flex-wrap items-center justify-between gap-4 shadow-xs sticky top-0 z-20">
                 <div className="flex items-center gap-3">
@@ -616,10 +616,10 @@ export default function ItemGroupList() {
 
             {/* 3. CREATE / EDIT ITEM GROUP MODAL */}
             {showModal && (
-                <div className="so-modal-overlay" style={{ zIndex: 10000 }}>
+                <div className="erp-overlay so-modal-overlay" style={{ zIndex: 10000 }}>
                     <div className="so-modal" style={{ maxWidth: '540px', borderRadius: '1rem', overflow: 'hidden', border: '1px solid #e2e8f0', boxShadow: '0 20px 60px rgba(0,0,0,0.18)' }}>
                         {/* Modal Header */}
-                        <div className="so-modal-header" style={{ padding: '1rem 1.5rem', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div className="erp-dialog-edge so-modal-header" style={{ padding: '1rem 1.5rem', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', minWidth: 0, flex: 1, overflow: 'hidden' }}>
                                 <FolderOpen size={18} style={{ color: themeColor, shrink: 0 }} />
                                 <h3 className="so-modal-title" style={{ fontSize: '1rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.03em', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -639,7 +639,7 @@ export default function ItemGroupList() {
 
                         {/* Modal Form */}
                         <form onSubmit={handleSaveGroup} style={{ margin: 0, padding: 0 }}>
-                            <div className="so-modal-body" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                            <div className="erp-dialog-body so-modal-body" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
                                 <div className="so-field" style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', textAlign: 'left' }}>
                                     <label className="so-label" style={{ fontSize: '0.7rem', fontWeight: 900, textTransform: 'uppercase', color: '#475569' }}>
                                         Item Group Name <span style={{ color: '#ef4444' }}>*</span>
@@ -699,11 +699,11 @@ export default function ItemGroupList() {
                             </div>
 
                             {/* Modal Dedicated Footer */}
-                            <div className="so-modal-footer" style={{ padding: '1rem 1.5rem', background: '#f8fafc', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', borderRadius: '0 0 1rem 1rem' }}>
+                            <div className="erp-dialog-edge so-modal-footer" style={{ padding: '1rem 1.5rem', background: '#f8fafc', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', borderRadius: '0 0 1rem 1rem' }}>
                                 <button
                                     type="button"
                                     onClick={() => setShowModal(false)}
-                                    className="so-btn-secondary"
+                                    className="erp-button erp-button-secondary so-btn-secondary"
                                     style={{ padding: '0.5rem 1.25rem', borderRadius: '0.625rem', fontWeight: 800, fontSize: '0.8rem' }}
                                 >
                                     Cancel
@@ -712,7 +712,7 @@ export default function ItemGroupList() {
                                 <button
                                     type="submit"
                                     disabled={saving}
-                                    className="so-btn-primary"
+                                    className="erp-button erp-button-primary so-btn-primary"
                                     style={{ padding: '0.5rem 1.5rem', borderRadius: '0.625rem', fontWeight: 800, fontSize: '0.8rem', background: themeColor, borderColor: themeColor }}
                                 >
                                     {saving ? <Loader2 size={14} className="so-spinner" /> : (isEditMode ? 'Update Node' : 'Create Node')}

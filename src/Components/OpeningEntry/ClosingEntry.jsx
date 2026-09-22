@@ -672,7 +672,7 @@ function ClosingEntry() {
 
   if (loading && openingEntries.length === 0) {
     return (
-      <div className="so-page" style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div className="erp-page so-page" style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <div className="flex items-center gap-3 text-slate-600">
           <Loader2 className="w-6 h-6 animate-spin text-emerald-500" />
           <span className="text-lg font-medium">Loading session list...</span>
@@ -726,10 +726,10 @@ function ClosingEntry() {
           </div>
 
           <div className="pos-ope-header-right">
-            <button className="pos-ope-btn-secondary" onClick={() => window.print()}>
+            <button className="erp-button erp-button-secondary pos-ope-btn-secondary" onClick={() => window.print()}>
               <Printer size={14} /> Print
             </button>
-            <button className="pos-ope-btn-secondary" onClick={() => navigate('/posclosingentrylist')}>
+            <button className="erp-button erp-button-secondary pos-ope-btn-secondary" onClick={() => navigate('/posclosingentrylist')}>
               <ArrowLeft size={14} /> Back to List
             </button>
           </div>
@@ -809,8 +809,8 @@ function ClosingEntry() {
                 </div>
               </div>
               <div className="pos-ope-card-body">
-                <div className="pos-ope-table-container">
-                  <table className="pos-ope-table">
+                <div className="erp-table-scroll pos-ope-table-container">
+                  <table className="erp-table pos-ope-table">
                     <thead>
                       <tr>
                         <th>MODE OF PAYMENT</th>
@@ -1339,8 +1339,8 @@ function ClosingEntry() {
                         </div>
                       </div>
                     </div>
-                    <div className="pce-table-wrapper">
-                      <table className="pce-table">
+                    <div className="erp-table-scroll pce-table-wrapper">
+                      <table className="erp-table pce-table">
                         <thead>
                           <tr>
                             <th>Payment Mode</th>
@@ -1430,8 +1430,8 @@ function ClosingEntry() {
                         </div>
                       </div>
                     </div>
-                    <div className="pce-table-wrapper">
-                      <table className="pce-table">
+                    <div className="erp-table-scroll pce-table-wrapper">
+                      <table className="erp-table pce-table">
                         <thead>
                           <tr>
                             <th>Account Head</th>
@@ -1469,8 +1469,8 @@ function ClosingEntry() {
                     </div>
                   </div>
                 </div>
-                <div className="pce-table-wrapper" style={{ maxHeight: '340px', overflowY: 'auto' }}>
-                  <table className="pce-table">
+                <div className="erp-table-scroll pce-table-wrapper" style={{ maxHeight: '340px', overflowY: 'auto' }}>
+                  <table className="erp-table pce-table">
                     <thead style={{ position: 'sticky', top: 0, zIndex: 5 }}>
                       <tr>
                         <th>Invoice #</th>
@@ -1515,8 +1515,8 @@ function ClosingEntry() {
                       </span>
                     </div>
                   </div>
-                  <div className="pce-table-wrapper" style={{ maxHeight: '280px', overflowY: 'auto' }}>
-                    <table className="pce-table">
+                  <div className="erp-table-scroll pce-table-wrapper" style={{ maxHeight: '280px', overflowY: 'auto' }}>
+                    <table className="erp-table pce-table">
                       <thead style={{ position: 'sticky', top: 0, zIndex: 5, background: '#ffedd5' }}>
                         <tr>
                           <th>Collection Voucher</th>
@@ -1565,7 +1565,7 @@ function ClosingEntry() {
       {showThermalModal && thermalData && (
         <div className="dsr-modal-backdrop" style={{ zIndex: 9999 }} onClick={() => {}}>
           <div className="dsr-modal-card" style={{ maxWidth: '440px', width: '100%' }} onClick={e => e.stopPropagation()}>
-            <div className="dsr-modal-header" style={{ background: '#f8fafc', padding: '1rem 1.25rem', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div className="erp-dialog-edge dsr-modal-header" style={{ background: '#f8fafc', padding: '1rem 1.25rem', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Receipt size={20} className="text-emerald-600" />
                 <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 800, color: '#0f172a' }}>POS Shift Closing Slip</h3>
@@ -1575,7 +1575,7 @@ function ClosingEntry() {
               </button>
             </div>
 
-            <div className="dsr-modal-body" style={{ maxHeight: '65vh', overflowY: 'auto', padding: '1.25rem', background: '#f1f5f9' }}>
+            <div className="erp-dialog-body dsr-modal-body" style={{ maxHeight: '65vh', overflowY: 'auto', padding: '1.25rem', background: '#f1f5f9' }}>
               <div className="dsr-thermal-slip" id="closing-shift-thermal-slip" style={{ background: '#ffffff', padding: '16px 14px', borderRadius: '8px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', fontFamily: "'Courier New', Courier, monospace", fontSize: '12px', color: '#000000', lineHeight: 1.35 }}>
                 <div style={{ textAlign: 'center', fontWeight: 900, fontSize: '14px', marginBottom: '2px' }}>
                   {thermalData.company || 'KYLE SOLUTIONS'}
@@ -1652,7 +1652,7 @@ function ClosingEntry() {
               </div>
             </div>
 
-            <div className="dsr-modal-footer" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem 1.25rem', background: '#f8fafc', borderTop: '1px solid #e2e8f0', gap: '0.75rem' }}>
+            <div className="erp-dialog-edge dsr-modal-footer" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem 1.25rem', background: '#f8fafc', borderTop: '1px solid #e2e8f0', gap: '0.75rem' }}>
               <button
                 type="button"
                 onClick={handlePrintThermalSlip}

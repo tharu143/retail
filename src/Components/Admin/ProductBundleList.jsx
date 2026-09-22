@@ -518,7 +518,7 @@ const ProductBundleList = () => {
           <div className="pbl-header-left">
             <button
               onClick={() => setViewMode('list')}
-              className="pbl-btn-secondary"
+              className="erp-button erp-button-secondary pbl-btn-secondary"
               style={{ padding: '0.5rem', width: '38px', height: '38px', justifyContent: 'center' }}
               title="Back to List"
             >
@@ -541,14 +541,14 @@ const ProductBundleList = () => {
           <div className="pbl-header-actions">
             <button
               onClick={() => setViewMode('list')}
-              className="pbl-btn-secondary"
+              className="erp-button erp-button-secondary pbl-btn-secondary"
             >
               Cancel & Discard
             </button>
             <button 
               onClick={handleSaveBundle} 
               disabled={saving} 
-              className="pbl-btn-primary"
+              className="erp-button erp-button-primary pbl-btn-primary"
             >
               {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
               <span>{saving ? 'Saving...' : (isEditing ? 'Save Changes' : 'Create Bundle')}</span>
@@ -763,7 +763,7 @@ const ProductBundleList = () => {
               <button
                 type="button"
                 onClick={handleAddBundleRow}
-                className="pbl-btn-secondary"
+                className="erp-button erp-button-secondary pbl-btn-secondary"
                 style={{ color: '#2563eb', borderColor: '#bfdbfe', background: '#eff6ff' }}
               >
                 <Plus size={15} /> Add Component Item
@@ -771,8 +771,8 @@ const ProductBundleList = () => {
             </div>
             
             <div className="pbl-card-body">
-              <div className="pbl-table-wrapper">
-                <table className="pbl-table">
+              <div className="erp-table-scroll pbl-table-wrapper">
+                <table className="erp-table pbl-table">
                   <thead>
                     <tr>
                       <th style={{ width: '40px', textAlign: 'center' }}>#</th>
@@ -914,7 +914,7 @@ const ProductBundleList = () => {
                           <button
                             type="button"
                             onClick={() => handleRemoveBundleRow(idx)}
-                            className="pbl-btn-secondary"
+                            className="erp-button erp-button-secondary pbl-btn-secondary"
                             style={{ padding: '0.45rem', border: 'none', color: '#ef4444' }}
                             title="Remove Row"
                           >
@@ -1063,14 +1063,14 @@ const ProductBundleList = () => {
                   <button
                     type="button"
                     onClick={() => setShowQuickCreateParentModal(false)}
-                    className="pbl-btn-secondary"
+                    className="erp-button erp-button-secondary pbl-btn-secondary"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={quickCreatingParent}
-                    className="pbl-btn-primary"
+                    className="erp-button erp-button-primary pbl-btn-primary"
                   >
                     {quickCreatingParent ? (
                       <>
@@ -1114,7 +1114,7 @@ const ProductBundleList = () => {
         <div className="pbl-header-actions">
           <button
             onClick={fetchBundles}
-            className="pbl-btn-secondary"
+            className="erp-button erp-button-secondary pbl-btn-secondary"
             style={{ height: '38px', borderRadius: '8px', padding: '0 16px', fontSize: '12px', fontWeight: 800, textTransform: 'uppercase', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
             title="Refresh Bundle Directory"
           >
@@ -1122,7 +1122,7 @@ const ProductBundleList = () => {
             <span>REFRESH</span>
           </button>
           <button 
-            className="pbl-btn-primary" 
+            className="erp-button erp-button-primary pbl-btn-primary"
             style={{ height: '38px', borderRadius: '8px', padding: '0 16px', fontSize: '12px', fontWeight: 800, textTransform: 'uppercase', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px', background: '#0082f6' }}
             onClick={handleOpenCreateModal}
           >
@@ -1179,7 +1179,7 @@ const ProductBundleList = () => {
         </div>
 
         <button 
-          className="pbl-btn-secondary" 
+          className="erp-button erp-button-secondary pbl-btn-secondary"
           style={{ height: '42px', padding: '0 1.25rem' }} 
           onClick={() => {
             setSearchTerm(''); 
@@ -1194,8 +1194,8 @@ const ProductBundleList = () => {
       {/* Main Directory Content */}
       <div className="pbl-content">
         <div className="pbl-card">
-          <div className="pbl-table-wrapper">
-            <table className="pbl-table">
+          <div className="erp-table-scroll pbl-table-wrapper">
+            <table className="erp-table pbl-table">
               <thead>
                 <tr>
                   <th>Bundle Item</th>
@@ -1479,14 +1479,14 @@ const ProductBundleList = () => {
       {showDetailModal && selectedBundle && (
         <React.Fragment>
           <div
-            className="bundle-modal-overlay"
+            className="erp-overlay bundle-modal-overlay"
             onClick={() => setShowDetailModal(false)}
           />
 
           <div className="bundle-modal-wrapper">
-            <div className="bundle-modal-box" role="dialog" aria-modal="true">
+            <div className="erp-dialog bundle-modal-box" role="dialog" aria-modal="true">
               {/* Header */}
-              <header className="bundle-modal-header">
+              <header className="erp-dialog-edge bundle-modal-header">
                 <div>
                   <h2 className="bundle-modal-title">
                     {selectedBundle.item_name}
@@ -1511,7 +1511,7 @@ const ProductBundleList = () => {
               </header>
 
               {/* Body */}
-              <main className="bundle-modal-body">
+              <main className="erp-dialog-body bundle-modal-body">
                 {/* Hero Pricing Card */}
                 <div className="bundle-modal-hero-card">
                   <div className="bundle-modal-hero-decor" />
@@ -1563,7 +1563,7 @@ const ProductBundleList = () => {
               </main>
 
               {/* Footer */}
-              <footer className="bundle-modal-footer">
+              <footer className="erp-dialog-edge bundle-modal-footer">
                 <button
                   type="button"
                   onClick={() => setShowDetailModal(false)}
@@ -1710,14 +1710,14 @@ const ProductBundleList = () => {
                 <button
                   type="button"
                   onClick={() => setShowQuickCreateParentModal(false)}
-                  className="pbl-btn-secondary"
+                  className="erp-button erp-button-secondary pbl-btn-secondary"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={quickCreatingParent}
-                  className="pbl-btn-primary"
+                  className="erp-button erp-button-primary pbl-btn-primary"
                 >
                   {quickCreatingParent ? (
                     <>

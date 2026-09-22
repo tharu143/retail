@@ -1,3 +1,4 @@
+import PageHeader from '../UI/PageHeader';
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Building2, Users, MapPin, Phone, Mail, ChevronLeft, ChevronRight, Loader2,
@@ -60,7 +61,7 @@ const ScrollReveal = ({ children, delay = 0, className = '', style = {} }) => {
 };
 const StatCard = ({ label, value, currency, icon: Icon, themeColor, isGreen }) => (
   <div
-    className="stat-card-modern"
+    className="erp-metric stat-card-modern"
     style={{ borderLeft: `4px solid ${themeColor}` }}
   >
     <div className="space-y-1">
@@ -79,7 +80,7 @@ const StatCard = ({ label, value, currency, icon: Icon, themeColor, isGreen }) =
 );
 
 const ConnectionCard = ({ title, links, navigate, supplierName, icon: Icon, themeColor }) => (
-  <div className="connection-module-card">
+  <div className="erp-card connection-module-card">
     <div className="connection-card-header">
       <div className="connection-card-title-group">
         <Icon size={16} style={{ color: themeColor }} strokeWidth={2.5} />
@@ -111,12 +112,12 @@ const ConnectionCard = ({ title, links, navigate, supplierName, icon: Icon, them
 );
 
 const InfoSection = ({ title, children, icon: Icon, themeColor, style }) => (
-  <div className="info-panel-card" style={style}>
-    <div className="info-panel-header">
+  <div className="erp-card info-panel-card" style={style}>
+    <div className="erp-section-header info-panel-header">
       <Icon size={18} style={{ color: themeColor }} strokeWidth={2.5} />
       <h5 className="info-panel-title">{title}</h5>
     </div>
-    <div className="info-panel-body">
+    <div className="erp-section-body info-panel-body">
       {children}
     </div>
   </div>
@@ -419,9 +420,9 @@ const SupplierDetails = () => {
   const currConnections = dashboardData?.connections?.[activeModule] || [];
 
   return (
-    <div className="sd-container">
+    <div className="erp-detail-page sd-container">
       {/* 1. TOP SUPPLIER HEADER CARD */}
-      <div className="sd-header-card">
+      <PageHeader className="sd-header-card">
         <div className="sd-header-left">
           {/* Avatar Box */}
           <div className="sd-avatar-box">
@@ -493,7 +494,7 @@ const SupplierDetails = () => {
             <span>Edit Profile</span>
           </button>
         </div>
-      </div>
+      </PageHeader>
 
       {/* 2. ATTACHMENT SECTION BAR */}
       <div style={{ marginBottom: '16px' }}>
@@ -887,7 +888,7 @@ const SupplierDetails = () => {
 
         {/* ADDRESSES TAB */}
         {activeTab === 'Addresses' && (
-          <div className="modern-table-card animate-in fade-in duration-300">
+          <div className="erp-table-card modern-table-card animate-in fade-in duration-300">
             <div className="modern-table-header">
               <h3 className="table-header-title">Geospatial Registry</h3>
               <div className="search-input-wrapper">
@@ -902,7 +903,7 @@ const SupplierDetails = () => {
               </div>
             </div>
             <div style={{ overflowX: 'auto' }}>
-              <table className="modern-styled-table">
+              <table className="erp-table modern-styled-table">
                 <thead>
                   <tr>
                     <th>Registry Vector</th>
@@ -933,7 +934,7 @@ const SupplierDetails = () => {
                         </div>
                       </td>
                       <td style={{ textAlign: 'right' }}>
-                        <button className="btn-modern-secondary" style={{ padding: '0.4rem 0.85rem', fontSize: '0.75rem' }}>Access Stream</button>
+                        <button className="erp-button erp-button-secondary btn-modern-secondary" style={{ padding: '0.4rem 0.85rem', fontSize: '0.75rem' }}>Access Stream</button>
                       </td>
                     </tr>
                   ))}
@@ -945,7 +946,7 @@ const SupplierDetails = () => {
 
         {/* CONTACTS TAB */}
         {activeTab === 'Contacts' && (
-          <div className="modern-table-card animate-in fade-in duration-300">
+          <div className="erp-table-card modern-table-card animate-in fade-in duration-300">
             <div className="modern-table-header">
               <h3 className="table-header-title">Personnel Registry</h3>
               <div className="search-input-wrapper">
@@ -960,7 +961,7 @@ const SupplierDetails = () => {
               </div>
             </div>
             <div style={{ overflowX: 'auto' }}>
-              <table className="modern-styled-table">
+              <table className="erp-table modern-styled-table">
                 <thead>
                   <tr>
                     <th>Personnel Identity</th>
@@ -996,7 +997,7 @@ const SupplierDetails = () => {
                         </div>
                       </td>
                       <td style={{ textAlign: 'right' }}>
-                        <button className="btn-modern-secondary" style={{ padding: '0.4rem 0.85rem', fontSize: '0.75rem' }}>Access Stream</button>
+                        <button className="erp-button erp-button-secondary btn-modern-secondary" style={{ padding: '0.4rem 0.85rem', fontSize: '0.75rem' }}>Access Stream</button>
                       </td>
                     </tr>
                   ))}
@@ -1008,7 +1009,7 @@ const SupplierDetails = () => {
 
         {/* BRANCHES TAB */}
         {activeTab === 'Branches' && (
-          <div className="modern-table-card animate-in fade-in duration-300" style={{ padding: '2rem' }}>
+          <div className="erp-table-card modern-table-card animate-in fade-in duration-300" style={{ padding: '2rem' }}>
             <h3 className="table-header-title" style={{ marginBottom: '1.5rem' }}>Branch Availability</h3>
             <div className="branches-cards-grid">
               {(supplier?.branch_availability || []).length > 0 ? (

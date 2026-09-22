@@ -1,3 +1,4 @@
+import PageHeader from '../UI/PageHeader';
 import React, { useState, useEffect, useMemo } from 'react';
 import { useSelector } from 'react-redux';
 import { 
@@ -395,11 +396,11 @@ function ClosingCollection() {
     }, [balanceData.collections, tableSearch]);
 
     return (
-        <div className="bca-page-wrapper">
+        <div className="erp-collection-page bca-page-wrapper">
             <div className="bca-container">
                 
                 {/* ── 1. CLEAN TOP HEADER BANNER ── */}
-                <div className="bca-header-card">
+                <PageHeader className="bca-header-card">
                     <div className="bca-header-left">
                         <div className="bca-header-icon-box">
                             <Wallet size={24} />
@@ -452,12 +453,12 @@ function ClosingCollection() {
                             <RefreshCw size={15} className={loading ? "animate-spin text-emerald-600" : ""} />
                         </button>
                     </div>
-                </div>
+                </PageHeader>
 
                 {/* ── 2. 3 ELEVATED KPI METRIC CARDS ── */}
                 <div className="bca-kpi-grid">
                     {/* Total Cash Balance */}
-                    <div className="bca-kpi-card blue">
+                    <div className="erp-metric bca-kpi-card blue">
                         <div className="bca-kpi-top">
                             <span className="bca-kpi-label">Total Cash Collection</span>
                             <div className="bca-kpi-badge-icon">
@@ -481,7 +482,7 @@ function ClosingCollection() {
                     </div>
 
                     {/* Total Collected Today */}
-                    <div className="bca-kpi-card amber">
+                    <div className="erp-metric bca-kpi-card amber">
                         <div className="bca-kpi-top">
                             <span className="bca-kpi-label">Total Collected Today</span>
                             <div className="bca-kpi-badge-icon">
@@ -500,7 +501,7 @@ function ClosingCollection() {
                     </div>
 
                     {/* Remaining to Collect */}
-                    <div className="bca-kpi-card emerald">
+                    <div className="erp-metric bca-kpi-card emerald">
                         <div className="bca-kpi-top">
                             <span className="bca-kpi-label">Remaining to Collect</span>
                             <div className="bca-kpi-badge-icon">
@@ -531,8 +532,8 @@ function ClosingCollection() {
                 <div className="bca-workspace-grid">
                     
                     {/* LEFT PANEL: Record Handover Form */}
-                    <div className="bca-panel">
-                        <div className="bca-panel-header">
+                    <div className="erp-card bca-panel">
+                        <div className="erp-section-header bca-panel-header">
                             <div className="bca-panel-title-wrap">
                                 <div className="bca-panel-icon">
                                     <ArrowDownToLine size={17} />
@@ -653,8 +654,8 @@ function ClosingCollection() {
                     </div>
 
                     {/* RIGHT PANEL: Handover History ERP Table */}
-                    <div className="bca-panel">
-                        <div className="bca-panel-header">
+                    <div className="erp-card bca-panel">
+                        <div className="erp-section-header bca-panel-header">
                             <div className="bca-panel-title-wrap">
                                 <div className="bca-panel-icon" style={{ background: '#f1f5f9', color: '#475569' }}>
                                     <History size={17} />
@@ -683,8 +684,8 @@ function ClosingCollection() {
                         </div>
 
                         {/* Table */}
-                        <div className="bca-table-wrapper">
-                            <table className="bca-table">
+                        <div className="erp-table-scroll bca-table-wrapper">
+                            <table className="erp-table bca-table">
                                 <thead>
                                     <tr>
                                         <th>VOUCHER / TIME</th>

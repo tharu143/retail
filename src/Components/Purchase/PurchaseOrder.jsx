@@ -2901,8 +2901,8 @@ function PurchaseOrder() {
 
         {/* CLASSIC MAIN BODY: TABLE AREA */}
         <div className="flex-1 flex flex-col overflow-hidden bg-slate-100 p-2">
-          <div className="flex-1 min-h-0 overflow-y-auto overflow-x-auto bg-white rounded-xl border border-slate-200 shadow-2xs">
-            <table className="classic-table" style={{ width: 'max-content', minWidth: '100%', borderCollapse: 'collapse', background: '#ffffff', tableLayout: 'fixed' }}>
+          <div className="erp-scroll-region flex-1 min-h-0 overflow-y-auto overflow-x-auto bg-white rounded-xl border border-slate-200 shadow-2xs">
+            <table className="erp-table classic-table" style={{ width: 'max-content', minWidth: '100%', borderCollapse: 'collapse', background: '#ffffff', tableLayout: 'fixed' }}>
               <thead>
                 <tr style={{ background: '#f8fafc', borderBottom: '1.5px solid #cbd5e1' }}>
                   <th style={{ width: '40px', minWidth: '40px', maxWidth: '40px', textAlign: 'center', padding: '10px 4px', fontSize: '11px', fontWeight: 900, color: '#475569', textTransform: 'uppercase', borderRight: '1px solid #e2e8f0' }}>#</th>
@@ -3961,7 +3961,7 @@ function PurchaseOrder() {
             <button
               type="button"
               onClick={() => dispatch(toggleTheme())}
-              className="so-btn-secondary"
+              className="erp-button erp-button-secondary so-btn-secondary"
               style={{
                 padding: '0.45rem 1rem',
                 fontSize: '0.75rem',
@@ -4000,7 +4000,7 @@ function PurchaseOrder() {
                 <button
                   type="button"
                   onClick={() => handlePrintPDF(formData.name)}
-                  className="so-btn-secondary"
+                  className="erp-button erp-button-secondary so-btn-secondary"
                   style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#f0f9ff', color: '#0284c7', border: '1px solid #bae6fd', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '0.375rem', transition: 'all 0.2s' }}
                 >
                   <Printer size={14} /> PRINT PDF
@@ -4008,7 +4008,7 @@ function PurchaseOrder() {
 
                 <button
                   onClick={handleDuplicate}
-                  className="so-btn-secondary"
+                  className="erp-button erp-button-secondary so-btn-secondary"
                   style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#f8fafc', color: '#475569', border: '1px solid #cbd5e1', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '0.375rem', transition: 'all 0.2s' }}
                 >
                   <Copy size={14} /> DUPLICATE
@@ -4021,7 +4021,7 @@ function PurchaseOrder() {
               <div className="relative" ref={createDropdownRef}>
                 <button
                   onClick={() => setShowCreateDropdown(!showCreateDropdown)}
-                  className="so-btn-secondary"
+                  className="erp-button erp-button-secondary so-btn-secondary"
                   style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#f8fafc', color: '#475569', border: '1px solid #cbd5e1', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '0.375rem', transition: 'all 0.2s' }}
                 >
                   <Plus size={14} /> CREATE <ChevronDown size={14} />
@@ -4121,7 +4121,7 @@ function PurchaseOrder() {
             {formData.name && formData.docstatus === 0 && isViewOnly && (
               <button
                 onClick={() => setIsViewOnly(false)}
-                className="so-btn-secondary"
+                className="erp-button erp-button-secondary so-btn-secondary"
                 style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#f1f5f9', color: '#475569', border: '1px solid #e2e8f0', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '0.375rem', transition: 'all 0.2s' }}
               >
                 <Edit3 size={14} /> EDIT DRAFT
@@ -4134,7 +4134,7 @@ function PurchaseOrder() {
               <button
                 onClick={() => handleDocAction('save')}
                 disabled={saving}
-                className="so-btn-primary"
+                className="erp-button erp-button-primary so-btn-primary"
                 style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#10b981', color: 'white', border: 'none', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)', transition: 'all 0.2s' }}
               >
                 {saving ? <Loader2 size={14} className="animate-spin" /> : 'SAVE DRAFT'}
@@ -4147,7 +4147,7 @@ function PurchaseOrder() {
                   <button
                     onClick={() => handleDocAction('save')}
                     disabled={saving}
-                    className="so-btn-primary"
+                    className="erp-button erp-button-primary so-btn-primary"
                     style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#10b981', color: 'white', border: 'none', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)', transition: 'all 0.2s' }}
                   >
                     {saving ? <Loader2 size={14} className="animate-spin" /> : 'UPDATE DRAFT'}
@@ -4158,7 +4158,7 @@ function PurchaseOrder() {
                     <button
                       onClick={() => handleDocAction('submit')}
                       disabled={saving}
-                      className="so-btn-primary"
+                      className="erp-button erp-button-primary so-btn-primary"
                       style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#10b981', color: 'white', border: 'none', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)', transition: 'all 0.2s' }}
                     >
                       {saving ? <Loader2 size={14} className="animate-spin" /> : 'SUBMIT'}
@@ -4175,7 +4175,7 @@ function PurchaseOrder() {
                     <button
                       onClick={() => handleDocAction('cancel')}
                       disabled={saving}
-                      className="so-btn-primary"
+                      className="erp-button erp-button-primary so-btn-primary"
                       style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#ef4444', color: 'white', border: 'none', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', boxShadow: '0 4px 12px rgba(239, 68, 68, 0.25)', transition: 'all 0.2s' }}
                     >
                       {saving ? <Loader2 size={14} className="animate-spin" /> : 'CANCEL'}
@@ -4192,7 +4192,7 @@ function PurchaseOrder() {
                     <button
                       onClick={() => handleDocAction('amend')}
                       disabled={saving}
-                      className="so-btn-primary"
+                      className="erp-button erp-button-primary so-btn-primary"
                       style={{ padding: '0.5rem 1.5rem', fontSize: '0.75rem', background: '#0ea5e9', color: 'white', border: 'none', borderRadius: '0.75rem', fontWeight: 900, textTransform: 'uppercase', boxShadow: '0 4px 12px rgba(14, 165, 233, 0.25)', transition: 'all 0.2s' }}
                     >
                       {saving ? <Loader2 size={14} className="animate-spin" /> : 'AMEND'}
@@ -4379,7 +4379,7 @@ function PurchaseOrder() {
 
                   {!isViewOnly && formData.docstatus === 0 && (
                     <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-end gap-4 bg-white animate-fadeIn">
-                      <button type="button" onClick={addItemRow} className="po-btn-secondary h-[42px] px-8 rounded-xl flex items-center gap-2">
+                      <button type="button" onClick={addItemRow} className="erp-button erp-button-secondary po-btn-secondary h-[42px] px-8 rounded-xl flex items-center gap-2">
                         <Plus className="w-4 h-4" /> Add Row
                       </button>
                     </div>
@@ -4436,8 +4436,8 @@ function PurchaseOrder() {
                     document.body
                   )}
 
-                  <div className="purchase-table-container">
-                    <table className="purchase-table">
+                  <div className="erp-table-scroll purchase-table-container">
+                    <table className="erp-table purchase-table">
                       <thead>
                         <tr>
                           {(() => {

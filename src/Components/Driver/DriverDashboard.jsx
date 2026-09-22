@@ -310,7 +310,7 @@ function DriverDashboard() {
         </section>
 
         {/* Tab Filters */}
-        <section className="mb-6 flex gap-2 overflow-x-auto pb-1 scrollbar-none">
+        <section className="erp-scroll-region mb-6 flex gap-2 overflow-x-auto pb-1 scrollbar-none">
           {['All', 'Pending', 'In Transit', 'Delivered'].map(tab => {
             const isActive = activeTab === tab;
             let badgeCount = 0;
